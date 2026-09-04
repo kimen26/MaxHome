@@ -67,7 +67,7 @@ un run a suivi un exemple de runbook au lieu de la consigne, et la clé s'est
 affichée en clair.
 
 À faire à la place :
-  • besoin de LIRE une valeur → l'outil de lecture (Read) sur `infra/bot/.env`.
+  • besoin de LIRE une valeur → l'outil de lecture (Read) sur `.env`.
     Le contenu arrive dans le contexte, pas dans une sortie journalisée.
     (`.tmp-cron/sb.curlrc` ne se lit JAMAIS : il n'existe que le temps d'un run
     cron, qui l'utilise par `curl -K` sans l'ouvrir — L-070.)
