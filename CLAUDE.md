@@ -3,14 +3,14 @@
 Petite web-app privée : chaque mois, saisir les deux salaires et les charges du foyer
 (logement, vacances, taxes, enfant…), calculer ce que chacun verse sur le compte commun
 et ce qui reste à répartir. Remplace un classeur Excel de 4 feuilles.
-État : socle posé, données Excel à importer, stack à trancher (voir memory/DECISIONS.md).
+État : V0 locale livrée, à mettre en service (README).
 
 ## ACTION OBLIGATOIRE — avant toute réponse
 
 | Mots dans la demande | Pôle | Charger |
 |---|---|---|
 | charge · règle de répartition · prorata · 50/50 · calcul | MÉTIER | docs/regles-repartition.md |
-| écran · page · saisie · affichage · UI | FRONT | frontend/ (à créer) |
+| écran · page · saisie · affichage · UI | FRONT | frontend/app.js + calc.js |
 | base · auth · Supabase · RLS · partage · sécurité | DATA | docs/architecture.md |
 | import · Excel · feuille | IMPORT | inbox/ (fichiers jamais commités) |
 | dump · idée brute | INBOX | déposer dans inbox/, demander en texte |
@@ -37,8 +37,8 @@ Plan → TodoWrite → Exécution → Vérification → Commit → memory/ grav�
 | Commande | Quand |
 |---|---|
 | `git diff --cached --name-only \| grep -Ei 'xlsx|\.env$'` doit être vide | avant chaque commit |
-| tests de calcul de répartition (à créer avec le moteur) | tout changement métier |
-| recette visuelle Playwright mobile + desktop (dès le premier écran) | tout changement UI |
+| `node tests/test_calc.mjs` | tout changement métier |
+| `node tests/recette_visuelle.mjs` puis OUVRIR data/captures/*.png | tout changement UI |
 
 ## Fichiers transversaux
 

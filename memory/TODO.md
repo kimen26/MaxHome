@@ -1,13 +1,13 @@
 # TODO — lanes
 _Une session = une lane. Marquer (en cours) à l'ouverture, libérer à la fin._
 
-## Lane A — Cadrage
-- [ ] Recevoir l'Excel dans inbox/, analyser les 4 feuilles, extraire le modèle de données
-- [ ] Valider la stack avec Yann (D-001)
-- [ ] Écrire docs/regles-repartition.md à partir de l'Excel
+## Lane A — Mise en service (Yann)
+- [ ] Projet Supabase + 2 comptes + schema.sql + import.sql + config.js (README)
+- [ ] Repo GitHub public + Pages sur frontend/
+- [ ] Recette réelle à deux sur un mois (février 2026 : Yann −3 236,15 / Claudia −2 608,63 attendus)
 
-## Lane B — Socle technique (après validation D-001)
-- [ ] Projet Supabase + schéma + RLS + 2 comptes
-- [ ] Frontend statique (saisie mensuelle, tableau de répartition)
-- [ ] Déploiement GitHub Pages
-- [ ] Script d'import de l'historique Excel
+## Lane B — V1 (après recette)
+- [ ] Vue annuelle (tableau 12 mois comme l'Excel)
+- [ ] Renommer / réordonner une charge
+- [ ] Extras ponctuels avec libellé libre (« Plaque de cuisson », etc.)
+- [ ] Importer les feuilles 2023 et « Garde Max » si utile

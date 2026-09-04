@@ -1,0 +1,29 @@
+:root { --bleu:#1f4e79; --gris:#f4f4f4; --rouge:#b00020; --vert:#1b7f3b; font-family: system-ui, sans-serif; }
+[hidden] { display:none !important; }
+body { margin:0; background:#fff; color:#222; }
+header { background:var(--bleu); color:#fff; padding:.6rem 1rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+header h1 { font-size:1.2rem; margin:0; }
+nav { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+nav button { background:#fff; color:var(--bleu); border:0; border-radius:4px; padding:.3rem .6rem; cursor:pointer; }
+#titre-mois { font-weight:bold; min-width:9rem; text-align:center; }
+main { max-width: 900px; margin: 0 auto; padding: 1rem; }
+h2 { font-size:1rem; margin:1.4rem 0 .4rem; color:var(--bleu); }
+table { width:100%; border-collapse:collapse; }
+th, td { padding:.35rem .5rem; border-bottom:1px solid #ddd; text-align:left; }
+th.num, td.num { text-align:right; font-variant-numeric: tabular-nums; }
+tfoot th, tfoot td { border-top:2px solid var(--bleu); }
+input, select { padding:.3rem; font: inherit; }
+input.montant { width:7rem; text-align:right; }
+input.montant.neg { color:var(--rouge); }
+input.montant.pos { color:var(--vert); }
+button { font: inherit; cursor:pointer; }
+form label { display:block; margin:.5rem 0; }
+form.inline { display:flex; gap:.5rem; margin-top:.5rem; flex-wrap:wrap; }
+#login form { max-width:320px; margin:3rem auto; }
+#login input { width:100%; box-sizing:border-box; }
+.erreur { color:var(--rouge); }
+.statut { color:#666; font-size:.85rem; min-height:1.2rem; }
+.actions button { background:none; border:0; color:#888; }
+.actions button:hover { color:var(--rouge); }
+tr.inactif { opacity:.5; }
+@media (max-width:600px){ th,td{ padding:.3rem .25rem; font-size:.9rem;} input.montant{ width:5.5rem; } }

@@ -2,10 +2,14 @@
 _État courant. Réécrit en fin de session, jamais un journal._
 
 ## Où on en est
-- 2026-09-04 : socle posé (CLAUDE.md, memory/, hooks, .gitignore). Aucun code applicatif.
-- En attente : classeur Excel (4 feuilles) de Yann à déposer dans inbox/ pour analyse.
-- Stack proposée, pas encore validée par Yann : voir D-001.
+- 2026-09-04 : V0 livrée en local, non déployée. Front vanille (login, revenus, charges,
+  répartition, copie mois précédent), schéma SQL + RLS, moteur de calcul testé,
+  import Excel → data/import.sql (16 charges, 272 lignes, 38 revenus, 2025+2026).
+- Bloquant côté Yann : créer le projet Supabase, comptes, coller schema.sql et
+  data/import.sql, remplir frontend/config.js, activer GitHub Pages (README).
+- Excel source : inbox/Comptes 2026.xlsx (6 feuilles ; 2 importées).
 
 ## Pointeurs
-- docs/architecture.md — proposition stack + sécurité des données
-- inbox/ — dépôt des fichiers bruts (Excel), jamais commité
+- docs/regles-repartition.md — règles métier extraites de l'Excel
+- docs/architecture.md — stack et sécurité
+- tests/test_calc.mjs, tests/recette_visuelle.mjs — portes

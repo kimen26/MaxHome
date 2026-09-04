@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MaxBudget</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>MaxBudget</h1>
+  <nav id="nav" hidden>
+    <button id="prev" title="Mois précédent">‹</button>
+    <span id="titre-mois"></span>
+    <button id="next" title="Mois suivant">›</button>
+    <button id="copier" title="Recopier les montants du mois précédent">Copier mois préc.</button>
+    <button id="logout">Déconnexion</button>
+  </nav>
+</header>
+
+<main>
+  <section id="login">
+    <form id="form-login">
+      <label>Email <input type="email" name="email" required autocomplete="username"></label>
+      <label>Mot de passe <input type="password" name="password" required autocomplete="current-password"></label>
+      <button type="submit">Se connecter</button>
+      <p id="login-erreur" class="erreur"></p>
+    </form>
+  </section>
+
+  <section id="app" hidden>
+    <h2>Revenus</h2>
+    <table id="revenus"><tbody></tbody></table>
+
+    <h2>Charges</h2>
+    <table id="charges">
+      <thead><tr><th>Dépense</th><th>Type</th><th class="num">Montant</th><th></th></tr></thead>
+      <tbody></tbody>
+      <tfoot>
+        <tr><th>Total</th><th></th><th class="num" id="total"></th><th></th></tr>
+        <tr><td>dont égales</td><td></td><td class="num" id="total-egales"></td><td></td></tr>
+        <tr><td>dont proport.</td><td></td><td class="num" id="total-proport"></td><td></td></tr>
+      </tfoot>
+    </table>
+    <form id="form-charge" class="inline">
+      <input name="libelle" placeholder="Nouvelle dépense" required>
+      <select name="type"><option value="egales">Égales</option><option value="proport">Proport.</option></select>
+      <button type="submit">Ajouter</button>
+    </form>
+
+    <h2>Répartition</h2>
+    <table id="resultat">
+      <thead><tr><th></th><th class="num">Ratio</th><th class="num">Égales</th><th class="num">Proport.</th><th class="num">À verser</th><th class="num">Reste</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <p id="statut" class="statut"></p>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
