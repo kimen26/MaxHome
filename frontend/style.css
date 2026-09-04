@@ -10,7 +10,7 @@ main { max-width: 900px; margin: 0 auto; padding: 1rem; }
 h2 { font-size:1rem; margin:1.4rem 0 .4rem; color:var(--bleu); }
 table { width:100%; border-collapse:collapse; }
 th, td { padding:.35rem .5rem; border-bottom:1px solid #ddd; text-align:left; }
-th.num, td.num { text-align:right; font-variant-numeric: tabular-nums; }
+th.num, td.num { text-align:right; font-variant-numeric: tabular-nums; white-space:nowrap; }
 tfoot th, tfoot td { border-top:2px solid var(--bleu); }
 input, select { padding:.3rem; font: inherit; }
 input.montant { width:7rem; text-align:right; }
