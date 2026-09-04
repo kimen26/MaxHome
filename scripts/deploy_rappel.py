@@ -38,6 +38,7 @@ def main():
     if r.returncode != 0:
         sys.exit(f"déploiement fonction échoué :\n{r.stderr[-800:]}")
     print("fonction déployée")
+    appel("PATCH", f"{API}/projects/{ref}/functions/{FONCTION}", pat, {"verify_jwt": True})
 
     _, service_role = cles(ref, pat)
     url = f"https://{ref}.supabase.co/functions/v1/{FONCTION}"
