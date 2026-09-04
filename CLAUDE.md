@@ -3,7 +3,7 @@
 Petite web-app privée : chaque mois, saisir les deux salaires et les charges du foyer
 (logement, vacances, taxes, enfant…), calculer ce que chacun verse sur le compte commun
 et ce qui reste à répartir. Remplace un classeur Excel de 4 feuilles.
-État : V0 locale livrée, à mettre en service (README).
+État : V0 en prod sur https://kimen26.github.io/MaxBudget/ (Supabase `maxbudget`).
 
 ## ACTION OBLIGATOIRE — avant toute réponse
 
@@ -39,6 +39,7 @@ Plan → TodoWrite → Exécution → Vérification → Commit → memory/ grav�
 | `git diff --cached --name-only \| grep -Ei 'xlsx|\.env$'` doit être vide | avant chaque commit |
 | `node tests/test_calc.mjs` | tout changement métier |
 | `node tests/recette_visuelle.mjs` puis OUVRIR data/captures/*.png | tout changement UI |
+| `node tests/recette_connectee.mjs` (login réel + RLS) | tout changement schéma/RLS/app.js |
 
 ## Fichiers transversaux
 

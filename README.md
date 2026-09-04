@@ -3,7 +3,7 @@
 Suivi mensuel des charges du foyer et de leur répartition (50/50 ou prorata des revenus).
 Site statique (GitHub Pages) + Supabase (Auth + Postgres + RLS). Le repo ne contient aucune donnée.
 
-## Mise en place (une fois)
+## Mise en place (une fois) — automatisée par `python scripts/provision.py` (lit .env : SUPABASE_PAT, EMAIL_YANN, EMAIL_CLAUDIA). À la main :
 1. Créer un projet Supabase (gratuit). **Authentication > Providers > Email** : désactiver « Allow new users to sign up ».
 2. **Authentication > Users > Add user** : créer les deux comptes (email + mot de passe).
 3. Éditer `supabase/schema.sql` : remplacer `EMAIL_YANN` / `EMAIL_CLAUDIA` par ces emails. Coller dans **SQL Editor**, exécuter.

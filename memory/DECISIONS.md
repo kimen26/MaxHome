@@ -25,3 +25,13 @@ pour les revenus. Pas de service_role nulle part : l'import passe par SQL Editor
 Extrait du classeur « Comptes 2025/2026 ». Montants négatifs = dépenses, positifs =
 remboursements (CAF). Le prorata se calcule sur les revenus nets du mois. Les feuilles
 2023 (par compte bancaire) et « Garde Max » ne sont pas importées en V0.
+
+## D-004 — Déploiement Pages par workflow Actions depuis frontend/ (2026-09-05)
+Pages « branche » n'accepte que / ou /docs. Un workflow `actions/deploy-pages` publie
+frontend/ seul : le reste du repo (scripts, tests) ne part pas sur le site.
+
+## D-005 — Provisionnement par script Management API, secrets dans .env (2026-09-05)
+`scripts/provision.py` est idempotent (projet, schéma, import, comptes, config.js).
+Le jeton PAT, le mot de passe DB et les mots de passe des comptes vivent dans .env,
+jamais affichés (hook garde-secrets). Le repo GitHub a été créé avec le jeton git
+déjà stocké dans le gestionnaire d'identifiants Windows, sans le lire en clair.

@@ -10,3 +10,11 @@ Mnémonique : la capture a vu ce que le log ne voyait pas — toujours ouvrir l'
 ## L-002 — Playwright local doit matcher la version globale (2026-09-04)
 `npm i -D playwright` sans version tire une release dont le chromium n'est pas téléchargé ;
 aligner sur la version globale puis `npx playwright install chromium`.
+
+## L-003 — api.supabase.com renvoie 403 « error code: 1010 » sans User-Agent (2026-09-05)
+Cause : Cloudflare bloque le User-Agent par défaut de urllib. Correction : un User-Agent
+explicite sur chaque appel. Mnémonique : 1010 = pas le jeton, le navigateur.
+
+## L-004 — `toLocaleString("fr-FR")` sépare les milliers par une espace fine (U+202F) (2026-09-05)
+Un test qui cherche « 5 844,78 » avec une espace normale échoue. Comparer des nombres,
+pas des chaînes formatées.
