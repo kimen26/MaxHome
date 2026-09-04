@@ -20,7 +20,11 @@ _État courant. Réécrit en fin de session, jamais un journal._
   par un canal privé, puis à changer si souhaité.
 - Non validé : usage réel par Yann et Claudia sur un mois complet avec le nouvel écran.
 
+- 2026-09-06 : rappel Telegram DÉPLOYÉ (secrets Supabase, Edge Function, cron 1er et 5).
+  Test : « aucun virement calculé pour septembre 2026 » = attendu, le mois n'est pas ouvert.
+
 ## Pointeurs
+- scripts/deploy_rappel.py — rejouable (secrets, fonction, cron)
 - docs/regles-repartition.md — règles métier ; docs/architecture.md — stack
 - scripts/provision.py — provisionnement initial (idempotent) ; scripts/sql.py — exécute un
   .sql sur le projet (migrations) ; scripts/check_secrets.py — teste la PRÉSENCE d'une clé

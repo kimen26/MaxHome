@@ -67,3 +67,9 @@ jamais rien afficher, exécute un fichier .sql via la Management API. Complété
 `scripts/check_secrets.py` qui teste la PRÉSENCE d'une clé (jamais sa valeur) —
 utilisé pour vérifier que les secrets Telegram sont absents avant de décider de ne
 pas déployer l'Edge Function `rappel-virements`.
+
+## D-010 — Rappel Telegram en chat privé avec Yann, déployé par script (2026-09-06)
+Le bot BudgetCYM_bot parle à Yann en privé (pas de groupe créé). Claudia pourra être
+ajoutée en créant un groupe et en relançant `scripts/deploy_rappel.py` après mise à jour
+de MAXBUDGET_TELEGRAM_CHAT_ID. Planification pg_cron `0 7 1,5 * *` (UTC) par le script,
+qui remplace la migration 003 manuelle. La fonction exige un JWT : un appel anonyme = 401.
