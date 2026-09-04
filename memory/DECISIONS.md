@@ -35,3 +35,11 @@ frontend/ seul : le reste du repo (scripts, tests) ne part pas sur le site.
 Le jeton PAT, le mot de passe DB et les mots de passe des comptes vivent dans .env,
 jamais affichés (hook garde-secrets). Le repo GitHub a été créé avec le jeton git
 déjà stocké dans le gestionnaire d'identifiants Windows, sans le lire en clair.
+
+## D-006 — Pas de virement bancaire automatique (2026-09-05)
+Boursorama n'expose pas d'API de virement aux particuliers ; DSP2 exige un prestataire
+agréé (Bridge, Powens) sous contrat, et le scraping avec 2FA est fragile et dangereux.
+Arbitrage : l'app calcule « qui vire combien où » (compte cible, IBAN masqué, montant
+copiable, case « fait ») + rappel Telegram le 1er et le 5. Virement permanent côté
+banque, l'app n'affiche que l'ajustement. Yann d'accord le 2026-09-05.
+Abandonnés : simulateur garde (pas de garde actuellement), export (sans intérêt).
