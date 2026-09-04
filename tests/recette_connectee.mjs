@@ -1,5 +1,6 @@
 // Recette connectée : login réel (mot de passe lu dans .env, jamais affiché),
-// ouvre février 2026, vérifie la répartition, capture. Vérifie aussi que sans session la RLS renvoie vide.
+// ouvre février 2026, vérifie le bloc à faire, les sections catégories, coche/décoche un virement.
+// Vérifie aussi que sans session la RLS renvoie vide.
 // Usage : node tests/recette_connectee.mjs
 import { chromium } from "playwright";
 import http from "node:http";
@@ -38,15 +39,37 @@ try {
   await page.fill('input[name=email]', env.EMAIL_YANN);
   await page.fill('input[name=password]', env.PASS_YANN);
   await page.click('button[type=submit]');
-  await page.waitForSelector("#resultat tbody tr", { timeout: 20000 });
-  await page.waitForFunction(() => document.querySelectorAll("#charges tbody tr").length > 5);
-  const lignes = await page.$$eval("#resultat tbody tr", (trs) => trs.map((tr) => [...tr.cells].map((c) => c.textContent)));
-  console.log(lignes.map((l) => l.join(" | ")).join("\n"));
+
+  // Bloc « à faire » présent avec au moins une carte par membre + reste à vivre.
+  await page.waitForSelector(".bloc-a-faire .carte-verse", { timeout: 20000 });
+  const cartes = await page.$$eval(".bloc-a-faire .carte-verse .montant-gros", (els) => els.map((e) => e.textContent));
+  if (cartes.length < 2) throw new Error(`bloc à faire incomplet : ${cartes.length} cartes`);
+  console.log("Bloc à faire :", cartes.join(" | "));
+
+  // Sections catégories présentes (au moins Logement).
+  await page.waitForFunction(() => document.querySelectorAll("#categories details").length > 0);
+  const sections = await page.$$eval("#categories details summary", (els) => els.map((e) => e.textContent.trim()));
+  console.log("Sections :", sections.join(" | "));
+  if (!sections.some((s) => s.startsWith("Logement"))) throw new Error("section Logement absente");
+
+  // Février 2026 : total commun et parts attendues (référence Excel, ±1 ct).
   const total = await page.textContent("#total");
   const nombre = (s) => Number(s.replace(/[^\d,-]/g, "").replace(",", "."));
-  if (nombre(total) !== -5844.78) throw new Error(`total février 2026 inattendu : ${total}`);
-  const yann = lignes.find((l) => l[0] === "Yann");
-  if (Math.abs(nombre(yann[4]) - -3236.15) > 0.01) throw new Error(`part Yann inattendue : ${yann[4]}`);
+  if (Math.abs(nombre(total) - -5844.78) > 0.01) throw new Error(`total février 2026 inattendu : ${total}`);
+
+  const montantYann = await page.$eval('.carte-verse .copier[data-p=Yann]', (b) => b.dataset.montant);
+  if (Math.abs(Number(montantYann) - 3236.15) > 0.01) throw new Error(`part Yann inattendue : ${montantYann}`);
+
+  // Cocher puis décocher le virement de Yann.
+  const chk = page.locator('.fait input[type=checkbox][data-p=Yann]');
+  await chk.check();
+  await page.waitForTimeout(500); // écriture réseau
+  if (!(await chk.isChecked())) throw new Error("case virement non cochée");
+  await chk.uncheck();
+  await page.waitForTimeout(500);
+  if (await chk.isChecked()) throw new Error("case virement non décochée");
+  console.log("Virement Yann : coché puis décoché OK");
+
   await page.screenshot({ path: "data/captures/connecte-mobile.png", fullPage: true });
   await page.setViewportSize({ width: 1200, height: 900 });
   await page.screenshot({ path: "data/captures/connecte-desktop.png", fullPage: true });

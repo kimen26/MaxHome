@@ -13,7 +13,8 @@
     <button id="prev" title="Mois précédent">‹</button>
     <span id="titre-mois"></span>
     <button id="next" title="Mois suivant">›</button>
-    <button id="copier" title="Recopier les montants du mois précédent">Copier mois préc.</button>
+    <button id="ouvrir-charges" class="lien">Charges</button>
+    <button id="ouvrir-comptes" class="lien">Comptes</button>
     <button id="logout">Déconnexion</button>
   </nav>
 </header>
@@ -29,31 +30,64 @@
   </section>
 
   <section id="app" hidden>
+    <p id="proposition-copie" class="bandeau" hidden>
+      <span id="proposition-texte"></span>
+      <button id="btn-copier-depuis-precedent">Démarrer depuis ce mois</button>
+    </p>
+
+    <section id="a-faire" class="bloc-a-faire"></section>
+
     <h2>Revenus</h2>
     <table id="revenus"><tbody></tbody></table>
 
     <h2>Charges</h2>
-    <table id="charges">
-      <thead><tr><th>Dépense</th><th>Type</th><th class="num">Montant</th><th></th></tr></thead>
-      <tbody></tbody>
-      <tfoot>
-        <tr><th>Total</th><th></th><th class="num" id="total"></th><th></th></tr>
-        <tr><td>dont égales</td><td></td><td class="num" id="total-egales"></td><td></td></tr>
-        <tr><td>dont proport.</td><td></td><td class="num" id="total-proport"></td><td></td></tr>
-      </tfoot>
-    </table>
+    <div id="categories"></div>
+    <p class="total-ligne">
+      Total commun : <strong id="total"></strong>
+      — dont égales <span id="total-egales"></span>,
+      prorata <span id="total-proport"></span>,
+      clé <span id="total-cle"></span>
+    </p>
+
+    <h2>Ponctuels</h2>
+    <div id="ponctuels"></div>
+    <button id="btn-ajouter-ponctuel" class="lien">+ ponctuel</button>
+
+    <h2>Ajustements</h2>
+    <div id="ajustements"></div>
+    <button id="btn-ajouter-ajustement" class="lien">+ ajustement</button>
+
+    <p id="statut" class="statut"></p>
+  </section>
+
+  <section id="panneau-charges" class="panneau" hidden>
+    <div class="panneau-tete"><h2>Gestion des charges</h2><button class="fermer" data-cible="panneau-charges">×</button></div>
+    <table id="liste-charges"><tbody></tbody></table>
     <form id="form-charge" class="inline">
       <input name="libelle" placeholder="Nouvelle dépense" required>
-      <select name="type"><option value="egales">Égales</option><option value="proport">Proport.</option></select>
+      <select name="categorie">
+        <option>Logement</option><option>Max</option><option>Épargne</option>
+        <option>Alimentation</option><option>Impôts</option><option>Banque</option><option selected>Autre</option>
+      </select>
+      <select name="regle">
+        <option value="egales">Égales</option><option value="proport">Prorata</option>
+        <option value="cle">Clé %</option><option value="perso">Perso</option>
+      </select>
       <button type="submit">Ajouter</button>
     </form>
+  </section>
 
-    <h2>Répartition</h2>
-    <table id="resultat">
-      <thead><tr><th></th><th class="num">Ratio</th><th class="num">Égales</th><th class="num">Proport.</th><th class="num">À verser</th><th class="num">Reste</th></tr></thead>
-      <tbody></tbody>
-    </table>
-    <p id="statut" class="statut"></p>
+  <section id="panneau-comptes" class="panneau" hidden>
+    <div class="panneau-tete"><h2>Comptes</h2><button class="fermer" data-cible="panneau-comptes">×</button></div>
+    <table id="liste-comptes"><tbody></tbody></table>
+    <form id="form-compte" class="inline">
+      <input name="nom" placeholder="Nom (ex. Boursorama commun)" required>
+      <input name="titulaire" placeholder="Titulaire">
+      <input name="iban_masque" placeholder="4 derniers chiffres" maxlength="4">
+      <input name="note" placeholder="Note (virement permanent…)">
+      <label><input type="checkbox" name="commun"> commun</label>
+      <button type="submit">Ajouter</button>
+    </form>
   </section>
 </main>
 
