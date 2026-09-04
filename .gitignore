@@ -1,0 +1,13 @@
+.env
+*.env
+!*.env.example
+inbox/
+_a_supprimer/
+node_modules/
+__pycache__/
+dist/
+build/
+.claude/settings.local.json
+*.xlsx
+*.xls
+data/
