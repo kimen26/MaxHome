@@ -18,3 +18,10 @@ explicite sur chaque appel. Mnémonique : 1010 = pas le jeton, le navigateur.
 ## L-004 — `toLocaleString("fr-FR")` sépare les milliers par une espace fine (U+202F) (2026-09-05)
 Un test qui cherche « 5 844,78 » avec une espace normale échoue. Comparer des nombres,
 pas des chaînes formatées.
+
+## L-005 — `package.json` en `"type": "commonjs"` cassait l'import ESM de `calc.js` (2026-09-05)
+`tests/test_calc.mjs` (extension .mjs, donc ESM) importait `frontend/calc.js` qui utilise
+`export`/`import` mais sans extension .mjs — Node applique le `"type"` de package.json à ce
+fichier, qui était resté `"commonjs"` depuis la V0 (jamais testé après coup). Corrigé en
+`"module"` : sans impact navigateur (index.html charge déjà app.js en `<script type="module">`,
+qui ignore package.json). Mnémonique : un test qui n'a jamais tourné n'est pas une porte verte.

@@ -1,7 +1,7 @@
 // Moteur de répartition — pur, sans DOM, testable en node.
 // Tous les montants en centimes entiers.
 
-export const TYPES = { egales: "Égales", proport: "Proport." };
+export const TYPES = { egales: "É", proport: "%", cle: "clé", perso: "perso" };
 
 /** Répartit `total` (centimes) selon des poids ; le reste d'arrondi va au premier. */
 export function repartir(total, poids) {
@@ -25,26 +25,76 @@ export function repartir(total, poids) {
 }
 
 /**
- * @param charges  [{id, libelle, type}]
- * @param lignes   {charge_id: montant_centimes}
- * @param revenus  {prenom: montant_centimes}
+ * @param charges    [{id, libelle, categorie, regle, cle_pct, payeur, ponctuel}]
+ * @param lignes     {charge_id: montant_centimes}
+ * @param revenus    {prenom: montant_centimes}
+ * @param ajustements [{de, vers, montant_centimes}]
  */
-export function calculer(charges, lignes, revenus) {
+export function calculer(charges, lignes, revenus, ajustements = []) {
   const prenoms = Object.keys(revenus);
-  const totaux = { egales: 0, proport: 0 };
-  for (const c of charges) totaux[c.type] += lignes[c.id] ?? 0;
-  const total = totaux.egales + totaux.proport;
+  const [p1, p2] = prenoms;
+  const totaux = { egales: 0, proport: 0, cle: 0, perso: 0 };
+  const parCategorie = {};
+  const persoParPayeur = Object.fromEntries(prenoms.map((p) => [p, 0]));
+
+  for (const c of charges) {
+    const montant = lignes[c.id] ?? 0;
+    if (!montant) continue;
+    totaux[c.regle] += montant;
+    parCategorie[c.categorie] = (parCategorie[c.categorie] ?? 0) + montant;
+    if (c.regle === "perso" && c.payeur) persoParPayeur[c.payeur] += montant;
+  }
+
+  // Total commun = tout sauf perso (perso ne rentre pas dans le compte commun).
+  const totalCommun = totaux.egales + totaux.proport + totaux.cle;
+  const total = totalCommun + totaux.perso;
+
   const totalRevenus = prenoms.reduce((s, p) => s + revenus[p], 0);
   const ratio = Object.fromEntries(
     prenoms.map((p) => [p, totalRevenus ? revenus[p] / totalRevenus : 0])
   );
+
   const partEgales = repartir(totaux.egales, Object.fromEntries(prenoms.map((p) => [p, 1])));
   const partProport = repartir(totaux.proport, revenus);
+
+  // cle : part du 1er membre = cle_pct %, agrégée sur toutes les charges 'cle'
+  // (poids moyen pondéré par montant, cas simple : une seule charge cle en pratique).
+  let totalCleMontant = 0;
+  let cleWeighted = 0;
+  for (const c of charges) {
+    if (c.regle !== "cle") continue;
+    const montant = lignes[c.id] ?? 0;
+    if (!montant) continue;
+    totalCleMontant += montant;
+    cleWeighted += montant * (c.cle_pct ?? 50);
+  }
+  const clePctMoyen = totalCleMontant ? cleWeighted / totalCleMontant : 50;
+  const poidsCle = p2
+    ? { [p1]: clePctMoyen, [p2]: 100 - clePctMoyen }
+    : { [p1]: 100 };
+  const partCle = repartir(totaux.cle, poidsCle);
+
   const parts = Object.fromEntries(
-    prenoms.map((p) => [p, partEgales[p] + partProport[p]])
+    prenoms.map((p) => [p, partEgales[p] + partProport[p] + partCle[p]])
   );
-  const reste = Object.fromEntries(prenoms.map((p) => [p, revenus[p] + parts[p]]));
-  return { totaux, total, totalRevenus, ratio, partEgales, partProport, parts, reste };
+
+  // Ajustements : transfèrent montant de 'de' vers 'vers' (vers verse moins, de verse plus).
+  const aVerser = { ...parts };
+  for (const a of ajustements) {
+    if (aVerser[a.de] === undefined || aVerser[a.vers] === undefined) continue;
+    aVerser[a.de] += a.montant_centimes;
+    aVerser[a.vers] -= a.montant_centimes;
+  }
+
+  const reste = Object.fromEntries(
+    prenoms.map((p) => [p, revenus[p] + aVerser[p] + persoParPayeur[p]])
+  );
+
+  return {
+    totaux, total, totalCommun, totalRevenus, ratio,
+    partEgales, partProport, partCle, parts, aVerser, reste,
+    parCategorie, persoParPayeur,
+  };
 }
 
 export const euros = (c) =>

@@ -43,3 +43,27 @@ Arbitrage : l'app calcule « qui vire combien où » (compte cible, IBAN masqué
 copiable, case « fait ») + rappel Telegram le 1er et le 5. Virement permanent côté
 banque, l'app n'affiche que l'ajustement. Yann d'accord le 2026-09-05.
 Abandonnés : simulateur garde (pas de garde actuellement), export (sans intérêt).
+
+## D-007 — Découpage frontend en modules par responsabilité (2026-09-05)
+Contexte : Lot A ajoute panneaux Charges/Comptes, bloc « à faire », ponctuels,
+ajustements — `app.js` (211 lignes) aurait dépassé 400 lignes en un seul fichier.
+Arbitrage : `api.js` (accès Supabase, aucune logique UI), `calc.js` (moteur pur,
+inchangé dans son rôle), `ui-mois.js` (écran principal : revenus, charges par
+catégorie, bloc à faire, ponctuels, ajustements), `ui-charges.js` (panneau gestion
+charges), `ui-comptes.js` (panneau CRUD comptes), `app.js` (orchestrateur : routing,
+auth, état partagé). Chaque module importe `etat` partagé depuis `app.js` plutôt que
+de dupliquer les requêtes réseau.
+
+## D-008 — package.json `"type": "module"` (2026-09-05)
+`tests/test_calc.mjs` importait `calc.js` en ESM (`export`/`import`), mais
+`package.json` déclarait `"type": "commonjs"` (bug préexistant, jamais exécuté
+avec Node ≥ 22 qui applique strictement les extensions). Corrigé en `"module"` :
+sans impact sur le navigateur (index.html charge déjà `app.js` en
+`<script type="module">`, qui ignore package.json).
+
+## D-009 — script `scripts/sql.py` générique, réutilisable pour toute migration (2026-09-05)
+Sur le modèle de `provision.py::sql`, lit `.env` (SUPABASE_PAT, SUPABASE_REF) sans
+jamais rien afficher, exécute un fichier .sql via la Management API. Complété par
+`scripts/check_secrets.py` qui teste la PRÉSENCE d'une clé (jamais sa valeur) —
+utilisé pour vérifier que les secrets Telegram sont absents avant de décider de ne
+pas déployer l'Edge Function `rappel-virements`.
