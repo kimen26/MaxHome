@@ -15,3 +15,52 @@ Site statique (GitHub Pages) + Supabase (Auth + Postgres + RLS). Le repo ne cont
 
 ## Vérifications
 - `node tests/test_calc.mjs` — moteur de répartition.
+- `python -m pytest -q tests/bot/` — grammaire, formatage et dispatch du bot Telegram (hors ligne).
+
+## Bot Telegram
+
+Bot `BudgetCYM_bot` : saisir un salaire, une charge, un extra, un ajustement, cocher un
+virement, ou poser une question sur le budget, en un message. Le calcul est toujours fait
+par `frontend/calc.js` (via `scripts/bot/calc_cli.mjs`), jamais réinventé côté bot.
+
+### Commandes
+```
+salaire <montant> [en <mois>]        salaire du mois courant, ou "salaire claudia 4300"
+<libelle charge> <montant> [en <mois>]  ex. "impots 345", "taxe fonciere 215"
+extra <libelle> <montant> [egales]   dépense ponctuelle (prorata par défaut)
+<prenom> prend <montant> <motif>     ajustement entre les deux comptes, ex. "yann prend 200 resto"
+fait / pas fait                      coche/décoche le virement du mois pour l'expéditeur
+bilan [<mois>]                       qui verse quoi, reste à vivre, total commun
+charges [<mois>]                     liste des charges par catégorie
+mois                                 mois courant
+annuler                              défait la dernière écriture de l'expéditeur (une profondeur)
+aide                                 rappel des commandes
+```
+Mois : suffixe optionnel « en août », « août 2026 » ou « 08/2026 » ; par défaut le mois
+courant. Montant signé (positif = dépense, `+` ou « rembours… » = remboursement/recette).
+Toute phrase qui ne matche pas la grammaire est comprise par `claude -p --model haiku` en
+local (pas de clé API) puis relue avant écriture (« J'ai compris : … OK ? »).
+
+### Sécurité
+Seuls les identifiants Telegram inscrits dans `telegram_membres` peuvent écrire (allowlist,
+vérifiée côté bot avant tout accès Supabase). Un message d'un inconnu ne déclenche aucune
+écriture. Le bot ne modifie jamais `membres`, `comptes`, ni la structure des charges
+régulières (ça reste dans l'app web).
+
+### Inscrire Claudia
+Claudia envoie `/start` au bot `BudgetCYM_bot` pour obtenir son identifiant Telegram, puis
+Yann l'inscrit avec `inscrire <id> Claudia` (seul un membre déjà connu peut inscrire
+quelqu'un).
+
+### Installation (tâche planifiée Windows)
+Le bot tourne en long polling (pas de webhook), redémarre seul s'il plante.
+```
+powershell -ExecutionPolicy Bypass -File scripts\setup_task.ps1
+Start-ScheduledTask -TaskName MaxBudget-Bot
+Get-ScheduledTask MaxBudget-Bot          # doit passer à Running
+```
+`scripts/setup_task.ps1` doit être lancé depuis une session PowerShell **avec élévation**
+(clic droit > Exécuter en tant qu'administrateur) : la création de tâche planifiée refuse
+l'accès sans ça. Le script est idempotent, ré-exécutable sans risque.
+Journal applicatif : `data/bot.log` (rotatif, jamais de secret dedans). Journal du
+processus (démarrages/arrêts) : `data/bot_process.log`.
