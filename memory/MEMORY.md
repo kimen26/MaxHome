@@ -23,6 +23,28 @@ _État courant. Réécrit en fin de session, jamais un journal._
 - 2026-09-06 : rappel Telegram DÉPLOYÉ (secrets Supabase, Edge Function, cron 1er et 5).
   Test : « aucun virement calculé pour septembre 2026 » = attendu, le mois n'est pas ouvert.
 
+- 2026-09-06 : **Lot B bis livré** — bot Telegram `BudgetCYM_bot` (`scripts/bot/` :
+  bot.py, telegram.py, donnees.py, commandes.py, libre.py, reponses.py, calc_cli.mjs,
+  tous < 400 lignes). Grammaire déterministe + repli `claude -p --model haiku` (phrases
+  libres, relecture avant écriture) ; allowlist `telegram_membres` (migration
+  004_telegram.sql, déjà appliquée, Yann 6433455282 inscrit) ; annuler une profondeur ;
+  proposition de copie sur mois vide ; bornes 0 < montant ≤ 50 000 €.
+  48 tests hors ligne verts (`python -m pytest -q tests/bot/`, Supabase et Telegram
+  mockés) : grammaire, fuzzy, formatage, annuler, bornes, mois vide.
+  calc_cli.mjs vérifié sur février 2026 : Yann −3 236,15 € (±1 ct, conforme).
+  Recette réelle faite : dispatch direct (Supabase + Telegram réels, pas de polling) avec
+  l'id Telegram de Yann — `bilan février 2026`, `salaire 6120 en février 2026` (valeur déjà
+  en base), `annuler` : les 3 réponses sont arrivées dans le chat Telegram de Yann, aucune
+  donnée modifiée (272 lignes / 38 revenus intacts, février 2026 identique avant/après).
+  Deux bugs de grammaire trouvés et corrigés en écrivant les tests (voir D-012/L-007) :
+  suffixe de mois sans « en », mot « rembours » qui cassait le fuzzy match.
+  **Tâche planifiée NON installée** : `scripts/setup_task.ps1` et `scripts/start_bot.ps1`
+  sont livrés et corrects (calqués sur MaxVoyage), mais `Register-ScheduledTask` refuse
+  l'accès dans une session non élevée (voir D-011/L-006). Yann doit lancer
+  `scripts\setup_task.ps1` en PowerShell administrateur, puis
+  `Start-ScheduledTask -TaskName MaxBudget-Bot`. En attendant, le bot ne tourne pas en
+  continu — aucune écoute active tant que la tâche n'est pas démarrée.
+
 ## Pointeurs
 - scripts/deploy_rappel.py — rejouable (secrets, fonction, cron)
 - docs/regles-repartition.md — règles métier ; docs/architecture.md — stack
@@ -30,6 +52,10 @@ _État courant. Réécrit en fin de session, jamais un journal._
   .sql sur le projet (migrations) ; scripts/check_secrets.py — teste la PRÉSENCE d'une clé
   .env sans jamais l'afficher ; scripts/import_excel.py — Excel → SQL
 - tests/test_calc.mjs, tests/recette_visuelle.mjs, tests/recette_connectee.mjs — portes
-- supabase/migrations/002_lot_a.sql (appliquée), 003_cron_rappel.sql (NON appliquée)
+- supabase/migrations/002_lot_a.sql (appliquée), 003_cron_rappel.sql (NON appliquée),
+  004_telegram.sql (appliquée : table telegram_membres, allowlist)
 - supabase/functions/rappel-virements/ — Edge Function versionnée, NON déployée
 - Repo : https://github.com/kimen26/MaxBudget (Pages via .github/workflows/pages.yml)
+- scripts/bot/ — bot Telegram (voir README.md « Bot Telegram ») ; tests/bot/ (48 cas,
+  Supabase/Telegram mockés) ; scripts/setup_task.ps1 + scripts/start_bot.ps1 — tâche
+  planifiée MaxBudget-Bot, à installer par Yann en PowerShell admin (pas encore installée)

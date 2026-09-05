@@ -25,3 +25,20 @@ pas des chaînes formatées.
 fichier, qui était resté `"commonjs"` depuis la V0 (jamais testé après coup). Corrigé en
 `"module"` : sans impact navigateur (index.html charge déjà app.js en `<script type="module">`,
 qui ignore package.json). Mnémonique : un test qui n'a jamais tourné n'est pas une porte verte.
+
+## L-006 — `Register-ScheduledTask` refuse sans session PowerShell élevée (2026-09-06)
+`scripts/setup_task.ps1` (Lot B bis, bot Telegram) échoue avec « Accès refusé »
+(HRESULT 0x80070005) dans une session non élevée, même pour l'utilisateur propriétaire de
+la session interactive. `New-ScheduledTaskPrincipal -LogonType Interactive` ne suffit pas
+à contourner ça. Un agent ne peut pas s'auto-élever : le script doit être livré prêt, mais
+son exécution reste un geste humain (PowerShell "Exécuter en tant qu'administrateur").
+Mnémonique : une tâche planifiée Windows se crée les mains sur le clavier, jamais depuis
+un shell d'agent.
+
+## L-007 — un cas du brief non testé littéralement est un bug qui dort (2026-09-06)
+Le brief listait trois formats de mois : « en août », « août 2026 », « 08/2026 ». Le code
+existant ne gérait que le premier (regex `\ben (mois)`) : sans test explicite sur « août
+2026 » (sans « en »), ce deuxième format aurait planté silencieusement en prod. Pareil pour
+« rembours… » = positif, qui cassait le fuzzy match sur le libellé (le mot restait collé
+au texte cherché). Mnémonique : écrire le test AVEC les mots exacts du brief, pas une
+paraphrase qui masque l'écart.

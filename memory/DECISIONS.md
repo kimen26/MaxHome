@@ -73,3 +73,28 @@ Le bot BudgetCYM_bot parle à Yann en privé (pas de groupe créé). Claudia pou
 ajoutée en créant un groupe et en relançant `scripts/deploy_rappel.py` après mise à jour
 de MAXBUDGET_TELEGRAM_CHAT_ID. Planification pg_cron `0 7 1,5 * *` (UTC) par le script,
 qui remplace la migration 003 manuelle. La fonction exige un JWT : un appel anonyme = 401.
+
+## D-011 — Tâche planifiée MaxBudget-Bot : script livré, installation manuelle par Yann (2026-09-06)
+Contexte : `Register-ScheduledTask` a renvoyé « Accès refusé » (HRESULT 0x80070005) dans
+le shell de la session agent, non élevé (pas dans le groupe Administrators du token
+courant). Un `New-ScheduledTaskPrincipal -LogonType Interactive` exige la création depuis
+une session avec élévation UAC, que l'agent ne peut pas fournir. Arbitrage : livrer
+`scripts/setup_task.ps1` (calqué sur MaxVoyage, idempotent) et `scripts/start_bot.ps1`
+(boucle de relance + verrou anti-double-instance par PID, car pas de port à sonder comme
+le serveur web MaxVoyage) tels quels, testés uniquement en foreground (`python
+scripts/bot/bot.py` démarre, journalise, aucun secret). Yann doit lancer lui-même
+`scripts\setup_task.ps1` en PowerShell administrateur une fois, puis
+`Start-ScheduledTask -TaskName MaxBudget-Bot`.
+
+## D-012 — Correctifs grammaire découverts en écrivant les tests (2026-09-06)
+En écrivant les ≥15 cas de test de `commandes.py`, deux écarts trouvés par rapport au
+brief (« août 2026 » sans « en », « rembours… » = positif) :
+1. `RE_MOIS_NOM` exigeait `\ben (mois)` : « impots 345 aout 2026 » (sans « en ») ne
+   matchait pas alors que le brief liste explicitement ce format. Corrigé en rendant
+   « en » optionnel dans le regex.
+2. Le mot-clé « rembours » servait à déterminer le signe (positif) mais restait dans le
+   libellé passé au fuzzy match, faisant chuter le ratio sous le seuil 0,75 et renvoyant
+   une ambiguïté au lieu d'écrire la charge. Corrigé en retirant « rembours\w* » du
+   libellé avant le matching (le signe reste déterminé sur le texte d'origine).
+Mnémonique : un cas du brief non testé littéralement (« août 2026 » vs « en août ») est un
+bug qui dort.
