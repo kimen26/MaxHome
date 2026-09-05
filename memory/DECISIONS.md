@@ -104,3 +104,12 @@ Bloc MaxBudget ajouté à `../MaxOps/services.yaml` (process bot, tâche, API Te
 avec garde anti-409, site Pages, fraîcheur log). Champ générique `links:` ajouté à
 MaxOps (app.py + index.html) : site, GitHub, dashboard Supabase pour chaque projet.
 MaxOps n'est pas un dépôt git : modifications non versionnées, documentées dans son README.
+
+## D-014 — MaxOps : page en cartes KPI et sondage progressif (2026-09-05)
+La page restait figée sur « Sondage… » : `/api/status` sondait tout d'un bloc en
+~15 s (un process PowerShell par tâche planifiée, plus un aller-retour HTTPS vers
+GitHub Pages). Découpé en `/api/projects` (inventaire, aucune sonde) puis
+`/api/status/<projet>` appelé en parallèle : squelette immédiat, chaque carte se
+remplit dès sa réponse. Rendu refait en cartes : verdict par projet, KPI « N / total »,
+jauge une barre par sonde, liens, détail trié du plus grave au plus sain.
+`/api/status` conservé pour le watchdog et le selftest.
