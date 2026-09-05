@@ -98,3 +98,9 @@ brief (« août 2026 » sans « en », « rembours… » = positif) :
    libellé avant le matching (le signe reste déterminé sur le texte d'origine).
 Mnémonique : un cas du brief non testé littéralement (« août 2026 » vs « en août ») est un
 bug qui dort.
+
+## D-013 — MaxBudget supervisé par MaxOps, liens dans l'en-tête (2026-09-05)
+Bloc MaxBudget ajouté à `../MaxOps/services.yaml` (process bot, tâche, API Telegram
+avec garde anti-409, site Pages, fraîcheur log). Champ générique `links:` ajouté à
+MaxOps (app.py + index.html) : site, GitHub, dashboard Supabase pour chaque projet.
+MaxOps n'est pas un dépôt git : modifications non versionnées, documentées dans son README.

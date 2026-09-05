@@ -45,6 +45,10 @@ _État courant. Réécrit en fin de session, jamais un journal._
   `Start-ScheduledTask -TaskName MaxBudget-Bot`. En attendant, le bot ne tourne pas en
   continu — aucune écoute active tant que la tâche n'est pas démarrée.
 
+- 2026-09-05 : bot Telegram livré (Lot B bis), tourne en process détaché ; la tâche
+  Windows MaxBudget-Bot reste à installer en admin (Register-ScheduledTask refusé).
+  Supervision : http://127.0.0.1:8777 (MaxOps) avec liens Site / GitHub / Supabase.
+
 ## Pointeurs
 - scripts/deploy_rappel.py — rejouable (secrets, fonction, cron)
 - docs/regles-repartition.md — règles métier ; docs/architecture.md — stack
