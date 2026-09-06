@@ -13,6 +13,11 @@ Actions possibles :
   {{"action":"extra","libelle":"...","montant":-12.3,"regle":"proport","mois":null}}
   {{"action":"ajustement","de":"...","vers":"...","montant":12.3,"motif":"...","mois":null}}
   {{"action":"mouvement_fait","titre":null,"fait":true}}
+  {{"action":"tache_faite","titre":"...","fait":true}}
+  {{"action":"taches"}}
+  {{"action":"balance","jours":7}}
+  {{"action":"course_ajout","libelle":"..."}}
+  {{"action":"courses_liste"}}
   {{"action":"bilan","mois":null}}
   {{"action":"charges","mois":null}}
   {{"action":"question","texte":"..."}}

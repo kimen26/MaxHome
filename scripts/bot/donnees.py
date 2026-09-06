@@ -94,6 +94,41 @@ class Donnees:
     def revenus_mois(self, annee, mois):
         return self._appel("GET", f"revenus?annee=eq.{annee}&mois=eq.{mois}&select=prenom,montant_centimes")
 
+    # ---------- module Tâches ----------
+    def taches_recurrentes(self):
+        return self._appel("GET", "taches_recurrentes?actif=is.true&select=*&order=ordre&order=id")
+
+    def taches(self, depuis):
+        """Tâches non faites (quelle que soit leur date) et tâches échues depuis `depuis`."""
+        return self._appel("GET", f"taches?or=(fait_le.is.null,echeance.gte.{depuis})&select=*&order=id")
+
+    def creer_taches(self, lignes):
+        if not lignes:
+            return []
+        return self._appel("POST", "taches", lignes, {"Prefer": "return=representation"})
+
+    def maj_tache(self, id_, champs):
+        r = self._appel("PATCH", f"taches?id=eq.{id_}", champs, {"Prefer": "return=representation"})
+        if not r:
+            raise RuntimeError(f"tache {id_} introuvable")
+        return r[0]
+
+    def supprimer_taches(self, ids):
+        if ids:
+            liste = ",".join(str(i) for i in ids)
+            self._appel("DELETE", f"taches?id=in.({liste})")
+
+    # ---------- module Courses ----------
+    def courses(self):
+        return self._appel("GET", "courses?select=*&order=ajoute_le")
+
+    def creer_course(self, champs):
+        r = self._appel("POST", "courses", champs, {"Prefer": "return=representation"})
+        return r[0]
+
+    def supprimer_course(self, id_):
+        self._appel("DELETE", f"courses?id=eq.{id_}")
+
     def inscrire_telegram(self, telegram_id, prenom):
         self._appel("POST", "telegram_membres", {"telegram_id": telegram_id, "prenom": prenom},
                     {"Prefer": "resolution=merge-duplicates"})

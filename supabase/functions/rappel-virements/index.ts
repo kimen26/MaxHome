@@ -1,10 +1,10 @@
 // Edge Function : rappel Telegram des mouvements du mois non faits.
-// Nom conservé (« rappel-virements ») : il est câblé dans pg_cron et scripts/deploy_rappel.py.
+// Nom conservé (« rappel-virements ») : il est câblé dans pg_cron et scripts/deploy_rappels.py.
 // Planifiée via pg_cron le 1er et le 5 de chaque mois à 09:00 Europe/Paris (voir migration 003).
 //
 // Secrets requis (Supabase > Project Settings > Edge Functions > Secrets) :
 //   MAXHOME_TELEGRAM_BOT_TOKEN, MAXHOME_TELEGRAM_CHAT_ID
-// Déployer avec : python scripts/deploy_rappel.py
+// Déployer avec : python scripts/deploy_rappels.py
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 

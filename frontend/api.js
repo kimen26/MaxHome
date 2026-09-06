@@ -75,6 +75,13 @@ export function creerApi(sb) {
     majRecurrent: (id, champs) => sb.from("mouvements_recurrents").update(champs).eq("id", id).then(rendre),
     supprimerRecurrent: (id) => sb.from("mouvements_recurrents").delete().eq("id", id).then(rendre),
 
+    // ---------- module Courses ----------
+    rayons: () => sb.from("courses_rayons").select("*").order("ordre").then(rendre),
+    courses: () => sb.from("courses").select("*").order("ajoute_le").then(rendre),
+    creerCourse: (champs) => sb.from("courses").insert(champs).select().single().then(rendre),
+    majCourse: (id, champs) => sb.from("courses").update(champs).eq("id", id).then(rendre),
+    supprimerCourses: (ids) => sb.from("courses").delete().in("id", ids).then(rendre),
+
     // ---------- module Tâches ----------
     tachesRec: () => sb.from("taches_recurrentes").select("*").order("ordre").order("id").then(rendre),
     /** Tâches non faites (quelle que soit leur date) et tâches depuis `depuis` (AAAA-MM-JJ). */

@@ -61,9 +61,24 @@ def valider_montant_euros(valeur):
 SEUIL_FLOU = 0.75
 
 
+def _score(cible_norm, valeur_norm):
+    """Similarité globale, relevée quand la cible est un mot ou un fragment du libellé.
+
+    Les titres de tâches (« Étendre et plier le linge ») sont trop longs pour qu'un mot
+    isolé atteigne le seuil global : sans ce relèvement, « linge » ne trouverait rien.
+    Un fragment doit faire au moins 3 caractères pour ne pas rendre « le » universel.
+    """
+    ratio = difflib.SequenceMatcher(None, cible_norm, valeur_norm).ratio()
+    if len(cible_norm) >= 3 and cible_norm in valeur_norm.split():
+        return max(ratio, 0.95)
+    if len(cible_norm) >= 3 and cible_norm in valeur_norm:
+        return max(ratio, 0.85)
+    return ratio
+
+
 def meilleur_flou(cible_norm, elements, champ):
     """Fuzzy match insensible casse/accents sur `champ`. Retourne (élément, None) ou (None, [3 proches])."""
-    candidats = [(e, difflib.SequenceMatcher(None, cible_norm, normaliser(e[champ])).ratio()) for e in elements]
+    candidats = [(e, _score(cible_norm, normaliser(e[champ]))) for e in elements]
     candidats.sort(key=lambda x: -x[1])
     if candidats and candidats[0][1] >= SEUIL_FLOU:
         return candidats[0][0], None
@@ -91,7 +106,24 @@ def interpreter(texte_brut, prenoms, charges, annee_courante, mois_courant):
         return {"action": "charges", "annee": annee, "mois": mois}
     if sans_mois in ("annuler",):
         return {"action": "annuler"}
-    # fait / pas fait [<titre de mouvement>] — sans titre : le mouvement « part » de l'expéditeur.
+    if sans_mois in ("courses", "liste"):
+        return {"action": "courses_liste"}
+    # « ajoute lait », « ajoute 2 packs de lait » — tout ce qui suit est le libellé.
+    m = re.match(r"^(?:ajoute|ajouter)\s+(.+)$", sans_mois)
+    if m:
+        libelle = m.group(1).strip()
+        if len(libelle) > 80:
+            return {"action": "erreur", "message": "Libellé trop long (80 caractères max)."}
+        return {"action": "course_ajout", "libelle": libelle}
+    if sans_mois in ("taches", "tache", "todo"):
+        return {"action": "taches"}
+    if sans_mois in ("balance", "equilibre"):
+        return {"action": "balance", "jours": 7}
+    m = re.match(r"^balance\s+(\d{1,3})\s*(?:j|jours?)?$", sans_mois)
+    if m:
+        return {"action": "balance", "jours": max(1, min(365, int(m.group(1))))}
+    # fait / pas fait [<titre>] — le titre peut viser une tâche ou un mouvement : bot.py
+    # tranche, lui seul a les deux listes. Sans titre, c'est le virement au commun.
     m = re.match(r"^(?:virement\s+)?(pas\s+fait|fait)\b\s*(.*)$", sans_mois)
     if m:
         titre = m.group(2).strip()

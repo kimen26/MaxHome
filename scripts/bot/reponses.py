@@ -80,13 +80,64 @@ def liste_charges(charges, lignes):
     return "\n".join(blocs) if blocs else "Aucune charge ce mois."
 
 
+def pluriel(n, mot):
+    return f"{n} {mot}{'s' if n > 1 else ''}"
+
+
+def confirmation_tache(titre, points, prenom, fait):
+    if fait:
+        return f"{titre} : fait par {prenom} ✔ (+{pluriel(points, 'pt')})"
+    return f"{titre} : coche annulée."
+
+
+def liste_taches(restantes, recurrents, aujourdhui):
+    """`restantes` déjà triées (taches.restantes), `aujourdhui` au format AAAA-MM-JJ."""
+    if not restantes:
+        return "Rien à faire aujourd'hui ✔"
+    lignes = ["À faire aujourd'hui :"]
+    for t in restantes:
+        pts = recurrents.get(t["recurrent_id"], {}).get("penibilite") or t.get("points") or 1
+        retard = " ⚠️ en retard" if t["echeance"] < aujourdhui else ""
+        qui = f" ({t['qui']})" if t.get("qui") else ""
+        lignes.append(f"  {t['titre']} — {pluriel(pts, 'pt')}{qui}{retard}")
+    return "\n".join(lignes)
+
+
+def balance_taches(b, membres, jours):
+    lignes = [f"Balance sur {jours} jours :"]
+    for p in membres:
+        lignes.append(f"  {p} : {round(b['ratio'][p] * 100)} % — {pluriel(b['points'][p], 'pt')}"
+                      f" · {pluriel(b['nombre'][p], 'tâche')}")
+    if not b["total"]:
+        lignes.append("Aucune tâche cochée sur la période.")
+    return "\n".join(lignes)
+
+
+def liste_courses(articles):
+    restants = [a for a in articles if not a["coche_le"]]
+    if not restants:
+        return "Liste de courses vide."
+    lignes = [f"Courses ({pluriel(len(restants), 'article')}) :"]
+    par_rayon = {}
+    for a in restants:
+        par_rayon.setdefault(a["rayon"], []).append(a)
+    for rayon, items in par_rayon.items():
+        lignes.append(f"{rayon} :")
+        for a in items:
+            qte = f" · {a['quantite']}" if a.get("quantite") else ""
+            lignes.append(f"  {a['libelle']}{qte}")
+    return "\n".join(lignes)
+
+
 AIDE = """Commandes :
   salaire <montant> [en <mois>]
   salaire <prenom> <montant>
   <libelle charge> <montant> [en <mois>]
   extra <libelle> <montant> [egales]
   <prenom> prend <montant> <motif>
-  fait / pas fait [<titre du mouvement>]
+  fait / pas fait [<titre>]   (virement ou tâche)
+  taches · balance [<jours>]
+  ajoute <article> · courses
   bilan [<mois>]
   charges [<mois>]
   mois

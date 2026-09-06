@@ -4,7 +4,8 @@
 class DonneesFausse:
     """Reproduit la surface de scripts/bot/donnees.py::Donnees, en mémoire."""
 
-    def __init__(self, membres=None, charges=None, telegram_membres=None, recurrents=None):
+    def __init__(self, membres=None, charges=None, telegram_membres=None, recurrents=None,
+                 taches_recurrentes=None):
         self._membres = membres or [{"prenom": "Yann", "ordre": 1}, {"prenom": "Claudia", "ordre": 2}]
         self._charges = charges or []
         self._telegram_membres = telegram_membres or {6433455282: "Yann"}
@@ -13,6 +14,11 @@ class DonneesFausse:
         self._ajustements = {}  # (annee, mois) -> [dict]
         self._recurrents = recurrents if recurrents is not None else recurrents_part(self._membres)
         self._mouvements = []   # liste de dicts, comme la table
+        self._taches_rec = taches_recurrentes if taches_recurrentes is not None else taches_rec_defaut()
+        self._taches = []
+        self._prochain_id_tache = 1
+        self._courses = []
+        self._prochain_id_course = 0
         self._prochain_id_charge = 1000
         self._prochain_id_ajustement = 1
         self._prochain_id_mouvement = 1
@@ -89,6 +95,46 @@ class DonneesFausse:
     def inscrire_telegram(self, telegram_id, prenom):
         self._telegram_membres[telegram_id] = prenom
 
+    # ---------- module Courses ----------
+    def courses(self):
+        return [dict(a) for a in self._courses]
+
+    def creer_course(self, champs):
+        self._prochain_id_course += 1
+        a = {"id": self._prochain_id_course, "quantite": None, "coche_le": None,
+             "coche_par": None, "ajoute_le": "2026-09-06T10:00:00+00:00", **champs}
+        self._courses.append(a)
+        return dict(a)
+
+    def supprimer_course(self, id_):
+        self._courses = [a for a in self._courses if a["id"] != id_]
+
+    # ---------- module Tâches ----------
+    def taches_recurrentes(self):
+        return [dict(r) for r in self._taches_rec if r.get("actif", True)]
+
+    def taches(self, depuis):
+        return [dict(t) for t in self._taches if not t["fait_le"] or t["echeance"] >= depuis]
+
+    def creer_taches(self, lignes):
+        crees = []
+        for l in lignes:
+            t = {"id": self._prochain_id_tache, "fait_le": None, "qui": None, "points": 0, **l}
+            self._prochain_id_tache += 1
+            self._taches.append(t)
+            crees.append(dict(t))
+        return crees
+
+    def maj_tache(self, id_, champs):
+        for t in self._taches:
+            if t["id"] == id_:
+                t.update(champs)
+                return dict(t)
+        raise RuntimeError(f"tache {id_} introuvable")
+
+    def supprimer_taches(self, ids):
+        self._taches = [t for t in self._taches if t["id"] not in set(ids)]
+
 
 def recurrents_part(membres):
     """Les deux récurrents « part » issus de la migration 005 (virement au commun)."""
@@ -97,6 +143,21 @@ def recurrents_part(membres):
              "prenom_part": m["prenom"], "qui": m["prenom"], "jour": 5, "consigne": None,
              "ordre": m["ordre"], "actif": True}
             for i, m in enumerate(membres)]
+
+
+def taches_rec_defaut():
+    """Trois tâches récurrentes couvrant les trois fréquences génératrices et « au besoin »."""
+    return [
+        {"id": 1, "titre": "Laver les biberons", "categorie": "Enfant", "frequence": "quotidien",
+         "fois": 2, "penibilite": 1, "importance": 3, "attribue_a": None, "consigne": None,
+         "ordre": 10, "actif": True},
+        {"id": 2, "titre": "Étendre et plier le linge", "categorie": "Linge", "frequence": "hebdo",
+         "fois": 1, "penibilite": 4, "importance": 2, "attribue_a": "Claudia", "consigne": None,
+         "ordre": 20, "actif": True},
+        {"id": 3, "titre": "Sortir la poubelle", "categorie": "Déchets", "frequence": "au_besoin",
+         "fois": 1, "penibilite": 3, "importance": 2, "attribue_a": None, "consigne": None,
+         "ordre": 30, "actif": True},
+    ]
 
 
 class TelegramFaux:

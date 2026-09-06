@@ -9,7 +9,7 @@ import logging.handlers
 import subprocess
 import sys
 import time
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 RACINE = Path(__file__).resolve().parent.parent.parent
@@ -20,6 +20,7 @@ from provision import cles, lit_env  # noqa: E402
 import commandes  # noqa: E402
 import libre  # noqa: E402
 import mouvements  # noqa: E402
+import taches as taches_mod  # noqa: E402
 import reponses  # noqa: E402
 from donnees import Donnees  # noqa: E402
 from telegram import Telegram  # noqa: E402
@@ -102,6 +103,31 @@ class Bot:
         for r in revenus:
             self.donnees.maj_revenu(annee, mois, r["prenom"], r["montant_centimes"])
 
+    def basculer_fait(self, telegram_id, prenom, action, annee, mois):
+        """`fait <titre>` vise une tâche si le titre lui correspond, sinon un mouvement.
+
+        Sans titre, c'est toujours le virement au commun : cocher une tâche demande
+        laquelle, on ne devine pas à la place de l'utilisateur.
+        """
+        titre = action.get("titre")
+        if titre:
+            liste, _ = taches_mod.du_jour(self.donnees)
+            candidates = [t for t in liste if bool(t["fait_le"]) != action["fait"]]
+            if candidates:
+                trouve, _ = commandes.meilleur_flou(reponses.normaliser(titre), candidates, "titre")
+                if trouve:
+                    return self.basculer_tache(telegram_id, prenom, titre, action["fait"])
+        return self.basculer_mouvement(telegram_id, prenom, action, annee, mois)
+
+    def basculer_tache(self, telegram_id, prenom, titre, fait):
+        """Coche (ou décoche) une tâche et rend l'écriture annulable."""
+        cible, champs, erreur = taches_mod.basculer(self.donnees, prenom, titre, fait)
+        if erreur:
+            return erreur
+        avant = {"fait_le": cible["fait_le"], "qui": cible["qui"], "points": cible["points"]}
+        self.marquer_annulable(telegram_id, "taches", {"id": cible["id"]}, avant)
+        return reponses.confirmation_tache(cible["titre"], champs["points"], prenom, fait)
+
     def basculer_mouvement(self, telegram_id, prenom, action, annee, mois):
         """Coche (ou décoche) un mouvement du mois et rend l'écriture annulable."""
         resultat, lignes, _ = self.charger_r(annee, mois)
@@ -130,6 +156,10 @@ class Bot:
             self.donnees.maj_ligne(cle["annee"], cle["mois"], cle["charge_id"], ancienne)
         elif table == "ajustements":
             self.donnees.supprimer_ajustement(cle["id"])
+        elif table == "courses":
+            self.donnees.supprimer_course(cle["id"])
+        elif table == "taches":
+            self.donnees.maj_tache(cle["id"], ancienne)
         elif table == "mouvements":
             self.donnees.maj_mouvement(cle["id"], {"fait_le": ancienne["fait_le"],
                                                    "montant_centimes": ancienne["montant_centimes"]})
@@ -150,7 +180,8 @@ class Bot:
             return f"Aucune charge ne correspond assez à « {action['libelle']} ». Proches : {proches}."
 
         annee, mois = action.get("annee"), action.get("mois")
-        if annee and mois and self.mois_est_vide(annee, mois):
+        sans_mois_requis = ("taches", "balance", "courses_liste", "course_ajout")
+        if a not in sans_mois_requis and annee and mois and self.mois_est_vide(annee, mois):
             a_prec, m_prec = self.mois_precedent(annee, mois)
             if not self.mois_est_vide(a_prec, m_prec):
                 self.etats.setdefault(telegram_id, {})["attente"] = {
@@ -213,7 +244,27 @@ class Bot:
             return reponses.confirmation_ajustement(autre, action["beneficiaire"], action["montant_centimes"], action["motif"])
 
         if a == "mouvement":
-            return self.basculer_mouvement(telegram_id, prenom, action, annee, mois)
+            return self.basculer_fait(telegram_id, prenom, action, annee, mois)
+
+        if a == "course_ajout":
+            article = self.donnees.creer_course({"libelle": action["libelle"], "rayon": "Autre",
+                                                 "ajoute_par": prenom})
+            self.marquer_annulable(telegram_id, "courses", {"id": article["id"]}, None)
+            return f"« {article['libelle']} » ajouté à la liste de courses."
+
+        if a == "courses_liste":
+            return reponses.liste_courses(self.donnees.courses())
+
+        if a == "taches":
+            liste, recurrents = taches_mod.du_jour(self.donnees)
+            return reponses.liste_taches(taches_mod.restantes(liste, recurrents),
+                                         recurrents, date.today().isoformat())
+
+        if a == "balance":
+            liste, _ = taches_mod.du_jour(self.donnees)
+            auj = date.today()
+            b = taches_mod.balance(liste, self.membres, auj - timedelta(days=action["jours"] - 1), auj)
+            return reponses.balance_taches(b, self.membres, action["jours"])
 
         if a == "inscrire":
             self.donnees.inscrire_telegram(action["telegram_id"], action["prenom"])
@@ -301,6 +352,28 @@ class Bot:
             valeur = centimes if interp["montant"] > 0 else -centimes
             return {"action": "charge", "charge_id": charge["id"], "libelle_reel": charge["libelle"],
                     "montant_centimes": valeur, "annee": annee, "mois": mois}
+        if a in ("mouvement_fait", "tache_faite"):
+            return {"action": "mouvement", "fait": interp.get("fait", True),
+                    "titre": interp.get("titre") or None, "annee": annee, "mois": mois}
+        if a == "taches":
+            return {"action": "taches"}
+        if a == "course_ajout":
+            return {"action": "course_ajout", "libelle": str(interp.get("libelle", "")).strip()}
+        if a == "courses_liste":
+            return {"action": "courses_liste"}
+        if a == "balance":
+            return {"action": "balance", "jours": int(interp.get("jours") or 7)}
+        if a == "bilan":
+            return {"action": "bilan", "annee": annee, "mois": mois}
+        if a == "charges":
+            return {"action": "charges", "annee": annee, "mois": mois}
+        if a == "ajustement":
+            centimes = commandes.valider_montant_euros(abs(interp["montant"]))
+            if centimes is None:
+                return {"action": "erreur", "message": "Montant hors bornes (0 < montant <= 50 000 €)."}
+            return {"action": "ajustement", "beneficiaire": interp["vers"],
+                    "montant_centimes": centimes, "motif": interp.get("motif", ""),
+                    "annee": annee, "mois": mois}
         return {"action": "erreur", "message": "Action libre non prise en charge."}
 
     def boucle(self):

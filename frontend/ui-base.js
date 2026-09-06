@@ -33,6 +33,11 @@ export const MODULES = {
     onglets: [["jour", "Aujourd’hui"], ["balance", "Balance"], ["taches-rec", "Réglages"]],
     plus: [],
   },
+  courses: {
+    nom: "Courses", defaut: "courses", avecMois: false,
+    onglets: [["courses", "Liste"]],
+    plus: [],
+  },
 };
 const ecransDe = (m) => [...MODULES[m].onglets, ...MODULES[m].plus].map(([e]) => e);
 export const moduleDe = (ecran) => Object.keys(MODULES).find((m) => ecransDe(m).includes(ecran)) ?? null;
@@ -70,9 +75,11 @@ function rendreOnglets(module, nom) {
       `<button class="onglet${e === nom ? " actif" : ""}" data-ecran="${e}">${l}</button>`).join("")
     : "";
   $("#module-pc").textContent = m ? m.nom : "";
+  // « Plus » est toujours présent dans un module : c'est la seule porte de sortie sur
+  // mobile (accueil, autres modules, déconnexion), même quand le module n'a qu'un onglet.
   const mobile = m
     ? [...m.onglets.map(([e, l]) => [e, l, e === nom]), ["plus", "Plus", m.plus.some(([e]) => e === nom)]]
-    : Object.entries(MODULES).map(([k, v]) => [v.defaut, v.nom, false]);
+    : Object.entries(MODULES).map(([, v]) => [v.defaut, v.nom, false]);
   $("#onglets").innerHTML = mobile.map(([e, l, actif]) =>
     `<button data-ecran="${e}" class="${actif ? "actif" : ""}">${l}</button>`).join("");
 }
@@ -93,15 +100,20 @@ export function brancherNavigation(onChange) {
 
 function menuPlus() {
   const module = moduleDe(ecranCourant());
-  const entrees = [
-    ...(module ? MODULES[module].plus : []),
-    ["accueil", "Accueil MaxHome"],
-    ...Object.entries(MODULES).filter(([k]) => k !== module).map(([, v]) => [v.defaut, `Module ${v.nom}`]),
-  ];
+  // Le menu ouvre TOUT écran de l'app, pas seulement le premier des autres modules :
+  // sans cela, un module à un seul onglet (Courses) enferme la navigation mobile.
+  const autres = Object.entries(MODULES).filter(([k]) => k !== module);
+  const groupes = [
+    module ? [`Encore dans ${MODULES[module].nom}`, MODULES[module].plus] : null,
+    ["Aller à", [["accueil", "Accueil MaxHome"]]],
+    ...autres.map(([, v]) => [v.nom, [...v.onglets, ...v.plus]]),
+  ].filter((g) => g && g[1].length);
+
   ouvrirFeuille(`
-    <h2 style="font-size:18px;margin-bottom:12px">Plus</h2>
-    ${entrees.map(([e, l]) => `<button class="btn" data-aller="${e}" style="width:100%;margin-bottom:8px;justify-content:flex-start">${txt(l)}</button>`).join("")}
-    <button class="btn" id="feuille-logout" style="width:100%;color:var(--rouge)">Déconnexion</button>`);
+    <h2 class="feuille-titre">Plus</h2>
+    ${groupes.map(([titre, entrees]) => `<h3 class="titre-section">${txt(titre)}</h3>
+      ${entrees.map(([e, l]) => `<button class="btn btn-menu" data-aller="${e}">${txt(l)}</button>`).join("")}`).join("")}
+    <button class="btn btn-menu danger" id="feuille-logout">Déconnexion</button>`);
   $$("#feuille-corps [data-aller]").forEach((b) => b.addEventListener("click", () => {
     fermerFeuille();
     montrerEcran(b.dataset.aller);

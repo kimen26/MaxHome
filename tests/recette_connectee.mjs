@@ -14,7 +14,8 @@ const CLE = cfg.match(/SUPABASE_ANON_KEY = "([^"]+)"/)[1];
 const nombre = (s) => Number(String(s).replace(/[^\d,-]/g, "").replace(",", "."));
 
 // 1. RLS : la clé publique sans session ne voit rien, sur toutes les tables.
-const TABLES = ["revenus", "lignes", "mouvements", "mouvements_recurrents", "comptes", "taches", "taches_recurrentes"];
+const TABLES = ["revenus", "lignes", "mouvements", "mouvements_recurrents", "comptes",
+  "taches", "taches_recurrentes", "courses", "courses_rayons"];
 for (const table of TABLES) {
   const r = await fetch(`${URL_SB}/rest/v1/${table}?select=*`, { headers: { apikey: CLE, Authorization: `Bearer ${CLE}` } });
   const anon = await r.json();
@@ -46,9 +47,16 @@ async function connecter(page) {
   await page.waitForSelector("#ecran-accueil:not([hidden]) .module-carte", { timeout: 20000 });
   await page.waitForFunction(() => document.querySelector("#modules")?.textContent.includes("%"), null, { timeout: 20000 });
 }
+/** Navigue vers un écran : onglet direct s'il est visible, sinon par le menu « Plus ». */
 async function aller(page, ecran, attendu) {
-  const nav = (await page.$("#barre-pc")) && await page.isVisible("#barre-pc") ? "#barre-pc" : "#onglets";
-  await page.click(`${nav} button[data-ecran=${ecran}]`);
+  const nav = await page.isVisible("#barre-pc") ? "#barre-pc" : "#onglets";
+  if (await page.isVisible(`${nav} button[data-ecran=${ecran}]`)) {
+    await page.click(`${nav} button[data-ecran=${ecran}]`);
+  } else {
+    await page.click("#onglets button[data-ecran=plus]");
+    await page.waitForSelector(`#feuille-corps [data-aller=${ecran}]`);
+    await page.click(`#feuille-corps [data-aller=${ecran}]`);
+  }
   await page.waitForSelector(attendu, { timeout: 15000 });
 }
 
@@ -107,10 +115,7 @@ try {
   await page.screenshot({ path: path.join(SORTIE, "stats-mobile.png"), fullPage: true });
 
   // ---------- tâches (mobile) : via Plus > Module Tâches ----------
-  await page.click("#onglets button[data-ecran=plus]");
-  await page.waitForSelector("#feuille-corps [data-aller=jour]");
-  await page.click("#feuille-corps [data-aller=jour]");
-  await page.waitForSelector("#ecran-jour:not([hidden]) #taches-a-faire .mvt", { timeout: 15000 });
+  await aller(page, "jour", "#ecran-jour:not([hidden]) #taches-a-faire .mvt");
   console.log("Aujourd’hui :", (await page.textContent("#sous-jour")).trim());
   await page.screenshot({ path: path.join(SORTIE, "jour-mobile.png"), fullPage: true });
 
@@ -126,6 +131,27 @@ try {
   await page.locator("#taches-faites .mvt .case.cochee").first().click();
   await page.waitForFunction(() => document.querySelectorAll("#taches-faites .mvt").length === 0, null, { timeout: 10000 });
   console.log("Coche tâche annulée OK");
+
+  // ---------- courses (mobile) : ajout, coche, vidage — la liste revient à son état d'origine ----------
+  await aller(page, "courses", "#ecran-courses:not([hidden]) #form-course");
+  const avantCourses = await page.$$eval("#liste-courses .mvt", (e) => e.length);
+  await page.fill("#course-libelle", "Article de recette");
+  await page.fill("#course-quantite", "2");
+  await page.selectOption("#course-rayon", "Épicerie");
+  await page.click("#form-course button[type=submit]");
+  await page.waitForFunction((n) => document.querySelectorAll("#liste-courses .mvt").length === n + 1,
+    avantCourses, { timeout: 10000 });
+  const rayons = await page.$$eval("#liste-courses .titre-section", (e) => e.map((x) => x.textContent.trim()));
+  if (!rayons.includes("Épicerie")) throw new Error(`article rangé hors de son rayon : ${rayons.join(", ")}`);
+  console.log("Courses : article ajouté dans le rayon Épicerie");
+  await page.screenshot({ path: path.join(SORTIE, "courses-mobile.png"), fullPage: true });
+  await page.locator("#liste-courses .mvt .case").last().click();
+  await page.waitForFunction(() => document.querySelectorAll("#courses-panier .mvt").length > 0, null, { timeout: 10000 });
+  page.once("dialog", (d) => d.accept());
+  await page.click("#btn-vider-panier");
+  await page.waitForFunction((n) => document.querySelectorAll("#liste-courses .mvt").length === n,
+    avantCourses, { timeout: 10000 });
+  console.log("Courses : coché puis panier vidé, liste revenue à son état d'origine");
 
   await aller(page, "balance", "#balance-corps .carte");
   await page.screenshot({ path: path.join(SORTIE, "balance-mobile.png"), fullPage: true });
@@ -165,6 +191,12 @@ try {
     await pc.screenshot({ path: path.join(SORTIE, `${ecran}-pc.png`), fullPage: true });
   }
   console.log("Trois écrans Tâches rendus (PC)");
+  await pc.click("#logo");
+  await pc.waitForSelector("#ecran-accueil:not([hidden])");
+  await pc.click("#modules [data-ecran=courses]");
+  await pc.waitForSelector("#ecran-courses:not([hidden]) #form-course");
+  await pc.screenshot({ path: path.join(SORTIE, "courses-pc.png"), fullPage: true });
+  console.log("Écran Courses rendu (PC)");
   await pc.close();
 } finally {
   await navigateur.close();

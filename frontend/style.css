@@ -383,3 +383,18 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
 #periode-balance button { font-size:13px; min-height:36px; padding:0 14px; }
 #btn-tache-ponctuelle { margin-top:10px; }
 @media (min-width:1024px) { .stats-grille:has(> .carte:nth-child(2):last-child) { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+
+/* ================= Courses ================= */
+.ajout-rapide { display:flex; gap:8px; margin:14px 0; flex-wrap:wrap; }
+.ajout-rapide .champ { flex:1 1 160px; min-width:0; }
+.ajout-rapide .champ.court { flex:0 0 80px; }
+.ajout-rapide select.champ { flex:0 0 auto; max-width:180px; }
+.ajout-rapide .btn { flex:0 0 auto; }
+#btn-vider-panier { margin-top:10px; }
+@media (max-width:600px) { .ajout-rapide .btn { width:100%; } }
+
+/* ---------- menu « Plus » (mobile) ---------- */
+.feuille-titre { font-size:18px; margin-bottom:4px; }
+#feuille-corps .titre-section { margin:14px 0 6px; }
+.btn-menu { width:100%; margin-bottom:8px; text-align:left; }
+.btn-menu.danger { color:var(--rouge); margin-top:14px; }

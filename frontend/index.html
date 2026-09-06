@@ -155,6 +155,30 @@
       <div id="liste-taches-rec"></div>
       <div id="form-tache-rec"></div>
     </section>
+    <!-- ===== Courses ===== -->
+    <section id="ecran-courses" class="ecran" hidden>
+      <div class="tete-ecran">
+        <div>
+          <h1>Courses</h1>
+          <p class="sous" id="sous-courses"></p>
+        </div>
+        <div id="chiffres-courses" class="chiffres"></div>
+      </div>
+      <form id="form-course" class="ajout-rapide">
+        <input id="course-libelle" class="champ" placeholder="Ajouter un article" autocomplete="off" required>
+        <input id="course-quantite" class="champ court" placeholder="Qté" autocomplete="off">
+        <select id="course-rayon" class="champ"></select>
+        <button type="submit" class="btn btn-bleu">Ajouter</button>
+      </form>
+      <div class="deux-colonnes etroit">
+        <div id="liste-courses"></div>
+        <aside id="panier" hidden>
+          <h2 class="titre-section">Dans le panier</h2>
+          <div id="courses-panier"></div>
+          <button id="btn-vider-panier" class="btn btn-tirets">Vider le panier</button>
+        </aside>
+      </div>
+    </section>
   </main>
 
   <nav id="onglets"></nav>

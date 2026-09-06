@@ -7,6 +7,7 @@ import { creerUiComptes } from "./ui-comptes.js";
 import { creerUiStats } from "./ui-stats.js";
 import { creerUiTaches } from "./ui-taches.js";
 import { creerUiTachesRec } from "./ui-taches-rec.js";
+import { creerUiCourses } from "./ui-courses.js";
 import { $, txt, MOIS_COURT, decaler, montrerEcran, ecranCourant, ecranDeDepart, moduleDe, MODULES,
   brancherNavigation, toast, bandeauErreur, cacherBandeau } from "./ui-base.js";
 import { jourIso, decalerJours, balance, groupe } from "./taches.js";
@@ -21,6 +22,7 @@ const etat = {
   lignes: {}, revenus: {}, ajustements: [], mouvements: [],
   moisPrecedent: {}, derniers: {}, resultat: null,
   tachesRec: [], taches: [],
+  rayons: [], courses: [],
 };
 
 const echec = (e) => {
@@ -76,10 +78,10 @@ function recalculer() {
 // ---------- démarrage ----------
 async function demarrer() {
   try {
-    const [membres, charges, comptes, recurrents, tachesRec] = await Promise.all([
-      api.membres(), api.charges(), api.comptes(), api.recurrents(), api.tachesRec(),
+    const [membres, charges, comptes, recurrents, tachesRec, rayons] = await Promise.all([
+      api.membres(), api.charges(), api.comptes(), api.recurrents(), api.tachesRec(), api.rayons(),
     ]);
-    Object.assign(etat, { membres, charges, comptes, recurrents, tachesRec });
+    Object.assign(etat, { membres, charges, comptes, recurrents, tachesRec, rayons });
     etat.prenom = await api.auth.prenomCourant(membres);
 
     ui = {
@@ -90,11 +92,13 @@ async function demarrer() {
       stats: creerUiStats(api, etat, cb),
       taches: creerUiTaches(api, etat, cb),
       tachesRec: creerUiTachesRec(api, etat, cb),
+      courses: creerUiCourses(api, etat, cb),
     };
+    ui.courses.rendreRayons();
     brancherNavigation(rendreEcran);
     // L'écran est affiché sans être rendu : les chargements peuplent l'état puis déclenchent le rendu.
     montrerEcran(ecranDeDepart(), { rendre: false });
-    await Promise.all([chargerMois(), chargerTaches()]);
+    await Promise.all([chargerMois(), chargerTaches(), chargerCourses()]);
   } catch (e) { echec(e); }
 }
 
@@ -109,6 +113,7 @@ function rendreEcran(nom) {
   else if (nom === "jour") ui.taches.rendre();
   else if (nom === "balance") ui.tachesRec.rendreBalance();
   else if (nom === "taches-rec") ui.tachesRec.rendre();
+  else if (nom === "courses") ui.courses.rendre();
 }
 
 /** Rend l'écran courant s'il appartient au module donné (ou l'accueil, qui les résume tous). */
@@ -154,6 +159,13 @@ async function chargerTaches() {
   } catch (e) { echec(e); }
 }
 
+async function chargerCourses() {
+  try {
+    etat.courses = await api.courses();
+    rendreSi("courses");
+  } catch (e) { echec(e); }
+}
+
 // ---------- accueil : une carte par module, avec son résumé ----------
 function rendreAccueil() {
   const jour = jourIso(new Date());
@@ -165,14 +177,17 @@ function rendreAccueil() {
       ? (restants ? `${restants} mouvement${restants > 1 ? "s" : ""} à faire en ${MOIS_COURT[etat.mois - 1].toLowerCase()}` : `Tout est viré pour ${MOIS_COURT[etat.mois - 1].toLowerCase()}`)
       : "Chargement…",
     taches: `${aFaire ? `${aFaire} tâche${aFaire > 1 ? "s" : ""} aujourd’hui` : "Rien à faire aujourd’hui"} · 7 j : ${etat.membres.map((m) => `${m.prenom} ${Math.round(b.ratio[m.prenom] * 100)} %`).join(" / ")}`,
+    courses: (() => {
+      const n = etat.courses.filter((a) => !a.coche_le).length;
+      return n ? `${n} article${n > 1 ? "s" : ""} à prendre` : "Liste vide";
+    })(),
   };
   $("#sous-accueil").textContent = etat.prenom ? `Bonjour ${etat.prenom}.` : "";
   $("#modules").innerHTML = Object.entries(MODULES).map(([k, m]) => `
     <button class="carte module-carte" data-ecran="${m.defaut}">
       <span class="module-nom">${txt(m.nom)}</span>
       <span class="module-resume">${txt(resume[k])}</span>
-    </button>`).join("") + `
-    <div class="carte module-carte bientot"><span class="module-nom">Courses</span><span class="module-resume">Bientôt.</span></div>`;
+    </button>`).join("");
   for (const b of $("#modules").querySelectorAll("[data-ecran]")) b.addEventListener("click", () => montrerEcran(b.dataset.ecran));
 }
 
