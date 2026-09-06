@@ -132,3 +132,11 @@ au moment de la coche — sinon un changement de charge réécrirait un virement
 changer le réglage permanent de la charge. `calc.js` accepte les deux formes de dictionnaire
 `lignes` (nombre nu ou objet `{montant_centimes, regle}`) pour ne pas casser `calc_cli.mjs`
 ni les tests existants — équivalence vérifiée par un test dédié.
+
+## D-017 — le rappel replie sur les récurrents quand le mois est vierge (2026-09-06)
+L'Edge Function lit les `mouvements` en base, or ceux-ci ne sont créés qu'à l'ouverture du
+mois dans l'app. Le rappel du 1er tombe précisément avant cette ouverture : il aurait
+annoncé « aucun mouvement à faire » alors qu'il y en a. Elle liste donc les récurrents
+actifs (titre, jour, qui) sans montant, celui-ci dépendant des charges du mois pas encore
+saisies. Le bot, lui, génère les occurrences manquantes (scripts/bot/mouvements.py) parce
+qu'il écrit ; la fonction de rappel ne fait que lire et n'a pas à créer de lignes.

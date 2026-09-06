@@ -37,6 +37,25 @@ _Une session = une lane. Marquer (en cours) à l'ouverture, libérer à la fin._
 - [ ] Yann : envoyer `aide` au bot pour confirmer la mise en service, puis inscrire Claudia
       (`/start` côté Claudia → `inscrire <id> Claudia` côté Yann).
 
+## Lane D — Refonte design (2026-09-06)
+- [x] Migration 005 additive : `mouvements_recurrents` + `mouvements`, `lignes.regle`,
+      `charges.montant_defaut`/`defaut_dernier`. 272 lignes / 38 revenus / 16 charges intacts.
+- [x] Moteur : `calculer()` lit `ligne.regle ?? charge.regle`, accepte l'ancien et le
+      nouveau format de `lignes` (équivalence testée).
+- [x] Six écrans mobile + PC : Ce mois (check-list cochable, détail, consigne, complément
+      du permanent), Charges (segment de règle du mois, préaffichage, repères, alerte
+      d'oubli), Réglages d'une charge, Stats, Récurrents, Comptes, Vue annuelle.
+- [x] Bot et Edge Function bascules sur `mouvements` ; `fait <titre>`, bilan des restants ;
+      repli du rappel sur les récurrents quand le mois n'a pas encore été ouvert.
+- [x] Recettes : test_calc, recette visuelle, recette connectée, 60 tests bot — toutes vertes.
+- [ ] **Yann : créer le compte commun** dans l'écran Comptes. Tant qu'il manque, les
+      mouvements affichent « Comptes à définir » et le bouton Copier ne peut pas proposer
+      le complément du virement permanent.
+- [ ] Décider : polices Google Fonts (actuel) ou auto-hébergées dans `frontend/`.
+- [ ] Dropper `virements` quand plus rien ne la lit (plus aucune référence au 2026-09-06).
+- [ ] `libre.py` peut produire `mouvement_fait` mais `_traduire_action_libre` ne le traduit
+      pas : le langage libre ne sait pas cocher (déjà vrai avant la refonte, à trancher).
+
 ## Lane B — V1 (après recette)
-- [ ] Vue annuelle (tableau 12 mois comme l'Excel)
+- [x] Vue annuelle (tableau 12 mois comme l'Excel)
 - [ ] Importer les feuilles 2023 et « Garde Max » si utile

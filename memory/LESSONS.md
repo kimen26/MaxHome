@@ -55,3 +55,18 @@ avant de poser la date. Mnémonique : quand une fonction change de comportement 
 (qui peuple l'état) : plantage sur `etat.resultat` undefined, écran vide et bandeau d'erreur.
 `montrerEcran` a reçu une option `{ rendre: false }` pour afficher sans rendre. Mnémonique :
 séparer « montrer » de « rendre » quand les données arrivent en asynchrone.
+
+## L-010 — la CLI Supabase met l'erreur de compilation sur stdout (2026-09-06)
+`supabase functions deploy` échouait ; le script n'affichait que `stderr`, qui ne contenait
+que « WARNING: Docker is not running » — inoffensif mais trompeur, il a fait chercher du
+côté de Docker. La vraie cause (erreur de parsing du TypeScript, ligne et colonne) était sur
+`stdout`, en JSON. Mnémonique : quand un outil échoue, afficher les DEUX flux avant de
+diagnostiquer ; un avertissement bien visible n'est pas l'erreur.
+
+## L-011 — ne pas réécrire du code par script Python (2026-09-06)
+Deux substitutions Python sur un fichier TypeScript : la première a transformé les `\n`
+d'un template literal en vrais retours à la ligne (fichier invalide), la seconde a échoué
+silencieusement en laissant un appel à une fonction jamais créée. Le déploiement a échoué,
+et l'appel manquant n'a été vu qu'en relisant le fichier. Mnémonique : pour éditer du code,
+utiliser l'outil d'édition qui échoue bruyamment sur motif absent, pas un `str.replace`
+Python qui accepte n'importe quoi — et surtout pas pour du contenu à échappements.

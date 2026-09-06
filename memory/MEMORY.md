@@ -63,3 +63,18 @@ _État courant. Réécrit en fin de session, jamais un journal._
 - scripts/bot/ — bot Telegram (voir README.md « Bot Telegram ») ; tests/bot/ (48 cas,
   Supabase/Telegram mockés) ; scripts/setup_task.ps1 + scripts/start_bot.ps1 — tâche
   planifiée MaxBudget-Bot, à installer par Yann en PowerShell admin (pas encore installée)
+
+- 2026-09-06 : **Refonte design livrée** (handoff `inbox/design_handoff_maxbudget_refonte`,
+  fichiers jamais commités). Structure de données changée : `mouvements_recurrents` (le
+  modèle : mode fixe / charge / part) + `mouvements` (l'occurrence d'un mois, `fait_le`)
+  remplacent `virements`, qui existe encore mais que PLUS RIEN NE LIT. `lignes.regle`
+  surcharge la règle d'une charge pour un mois donné ; `charges.montant_defaut` et
+  `defaut_dernier` pilotent le montant préaffiché. Migration 005_refonte.sql appliquée.
+  Frontend : ui-base.js (navigation, feuille, toast), ui-mouvements.js, ui-charges.js,
+  ui-recurrents.js, ui-comptes.js, ui-stats.js, app.js. `ui-mois.js` supprimé.
+  Six écrans en mobile (onglets bas) et PC (barre haute, colonne de détail à droite).
+  Bot et Edge Function lisent `mouvements` ; le rappel replie sur les récurrents actifs
+  quand le mois n'a pas encore été ouvert (cas du 1er, vérifié en réel sur septembre 2026).
+  Portes vertes : test_calc, recette visuelle, recette connectée, 60 tests bot.
+  Toujours pas fait : aucun compte bancaire saisi, donc « Comptes à définir » partout et
+  le bouton Copier ne peut pas calculer le complément du virement permanent.
