@@ -70,3 +70,14 @@ silencieusement en laissant un appel à une fonction jamais créée. Le déploie
 et l'appel manquant n'a été vu qu'en relisant le fichier. Mnémonique : pour éditer du code,
 utiliser l'outil d'édition qui échoue bruyamment sur motif absent, pas un `str.replace`
 Python qui accepte n'importe quoi — et surtout pas pour du contenu à échappements.
+
+## L-012 — un run GitHub Actions « waiting » peut rester bloqué indéfiniment (2026-09-06)
+Après le push de la refonte, le workflow Pages est resté en `status: waiting` plus de
+20 minutes, job sans aucune étape. Ni approbation en attente (`current_user_can_approve:
+false` même authentifié), ni minuterie, ni relecteur : une file d'exécution coincée côté
+GitHub. Pendant ce temps le site servait un `index.html` neuf avec les anciens modules,
+donc cassé. Débloqué en annulant le run puis en relançant via `workflow_dispatch` (le
+workflow doit déclarer ce déclencheur) : parti immédiatement, site à jour en 30 s.
+Mnémonique : après un push qui change les noms de fichiers servis, vérifier que le site
+sert bien les NOUVEAUX fichiers (un 404 sur un module et un 200 sur un module supprimé
+sont le signe d'un déploiement qui n'a pas eu lieu), pas seulement que le push est passé.
