@@ -45,9 +45,28 @@ export function brancherCoches(racine, surCoche, surLigne) {
   }
 }
 
+/** Branche les boutons Modifier / Retirer d'un écran de réglages. */
+export function brancherReglages(racine, surModifier, surRetirer) {
+  for (const b of racine.querySelectorAll("[data-modifier]")) {
+    b.addEventListener("click", () => surModifier(Number(b.dataset.modifier)));
+  }
+  for (const b of racine.querySelectorAll("[data-retirer]")) {
+    b.addEventListener("click", () => surRetirer(Number(b.dataset.retirer)));
+  }
+}
+
 /** Surligne la ligne dont le détail est ouvert (PC). */
 export function marquerChoisi(racine, id) {
   for (const el of racine.querySelectorAll(".mvt[data-id]")) el.classList.toggle("choisi", Number(el.dataset.id) === id);
+}
+
+/** « De → Vers » d'un mouvement ; invite à définir les comptes tant qu'ils manquent. */
+export function trajetComptes(comptes, idDe, idVers) {
+  const nom = (id) => comptes.find((c) => c.id === id)?.nom ?? null;
+  const de = nom(idDe);
+  const vers = nom(idVers);
+  if (!de && !vers) return "Comptes à définir";
+  return `${de ?? "compte à définir"} → ${vers ?? "compte à définir"}`;
 }
 
 /** Ligne d'un écran de réglages (récurrent, tâche récurrente) avec Modifier / Retirer. */
@@ -87,8 +106,6 @@ export function fermerPanneau(selecteurAside) {
   a.hidden = true;
   a.innerHTML = "";
 }
-export const panneauOuvert = (selecteurAside) => !$(selecteurAside).hidden || feuilleOuverte();
-
 /** Choix d'une personne : pastilles cliquables, `data-qui`. */
 export const choixQui = (membres, choisi) => `<div class="choix-qui">${membres.map((p) =>
   `<button type="button" class="pastille grande${p === choisi ? " bleue" : ""}" data-qui="${txt(p)}">${txt(p)}</button>`).join("")}</div>`;

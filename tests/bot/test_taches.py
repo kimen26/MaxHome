@@ -124,11 +124,11 @@ def test_restantes_trie_par_importance_puis_echeance():
 def test_balance_compte_la_fenetre_seulement():
     maintenant = datetime.now(timezone.utc)
     taches = [
-        {"qui": "Yann", "points": 3, "fait_le": maintenant.isoformat()},
-        {"qui": "Claudia", "points": 5, "fait_le": (maintenant - timedelta(days=2)).isoformat()},
-        {"qui": "Yann", "points": 9, "fait_le": (maintenant - timedelta(days=40)).isoformat()},
-        {"qui": "Yann", "points": 9, "fait_le": None},
-        {"qui": "Inconnu", "points": 9, "fait_le": maintenant.isoformat()},
+        {"qui": "Yann", "points": 3, "categorie": "Cuisine", "fait_le": maintenant.isoformat()},
+        {"qui": "Claudia", "points": 5, "categorie": "Linge", "fait_le": (maintenant - timedelta(days=2)).isoformat()},
+        {"qui": "Yann", "points": 9, "categorie": "Ménage", "fait_le": (maintenant - timedelta(days=40)).isoformat()},
+        {"qui": "Yann", "points": 9, "categorie": "Ménage", "fait_le": None},
+        {"qui": "Inconnu", "points": 9, "categorie": "Ménage", "fait_le": maintenant.isoformat()},
     ]
     auj = date.today()
     b = taches_mod.balance(taches, ["Yann", "Claudia"], auj - timedelta(days=6), auj)
@@ -136,6 +136,8 @@ def test_balance_compte_la_fenetre_seulement():
     assert b["nombre"] == {"Yann": 1, "Claudia": 1}
     assert b["total"] == 8
     assert b["ratio"]["Claudia"] == pytest.approx(0.625)
+    assert b["parCategorie"] == {"Cuisine": {"Yann": 3, "Claudia": 0},
+                                "Linge": {"Yann": 0, "Claudia": 5}}, "même forme de retour qu'en JS"
 
 
 def test_balance_vide_partage_a_moitie():

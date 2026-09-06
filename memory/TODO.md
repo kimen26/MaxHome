@@ -63,11 +63,18 @@ _Une session = une lane. Marquer (en cours) à l'ouverture, libérer à la fin._
       blocs partagés (`blocs.js`), module Tâches : migration 006 (15 tâches de départ),
       `taches.js` testé (`tests/test_taches.mjs`), écrans Aujourd'hui / Balance / Réglages.
       Recette connectée étendue (7 tables RLS, coche d'une tâche, 9 captures). 
+- [x] Bot Telegram multi-modules : `taches`, `balance [<jours>]`, `ajoute <article>`,
+      `courses` ; `fait <titre>` vise une tâche ou un mouvement (D-021). Annulation étendue.
+- [x] Rappel du soir (`rappel-taches`, 19:00 Paris) des tâches « le jour même » non faites ;
+      `deploy_rappels.py` déploie et planifie les deux rappels.
+- [x] Lot 2 : Courses — migration 007, écran (ajout rapide, rayons ordonnés, panier
+      repliable), bot, recette. Alexa reste utilisable en parallèle.
+- [x] Audit refonte : duplication descendue dans `blocs.js` (panneau, trajet, ligne de
+      réglage, branchement des réglages), divergences frontend/bot corrigées (D-022), code
+      mort retiré, promesses flottantes attrapées. 101 tests bot, 4 portes vertes.
 - [ ] Yann et Claudia : ajuster les tâches de départ (fréquence, pénibilité, importance) —
       elles sont génériques, pas les vôtres.
-- [ ] Bot Telegram : `fait <tâche>`, `tâches`, `balance` (le bot ne connaît que le budget).
-- [ ] Rappel du soir des tâches « le jour même » non faites (Edge Function + pg_cron).
-- [ ] Lot 2 : Courses (liste commune temps réel, bot `ajoute lait`). Alexa couvre en attendant.
+- [ ] Yann : renseigner les rayons des articles récurrents au fil de l'eau (défaut « Autre »).
 
 ## Lane B — V1 (après recette)
 - [x] Vue annuelle (tableau 12 mois comme l'Excel)

@@ -1,19 +1,13 @@
 // Écran « Mouvements récurrents » : le modèle défini une fois, régénéré chaque mois.
 
 import { euros, versCentimes } from "./calc.js";
-import { $, txt, ouvrirFeuille, fermerFeuille, toast } from "./ui-base.js";
+import { $, $$, txt, ouvrirFeuille, fermerFeuille, toast } from "./ui-base.js";
+import { carteListe, ligneReglage, brancherReglages, trajetComptes } from "./blocs.js";
 
 const MODES = [["fixe", "Montant fixe"], ["charge", "Suit une charge"], ["part", "Part d’une personne"]];
 
 export function creerUiRecurrents(api, etat, cb) {
-  const nomCompte = (id) => etat.comptes.find((c) => c.id === id)?.nom ?? null;
-  /** « De → Vers » ; invite à définir les comptes tant qu'ils manquent. */
-  const trajet = (r) => {
-    const de = nomCompte(r.compte_de);
-    const vers = nomCompte(r.compte_vers);
-    if (!de && !vers) return "Comptes à définir";
-    return `${de ?? "compte à définir"} → ${vers ?? "compte à définir"}`;
-  };
+  const trajet = (r) => trajetComptes(etat.comptes, r.compte_de, r.compte_vers);
 
   /** Montant : chiffre en mono pour un fixe, formule en texte courant sinon. */
   const decrireMontant = (r) => {
@@ -23,34 +17,17 @@ export function creerUiRecurrents(api, etat, cb) {
   };
 
   function rendre() {
-    $("#liste-recurrents").innerHTML = etat.recurrents.length
-      ? `<div class="carte-liste">${etat.recurrents.map((r) => `
-        <div class="rec${r.actif ? "" : " inactif"}">
-          <div class="rec-corps">
-            <span class="rec-titre">${txt(r.titre)}</span>
-            <span class="rec-trajet">${txt(trajet(r))}${r.jour ? ` · le ${r.jour}` : ""}</span>
-            ${r.consigne ? `<span class="rec-consigne">${txt(r.consigne)}</span>` : ""}
-          </div>
-          <div class="rec-droite">
-            <span>${decrireMontant(r)}</span>
-            ${r.qui ? `<span class="pastille">${txt(r.qui)}</span>` : ""}
-          </div>
-          <div class="rec-actions">
-            <button class="btn-lien" data-modifier="${r.id}">Modifier</button>
-            <button class="btn-lien" data-retirer="${r.id}">Retirer</button>
-          </div>
-        </div>`).join("")}</div>`
-      : '<p class="vide">Aucun mouvement récurrent.</p>';
+    $("#liste-recurrents").innerHTML = carteListe(etat.recurrents.map((r) => ligneReglage({
+      id: r.id, titre: r.titre,
+      sous: `${txt(trajet(r))}${r.jour ? ` · le ${r.jour}` : ""}`,
+      consigne: r.consigne, droite: `<span>${decrireMontant(r)}</span>`,
+      pastille: r.qui, inactif: !r.actif,
+    })), "Aucun mouvement récurrent.");
 
-    $("#form-recurrent").innerHTML = `<button class="btn btn-tirets" id="btn-nouveau-recurrent">+ Nouveau mouvement récurrent</button>`;
+    $("#form-recurrent").innerHTML = '<button class="btn btn-tirets" id="btn-nouveau-recurrent">+ Nouveau mouvement récurrent</button>';
     $("#btn-nouveau-recurrent").addEventListener("click", () => formulaire(null));
-
-    for (const b of document.querySelectorAll("#liste-recurrents [data-modifier]")) {
-      b.addEventListener("click", () => formulaire(etat.recurrents.find((r) => r.id === Number(b.dataset.modifier))));
-    }
-    for (const b of document.querySelectorAll("#liste-recurrents [data-retirer]")) {
-      b.addEventListener("click", () => retirer(Number(b.dataset.retirer)));
-    }
+    brancherReglages($("#liste-recurrents"),
+      (id) => formulaire(etat.recurrents.find((r) => r.id === id)), retirer);
   }
 
   function formulaire(r) {

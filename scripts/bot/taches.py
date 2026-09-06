@@ -63,10 +63,14 @@ def du_jour(donnees, jour=None):
 
 
 def points_de(recurrent, tache):
-    """Points d'une tâche : la pénibilité de son récurrent (l'importance ne rapporte rien)."""
+    """Points d'une tâche : la pénibilité de son récurrent (l'importance ne rapporte rien).
+
+    Plancher à 1, comme frontend/taches.js : cocher une tâche rapporte toujours
+    quelque chose, sinon elle ne compterait pas dans la balance.
+    """
     if recurrent:
-        return recurrent["penibilite"]
-    return tache.get("points") or 1
+        return max(1, recurrent["penibilite"])
+    return max(1, tache.get("points") or 1)
 
 
 def restantes(taches, recurrents, jour=None):
@@ -109,9 +113,14 @@ def basculer(donnees, prenom, titre, fait, jour=None):
 
 
 def balance(taches, membres, depuis, jusqu):
-    """Points des tâches faites dans [depuis, jusqu] (dates). Ratio et détail par personne."""
+    """Points des tâches faites dans [depuis, jusqu] (dates).
+
+    Même forme de retour que frontend/taches.js::balance, `parCategorie` compris :
+    les deux canaux doivent pouvoir afficher le même détail.
+    """
     points = {p: 0 for p in membres}
     nombre = {p: 0 for p in membres}
+    par_categorie = {}
     for t in taches:
         if not t["fait_le"] or t["qui"] not in points:
             continue
@@ -120,6 +129,8 @@ def balance(taches, membres, depuis, jusqu):
             continue
         points[t["qui"]] += t["points"]
         nombre[t["qui"]] += 1
+        par_categorie.setdefault(t["categorie"], {p: 0 for p in membres})[t["qui"]] += t["points"]
     total = sum(points.values())
     ratio = {p: (points[p] / total if total else 1 / len(membres)) for p in membres}
-    return {"points": points, "nombre": nombre, "total": total, "ratio": ratio}
+    return {"points": points, "nombre": nombre, "total": total, "ratio": ratio,
+            "parCategorie": par_categorie}

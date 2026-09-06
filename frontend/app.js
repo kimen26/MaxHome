@@ -8,8 +8,9 @@ import { creerUiStats } from "./ui-stats.js";
 import { creerUiTaches } from "./ui-taches.js";
 import { creerUiTachesRec } from "./ui-taches-rec.js";
 import { creerUiCourses } from "./ui-courses.js";
-import { $, txt, MOIS_COURT, decaler, montrerEcran, ecranCourant, ecranDeDepart, moduleDe, MODULES,
+import { $, $$, txt, MOIS_COURT, decaler, montrerEcran, ecranCourant, ecranDeDepart, moduleDe, MODULES,
   brancherNavigation, toast, bandeauErreur, cacherBandeau } from "./ui-base.js";
+import { carteListe } from "./blocs.js";
 import { jourIso, decalerJours, balance, groupe } from "./taches.js";
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -41,11 +42,11 @@ $("#form-login").addEventListener("submit", async (ev) => {
   const { error } = await api.auth.connecter(f.get("email"), f.get("password"));
   $("#login-erreur").textContent = error ? error.message : "";
 });
-$("#logout").addEventListener("click", () => api.auth.deconnecter());
+$("#logout").addEventListener("click", () => { api.auth.deconnecter().catch(echec); });
 api.auth.surChangement((_ev, session) => {
   $("#login").hidden = !!session;
   $("#app").hidden = !session;
-  if (session) demarrer();
+  if (session) demarrer().catch(echec);
 });
 
 // ---------- navigation ----------
@@ -211,20 +212,23 @@ $("#btn-ajouter-ajustement").addEventListener("click", async () => {
   } catch (e) { echec(e); }
 });
 
+/** Un ajustement se lit comme une ligne de réglage, avec un seul verbe : Retirer. */
+const ligneAjustement = (a) => `<div class="rec">
+  <div class="rec-corps"><span class="rec-titre">${txt(a.de)} → ${txt(a.vers)}</span>
+    ${a.motif ? `<span class="rec-trajet">${txt(a.motif)}</span>` : ""}</div>
+  <div class="rec-droite"><span class="mono">${(a.montant_centimes / 100).toFixed(2).replace(".", ",")} €</span></div>
+  <div class="rec-actions"><button class="btn-lien" data-suppr-ajust="${a.id}">Retirer</button></div>
+</div>`;
+
 function rendreAjustements() {
-  $("#ajustements").innerHTML = etat.ajustements.length
-    ? `<div class="carte-liste">${etat.ajustements.map((a) => `<div class="rec">
-        <div class="rec-corps"><span class="rec-titre">${txt(a.de)} → ${txt(a.vers)}</span>
-          ${a.motif ? `<span class="rec-trajet">${txt(a.motif)}</span>` : ""}</div>
-        <div class="rec-droite"><span class="mono">${(a.montant_centimes / 100).toFixed(2).replace(".", ",")} €</span></div>
-        <div class="rec-actions"><button class="btn-lien" data-suppr-ajust="${a.id}">Retirer</button></div>
-      </div>`).join("")}</div>`
-    : '<p class="vide">Aucun ajustement ce mois.</p>';
-  for (const b of document.querySelectorAll("[data-suppr-ajust]")) {
+  $("#ajustements").innerHTML = carteListe(etat.ajustements.map((a) => ligneAjustement(a)),
+    "Aucun ajustement ce mois.");
+  for (const b of $$("#ajustements [data-suppr-ajust]")) {
     b.addEventListener("click", async () => {
+      const id = Number(b.dataset.supprAjust);
       try {
-        await api.supprimerAjustement(Number(b.dataset.supprAjust));
-        etat.ajustements = etat.ajustements.filter((x) => x.id !== Number(b.dataset.supprAjust));
+        await api.supprimerAjustement(id);
+        etat.ajustements = etat.ajustements.filter((x) => x.id !== id);
         recalculer();
         rendreEcran("charges");
         toast("Ajustement retiré.");

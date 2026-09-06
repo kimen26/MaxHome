@@ -1,10 +1,13 @@
 // Écran « Charges » : saisie des revenus et des montants du mois, règle par ligne, réglages d'une charge.
 
 import { euros, versCentimes, regleEffective } from "./calc.js";
-import { $, txt, estPC, ouvrirFeuille, fermerFeuille, feuilleOuverte, toast, MOIS, MOIS_COURT, decaler } from "./ui-base.js";
+import { $, $$, txt, ouvrirFeuille, fermerFeuille, toast, MOIS, MOIS_COURT, decaler } from "./ui-base.js";
+import { ouvrirPanneau, fermerPanneau } from "./blocs.js";
 
 const REGLES = [["egales", "50/50"], ["proport", "Prorata"], ["cle", "Clé %"], ["perso", "Perso"]];
 const CATEGORIES = ["Logement", "Max", "Épargne", "Alimentation", "Impôts", "Banque", "Autre"];
+
+const ASIDE = "#reglages-pc";
 
 export function creerUiCharges(api, etat, cb) {
   const ligne = (id) => etat.lignes[id];
@@ -87,7 +90,7 @@ export function creerUiCharges(api, etat, cb) {
   }
 
   function brancher() {
-    for (const el of document.querySelectorAll("#ecran-charges [data-revenu]")) {
+    for (const el of $$("#ecran-charges [data-revenu]")) {
       el.addEventListener("change", async () => {
         const prenom = el.dataset.revenu;
         try {
@@ -101,7 +104,7 @@ export function creerUiCharges(api, etat, cb) {
       });
     }
 
-    for (const el of document.querySelectorAll("#ecran-charges [data-montant]")) {
+    for (const el of $$("#ecran-charges [data-montant]")) {
       el.addEventListener("change", async () => {
         const id = Number(el.dataset.montant);
         if (!el.value.trim()) {
@@ -119,7 +122,7 @@ export function creerUiCharges(api, etat, cb) {
       });
     }
 
-    for (const seg of document.querySelectorAll("#ecran-charges [data-segment]")) {
+    for (const seg of $$("#ecran-charges [data-segment]")) {
       const id = Number(seg.dataset.segment);
       for (const b of seg.querySelectorAll("button")) {
         b.addEventListener("click", () => {
@@ -132,7 +135,7 @@ export function creerUiCharges(api, etat, cb) {
       }
     }
 
-    for (const b of document.querySelectorAll("#ecran-charges [data-reglages]")) {
+    for (const b of $$("#ecran-charges [data-reglages]")) {
       b.addEventListener("click", () => ouvrirReglages(Number(b.dataset.reglages)));
     }
   }
@@ -183,20 +186,10 @@ export function creerUiCharges(api, etat, cb) {
   function ouvrirReglages(id) {
     const c = etat.charges.find((x) => x.id === id);
     if (!c) return;
-    if (estPC()) {
-      $("#reglages-pc").innerHTML = htmlReglages(c);
-      $("#reglages-pc").hidden = false;
-    } else {
-      ouvrirFeuille(htmlReglages(c));
-    }
-    brancherReglages(c);
+    brancherReglages(c, ouvrirPanneau(ASIDE, htmlReglages(c)));
   }
 
-  function fermerReglages() {
-    if (feuilleOuverte()) fermerFeuille();
-    $("#reglages-pc").hidden = true;
-    $("#reglages-pc").innerHTML = "";
-  }
+  const fermerReglages = () => fermerPanneau(ASIDE);
 
   function brancherReglages(c) {
     const racine = estPC() ? $("#reglages-pc") : $("#feuille-corps");

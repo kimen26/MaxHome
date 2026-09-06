@@ -1,7 +1,6 @@
 // Moteur de répartition — pur, sans DOM, testable en node.
 // Tous les montants en centimes entiers.
 
-export const TYPES = { egales: "É", proport: "%", cle: "clé", perso: "perso" };
 
 /** Répartit `total` (centimes) selon des poids ; le reste d'arrondi va au premier. */
 export function repartir(total, poids) {

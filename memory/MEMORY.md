@@ -87,3 +87,12 @@ _État courant. Réécrit en fin de session, jamais un journal._
   ui-taches.js, ui-taches-rec.js). Points = pénibilité figée à la coche (D-019). Tout vérifié :
   test_calc, test_taches, recette visuelle, recette connectée (RLS sur 7 tables, février 2026
   toujours −5 844,78 €). Bot relancé (PID 51904) mais tâche planifiée toujours pas installée.
+
+- 2026-09-06 (suite) : **lane E terminée**. Trois modules en prod : Budget, Tâches, Courses.
+  Migrations 006 (tâches) et 007 (courses) appliquées ; 272 lignes / 38 revenus / 16 charges
+  toujours intacts. Bot multi-modules (101 tests hors ligne) : `taches`, `balance`, `ajoute`,
+  `courses`, `fait <titre>` qui distingue tâche et virement (D-021). Deux Edge Functions
+  planifiées : `rappel-virements` (1er et 5, 09:00 Paris) et `rappel-taches` (chaque soir,
+  19:00 Paris), déployées par `scripts/deploy_rappels.py`. Audit de cohérence passé : blocs
+  partagés branchés partout, plancher de points aligné entre app et bot (D-022), code mort
+  retiré. Bot relancé (PID 67740) ; la tâche planifiée Windows reste à installer en admin.

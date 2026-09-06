@@ -1,8 +1,8 @@
 // Écrans « Tâches récurrentes » (réglages) et « Balance » du module Tâches.
 
 import { $, $$, txt, ouvrirFeuille, fermerFeuille, toast } from "./ui-base.js";
-import { ligneReglage } from "./blocs.js";
-import { FREQUENCES, PENIBILITES, IMPORTANCES, balance, jourIso, decalerJours } from "./taches.js";
+import { ligneReglage, brancherReglages } from "./blocs.js";
+import { FREQUENCES, PENIBILITES, IMPORTANCES, balance, jourIso, decalerJours, pts } from "./taches.js";
 
 export function creerUiTachesRec(api, etat, cb) {
   const categories = () => [...new Set(etat.tachesRec.map((r) => r.categorie))];
@@ -18,7 +18,7 @@ export function creerUiTachesRec(api, etat, cb) {
     id: r.id, titre: r.titre,
     sous: `${FREQUENCES[r.frequence]}${r.fois > 1 ? ` · ${r.fois} fois` : ""} · ${IMPORTANCES[r.importance].toLowerCase()}`,
     consigne: r.consigne,
-    droite: `<span class="pts">${r.penibilite} pt${r.penibilite > 1 ? "s" : ""}</span>`,
+    droite: `<span class="pts">${pts(r.penibilite)}</span>`,
     pastille: r.attribue_a,
   })).join("")}
         </section>`).join("")
@@ -26,12 +26,8 @@ export function creerUiTachesRec(api, etat, cb) {
 
     $("#form-tache-rec").innerHTML = '<button class="btn btn-tirets" id="btn-nouvelle-tache">+ Nouvelle tâche récurrente</button>';
     $("#btn-nouvelle-tache").addEventListener("click", () => formulaire(null));
-    for (const b of $$("#liste-taches-rec [data-modifier]")) {
-      b.addEventListener("click", () => formulaire(etat.tachesRec.find((r) => r.id === Number(b.dataset.modifier))));
-    }
-    for (const b of $$("#liste-taches-rec [data-retirer]")) {
-      b.addEventListener("click", () => retirer(Number(b.dataset.retirer)));
-    }
+    brancherReglages($("#liste-taches-rec"),
+      (id) => formulaire(etat.tachesRec.find((r) => r.id === id)), retirer);
   }
 
   function formulaire(r) {
@@ -113,7 +109,7 @@ export function creerUiTachesRec(api, etat, cb) {
         <div class="balance-grand">${membres.map((p, i) => `<div class="balance-personne">
           <span class="mono grand" style="color:${couleur(i)}">${Math.round(b.ratio[p] * 100)} %</span>
           <span class="nom">${txt(p)}</span>
-          <span class="sous">${b.points[p]} pt${b.points[p] > 1 ? "s" : ""} · ${b.nombre[p]} tâche${b.nombre[p] > 1 ? "s" : ""}</span>
+          <span class="sous">${pts(b.points[p])} · ${b.nombre[p]} tâche${b.nombre[p] > 1 ? "s" : ""}</span>
         </div>`).join("")}</div>
         <div class="barre-h">${membres.map((p, i) => `<span style="width:${b.ratio[p] * 100}%;background:${couleur(i)}"></span>`).join("")}</div>
         <p class="sous">${b.total ? `${b.total} points au total.` : "Aucune tâche cochée sur la période."}</p>

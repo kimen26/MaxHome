@@ -5,10 +5,9 @@ import { $, txt, estPC, toast, fermerFeuille, feuilleOuverte, ouvrirFeuille, mon
 import { ligneCoche, carteListe, chiffres, titreSection, brancherCoches, marquerChoisi,
   enteteDetail, ouvrirPanneau, fermerPanneau, choixQui } from "./blocs.js";
 import { occurrencesManquantes, perimees, pointsDe, groupe, GROUPES, trier, jourIso, balance, decalerJours,
-  FREQUENCES, PENIBILITES } from "./taches.js";
+  FREQUENCES, PENIBILITES, pts } from "./taches.js";
 
 const ASIDE = "#detail-tache-pc";
-const pts = (n) => `${n} pt${n > 1 ? "s" : ""}`;
 
 export function creerUiTaches(api, etat, cb) {
   let detailEnCours = null;

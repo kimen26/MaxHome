@@ -119,18 +119,26 @@ try {
   console.log("Aujourd’hui :", (await page.textContent("#sous-jour")).trim());
   await page.screenshot({ path: path.join(SORTIE, "jour-mobile.png"), fullPage: true });
 
-  // Coche la première tâche depuis son détail, vérifie les points, puis annule.
+  // Coche une tâche depuis son détail, vérifie les points, puis annule LA MÊME.
+  // Les compteurs sont relatifs : une tâche cochée par ailleurs ne doit ni faire
+  // passer ce test à tort, ni le faire échouer.
+  const idsFaitsAvant = await page.$$eval("#taches-faites .mvt", (e) => e.map((x) => x.dataset.id));
   await page.locator("#taches-a-faire .mvt").first().click();
   await page.waitForSelector("#feuille:not([hidden]) .detail [data-basculer]");
+  const idTache = await page.getAttribute("#feuille .detail", "data-id");
   await page.screenshot({ path: path.join(SORTIE, "detail-tache-mobile.png"), fullPage: true });
   await page.click("#feuille [data-basculer]");
-  await page.waitForFunction(() => document.querySelectorAll("#taches-faites .mvt").length > 0, null, { timeout: 10000 });
-  const faite = (await page.textContent("#taches-faites .mvt")).replace(/\s+/g, " ").trim();
+  await page.waitForSelector(`#taches-faites .mvt[data-id="${idTache}"]`, { timeout: 10000 });
+  const faite = (await page.textContent(`#taches-faites .mvt[data-id="${idTache}"]`)).replace(/\s+/g, " ").trim();
   if (!/\d pts?/.test(faite) || !faite.includes("Yann")) throw new Error(`tâche faite sans points ou sans auteur : ${faite}`);
   console.log("Tâche cochée :", faite);
-  await page.locator("#taches-faites .mvt .case.cochee").first().click();
-  await page.waitForFunction(() => document.querySelectorAll("#taches-faites .mvt").length === 0, null, { timeout: 10000 });
-  console.log("Coche tâche annulée OK");
+  await page.locator(`#taches-faites .mvt[data-id="${idTache}"] .case.cochee`).click();
+  await page.waitForSelector(`#taches-faites .mvt[data-id="${idTache}"]`, { state: "detached", timeout: 10000 });
+  const idsFaitsApres = await page.$$eval("#taches-faites .mvt", (e) => e.map((x) => x.dataset.id));
+  if (JSON.stringify(idsFaitsApres) !== JSON.stringify(idsFaitsAvant)) {
+    throw new Error(`la liste des tâches faites a changé : ${idsFaitsAvant} → ${idsFaitsApres}`);
+  }
+  console.log("Coche tâche annulée OK — liste des faites inchangée");
 
   // ---------- courses (mobile) : ajout, coche, vidage — la liste revient à son état d'origine ----------
   await aller(page, "courses", "#ecran-courses:not([hidden]) #form-course");

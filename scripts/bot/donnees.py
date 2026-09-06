@@ -43,9 +43,7 @@ class Donnees:
         return self._appel("GET", "charges?select=*&order=ordre")
 
     def mois(self, annee, mois):
-        lignes = self._appel("GET", f"lignes?annee=eq.{annee}&mois=eq.{mois}&select=charge_id,montant_centimes")
-        revenus = self._appel("GET", f"revenus?annee=eq.{annee}&mois=eq.{mois}&select=prenom,montant_centimes")
-        return lignes, revenus
+        return self.lignes_mois(annee, mois), self.revenus_mois(annee, mois)
 
     def ajustements(self, annee, mois):
         return self._appel("GET", f"ajustements?annee=eq.{annee}&mois=eq.{mois}&select=*")

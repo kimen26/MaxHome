@@ -160,3 +160,27 @@ rapporte rien, elle trie la liste — sinon on récompense l'urgence, pas l'effo
 occurrence non faite dont la période est finie depuis plus d'un jour est purgée : on ne
 rattrape pas un biberon d'avant-hier, et la liste « en retard » ne s'empile pas. Les tâches
 « au besoin » (poubelle, verre) ne se génèrent pas : un geste les crée déjà faites.
+
+## D-020 — module Courses : pas de modèle/occurrence (2026-09-06)
+Les tâches et les mouvements ont un modèle récurrent qui engendre des occurrences ; les
+courses non. Un article est ajouté, coché dans le magasin, puis vidé : le cycle est trop
+court pour qu'un modèle apporte quoi que ce soit. Une seule table `courses`, plus une table
+`courses_rayons` ordonnée par parcours de magasin (pas alphabétique) pour que la liste se
+lise dans l'ordre où on marche. Le panier se vide en un geste au lieu de se décocher article
+par article.
+
+## D-021 — « fait <titre> » vise une tâche ou un mouvement, jamais au hasard (2026-09-06)
+Le bot sert trois modules ; `fait <titre>` est ambigu. Règle : avec un titre, on cherche
+d'abord parmi les tâches du jour, et on ne bascule une tâche que si le titre lui correspond
+vraiment (seuil flou) ; sinon on retombe sur les mouvements. Sans titre, c'est toujours le
+virement au commun de l'expéditeur — cocher une tâche exige de dire laquelle, on ne devine
+pas à la place de l'utilisateur. Le fuzzy accepte désormais un mot du libellé : les titres de
+tâches (« Étendre et plier le linge ») sont trop longs pour qu'un mot isolé atteigne 0,75 de
+similarité globale.
+
+## D-022 — un plancher de 1 point par tâche faite (2026-09-06)
+Le frontend renvoyait 0 point pour une tâche hors liste sans pénibilité, le bot renvoyait 1 :
+la même tâche valait 0 ou 1 selon le canal, et la balance divergeait silencieusement.
+Tranché : cocher une tâche rapporte toujours au moins 1 point, sinon elle ne compterait pas
+dans l'équilibre. Règle identique dans `frontend/taches.js` et `scripts/bot/taches.py`, avec
+un test croisé qui exécute les deux et compare (`tests/bot/test_taches.py`).

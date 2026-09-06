@@ -67,7 +67,6 @@ main { padding:0 16px calc(var(--barre-basse) + 24px); }
 /* ---------- cartes, listes ---------- */
 .carte { background:#fff; border:1px solid var(--bordure); border-radius:12px; padding:14px; }
 .carte + .carte { margin-top:10px; }
-.carte-tirets { border:1px dashed var(--tirets); background:transparent; }
 
 /* ---------- boutons ---------- */
 .btn { border:1px solid var(--bordure); background:#fff; color:var(--texte); border-radius:8px; padding:0 14px; min-height:44px; cursor:pointer; }
@@ -353,8 +352,6 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
 .modules { display:grid; grid-template-columns:1fr; gap:12px; margin-top:16px; }
 .module-carte { display:flex; flex-direction:column; align-items:flex-start; gap:6px; text-align:left; cursor:pointer; padding:18px 16px; min-height:88px; }
 .module-carte:hover { border-color:var(--bleu); }
-.module-carte.bientot { cursor:default; opacity:.55; }
-.module-carte.bientot:hover { border-color:var(--bordure); }
 .module-nom { font-size:18px; font-weight:600; color:var(--bleu); }
 .module-resume { font-size:13px; color:var(--texte-2); line-height:1.4; }
 @media (min-width:600px) { .modules { grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); } }

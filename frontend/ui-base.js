@@ -166,7 +166,10 @@ export async function copier(texte) {
   try {
     await navigator.clipboard.writeText(texte);
     toast(`${texte} copié`);
-  } catch {
-    toast("Copie impossible sur ce navigateur", true);
+  } catch (e) {
+    // Refus de permission ou contexte non sécurisé : le message reste simple pour
+    // l'utilisateur, mais la cause réelle part dans la console.
+    console.error("copie refusée", e);
+    toast("Copie impossible ici", true);
   }
 }

@@ -5,6 +5,9 @@ export const FREQUENCES = {
   quotidien: "Chaque jour", hebdo: "Chaque semaine", mensuel: "Chaque mois", au_besoin: "Au besoin",
 };
 export const PENIBILITES = ["", "Très facile", "Facile", "Moyenne", "Pénible", "Très pénible"];
+
+/** « 1 pt » / « 4 pts » — un seul endroit, l'accord se fait ici. */
+export const pts = (n) => `${n} pt${n > 1 ? "s" : ""}`;
 export const IMPORTANCES = ["", "Peut attendre", "À faire", "Le jour même"];
 
 const deux = (n) => String(n).padStart(2, "0");
@@ -50,8 +53,11 @@ export function occurrencesManquantes(recurrents, existantes, jour) {
 export const perimees = (taches, jour) =>
   taches.filter((t) => !t.fait_le && t.recurrent_id && t.echeance < decalerJours(jour, -1));
 
-/** Points d'une tâche : sa pénibilité (l'importance trie, elle ne rapporte pas). */
-export const pointsDe = (recurrent, tache) => recurrent?.penibilite ?? tache?.points ?? 1;
+/** Points d'une tâche : sa pénibilité (l'importance trie, elle ne rapporte pas).
+ *  Plancher à 1 : cocher une tâche rapporte toujours quelque chose, sinon elle ne
+ *  compterait pas dans la balance. Même règle côté bot (scripts/bot/taches.py). */
+export const pointsDe = (recurrent, tache) =>
+  Math.max(1, recurrent?.penibilite ?? tache?.points ?? 1);
 
 /** Groupe d'affichage d'une tâche non faite, relativement à `jour`. */
 export function groupe(tache, jour) {

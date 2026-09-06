@@ -3,16 +3,21 @@
 
 import { euros } from "./calc.js";
 import { $, txt, estPC, ouvrirFeuille, fermerFeuille, feuilleOuverte, toast, copier, montrerEcran, MOIS } from "./ui-base.js";
-import { ligneCoche, carteListe, chiffres, brancherCoches, marquerChoisi } from "./blocs.js";
+import { ligneCoche, carteListe, chiffres, brancherCoches, marquerChoisi,
+  enteteDetail, ouvrirPanneau, fermerPanneau, trajetComptes } from "./blocs.js";
 
-/** Montant théorique d'un mouvement selon le mode de son récurrent. */
+/** Montant théorique d'un mouvement selon le mode de son récurrent.
+ *  `null` seulement s'il n'y a pas de récurrent (mouvement ponctuel) ; un mode inconnu
+ *  est une donnée corrompue et lève, comme côté bot (scripts/bot/mouvements.py). */
 export function montantTheorique(recurrent, contexte) {
   if (!recurrent) return null;
   if (recurrent.mode === "fixe") return recurrent.montant_centimes ?? 0;
   if (recurrent.mode === "charge") return contexte.lignes[recurrent.charge_id]?.montant_centimes ?? 0;
   if (recurrent.mode === "part") return -(contexte.resultat.aVerser[recurrent.prenom_part] ?? 0);
-  return null;
+  throw new Error(`mode de mouvement récurrent inconnu : ${recurrent.mode}`);
 }
+
+const ASIDE = "#detail-pc";
 
 export function creerUiMouvements(api, etat, cb) {
   // Mouvement dont le détail va être réaffiché juste après un rendu : évite d'ouvrir le premier par défaut.
@@ -20,13 +25,7 @@ export function creerUiMouvements(api, etat, cb) {
   const recurrentDe = (m) => etat.recurrents.find((r) => r.id === m.recurrent_id);
   const compte = (id) => etat.comptes.find((c) => c.id === id);
   const nomCompte = (id) => compte(id)?.nom ?? null;
-  /** « De → Vers » ; invite à définir les comptes tant qu'ils manquent. */
-  const trajet = (m) => {
-    const de = nomCompte(m.compte_de);
-    const vers = nomCompte(m.compte_vers);
-    if (!de && !vers) return "Comptes à définir";
-    return `${de ?? "compte à définir"} → ${vers ?? "compte à définir"}`;
-  };
+  const trajet = (m) => trajetComptes(etat.comptes, m.compte_de, m.compte_vers);
   const detailCompte = (id) => {
     const c = compte(id);
     return c?.iban_masque ? `····${c.iban_masque}` : (c?.titulaire ?? "");
@@ -112,10 +111,7 @@ export function creerUiMouvements(api, etat, cb) {
       ? `Récurrent · chaque mois${r.qui ? ` · ${r.qui}` : ""}`
       : `Ponctuel${m.qui ? ` · ${m.qui}` : ""}`;
     return `<div class="detail" data-id="${m.id}">
-      <div class="detail-tete">
-        <div><h2>${txt(m.titre)}</h2><span class="sous">${txt(sousTitre)}</span></div>
-        <button class="btn-lien" data-fermer-detail>Fermer</button>
-      </div>
+      ${enteteDetail(m.titre, sousTitre)}
       <div class="detail-montant">
         <span class="mono grand">${euros(montant)}</span>
         <span class="sous">${txt(explication(m))}</span>
@@ -149,24 +145,12 @@ export function creerUiMouvements(api, etat, cb) {
   function ouvrirDetail(id) {
     const m = etat.mouvements.find((x) => x.id === id);
     if (!m) return;
-    if (estPC()) {
-      const panneau = $("#detail-pc");
-      panneau.innerHTML = htmlDetail(m);
-      panneau.hidden = false;
-    } else {
-      ouvrirFeuille(htmlDetail(m));
-    }
-    brancherDetail(m);
+    brancherDetail(m, ouvrirPanneau(ASIDE, htmlDetail(m)));
   }
 
-  function fermerDetail() {
-    if (feuilleOuverte()) fermerFeuille();
-    $("#detail-pc").hidden = true;
-    $("#detail-pc").innerHTML = "";
-  }
+  const fermerDetail = () => fermerPanneau(ASIDE);
 
-  function brancherDetail(m) {
-    const racine = estPC() ? $("#detail-pc") : $("#feuille-corps");
+  function brancherDetail(m, racine) {
     racine.querySelector("[data-fermer-detail]")?.addEventListener("click", fermerDetail);
     racine.querySelector("[data-copier]")?.addEventListener("click", (e) => copier(e.currentTarget.dataset.copier));
     racine.querySelector("[data-basculer]")?.addEventListener("click", () => basculer(m.id));

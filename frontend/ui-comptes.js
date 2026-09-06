@@ -1,6 +1,7 @@
 // Écran « Comptes » : cartes par compte, le commun mis en avant. La note porte le virement permanent.
 
 import { $, txt, ouvrirFeuille, fermerFeuille, toast } from "./ui-base.js";
+import { brancherReglages } from "./blocs.js";
 
 export function creerUiComptes(api, etat, cb) {
   function rendre() {
@@ -15,19 +16,15 @@ export function creerUiComptes(api, etat, cb) {
           ${c.note ? `<p class="compte-note">${txt(c.note)}</p>` : ""}
           <div class="rec-actions">
             <button class="btn-lien" data-modifier="${c.id}">Modifier</button>
-            <button class="btn-lien" data-supprimer="${c.id}">Supprimer</button>
+            <button class="btn-lien" data-retirer="${c.id}">Supprimer</button>
           </div>
         </div>`).join("")
       : '<p class="vide">Aucun compte enregistré.</p>';
 
     $("#form-compte").innerHTML = '<button class="btn btn-tirets" id="btn-nouveau-compte">+ Nouveau compte</button>';
     $("#btn-nouveau-compte").addEventListener("click", () => formulaire(null));
-    for (const b of document.querySelectorAll("#liste-comptes [data-modifier]")) {
-      b.addEventListener("click", () => formulaire(etat.comptes.find((c) => c.id === Number(b.dataset.modifier))));
-    }
-    for (const b of document.querySelectorAll("#liste-comptes [data-supprimer]")) {
-      b.addEventListener("click", () => supprimer(Number(b.dataset.supprimer)));
-    }
+    brancherReglages($("#liste-comptes"),
+      (id) => formulaire(etat.comptes.find((c) => c.id === id)), supprimer);
   }
 
   function formulaire(c) {

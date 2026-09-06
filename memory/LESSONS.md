@@ -81,3 +81,36 @@ workflow doit déclarer ce déclencheur) : parti immédiatement, site à jour en
 Mnémonique : après un push qui change les noms de fichiers servis, vérifier que le site
 sert bien les NOUVEAUX fichiers (un 404 sur un module et un 200 sur un module supprimé
 sont le signe d'un déploiement qui n'a pas eu lieu), pas seulement que le push est passé.
+
+
+## L-013 — une assertion absolue sur un état partagé masque le bug qu'elle devrait voir
+La recette cochait une tâche puis vérifiait « zéro tâche faite » pour prouver l'annulation.
+Une tâche cochée par ailleurs (script de débogage, autre session) faisait passer le test à
+tort, et une ligne est restée cochée en base une demi-journée sans que rien ne le signale.
+Corrigé en relatif : on mémorise la liste des ids faits AVANT, on coche et décoche la ligne
+identifiée par son propre id, on vérifie que la liste est revenue à l'identique.
+Mnémonique : sur un état partagé, une recette compare un avant et un après, jamais un absolu.
+
+## L-014 — deux implémentations de la même règle divergent sur le cas limite, pas sur le cas normal
+`pointsDe` (JS) et `points_de` (Python) faisaient la même chose sur toutes les valeurs
+utiles, et divergeaient sur 0 : `??` ne se déclenche que sur null, `or` traite 0 comme faux.
+Les tests de chaque côté passaient. Ce qui a trouvé la faute, c'est un test qui EXÉCUTE les
+deux et compare le résultat, pas deux tests parallèles écrits séparément.
+Mnémonique : quand une règle vit dans deux langages, tester chacun ne suffit pas ; il faut un
+test qui les confronte sur les mêmes entrées, cas limites compris.
+
+## L-015 — un module à un seul onglet enferme la navigation
+Le module Courses n'ayant qu'un écran, la barre mobile n'affichait qu'un onglet et le menu
+« Plus » ne proposait que l'écran par défaut des autres modules : depuis Courses, l'écran
+Balance devenait inatteignable sans passer par l'accueil. Trouvé par la recette, pas à l'œil.
+Corrigé : « Plus » est toujours présent dans un module et liste TOUS les écrans de l'app,
+groupés par module.
+Mnémonique : une navigation se teste en essayant d'aller de n'importe où à n'importe où, pas
+en vérifiant que chaque écran s'affiche.
+
+## L-016 — la capture pleine page invente des chevauchements
+Sur `recurrents-pc.png`, deux textes semblaient se superposer. Mesure des boîtes réelles via
+`getBoundingClientRect` : aucune intersection, artefact du rendu `fullPage` de Playwright sur
+une page courte. Une demi-heure perdue à chercher une cause CSS inexistante.
+Mnémonique : un chevauchement vu sur une capture se confirme par une mesure de géométrie
+avant d'ouvrir le CSS.
