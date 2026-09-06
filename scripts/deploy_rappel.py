@@ -1,6 +1,6 @@
 """Déploie le rappel Telegram : secrets Supabase, Edge Function, planification pg_cron, test d'envoi.
 
-Lit .env (SUPABASE_PAT, SUPABASE_REF, MAXBUDGET_TELEGRAM_BOT_TOKEN, MAXBUDGET_TELEGRAM_CHAT_ID),
+Lit .env (SUPABASE_PAT, SUPABASE_REF, MAXHOME_TELEGRAM_BOT_TOKEN, MAXHOME_TELEGRAM_CHAT_ID),
 n'affiche jamais une valeur secrète. Idempotent.
 Usage : python scripts/deploy_rappel.py
 """
@@ -19,15 +19,15 @@ CRON = "0 7 1,5 * *"  # 09:00 Paris en été, 08:00 en hiver
 
 def main():
     env = lit_env()
-    requis = ["SUPABASE_PAT", "SUPABASE_REF", "MAXBUDGET_TELEGRAM_BOT_TOKEN", "MAXBUDGET_TELEGRAM_CHAT_ID"]
+    requis = ["SUPABASE_PAT", "SUPABASE_REF", "MAXHOME_TELEGRAM_BOT_TOKEN", "MAXHOME_TELEGRAM_CHAT_ID"]
     manquants = [k for k in requis if not env.get(k)]
     if manquants:
         sys.exit(f".env incomplet : {manquants}")
     pat, ref = env["SUPABASE_PAT"], env["SUPABASE_REF"]
 
     appel("POST", f"{API}/projects/{ref}/secrets", pat, [
-        {"name": "MAXBUDGET_TELEGRAM_BOT_TOKEN", "value": env["MAXBUDGET_TELEGRAM_BOT_TOKEN"]},
-        {"name": "MAXBUDGET_TELEGRAM_CHAT_ID", "value": env["MAXBUDGET_TELEGRAM_CHAT_ID"]},
+        {"name": "MAXHOME_TELEGRAM_BOT_TOKEN", "value": env["MAXHOME_TELEGRAM_BOT_TOKEN"]},
+        {"name": "MAXHOME_TELEGRAM_CHAT_ID", "value": env["MAXHOME_TELEGRAM_CHAT_ID"]},
     ])
     print("secrets Telegram posés sur le projet")
 

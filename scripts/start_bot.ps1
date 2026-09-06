@@ -1,4 +1,4 @@
-# Lance le bot Telegram MaxBudget (scripts/bot/bot.py) avec redemarrage automatique.
+# Lance le bot Telegram MaxHome (scripts/bot/bot.py) avec redemarrage automatique.
 # Si bot.py s'arrete (crash), il est relance apres 5 s. Le journal applicatif est
 # data\bot.log (ecrit par bot.py lui-meme, rotatif). Ce script journalise seulement
 # les demarrages/arrets du processus dans data\bot_process.log.

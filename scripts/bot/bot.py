@@ -1,4 +1,4 @@
-"""Boucle principale du bot Telegram MaxBudget. Long polling, redémarre seul (tâche Windows).
+"""Boucle principale du bot Telegram MaxHome. Long polling, redémarre seul (tâche Windows).
 
 Usage : python scripts/bot/bot.py
 Journal rotatif : data/bot.log (jamais de secret dedans).
@@ -58,7 +58,7 @@ class Bot:
         ref, pat = env["SUPABASE_REF"], env["SUPABASE_PAT"]
         _, service_role = cles(ref, pat)
         self.donnees = Donnees(ref, service_role)
-        self.telegram = Telegram(env["MAXBUDGET_TELEGRAM_BOT_TOKEN"])
+        self.telegram = Telegram(env["MAXHOME_TELEGRAM_BOT_TOKEN"])
         self.charges = self.donnees.charges()
         self.membres = [m["prenom"] for m in self.donnees.membres()]
         # État en mémoire par telegram_id : {"attente": {...}} ou {"dernier": {...}} pour annuler.

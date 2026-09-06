@@ -1,9 +1,9 @@
-# MaxBudget — suivi des budgets familiaux de Claudia et Yann
+# MaxHome — suivi des budgets familiaux de Claudia et Yann
 
 Petite web-app privée : chaque mois, saisir les deux salaires et les charges du foyer
 (logement, vacances, taxes, enfant…), calculer ce que chacun verse sur le compte commun
 et ce qui reste à répartir. Remplace un classeur Excel de 4 feuilles.
-État : V0 en prod sur https://kimen26.github.io/MaxBudget/ (Supabase `maxbudget`).
+État : V0 en prod sur https://kimen26.github.io/MaxHome/ (Supabase `maxhome`).
 
 ## ACTION OBLIGATOIRE — avant toute réponse
 

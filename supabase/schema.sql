@@ -1,4 +1,4 @@
--- MaxBudget — schéma V0. À exécuter dans Supabase > SQL Editor.
+-- MaxHome — schéma V0. À exécuter dans Supabase > SQL Editor.
 -- Montants en centimes (integer). Aucun float pour de l'argent.
 
 create table if not exists membres (

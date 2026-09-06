@@ -15,7 +15,7 @@ class Donnees:
             "apikey": service_role,
             "Authorization": f"Bearer {service_role}",
             "Content-Type": "application/json",
-            "User-Agent": "maxbudget-bot/1.0",
+            "User-Agent": "maxhome-bot/1.0",
         }
 
     def _appel(self, methode, chemin, corps=None, entetes_extra=None):

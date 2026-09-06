@@ -3,7 +3,7 @@
 // Planifiée via pg_cron le 1er et le 5 de chaque mois à 09:00 Europe/Paris (voir migration 003).
 //
 // Secrets requis (Supabase > Project Settings > Edge Functions > Secrets) :
-//   MAXBUDGET_TELEGRAM_BOT_TOKEN, MAXBUDGET_TELEGRAM_CHAT_ID
+//   MAXHOME_TELEGRAM_BOT_TOKEN, MAXHOME_TELEGRAM_CHAT_ID
 // Déployer avec : python scripts/deploy_rappel.py
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
@@ -15,8 +15,8 @@ function euros(centimes: number): string {
 }
 
 Deno.serve(async () => {
-  const botToken = Deno.env.get("MAXBUDGET_TELEGRAM_BOT_TOKEN");
-  const chatId = Deno.env.get("MAXBUDGET_TELEGRAM_CHAT_ID");
+  const botToken = Deno.env.get("MAXHOME_TELEGRAM_BOT_TOKEN");
+  const chatId = Deno.env.get("MAXHOME_TELEGRAM_CHAT_ID");
   if (!botToken || !chatId) {
     return new Response("secrets Telegram absents, envoi annulé", { status: 200 });
   }
@@ -54,14 +54,14 @@ Deno.serve(async () => {
     lignes = recurrents.map((r) =>
       `• ${r.titre}${r.jour ? ` (le ${r.jour})` : ""}${r.qui ? ` — ${r.qui}` : ""}`
     );
-    const texteRec = `MaxBudget — à faire en ${MOIS[mois - 1]} (ouvre l'app pour les montants) :\n${lignes.join("\n")}`;
+    const texteRec = `MaxHome — à faire en ${MOIS[mois - 1]} (ouvre l'app pour les montants) :\n${lignes.join("\n")}`;
     return await envoyer(botToken, chatId, texteRec);
   }
 
   lignes = mouvements.map((m) =>
     `• ${m.titre} : ${euros(m.montant_centimes)}${m.qui ? ` (${m.qui})` : ""}`
   );
-  const texte = `MaxBudget — reste à faire en ${MOIS[mois - 1]} :\n${lignes.join("\n")}`;
+  const texte = `MaxHome — reste à faire en ${MOIS[mois - 1]} :\n${lignes.join("\n")}`;
   return await envoyer(botToken, chatId, texte);
 });
 

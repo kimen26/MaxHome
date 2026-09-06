@@ -18,7 +18,7 @@ class Telegram:
         data = json.dumps(corps).encode() if corps is not None else None
         req = urllib.request.Request(url, data=data, method="POST")
         req.add_header("Content-Type", "application/json")
-        req.add_header("User-Agent", "maxbudget-bot/1.0")
+        req.add_header("User-Agent", "maxhome-bot/1.0")
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return json.loads(r.read().decode())

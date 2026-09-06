@@ -1,5 +1,5 @@
-# Installe (ou reinstalle) la tache planifiee MaxBudget-Bot. Idempotent : re-executable.
-#   - MaxBudget-Bot : bot Telegram au logon, boucle infinie, redemarre seul.
+# Installe (ou reinstalle) la tache planifiee MaxHome-Bot. Idempotent : re-executable.
+#   - MaxHome-Bot : bot Telegram au logon, boucle infinie, redemarre seul.
 # Usage : powershell -ExecutionPolicy Bypass -File scripts\setup_task.ps1
 
 $ErrorActionPreference = "Stop"
@@ -21,10 +21,10 @@ $action = New-ScheduledTaskAction -Execute "powershell.exe" `
     -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$startBot`""
 $trigger = New-ScheduledTaskTrigger -AtLogOn
 
-Register-ScheduledTask -TaskName "MaxBudget-Bot" -Action $action -Trigger $trigger `
+Register-ScheduledTask -TaskName "MaxHome-Bot" -Action $action -Trigger $trigger `
     -Settings $botSettings -Principal $principal -Force | Out-Null
 
-Write-Host "OK  MaxBudget-Bot"
+Write-Host "OK  MaxHome-Bot"
 Write-Host ""
-Write-Host "Tache installee. Verifier : Get-ScheduledTask MaxBudget-Bot"
-Write-Host "Lancer maintenant : Start-ScheduledTask -TaskName MaxBudget-Bot"
+Write-Host "Tache installee. Verifier : Get-ScheduledTask MaxHome-Bot"
+Write-Host "Lancer maintenant : Start-ScheduledTask -TaskName MaxHome-Bot"

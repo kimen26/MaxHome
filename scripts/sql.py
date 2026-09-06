@@ -23,7 +23,7 @@ def appel(methode, url, jeton, corps=None):
     req = urllib.request.Request(url, data=data, method=methode)
     req.add_header("Authorization", f"Bearer {jeton}")
     req.add_header("Content-Type", "application/json")
-    req.add_header("User-Agent", "maxbudget-sql/1.0")
+    req.add_header("User-Agent", "maxhome-sql/1.0")
     try:
         with urllib.request.urlopen(req, timeout=120) as r:
             texte = r.read().decode()

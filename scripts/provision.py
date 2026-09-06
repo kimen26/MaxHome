@@ -1,4 +1,4 @@
-"""Provisionne le projet Supabase MaxBudget via la Management API (idempotent).
+"""Provisionne le projet Supabase MaxHome via la Management API (idempotent).
 
 Lit .env (SUPABASE_PAT, EMAIL_YANN, EMAIL_CLAUDIA), ne l'affiche jamais.
 Étapes : projet -> attente ACTIVE_HEALTHY -> schéma -> import -> inscription désactivée
@@ -16,7 +16,7 @@ from pathlib import Path
 RACINE = Path(__file__).resolve().parent.parent
 ENV = RACINE / ".env"
 API = "https://api.supabase.com/v1"
-NOM_PROJET = "maxbudget"
+NOM_PROJET = "maxhome"
 REGION = "eu-west-3"  # Paris
 MEMBRES = {"Yann": "EMAIL_YANN", "Claudia": "EMAIL_CLAUDIA"}
 
@@ -34,7 +34,7 @@ def appel(methode, url, jeton, corps=None, entetes=None):
     req = urllib.request.Request(url, data=data, method=methode)
     req.add_header("Authorization", f"Bearer {jeton}")
     req.add_header("Content-Type", "application/json")
-    req.add_header("User-Agent", "maxbudget-provision/1.0")
+    req.add_header("User-Agent", "maxhome-provision/1.0")
     for k, v in (entetes or {}).items():
         req.add_header(k, v)
     try:

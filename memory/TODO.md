@@ -32,8 +32,8 @@ _Une session = une lane. Marquer (en cours) à l'ouverture, libérer à la fin._
 - [x] README.md section « Bot Telegram ».
 - [ ] **Yann : installer la tâche planifiée** — `Register-ScheduledTask` refuse l'accès
       hors session élevée (D-011/L-006). Lancer en PowerShell administrateur :
-      `scripts\setup_task.ps1` puis `Start-ScheduledTask -TaskName MaxBudget-Bot`, vérifier
-      `Get-ScheduledTask MaxBudget-Bot` = Running et `data/bot.log` qui tourne.
+      `scripts\setup_task.ps1` puis `Start-ScheduledTask -TaskName MaxHome-Bot`, vérifier
+      `Get-ScheduledTask MaxHome-Bot` = Running et `data/bot.log` qui tourne.
 - [ ] Yann : envoyer `aide` au bot pour confirmer la mise en service, puis inscrire Claudia
       (`/start` côté Claudia → `inscrire <id> Claudia` côté Yann).
 

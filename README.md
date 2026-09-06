@@ -1,4 +1,4 @@
-# MaxBudget
+# MaxHome
 
 Suivi mensuel des charges du foyer et de leur répartition (50/50 ou prorata des revenus).
 Site statique (GitHub Pages) + Supabase (Auth + Postgres + RLS). Le repo ne contient aucune donnée.
@@ -57,8 +57,8 @@ quelqu'un).
 Le bot tourne en long polling (pas de webhook), redémarre seul s'il plante.
 ```
 powershell -ExecutionPolicy Bypass -File scripts\setup_task.ps1
-Start-ScheduledTask -TaskName MaxBudget-Bot
-Get-ScheduledTask MaxBudget-Bot          # doit passer à Running
+Start-ScheduledTask -TaskName MaxHome-Bot
+Get-ScheduledTask MaxHome-Bot          # doit passer à Running
 ```
 `scripts/setup_task.ps1` doit être lancé depuis une session PowerShell **avec élévation**
 (clic droit > Exécuter en tant qu'administrateur) : la création de tâche planifiée refuse

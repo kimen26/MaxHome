@@ -1,5 +1,5 @@
 {
-  "name": "maxbudget",
+  "name": "maxhome",
   "version": "1.0.0",
   "description": "Suivi mensuel des charges du foyer et de leur répartition (50/50 ou prorata des revenus). Site statique (GitHub Pages) + Supabase (Auth + Postgres + RLS). Le repo ne contient aucune donnée.",
   "main": "index.js",
