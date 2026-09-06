@@ -5,17 +5,22 @@ import { creerUiCharges } from "./ui-charges.js";
 import { creerUiRecurrents } from "./ui-recurrents.js";
 import { creerUiComptes } from "./ui-comptes.js";
 import { creerUiStats } from "./ui-stats.js";
-import { $, txt, MOIS_COURT, decaler, montrerEcran, ecranCourant,
+import { creerUiTaches } from "./ui-taches.js";
+import { creerUiTachesRec } from "./ui-taches-rec.js";
+import { $, txt, MOIS_COURT, decaler, montrerEcran, ecranCourant, ecranDeDepart, moduleDe, MODULES,
   brancherNavigation, toast, bandeauErreur, cacherBandeau } from "./ui-base.js";
+import { jourIso, decalerJours, balance, groupe } from "./taches.js";
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const api = creerApi(sb);
+const JOURS_HISTORIQUE = 35; // couvre la balance sur 30 jours
 
 const etat = {
   annee: 0, mois: 0, prenom: null,
   membres: [], charges: [], comptes: [], recurrents: [],
   lignes: {}, revenus: {}, ajustements: [], mouvements: [],
   moisPrecedent: {}, derniers: {}, resultat: null,
+  tachesRec: [], taches: [],
 };
 
 const echec = (e) => {
@@ -23,7 +28,7 @@ const echec = (e) => {
   bandeauErreur(`Erreur : ${e.message ?? e}`, chargerMois);
   toast(`Erreur : ${e.message ?? e}`, true);
 };
-const cb = { echec, recalculer, rafraichirMois: chargerMois };
+const cb = { echec, recalculer, rafraichirMois: chargerMois, rafraichirTaches: chargerTaches, surTaches: rendreAccueil };
 
 let ui = {};
 
@@ -71,10 +76,10 @@ function recalculer() {
 // ---------- démarrage ----------
 async function demarrer() {
   try {
-    const [membres, charges, comptes, recurrents] = await Promise.all([
-      api.membres(), api.charges(), api.comptes(), api.recurrents(),
+    const [membres, charges, comptes, recurrents, tachesRec] = await Promise.all([
+      api.membres(), api.charges(), api.comptes(), api.recurrents(), api.tachesRec(),
     ]);
-    Object.assign(etat, { membres, charges, comptes, recurrents });
+    Object.assign(etat, { membres, charges, comptes, recurrents, tachesRec });
     etat.prenom = await api.auth.prenomCourant(membres);
 
     ui = {
@@ -83,21 +88,33 @@ async function demarrer() {
       recurrents: creerUiRecurrents(api, etat, cb),
       comptes: creerUiComptes(api, etat, cb),
       stats: creerUiStats(api, etat, cb),
+      taches: creerUiTaches(api, etat, cb),
+      tachesRec: creerUiTachesRec(api, etat, cb),
     };
     brancherNavigation(rendreEcran);
-    // L'écran est affiché sans être rendu : chargerMois() peuple l'état puis déclenche le rendu.
-    montrerEcran("mois", { rendre: false });
-    await chargerMois();
+    // L'écran est affiché sans être rendu : les chargements peuplent l'état puis déclenchent le rendu.
+    montrerEcran(ecranDeDepart(), { rendre: false });
+    await Promise.all([chargerMois(), chargerTaches()]);
   } catch (e) { echec(e); }
 }
 
 function rendreEcran(nom) {
-  if (nom === "mois") ui.mouvements.rendre();
+  if (nom === "accueil") rendreAccueil();
+  else if (nom === "mois") ui.mouvements.rendre();
   else if (nom === "charges") { ui.charges.rendre(); rendreAjustements(); }
   else if (nom === "stats") ui.stats.rendre();
   else if (nom === "recurrents") ui.recurrents.rendre();
   else if (nom === "comptes") ui.comptes.rendre();
   else if (nom === "annuel") ui.stats.rendreAnnuel();
+  else if (nom === "jour") ui.taches.rendre();
+  else if (nom === "balance") ui.tachesRec.rendreBalance();
+  else if (nom === "taches-rec") ui.tachesRec.rendre();
+}
+
+/** Rend l'écran courant s'il appartient au module donné (ou l'accueil, qui les résume tous). */
+function rendreSi(module) {
+  const nom = ecranCourant();
+  if (nom === "accueil" || moduleDe(nom) === module) rendreEcran(nom);
 }
 
 async function chargerMois() {
@@ -124,8 +141,39 @@ async function chargerMois() {
     recalculer();
     await ui.mouvements.genererOccurrences();
     cacherBandeau();
-    rendreEcran(ecranCourant());
+    rendreSi("budget");
   } catch (e) { echec(e); }
+}
+
+async function chargerTaches() {
+  ui.taches?.fermerDetail();
+  try {
+    etat.taches = await api.taches(decalerJours(jourIso(new Date()), -JOURS_HISTORIQUE));
+    await ui.taches.genererOccurrences();
+    rendreSi("taches");
+  } catch (e) { echec(e); }
+}
+
+// ---------- accueil : une carte par module, avec son résumé ----------
+function rendreAccueil() {
+  const jour = jourIso(new Date());
+  const restants = etat.mouvements.filter((m) => !m.fait_le).length;
+  const aFaire = etat.taches.filter((t) => !t.fait_le && ["retard", "aujourdhui"].includes(groupe(t, jour))).length;
+  const b = balance(etat.taches, etat.membres.map((m) => m.prenom), decalerJours(jour, -6), jour);
+  const resume = {
+    budget: etat.resultat
+      ? (restants ? `${restants} mouvement${restants > 1 ? "s" : ""} à faire en ${MOIS_COURT[etat.mois - 1].toLowerCase()}` : `Tout est viré pour ${MOIS_COURT[etat.mois - 1].toLowerCase()}`)
+      : "Chargement…",
+    taches: `${aFaire ? `${aFaire} tâche${aFaire > 1 ? "s" : ""} aujourd’hui` : "Rien à faire aujourd’hui"} · 7 j : ${etat.membres.map((m) => `${m.prenom} ${Math.round(b.ratio[m.prenom] * 100)} %`).join(" / ")}`,
+  };
+  $("#sous-accueil").textContent = etat.prenom ? `Bonjour ${etat.prenom}.` : "";
+  $("#modules").innerHTML = Object.entries(MODULES).map(([k, m]) => `
+    <button class="carte module-carte" data-ecran="${m.defaut}">
+      <span class="module-nom">${txt(m.nom)}</span>
+      <span class="module-resume">${txt(resume[k])}</span>
+    </button>`).join("") + `
+    <div class="carte module-carte bientot"><span class="module-nom">Courses</span><span class="module-resume">Bientôt.</span></div>`;
+  for (const b of $("#modules").querySelectorAll("[data-ecran]")) b.addEventListener("click", () => montrerEcran(b.dataset.ecran));
 }
 
 // ---------- ajustements (écran Charges) ----------
@@ -144,7 +192,6 @@ $("#btn-ajouter-ajustement").addEventListener("click", async () => {
     etat.ajustements.push(cree);
     recalculer();
     rendreEcran("charges");
-    rendreAjustements();
     toast("Ajustement ajouté.");
   } catch (e) { echec(e); }
 });
@@ -165,7 +212,6 @@ function rendreAjustements() {
         etat.ajustements = etat.ajustements.filter((x) => x.id !== Number(b.dataset.supprAjust));
         recalculer();
         rendreEcran("charges");
-        rendreAjustements();
         toast("Ajustement retiré.");
       } catch (e) { echec(e); }
     });

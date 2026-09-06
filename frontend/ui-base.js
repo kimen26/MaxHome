@@ -1,4 +1,4 @@
-// Briques UI partagées : navigation d'écrans, feuille mobile, toast, bandeau d'erreur, helpers DOM.
+// Socle UI partagé : modules et navigation, feuille mobile, toast, bandeau d'erreur, helpers DOM.
 
 export const $ = (s) => document.querySelector(s);
 export const $$ = (s) => [...document.querySelectorAll(s)];
@@ -20,39 +20,87 @@ export function decaler(annee, mois, n) {
   return [Math.floor(t / 12), (t % 12) + 1];
 }
 
-// ---------- écrans ----------
-const ECRANS = ["mois", "charges", "stats", "recurrents", "comptes", "annuel"];
+// ---------- modules et écrans ----------
+// Un module = un jeu d'écrans, ses onglets (3 au plus sur mobile) et les entrées du menu « Plus ».
+export const MODULES = {
+  budget: {
+    nom: "Budget", defaut: "mois", avecMois: true,
+    onglets: [["mois", "Ce mois"], ["charges", "Charges"], ["stats", "Stats"]],
+    plus: [["recurrents", "Mouvements récurrents"], ["comptes", "Comptes"], ["annuel", "Vue annuelle"]],
+  },
+  taches: {
+    nom: "Tâches", defaut: "jour", avecMois: false,
+    onglets: [["jour", "Aujourd’hui"], ["balance", "Balance"], ["taches-rec", "Réglages"]],
+    plus: [],
+  },
+};
+const ecransDe = (m) => [...MODULES[m].onglets, ...MODULES[m].plus].map(([e]) => e);
+export const moduleDe = (ecran) => Object.keys(MODULES).find((m) => ecransDe(m).includes(ecran)) ?? null;
+const CLE_ECRAN = "maxhome.ecran";
+
 let surEcran = () => {};
 
 export function montrerEcran(nom, { rendre = true } = {}) {
-  if (!ECRANS.includes(nom)) return;
-  for (const e of ECRANS) $(`#ecran-${e}`).hidden = e !== nom;
-  $$("#barre-pc .onglet").forEach((b) => b.classList.toggle("actif", b.dataset.ecran === nom));
-  const ongletMobile = ["mois", "charges", "stats"].includes(nom) ? nom : "plus";
-  $$("#onglets button").forEach((b) => b.classList.toggle("actif", b.dataset.ecran === ongletMobile));
+  const module = moduleDe(nom);
+  if (nom !== "accueil" && !module) return;
+  for (const s of $$("main .ecran")) s.hidden = s.id !== `ecran-${nom}`;
+  rendreOnglets(module, nom);
+  $("#puces-pc").hidden = !(module && MODULES[module].avecMois);
   window.scrollTo(0, 0);
+  try { localStorage.setItem(CLE_ECRAN, nom); } catch { /* stockage indisponible : on repart de l'accueil */ }
   if (rendre) surEcran(nom);
 }
 
 export function ecranCourant() {
-  return ECRANS.find((e) => !$(`#ecran-${e}`).hidden) ?? "mois";
+  return $$("main .ecran").find((s) => !s.hidden)?.id.replace(/^ecran-/, "") ?? "accueil";
 }
 
-/** Branche les onglets. `onChange(nom)` est appelé après chaque bascule. */
+/** Dernier écran ouvert sur cet appareil, sinon l'accueil. */
+export function ecranDeDepart() {
+  try {
+    const e = localStorage.getItem(CLE_ECRAN);
+    return e === "accueil" || moduleDe(e) ? e : "accueil";
+  } catch { return "accueil"; }
+}
+
+function rendreOnglets(module, nom) {
+  const m = module ? MODULES[module] : null;
+  $("#onglets-pc").innerHTML = m
+    ? [...m.onglets, ...m.plus].map(([e, l]) =>
+      `<button class="onglet${e === nom ? " actif" : ""}" data-ecran="${e}">${l}</button>`).join("")
+    : "";
+  $("#module-pc").textContent = m ? m.nom : "";
+  const mobile = m
+    ? [...m.onglets.map(([e, l]) => [e, l, e === nom]), ["plus", "Plus", m.plus.some(([e]) => e === nom)]]
+    : Object.entries(MODULES).map(([k, v]) => [v.defaut, v.nom, false]);
+  $("#onglets").innerHTML = mobile.map(([e, l, actif]) =>
+    `<button data-ecran="${e}" class="${actif ? "actif" : ""}">${l}</button>`).join("");
+}
+
+/** Navigation par délégation : les onglets sont reconstruits à chaque écran. */
 export function brancherNavigation(onChange) {
   surEcran = onChange ?? (() => {});
-  $$("#barre-pc .onglet").forEach((b) => b.addEventListener("click", () => montrerEcran(b.dataset.ecran)));
-  $$("#onglets button").forEach((b) => b.addEventListener("click", () => {
+  const aller = (e) => {
+    const b = e.target.closest("[data-ecran]");
+    if (!b) return;
     if (b.dataset.ecran === "plus") return menuPlus();
     montrerEcran(b.dataset.ecran);
-  }));
+  };
+  $("#barre-pc").addEventListener("click", aller);
+  $("#onglets").addEventListener("click", aller);
+  $("#logo").addEventListener("click", () => montrerEcran("accueil"));
 }
 
 function menuPlus() {
-  const entrees = [["recurrents", "Mouvements récurrents"], ["comptes", "Comptes"], ["annuel", "Vue annuelle"]];
+  const module = moduleDe(ecranCourant());
+  const entrees = [
+    ...(module ? MODULES[module].plus : []),
+    ["accueil", "Accueil MaxHome"],
+    ...Object.entries(MODULES).filter(([k]) => k !== module).map(([, v]) => [v.defaut, `Module ${v.nom}`]),
+  ];
   ouvrirFeuille(`
     <h2 style="font-size:18px;margin-bottom:12px">Plus</h2>
-    ${entrees.map(([e, l]) => `<button class="btn" data-aller="${e}" style="width:100%;margin-bottom:8px;justify-content:flex-start">${l}</button>`).join("")}
+    ${entrees.map(([e, l]) => `<button class="btn" data-aller="${e}" style="width:100%;margin-bottom:8px;justify-content:flex-start">${txt(l)}</button>`).join("")}
     <button class="btn" id="feuille-logout" style="width:100%;color:var(--rouge)">Déconnexion</button>`);
   $$("#feuille-corps [data-aller]").forEach((b) => b.addEventListener("click", () => {
     fermerFeuille();

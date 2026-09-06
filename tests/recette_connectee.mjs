@@ -1,5 +1,5 @@
 // Recette connectée : login réel (mot de passe lu dans .env, jamais affiché), février 2026.
-// Parcourt les 6 écrans de la refonte, coche un mouvement, change une règle de mois, capture tout.
+// Accueil, six écrans Budget, trois écrans Tâches ; coche un mouvement et une tâche, remet tout en place.
 // Vérifie aussi que sans session la RLS renvoie vide.
 // Usage : node tests/recette_connectee.mjs
 import { chromium } from "playwright";
@@ -14,12 +14,13 @@ const CLE = cfg.match(/SUPABASE_ANON_KEY = "([^"]+)"/)[1];
 const nombre = (s) => Number(String(s).replace(/[^\d,-]/g, "").replace(",", "."));
 
 // 1. RLS : la clé publique sans session ne voit rien, sur toutes les tables.
-for (const table of ["revenus", "lignes", "mouvements", "mouvements_recurrents", "comptes"]) {
+const TABLES = ["revenus", "lignes", "mouvements", "mouvements_recurrents", "comptes", "taches", "taches_recurrentes"];
+for (const table of TABLES) {
   const r = await fetch(`${URL_SB}/rest/v1/${table}?select=*`, { headers: { apikey: CLE, Authorization: `Bearer ${CLE}` } });
   const anon = await r.json();
   if (!Array.isArray(anon) || anon.length) throw new Error(`RLS trouée sur ${table} : ${JSON.stringify(anon).slice(0, 200)}`);
 }
-console.log("RLS OK — anonyme voit 0 ligne sur 5 tables");
+console.log(`RLS OK — anonyme voit 0 ligne sur ${TABLES.length} tables`);
 
 // 2. Parcours connecté.
 const RACINE = path.resolve("frontend");
@@ -41,8 +42,14 @@ async function connecter(page) {
   await page.fill('input[name=email]', env.EMAIL_YANN);
   await page.fill('input[name=password]', env.PASS_YANN);
   await page.click('button[type=submit]');
-  await page.waitForSelector("#ecran-mois:not([hidden])", { timeout: 20000 });
-  await page.waitForFunction(() => document.querySelector("#titre-mois")?.textContent.includes("2026"));
+  // Premier lancement sur ce navigateur : on atterrit sur l'accueil, avec les résumés des modules.
+  await page.waitForSelector("#ecran-accueil:not([hidden]) .module-carte", { timeout: 20000 });
+  await page.waitForFunction(() => document.querySelector("#modules")?.textContent.includes("%"), null, { timeout: 20000 });
+}
+async function aller(page, ecran, attendu) {
+  const nav = (await page.$("#barre-pc")) && await page.isVisible("#barre-pc") ? "#barre-pc" : "#onglets";
+  await page.click(`${nav} button[data-ecran=${ecran}]`);
+  await page.waitForSelector(attendu, { timeout: 15000 });
 }
 
 try {
@@ -51,7 +58,12 @@ try {
   page.on("console", (m) => m.type() === "error" && erreurs.push(`mobile: ${m.text()}`));
   page.on("pageerror", (e) => erreurs.push(`mobile: ${e.message}`));
   await connecter(page);
+  console.log("Accueil :", (await page.textContent("#modules")).replace(/\s+/g, " ").trim());
+  await page.screenshot({ path: path.join(SORTIE, "accueil-mobile.png"), fullPage: true });
 
+  await page.click("#modules [data-ecran=mois]");
+  await page.waitForSelector("#ecran-mois:not([hidden])");
+  await page.waitForFunction(() => document.querySelector("#titre-mois")?.textContent.includes("2026"));
   if ((await page.textContent("#titre-mois")).trim() !== "Février 2026") throw new Error("titre du mois inattendu");
   console.log("Ce mois :", (await page.textContent("#sous-mois")).trim());
   await page.screenshot({ path: path.join(SORTIE, "mois-mobile.png"), fullPage: true });
@@ -61,48 +73,64 @@ try {
   if (mouvements.length) {
     await mouvements[0].click();
     await page.waitForSelector("#feuille:not([hidden]) .detail");
-    const montant = await page.textContent("#feuille .detail-montant .grand");
-    console.log("Détail mouvement :", montant.trim());
+    console.log("Détail mouvement :", (await page.textContent("#feuille .detail-montant .grand")).trim());
     await page.screenshot({ path: path.join(SORTIE, "detail-mobile.png"), fullPage: true });
     await page.click("#feuille [data-basculer]");
-    await page.waitForFunction(() => document.querySelectorAll("#mvts-faits .mvt").length > 0, { timeout: 10000 });
+    await page.waitForFunction(() => document.querySelectorAll("#mvts-faits .mvt").length > 0, null, { timeout: 10000 });
     console.log("Mouvement coché OK");
-    // On remet dans l'état d'origine (le DOM a été reconstruit : on resélectionne).
     await page.waitForSelector("#mvts-faits .mvt .case.cochee");
     await page.locator("#mvts-faits .mvt .case.cochee").first().click();
-    await page.waitForFunction(() => document.querySelectorAll("#mvts-faits .mvt").length === 0, { timeout: 10000 });
+    await page.waitForFunction(() => document.querySelectorAll("#mvts-faits .mvt").length === 0, null, { timeout: 10000 });
     console.log("Coche annulée OK");
   } else {
     console.log("Aucun mouvement à faire ce mois — coche non testée");
   }
 
   // ---------- charges ----------
-  await page.click('#onglets button[data-ecran=charges]');
-  await page.waitForSelector("#ecran-charges:not([hidden]) .groupe");
+  await aller(page, "charges", "#ecran-charges:not([hidden]) .groupe");
   const sections = await page.$$eval("#categories .groupe-tete span:first-child", (e) => e.map((x) => x.textContent.trim()));
   console.log("Catégories :", sections.join(" | "));
   if (!sections.includes("Logement")) throw new Error("catégorie Logement absente");
-  console.log("Charges :", (await page.textContent("#sous-charges")).trim());
   await page.screenshot({ path: path.join(SORTIE, "charges-mobile.png"), fullPage: true });
 
-  // Règle du mois : bascule le premier segment puis revient.
   const seg = page.locator("#categories .segment").first();
   const avant = await seg.locator("button.actif").getAttribute("data-regle");
   const autre = avant === "egales" ? "proport" : "egales";
   await seg.locator(`button[data-regle=${autre}]`).click();
   await page.waitForFunction((a) => document.querySelector("#categories .segment button.actif")?.dataset.regle === a, autre, { timeout: 10000 });
-  console.log(`Règle du mois : ${avant} → ${autre} OK`);
   await page.locator("#categories .segment").first().locator(`button[data-regle=${avant}]`).click();
   await page.waitForFunction((a) => document.querySelector("#categories .segment button.actif")?.dataset.regle === a, avant, { timeout: 10000 });
-  console.log("Règle du mois remise au départ OK");
+  console.log(`Règle du mois : ${avant} → ${autre} → ${avant} OK`);
 
-  // ---------- stats ----------
-  await page.click('#onglets button[data-ecran=stats]');
-  await page.waitForSelector("#stats-corps .carte");
+  await aller(page, "stats", "#stats-corps .carte");
   await page.waitForFunction(() => document.querySelectorAll("#stats-corps .colonne").length >= 6);
   await page.screenshot({ path: path.join(SORTIE, "stats-mobile.png"), fullPage: true });
-  console.log("Stats rendues");
 
+  // ---------- tâches (mobile) : via Plus > Module Tâches ----------
+  await page.click("#onglets button[data-ecran=plus]");
+  await page.waitForSelector("#feuille-corps [data-aller=jour]");
+  await page.click("#feuille-corps [data-aller=jour]");
+  await page.waitForSelector("#ecran-jour:not([hidden]) #taches-a-faire .mvt", { timeout: 15000 });
+  console.log("Aujourd’hui :", (await page.textContent("#sous-jour")).trim());
+  await page.screenshot({ path: path.join(SORTIE, "jour-mobile.png"), fullPage: true });
+
+  // Coche la première tâche depuis son détail, vérifie les points, puis annule.
+  await page.locator("#taches-a-faire .mvt").first().click();
+  await page.waitForSelector("#feuille:not([hidden]) .detail [data-basculer]");
+  await page.screenshot({ path: path.join(SORTIE, "detail-tache-mobile.png"), fullPage: true });
+  await page.click("#feuille [data-basculer]");
+  await page.waitForFunction(() => document.querySelectorAll("#taches-faites .mvt").length > 0, null, { timeout: 10000 });
+  const faite = (await page.textContent("#taches-faites .mvt")).replace(/\s+/g, " ").trim();
+  if (!/\d pts?/.test(faite) || !faite.includes("Yann")) throw new Error(`tâche faite sans points ou sans auteur : ${faite}`);
+  console.log("Tâche cochée :", faite);
+  await page.locator("#taches-faites .mvt .case.cochee").first().click();
+  await page.waitForFunction(() => document.querySelectorAll("#taches-faites .mvt").length === 0, null, { timeout: 10000 });
+  console.log("Coche tâche annulée OK");
+
+  await aller(page, "balance", "#balance-corps .carte");
+  await page.screenshot({ path: path.join(SORTIE, "balance-mobile.png"), fullPage: true });
+  await aller(page, "taches-rec", "#liste-taches-rec .groupe");
+  await page.screenshot({ path: path.join(SORTIE, "taches-rec-mobile.png"), fullPage: true });
   await page.close();
 
   // ---------- PC ----------
@@ -110,37 +138,33 @@ try {
   pc.on("console", (m) => m.type() === "error" && erreurs.push(`pc: ${m.text()}`));
   pc.on("pageerror", (e) => erreurs.push(`pc: ${e.message}`));
   await connecter(pc);
+  await pc.screenshot({ path: path.join(SORTIE, "accueil-pc.png"), fullPage: true });
+  await pc.click("#modules [data-ecran=mois]");
+  await pc.waitForSelector("#ecran-mois:not([hidden]) #chiffres-mois .chiffre");
   await pc.screenshot({ path: path.join(SORTIE, "mois-pc.png"), fullPage: true });
 
-  // Février 2026 : total commun et part de Yann (référence Excel, ±1 ct).
-  await pc.click('#barre-pc button[data-ecran=charges]');
-  await pc.waitForSelector("#ecran-charges:not([hidden]) .groupe");
-  await pc.screenshot({ path: path.join(SORTIE, "charges-pc.png"), fullPage: true });
-
-  const totalCommun = await pc.evaluate(() => {
-    const t = [...document.querySelectorAll("#chiffres-mois .chiffre")]
-      .find((c) => c.textContent.includes("Total commun"));
-    return t?.querySelector(".valeur")?.textContent ?? "";
-  });
-
-  await pc.click('#barre-pc button[data-ecran=mois]');
-  await pc.waitForSelector("#ecran-mois:not([hidden])");
   const tc = await pc.evaluate(() => [...document.querySelectorAll("#chiffres-mois .chiffre")]
     .find((c) => c.textContent.includes("Total commun"))?.querySelector(".valeur")?.textContent ?? "");
   if (Math.abs(nombre(tc) - -5844.78) > 0.01) throw new Error(`total commun février 2026 inattendu : ${tc}`);
   console.log("Total commun février 2026 :", tc.trim(), "— conforme à l'Excel");
 
-  const resteYann = await pc.evaluate(() => [...document.querySelectorAll("#chiffres-mois .chiffre")]
-    .find((c) => c.textContent.includes("Reste Yann"))?.querySelector(".valeur")?.textContent ?? "");
-  console.log("Reste Yann :", resteYann.trim());
-
-  for (const [ecran, selecteur] of [["stats", "#stats-corps .carte"], ["recurrents", "#liste-recurrents"],
-    ["comptes", "#liste-comptes"], ["annuel", "#tableau-annuel table"]]) {
-    await pc.click(`#barre-pc button[data-ecran=${ecran}]`);
-    await pc.waitForSelector(selecteur, { timeout: 15000 });
+  for (const [ecran, selecteur] of [["charges", "#ecran-charges:not([hidden]) .groupe"], ["stats", "#stats-corps .carte"],
+    ["recurrents", "#liste-recurrents"], ["comptes", "#liste-comptes"], ["annuel", "#tableau-annuel table"]]) {
+    await aller(pc, ecran, selecteur);
     await pc.screenshot({ path: path.join(SORTIE, `${ecran}-pc.png`), fullPage: true });
-    console.log(`Écran ${ecran} rendu`);
   }
+  console.log("Six écrans Budget rendus (PC)");
+
+  await pc.click("#logo");
+  await pc.waitForSelector("#ecran-accueil:not([hidden])");
+  await pc.click("#modules [data-ecran=jour]");
+  await pc.waitForSelector("#ecran-jour:not([hidden]) #detail-tache-pc:not([hidden]) .detail", { timeout: 15000 });
+  await pc.screenshot({ path: path.join(SORTIE, "jour-pc.png"), fullPage: true });
+  for (const [ecran, selecteur] of [["balance", "#balance-corps .carte"], ["taches-rec", "#liste-taches-rec .groupe"]]) {
+    await aller(pc, ecran, selecteur);
+    await pc.screenshot({ path: path.join(SORTIE, `${ecran}-pc.png`), fullPage: true });
+  }
+  console.log("Trois écrans Tâches rendus (PC)");
   await pc.close();
 } finally {
   await navigateur.close();

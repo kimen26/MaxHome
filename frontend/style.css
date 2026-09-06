@@ -144,9 +144,10 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
     display:flex; align-items:center; gap:8px; height:60px; padding:0 32px;
     background:#fff; border-bottom:1px solid var(--bordure); position:sticky; top:0; z-index:20;
   }
-  #barre-pc .logo { font-size:17px; font-weight:600; color:var(--bleu); margin-right:16px; }
+  #barre-pc .logo { font-size:17px; font-weight:600; color:var(--bleu); margin-right:12px; white-space:nowrap; }
+  #onglets-pc { display:flex; gap:4px; flex-wrap:nowrap; }
   #barre-pc button.onglet {
-    border:0; background:none; color:var(--texte-2); border-radius:8px; padding:8px 14px; font-size:14px; cursor:pointer; min-height:40px;
+    border:0; background:none; color:var(--texte-2); border-radius:8px; padding:8px 11px; font-size:14px; cursor:pointer; min-height:40px; white-space:nowrap;
   }
   #barre-pc button.onglet.actif { background:var(--bleu-clair); color:var(--bleu); font-weight:600; }
   #barre-pc .droite { margin-left:auto; display:flex; align-items:center; gap:8px; }
@@ -344,3 +345,41 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
 /* Dans un formulaire en pile, l'étiquette est grise mais la valeur saisie reste lisible. */
 .pile .champ, .pile select.champ, .pile textarea.champ { color:var(--texte); }
 .pile .champ-montant { color:var(--rouge); }
+
+/* ================= MaxHome : accueil et modules ================= */
+#logo { border:0; background:none; cursor:pointer; padding:0; }
+.module-pc { font-size:13px; color:var(--texte-2); padding-right:8px; border-right:1px solid var(--bordure); margin-right:4px; }
+.module-pc:empty { display:none; }
+.modules { display:grid; grid-template-columns:1fr; gap:12px; margin-top:16px; }
+.module-carte { display:flex; flex-direction:column; align-items:flex-start; gap:6px; text-align:left; cursor:pointer; padding:18px 16px; min-height:88px; }
+.module-carte:hover { border-color:var(--bleu); }
+.module-carte.bientot { cursor:default; opacity:.55; }
+.module-carte.bientot:hover { border-color:var(--bordure); }
+.module-nom { font-size:18px; font-weight:600; color:var(--bleu); }
+.module-resume { font-size:13px; color:var(--texte-2); line-height:1.4; }
+@media (min-width:600px) { .modules { grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); } }
+
+/* ================= Tâches ================= */
+.pts { display:inline-block; font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:13px; font-weight:600; color:var(--bleu); background:var(--bleu-clair); border-radius:6px; padding:3px 8px; white-space:nowrap; }
+.mvt.rapide .case.rapide { border-style:dashed; color:var(--texte-2); font-weight:600; font-size:16px; }
+.mvt.rapide:hover .case.rapide { border-color:var(--bleu); color:var(--bleu); }
+.choix-qui { display:flex; gap:8px; flex-wrap:wrap; }
+.pastille.grande { border:1px solid var(--bordure); background:#fff; font-size:14px; padding:8px 14px; min-height:40px; cursor:pointer; border-radius:8px; }
+.pastille.grande.bleue { background:var(--bleu-clair); border-color:var(--bleu); color:var(--bleu); font-weight:600; }
+.texte-consigne { margin:0; font-size:14px; line-height:1.45; }
+.detail-actions { flex-wrap:wrap; }
+.balance-grand { display:flex; justify-content:space-around; gap:16px; margin:6px 0 14px; }
+.balance-personne { display:flex; flex-direction:column; align-items:center; gap:2px; }
+.balance-personne .grand { font-size:34px; font-weight:600; letter-spacing:-.02em; line-height:1; }
+.balance-personne .nom { font-size:14px; font-weight:600; margin-top:6px; }
+.balance-personne .sous { font-size:12px; color:var(--texte-2); }
+.barre-h { display:flex; height:14px; border-radius:7px; overflow:hidden; background:var(--separateur-2); }
+.barre-h.fine { height:8px; border-radius:4px; }
+.barre-h span { display:block; height:100%; transition:width .2s ease-out; }
+.pile-cats { display:flex; flex-direction:column; gap:12px; }
+.cat-tete { display:flex; justify-content:space-between; align-items:baseline; gap:12px; font-size:14px; margin-bottom:5px; }
+.cat-tete .sous { margin:0; font-size:12px; }
+#periode-balance { margin:14px 0; }
+#periode-balance button { font-size:13px; min-height:36px; padding:0 14px; }
+#btn-tache-ponctuelle { margin-top:10px; }
+@media (min-width:1024px) { .stats-grille:has(> .carte:nth-child(2):last-child) { grid-template-columns:repeat(2, minmax(0,1fr)); } }

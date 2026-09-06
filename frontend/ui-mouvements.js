@@ -3,6 +3,7 @@
 
 import { euros } from "./calc.js";
 import { $, txt, estPC, ouvrirFeuille, fermerFeuille, feuilleOuverte, toast, copier, montrerEcran, MOIS } from "./ui-base.js";
+import { ligneCoche, carteListe, chiffres, brancherCoches, marquerChoisi } from "./blocs.js";
 
 /** Montant théorique d'un mouvement selon le mode de son récurrent. */
 export function montantTheorique(recurrent, contexte) {
@@ -81,38 +82,23 @@ export function creerUiMouvements(api, etat, cb) {
 
   // ---------- rendu d'une ligne ----------
   function ligneAFaire(m) {
-    const montant = montantAffiche(m);
     const r = recurrentDe(m);
     const consigne = m.consigne ?? r?.consigne ?? "";
     const prioritaire = etat.mouvements.filter((x) => !x.fait_le)[0]?.id === m.id;
-    return `<div class="mvt cliquable${enAlerte(m) ? " alerte" : ""}" data-id="${m.id}">
-      <span class="case${prioritaire ? " prioritaire" : ""}" data-cocher="${m.id}" role="checkbox"
-            aria-checked="false" tabindex="0" aria-label="Marquer ${txt(m.titre)} comme fait"></span>
-      <div class="mvt-corps">
-        <span class="mvt-titre">${txt(m.titre)}</span>
-        <span class="mvt-trajet">${txt(trajet(m))}</span>
-        ${consigne ? `<span class="mvt-note">${txt(consigne)}</span>` : ""}
-        ${enAlerte(m) ? '<span class="mvt-note">Montant en attente : la charge liée n’a pas de montant ce mois.</span>' : ""}
-      </div>
-      <div class="mvt-droite">
-        <span class="mono mvt-montant">${euros(montant)}</span>
-        ${m.qui ? `<span class="pastille">${txt(m.qui)}</span>` : ""}
-      </div>
-    </div>`;
+    return ligneCoche({
+      id: m.id, titre: m.titre, sous: trajet(m), prioritaire, alerte: enAlerte(m), pastille: m.qui,
+      notes: [consigne, enAlerte(m) ? "Montant en attente : la charge liée n’a pas de montant ce mois." : null],
+      droite: `<span class="mono mvt-montant">${euros(montantAffiche(m))}</span>`,
+    });
   }
 
   function ligneFaite(m) {
     const date = new Date(m.fait_le);
     const quand = `${date.getDate()} ${MOIS[date.getMonth()].slice(0, 4)}.`;
-    return `<div class="mvt fait cliquable" data-id="${m.id}">
-      <span class="case cochee" data-cocher="${m.id}" role="checkbox" aria-checked="true" tabindex="0"
-            aria-label="Annuler la coche de ${txt(m.titre)}">✓</span>
-      <div class="mvt-corps">
-        <span class="mvt-titre">${txt(m.titre)}</span>
-        <span class="mvt-trajet">${txt(trajet(m))} · fait le ${quand}</span>
-      </div>
-      <span class="mono mvt-montant pale">${euros(m.montant_centimes)}</span>
-    </div>`;
+    return ligneCoche({
+      id: m.id, titre: m.titre, cochee: true, sous: `${trajet(m)} · fait le ${quand}`,
+      droite: `<span class="mono mvt-montant pale">${euros(m.montant_centimes)}</span>`,
+    });
   }
 
   // ---------- détail ----------
@@ -269,39 +255,22 @@ export function creerUiMouvements(api, etat, cb) {
     $("#jauge-mois").style.width = total ? `${Math.round((faits.length / total) * 100)}%` : "0%";
 
     const r = etat.resultat;
-    $("#chiffres-mois").innerHTML = `
-      <span class="chiffre"><span class="etiquette">Reste à virer</span><span class="mono valeur accent">${euros(resteAVirer)}</span></span>
-      <span class="chiffre"><span class="etiquette">Total commun</span><span class="mono valeur">${euros(r.totalCommun)}</span></span>
-      ${etat.membres.map((m) => `<span class="chiffre"><span class="etiquette">Reste ${txt(m.prenom)}</span>
-        <span class="mono valeur">${euros(r.reste[m.prenom] ?? 0)}</span></span>`).join("")}`;
+    $("#chiffres-mois").innerHTML = chiffres([
+      { etiquette: "Reste à virer", valeur: euros(resteAVirer), accent: true },
+      { etiquette: "Total commun", valeur: euros(r.totalCommun) },
+      ...etat.membres.map((m) => ({ etiquette: `Reste ${m.prenom}`, valeur: euros(r.reste[m.prenom] ?? 0) })),
+    ]);
 
-    $("#mvts-a-faire").innerHTML = aFaire.length
-      ? `<div class="carte-liste">${aFaire.map(ligneAFaire).join("")}</div>`
-      : '<p class="vide">Tout est fait pour ce mois.</p>';
-    $("#mvts-faits").innerHTML = faits.length
-      ? `<div class="carte-liste">${faits.map(ligneFaite).join("")}</div>`
-      : '<p class="vide">Rien de coché pour l’instant.</p>';
-
-    for (const el of document.querySelectorAll("#ecran-mois [data-cocher]")) {
-      const agir = (e) => { e.stopPropagation(); basculer(Number(el.dataset.cocher)); };
-      el.addEventListener("click", agir);
-      el.addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); agir(e); } });
-    }
-    for (const el of document.querySelectorAll("#ecran-mois .mvt[data-id]")) {
-      el.addEventListener("click", () => ouvrirDetail(Number(el.dataset.id)));
-    }
+    $("#mvts-a-faire").innerHTML = carteListe(aFaire.map(ligneAFaire), "Tout est fait pour ce mois.");
+    $("#mvts-faits").innerHTML = carteListe(faits.map(ligneFaite), "Rien de coché pour l’instant.");
+    brancherCoches($("#ecran-mois"), basculer, ouvrirDetail);
 
     // Sur PC la colonne de droite ne reste jamais vide : elle montre le premier mouvement à faire.
     if (estPC() && $("#detail-pc").hidden && !detailEnCours) {
       const premier = aFaire[0] ?? faits[0];
       if (premier) ouvrirDetail(premier.id);
     }
-    if (estPC()) {
-      const ouvert = $("#detail-pc").querySelector(".detail")?.dataset.id;
-      for (const el of document.querySelectorAll("#ecran-mois .mvt[data-id]")) {
-        el.classList.toggle("choisi", el.dataset.id === ouvert);
-      }
-    }
+    if (estPC()) marquerChoisi($("#ecran-mois"), Number($("#detail-pc").querySelector(".detail")?.dataset.id));
   }
 
   $("#btn-mvt-ponctuel").addEventListener("click", formulairePonctuel);

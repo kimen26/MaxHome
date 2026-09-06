@@ -75,6 +75,16 @@ export function creerApi(sb) {
     majRecurrent: (id, champs) => sb.from("mouvements_recurrents").update(champs).eq("id", id).then(rendre),
     supprimerRecurrent: (id) => sb.from("mouvements_recurrents").delete().eq("id", id).then(rendre),
 
+    // ---------- module Tâches ----------
+    tachesRec: () => sb.from("taches_recurrentes").select("*").order("ordre").order("id").then(rendre),
+    /** Tâches non faites (quelle que soit leur date) et tâches depuis `depuis` (AAAA-MM-JJ). */
+    taches: (depuis) => sb.from("taches").select("*").or(`fait_le.is.null,echeance.gte.${depuis}`).order("id").then(rendre),
+    creerTaches: (lignes) => sb.from("taches").insert(lignes).select().then(rendre),
+    supprimerTaches: (ids) => sb.from("taches").delete().in("id", ids).then(rendre),
+    majTache: (id, champs) => sb.from("taches").update(champs).eq("id", id).select().single().then(rendre),
+    creerTacheRec: (champs) => sb.from("taches_recurrentes").insert(champs).select().single().then(rendre),
+    majTacheRec: (id, champs) => sb.from("taches_recurrentes").update(champs).eq("id", id).then(rendre),
+
     creerMouvements: (lignes) => sb.from("mouvements").insert(lignes).select().then(rendre),
     majMouvement: (id, champs) => sb.from("mouvements").update(champs).eq("id", id).select().single().then(rendre),
     supprimerMouvement: (id) => sb.from("mouvements").delete().eq("id", id).then(rendre),

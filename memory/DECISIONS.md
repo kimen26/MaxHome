@@ -140,3 +140,23 @@ annoncé « aucun mouvement à faire » alors qu'il y en a. Elle liste donc les 
 actifs (titre, jour, qui) sans montant, celui-ci dépendant des charges du mois pas encore
 saisies. Le bot, lui, génère les occurrences manquantes (scripts/bot/mouvements.py) parce
 qu'il écrit ; la fonction de rappel ne fait que lire et n'a pas à créer de lignes.
+
+## D-018 — MaxBudget devient MaxHome, suite mono-dépôt et mono-foyer (2026-09-06)
+Le produit s'élargit au foyer entier (Budget, Tâches, bientôt Courses). Un seul dépôt, un
+seul site, un seul projet Supabase, une seule Auth : les modules sont des écrans de la même
+app, `membres`, la RLS `est_membre()` et le bot restent partagés. Renommage fait partout où
+le nom est vivant (dépôt GitHub → Pages sur /MaxHome/, projet Supabase `maxhome`, secrets
+`MAXHOME_TELEGRAM_*`, tâche planifiée `MaxHome-Bot`, MaxOps) ; le dossier local, le handle
+`@BudgetCYM_bot` et les archives mémoire gardent l'ancien nom. Pas de `foyer_id` tant qu'un
+seul couple utilise l'app : passer multi-foyer sera une migration additive, pas une refonte.
+Les écrans s'assemblent à partir de blocs partagés (`frontend/blocs.js` : ligne cochable,
+carte-liste, chiffres, ligne de réglage, panneau) plutôt que redessinés par module.
+
+## D-019 — module Tâches : points = pénibilité, importance = ordre (2026-09-06)
+Même patron que les mouvements : `taches_recurrentes` (modèle) génèrent des `taches`
+(occurrences datées par période : le jour, le dimanche, le dernier du mois). Les points
+d'une tâche faite sont sa pénibilité (la contrainte), figés à la coche ; l'importance ne
+rapporte rien, elle trie la liste — sinon on récompense l'urgence, pas l'effort. Une
+occurrence non faite dont la période est finie depuis plus d'un jour est purgée : on ne
+rattrape pas un biberon d'avant-hier, et la liste « en retard » ne s'empile pas. Les tâches
+« au besoin » (poubelle, verre) ne se génèrent pas : un geste les crée déjà faites.

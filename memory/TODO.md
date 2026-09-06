@@ -56,6 +56,19 @@ _Une session = une lane. Marquer (en cours) à l'ouverture, libérer à la fin._
 - [ ] `libre.py` peut produire `mouvement_fait` mais `_traduire_action_libre` ne le traduit
       pas : le langage libre ne sait pas cocher (déjà vrai avant la refonte, à trancher).
 
+## Lane E — MaxHome : suite du foyer (2026-09-06)
+- [x] Lot 0 : renommage MaxBudget → MaxHome (dépôt GitHub + Pages /MaxHome/, projet Supabase,
+      secrets, tâche planifiée, MaxOps, textes). Bot redémarré avec les nouveaux noms.
+- [x] Lot 1 : hub d'accueil (une carte par module avec son résumé), navigation par module,
+      blocs partagés (`blocs.js`), module Tâches : migration 006 (15 tâches de départ),
+      `taches.js` testé (`tests/test_taches.mjs`), écrans Aujourd'hui / Balance / Réglages.
+      Recette connectée étendue (7 tables RLS, coche d'une tâche, 9 captures). 
+- [ ] Yann et Claudia : ajuster les tâches de départ (fréquence, pénibilité, importance) —
+      elles sont génériques, pas les vôtres.
+- [ ] Bot Telegram : `fait <tâche>`, `tâches`, `balance` (le bot ne connaît que le budget).
+- [ ] Rappel du soir des tâches « le jour même » non faites (Edge Function + pg_cron).
+- [ ] Lot 2 : Courses (liste commune temps réel, bot `ajoute lait`). Alexa couvre en attendant.
+
 ## Lane B — V1 (après recette)
 - [x] Vue annuelle (tableau 12 mois comme l'Excel)
 - [ ] Importer les feuilles 2023 et « Garde Max » si utile

@@ -28,13 +28,9 @@
   <p id="bandeau-erreur" hidden><span id="bandeau-erreur-texte"></span><button id="btn-reessayer">Réessayer</button></p>
 
   <nav id="barre-pc">
-    <span class="logo">MaxHome</span>
-    <button class="onglet" data-ecran="mois">Ce mois</button>
-    <button class="onglet" data-ecran="charges">Charges</button>
-    <button class="onglet" data-ecran="stats">Stats</button>
-    <button class="onglet" data-ecran="recurrents">Récurrents</button>
-    <button class="onglet" data-ecran="comptes">Comptes</button>
-    <button class="onglet" data-ecran="annuel">Vue annuelle</button>
+    <button id="logo" class="logo">MaxHome</button>
+    <span id="module-pc" class="module-pc"></span>
+    <span id="onglets-pc"></span>
     <span class="droite">
       <span id="puces-pc" class="puces-mois"></span>
       <button id="logout" class="btn">Déconnexion</button>
@@ -42,8 +38,14 @@
   </nav>
 
   <main>
-    <!-- ===== Ce mois ===== -->
-    <section id="ecran-mois" class="ecran">
+    <!-- ===== Accueil : les modules ===== -->
+    <section id="ecran-accueil" class="ecran" hidden>
+      <div class="tete-ecran"><div><h1>MaxHome</h1><p class="sous" id="sous-accueil"></p></div></div>
+      <div id="modules" class="modules"></div>
+    </section>
+
+    <!-- ===== Budget · Ce mois ===== -->
+    <section id="ecran-mois" class="ecran" hidden>
       <div class="tete-ecran">
         <div>
           <h1 id="titre-mois"></h1>
@@ -65,7 +67,7 @@
       </div>
     </section>
 
-    <!-- ===== Charges ===== -->
+    <!-- ===== Budget · Charges ===== -->
     <section id="ecran-charges" class="ecran" hidden>
       <div class="tete-ecran">
         <div>
@@ -84,7 +86,7 @@
       <button id="btn-ajouter-ajustement" class="btn btn-tirets">+ Ajustement</button>
     </section>
 
-    <!-- ===== Stats ===== -->
+    <!-- ===== Budget · Stats ===== -->
     <section id="ecran-stats" class="ecran" hidden>
       <div class="tete-ecran"><h1>Statistiques</h1></div>
       <div id="periode" class="segment">
@@ -94,33 +96,68 @@
       <div id="stats-corps"></div>
     </section>
 
-    <!-- ===== Mouvements récurrents ===== -->
+    <!-- ===== Budget · Mouvements récurrents ===== -->
     <section id="ecran-recurrents" class="ecran" hidden>
       <div class="tete-ecran"><h1>Mouvements récurrents</h1></div>
       <div id="liste-recurrents"></div>
       <div id="form-recurrent"></div>
     </section>
 
-    <!-- ===== Comptes ===== -->
+    <!-- ===== Budget · Comptes ===== -->
     <section id="ecran-comptes" class="ecran" hidden>
       <div class="tete-ecran"><h1>Comptes</h1></div>
       <div id="liste-comptes"></div>
       <div id="form-compte"></div>
     </section>
 
-    <!-- ===== Vue annuelle ===== -->
+    <!-- ===== Budget · Vue annuelle ===== -->
     <section id="ecran-annuel" class="ecran" hidden>
       <div class="tete-ecran"><h1 id="titre-annuel"></h1></div>
       <div id="tableau-annuel"></div>
     </section>
+
+    <!-- ===== Tâches · Aujourd'hui ===== -->
+    <section id="ecran-jour" class="ecran" hidden>
+      <div class="tete-ecran">
+        <div>
+          <h1 id="titre-jour"></h1>
+          <p class="sous" id="sous-jour"></p>
+        </div>
+        <div id="chiffres-jour" class="chiffres"></div>
+      </div>
+      <div class="progression"><div id="jauge-jour"></div></div>
+      <div class="deux-colonnes">
+        <div>
+          <div id="taches-a-faire"></div>
+          <h2 class="titre-section">Au besoin</h2>
+          <div id="taches-au-besoin"></div>
+          <button id="btn-tache-ponctuelle" class="btn btn-tirets">+ Tâche faite hors liste</button>
+          <h2 class="titre-section">Fait aujourd’hui</h2>
+          <div id="taches-faites"></div>
+        </div>
+        <aside id="detail-tache-pc" class="carte" hidden></aside>
+      </div>
+    </section>
+
+    <!-- ===== Tâches · Balance ===== -->
+    <section id="ecran-balance" class="ecran" hidden>
+      <div class="tete-ecran"><div><h1>Balance</h1><p class="sous">Points de pénibilité des tâches faites.</p></div></div>
+      <div id="periode-balance" class="segment">
+        <button data-jours="7" class="actif">7 jours</button>
+        <button data-jours="30">30 jours</button>
+      </div>
+      <div id="balance-corps"></div>
+    </section>
+
+    <!-- ===== Tâches · Réglages ===== -->
+    <section id="ecran-taches-rec" class="ecran" hidden>
+      <div class="tete-ecran"><div><h1>Tâches récurrentes</h1><p class="sous">Fréquence, pénibilité (les points), importance (l’ordre).</p></div></div>
+      <div id="liste-taches-rec"></div>
+      <div id="form-tache-rec"></div>
+    </section>
   </main>
 
-  <nav id="onglets">
-    <button data-ecran="mois">Ce mois</button>
-    <button data-ecran="charges">Charges</button>
-    <button data-ecran="stats">Stats</button>
-    <button data-ecran="plus">Plus</button>
-  </nav>
+  <nav id="onglets"></nav>
 </div>
 
 <div id="feuille-fond" class="feuille-fond" hidden></div>

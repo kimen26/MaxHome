@@ -72,4 +72,6 @@ ses tests calc (barème de points) et sa recette connectée.
 
 ## Questions ouvertes
 
-Voir la réponse du 2026-09-06 dans la conversation ; réponses à reporter ici.
+Réponses de Yann (2026-09-06) : renommer partout, y compris le dépôt GitHub ; ordre
+rename → Tâches → Courses ; pas de nouvelle maquette, on assemble les blocs existants et on
+valide sur capture. Lots 0 et 1 livrés le jour même ; reste le Lot 2 et le bot (TODO, lane E).

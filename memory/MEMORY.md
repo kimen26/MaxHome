@@ -78,3 +78,12 @@ _État courant. Réécrit en fin de session, jamais un journal._
   Portes vertes : test_calc, recette visuelle, recette connectée, 60 tests bot.
   Toujours pas fait : aucun compte bancaire saisi, donc « Comptes à définir » partout et
   le bouton Copier ne peut pas calculer le complément du virement permanent.
+
+- 2026-09-06 : **MaxBudget devient MaxHome** (D-018). Site : https://kimen26.github.io/MaxHome/
+  (l'ancienne URL ne redirige pas), dépôt https://github.com/kimen26/MaxHome, projet Supabase
+  `maxhome` (même ref), secrets `MAXHOME_TELEGRAM_*`, tâche `MaxHome-Bot`. Dossier local et
+  handle `@BudgetCYM_bot` inchangés. Lot 1 livré : accueil par modules, navigation par module
+  (`MODULES` dans ui-base.js), blocs partagés, module Tâches (migration 006, `taches.js`,
+  ui-taches.js, ui-taches-rec.js). Points = pénibilité figée à la coche (D-019). Tout vérifié :
+  test_calc, test_taches, recette visuelle, recette connectée (RLS sur 7 tables, février 2026
+  toujours −5 844,78 €). Bot relancé (PID 51904) mais tâche planifiée toujours pas installée.
