@@ -17,6 +17,7 @@ sys.path.insert(0, str(RACINE / "scripts"))
 sys.path.insert(0, str(RACINE / "scripts" / "bot"))
 
 from provision import cles, lit_env  # noqa: E402
+import actions  # noqa: E402
 import commandes  # noqa: E402
 import libre  # noqa: E402
 import mouvements  # noqa: E402
@@ -167,7 +168,11 @@ class Bot:
             raise RuntimeError(f"annulation non gérée pour la table {table}")
         return "Dernière écriture annulée."
 
+    # Actions qui ne portent sur aucun mois : la proposition de copie ne s'y applique pas.
+    SANS_MOIS = ("taches", "balance", "courses_liste", "course_ajout")
+
     def traiter_action(self, telegram_id, prenom, action, texte_brut):
+        """Aiguille vers le module concerné. Retourne le texte à envoyer, ou None."""
         a = action["action"]
         if a == "erreur":
             return action["message"]
@@ -176,104 +181,35 @@ class Bot:
         if a == "annuler":
             return self.annuler(telegram_id)
         if a == "ambigu":
-            proches = ", ".join(action["proches"])
-            return f"Aucune charge ne correspond assez à « {action['libelle']} ». Proches : {proches}."
-
-        annee, mois = action.get("annee"), action.get("mois")
-        sans_mois_requis = ("taches", "balance", "courses_liste", "course_ajout")
-        if a not in sans_mois_requis and annee and mois and self.mois_est_vide(annee, mois):
-            a_prec, m_prec = self.mois_precedent(annee, mois)
-            if not self.mois_est_vide(a_prec, m_prec):
-                self.etats.setdefault(telegram_id, {})["attente"] = {
-                    "expire": time.time() + ATTENTE_MINUTES * 60,
-                    "action": action, "cible": (a_prec, m_prec),
-                }
-                return reponses.proposer_copie(reponses.nom_mois(annee, mois), reponses.nom_mois(a_prec, m_prec))
-
-        if a == "mois":
-            return f"Mois courant : {reponses.nom_mois(annee, mois)}."
-        if a == "bilan":
-            r, lignes, revenus = self.charger_r(annee, mois)
-            precedent_a, precedent_m = self.mois_precedent(annee, mois)
-            prec_lignes = {l["charge_id"] for l in self.donnees.lignes_mois(precedent_a, precedent_m) if l["montant_centimes"]}
-            actuelles = {cid for cid, m in lignes.items() if m}
-            alerte = bool(prec_lignes - actuelles)
-            restants = mouvements.restants(self.donnees, annee, mois, r, lignes)
-            return reponses.bilan(r, self.membres, annee, mois, alerte, restants)
-        if a == "charges":
-            _, lignes, _ = self.charger_r(annee, mois)
-            return reponses.liste_charges(self.charges, lignes)
-
-        if a == "salaire":
-            cible = action["prenom"] or prenom
-            if cible not in self.membres:
-                return f"Prénom inconnu : {cible}."
-            ancienne = self.donnees.revenus_mois(annee, mois)
-            ancienne_v = next((r["montant_centimes"] for r in ancienne if r["prenom"] == cible), 0)
-            self.donnees.maj_revenu(annee, mois, cible, action["montant_centimes"])
-            self.marquer_annulable(telegram_id, "revenus", {"annee": annee, "mois": mois, "prenom": cible}, ancienne_v)
-            return reponses.confirmation_ecriture(f"Salaire {cible}", action["montant_centimes"], annee, mois)
-
-        if a == "charge":
-            ancienne = self.donnees.lignes_mois(annee, mois)
-            ancienne_v = next((l["montant_centimes"] for l in ancienne if l["charge_id"] == action["charge_id"]), 0)
-            self.donnees.maj_ligne(annee, mois, action["charge_id"], action["montant_centimes"])
-            self.marquer_annulable(telegram_id, "lignes", {"annee": annee, "mois": mois, "charge_id": action["charge_id"]}, ancienne_v)
-            return reponses.confirmation_ecriture(action["libelle_reel"], action["montant_centimes"], annee, mois)
-
-        if a == "extra":
-            c = self.donnees.creer_charge({
-                "libelle": action["libelle"], "categorie": "Autre", "regle": action["regle"], "type": "proport",
-                "ponctuel": True, "actif": False, "ordre": 999,
-            })
-            self.charges.append(c)
-            self.donnees.maj_ligne(annee, mois, c["id"], action["montant_centimes"])
-            self.marquer_annulable(telegram_id, "lignes", {"annee": annee, "mois": mois, "charge_id": c["id"]}, 0)
-            return reponses.confirmation_ecriture(f"Extra {action['libelle']}", action["montant_centimes"], annee, mois)
-
-        if a == "ajustement":
-            de = prenom if action["beneficiaire"] != prenom else next((p for p in self.membres if p != prenom), prenom)
-            vers = action["beneficiaire"] if action["beneficiaire"] != prenom else next((p for p in self.membres if p != prenom), prenom)
-            # "X prend N motif" => X reçoit moins de charge à verser : de = autre membre, vers = X.
-            autre = next((p for p in self.membres if p != action["beneficiaire"]), action["beneficiaire"])
-            reg = self.donnees.creer_ajustement({
-                "annee": annee, "mois": mois, "de": autre, "vers": action["beneficiaire"],
-                "montant_centimes": action["montant_centimes"], "motif": action["motif"],
-            })
-            self.marquer_annulable(telegram_id, "ajustements", {"id": reg["id"]}, None)
-            return reponses.confirmation_ajustement(autre, action["beneficiaire"], action["montant_centimes"], action["motif"])
-
-        if a == "mouvement":
-            return self.basculer_fait(telegram_id, prenom, action, annee, mois)
-
-        if a == "course_ajout":
-            article = self.donnees.creer_course({"libelle": action["libelle"], "rayon": "Autre",
-                                                 "ajoute_par": prenom})
-            self.marquer_annulable(telegram_id, "courses", {"id": article["id"]}, None)
-            return f"« {article['libelle']} » ajouté à la liste de courses."
-
-        if a == "courses_liste":
-            return reponses.liste_courses(self.donnees.courses())
-
-        if a == "taches":
-            liste, recurrents = taches_mod.du_jour(self.donnees)
-            return reponses.liste_taches(taches_mod.restantes(liste, recurrents),
-                                         recurrents, date.today().isoformat())
-
-        if a == "balance":
-            liste, _ = taches_mod.du_jour(self.donnees)
-            auj = date.today()
-            b = taches_mod.balance(liste, self.membres, auj - timedelta(days=action["jours"] - 1), auj)
-            return reponses.balance_taches(b, self.membres, action["jours"])
-
+            return (f"Aucune charge ne correspond assez à « {action['libelle']} ». "
+                    f"Proches : {', '.join(action['proches'])}.")
         if a == "inscrire":
             self.donnees.inscrire_telegram(action["telegram_id"], action["prenom"])
             return f"{action['prenom']} inscrit (id {action['telegram_id']})."
-
         if a == "moi":
             return "Utilise `/inscrire <ton id> <prenom>` envoyé par Yann pour t'inscrire."
 
-        return None
+        if a in self.SANS_MOIS:
+            return actions.taches(self, telegram_id, prenom, action) or actions.courses(self, telegram_id, prenom, action)
+
+        annee, mois = action.get("annee"), action.get("mois")
+        copie = self.proposer_copie_si_mois_vide(telegram_id, action, annee, mois)
+        if copie:
+            return copie
+        return actions.budget(self, telegram_id, prenom, action, annee, mois)
+
+    def proposer_copie_si_mois_vide(self, telegram_id, action, annee, mois):
+        """Un mois vierge dont le précédent ne l'est pas : proposer de recopier. Sinon None."""
+        if not (annee and mois) or not self.mois_est_vide(annee, mois):
+            return None
+        a_prec, m_prec = self.mois_precedent(annee, mois)
+        if self.mois_est_vide(a_prec, m_prec):
+            return None
+        self.etats.setdefault(telegram_id, {})["attente"] = {
+            "expire": time.time() + ATTENTE_MINUTES * 60,
+            "action": action, "cible": (a_prec, m_prec),
+        }
+        return reponses.proposer_copie(reponses.nom_mois(annee, mois), reponses.nom_mois(a_prec, m_prec))
 
     def gerer_attente(self, telegram_id, prenom, texte_brut):
         etat = self.etats.get(telegram_id, {}).get("attente")

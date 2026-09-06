@@ -95,4 +95,6 @@ _État courant. Réécrit en fin de session, jamais un journal._
   planifiées : `rappel-virements` (1er et 5, 09:00 Paris) et `rappel-taches` (chaque soir,
   19:00 Paris), déployées par `scripts/deploy_rappels.py`. Audit de cohérence passé : blocs
   partagés branchés partout, plancher de points aligné entre app et bot (D-022), code mort
-  retiré. Bot relancé (PID 67740) ; la tâche planifiée Windows reste à installer en admin.
+  retiré. Bot relancé ; la tâche planifiée Windows reste à installer en admin. `bot.py` avait
+  franchi les 400 lignes : le dispatch métier vit désormais dans `scripts/bot/actions.py`
+  (une fonction par module), `bot.py` ne garde que la conversation et la boucle.
