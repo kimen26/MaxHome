@@ -2,94 +2,130 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>MaxBudget</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-  <h1>MaxBudget</h1>
-  <nav id="nav" hidden>
-    <button id="prev" title="Mois précédent">‹</button>
-    <span id="titre-mois"></span>
-    <button id="next" title="Mois suivant">›</button>
-    <button id="ouvrir-charges" class="lien">Charges</button>
-    <button id="ouvrir-comptes" class="lien">Comptes</button>
-    <button id="logout">Déconnexion</button>
+
+<!-- ---------- connexion ---------- -->
+<section id="login">
+  <form id="form-login" class="carte">
+    <h1>MaxBudget</h1>
+    <label>Email <input type="email" name="email" required autocomplete="username"></label>
+    <label>Mot de passe <input type="password" name="password" required autocomplete="current-password"></label>
+    <button type="submit" class="btn btn-bleu">Se connecter</button>
+    <p id="login-erreur" class="erreur"></p>
+    <p class="note">Deux comptes seulement. Pas d'inscription.</p>
+  </form>
+</section>
+
+<!-- ---------- application ---------- -->
+<div id="app" hidden>
+  <p id="bandeau-erreur" hidden><span id="bandeau-erreur-texte"></span><button id="btn-reessayer">Réessayer</button></p>
+
+  <nav id="barre-pc">
+    <span class="logo">MaxBudget</span>
+    <button class="onglet" data-ecran="mois">Ce mois</button>
+    <button class="onglet" data-ecran="charges">Charges</button>
+    <button class="onglet" data-ecran="stats">Stats</button>
+    <button class="onglet" data-ecran="recurrents">Récurrents</button>
+    <button class="onglet" data-ecran="comptes">Comptes</button>
+    <button class="onglet" data-ecran="annuel">Vue annuelle</button>
+    <span class="droite">
+      <span id="puces-pc" class="puces-mois"></span>
+      <button id="logout" class="btn">Déconnexion</button>
+    </span>
   </nav>
-</header>
 
-<main>
-  <section id="login">
-    <form id="form-login">
-      <label>Email <input type="email" name="email" required autocomplete="username"></label>
-      <label>Mot de passe <input type="password" name="password" required autocomplete="current-password"></label>
-      <button type="submit">Se connecter</button>
-      <p id="login-erreur" class="erreur"></p>
-    </form>
-  </section>
+  <main>
+    <!-- ===== Ce mois ===== -->
+    <section id="ecran-mois" class="ecran">
+      <div class="tete-ecran">
+        <div>
+          <h1 id="titre-mois"></h1>
+          <p class="sous" id="sous-mois"></p>
+        </div>
+        <div id="chiffres-mois" class="chiffres"></div>
+      </div>
+      <div id="puces-mobile" class="puces-mois"></div>
+      <div class="progression"><div id="jauge-mois"></div></div>
+      <div class="deux-colonnes">
+        <div>
+          <h2 class="titre-section">À faire</h2>
+          <div id="mvts-a-faire"></div>
+          <button id="btn-mvt-ponctuel" class="btn btn-tirets">+ Mouvement ce mois seulement</button>
+          <h2 class="titre-section">Fait</h2>
+          <div id="mvts-faits"></div>
+        </div>
+        <aside id="detail-pc" class="carte" hidden></aside>
+      </div>
+    </section>
 
-  <section id="app" hidden>
-    <p id="proposition-copie" class="bandeau" hidden>
-      <span id="proposition-texte"></span>
-      <button id="btn-copier-depuis-precedent">Démarrer depuis ce mois</button>
-    </p>
+    <!-- ===== Charges ===== -->
+    <section id="ecran-charges" class="ecran" hidden>
+      <div class="tete-ecran">
+        <div>
+          <h1 id="titre-charges"></h1>
+          <p class="sous" id="sous-charges"></p>
+        </div>
+      </div>
+      <div class="progression"><div id="jauge-charges"></div></div>
+      <div id="revenus"></div>
+      <div class="deux-colonnes etroit">
+        <div id="categories"></div>
+        <aside id="reglages-pc" class="carte" hidden></aside>
+      </div>
+      <h2 class="titre-section">Ajustements</h2>
+      <div id="ajustements"></div>
+      <button id="btn-ajouter-ajustement" class="btn btn-tirets">+ Ajustement</button>
+    </section>
 
-    <section id="a-faire" class="bloc-a-faire"></section>
+    <!-- ===== Stats ===== -->
+    <section id="ecran-stats" class="ecran" hidden>
+      <div class="tete-ecran"><h1>Statistiques</h1></div>
+      <div id="periode" class="segment">
+        <button data-mois="6" class="actif">6 mois</button>
+        <button data-mois="12">12 mois</button>
+      </div>
+      <div id="stats-corps"></div>
+    </section>
 
-    <h2>Revenus</h2>
-    <table id="revenus"><tbody></tbody></table>
+    <!-- ===== Mouvements récurrents ===== -->
+    <section id="ecran-recurrents" class="ecran" hidden>
+      <div class="tete-ecran"><h1>Mouvements récurrents</h1></div>
+      <div id="liste-recurrents"></div>
+      <div id="form-recurrent"></div>
+    </section>
 
-    <h2>Charges</h2>
-    <div id="categories"></div>
-    <p class="total-ligne">
-      Total commun : <strong id="total"></strong>
-      — dont égales <span id="total-egales"></span>,
-      prorata <span id="total-proport"></span>,
-      clé <span id="total-cle"></span>
-    </p>
+    <!-- ===== Comptes ===== -->
+    <section id="ecran-comptes" class="ecran" hidden>
+      <div class="tete-ecran"><h1>Comptes</h1></div>
+      <div id="liste-comptes"></div>
+      <div id="form-compte"></div>
+    </section>
 
-    <h2>Ponctuels</h2>
-    <div id="ponctuels"></div>
-    <button id="btn-ajouter-ponctuel" class="lien">+ ponctuel</button>
+    <!-- ===== Vue annuelle ===== -->
+    <section id="ecran-annuel" class="ecran" hidden>
+      <div class="tete-ecran"><h1 id="titre-annuel"></h1></div>
+      <div id="tableau-annuel"></div>
+    </section>
+  </main>
 
-    <h2>Ajustements</h2>
-    <div id="ajustements"></div>
-    <button id="btn-ajouter-ajustement" class="lien">+ ajustement</button>
+  <nav id="onglets">
+    <button data-ecran="mois">Ce mois</button>
+    <button data-ecran="charges">Charges</button>
+    <button data-ecran="stats">Stats</button>
+    <button data-ecran="plus">Plus</button>
+  </nav>
+</div>
 
-    <p id="statut" class="statut"></p>
-  </section>
-
-  <section id="panneau-charges" class="panneau" hidden>
-    <div class="panneau-tete"><h2>Gestion des charges</h2><button class="fermer" data-cible="panneau-charges">×</button></div>
-    <table id="liste-charges"><tbody></tbody></table>
-    <form id="form-charge" class="inline">
-      <input name="libelle" placeholder="Nouvelle dépense" required>
-      <select name="categorie">
-        <option>Logement</option><option>Max</option><option>Épargne</option>
-        <option>Alimentation</option><option>Impôts</option><option>Banque</option><option selected>Autre</option>
-      </select>
-      <select name="regle">
-        <option value="egales">Égales</option><option value="proport">Prorata</option>
-        <option value="cle">Clé %</option><option value="perso">Perso</option>
-      </select>
-      <button type="submit">Ajouter</button>
-    </form>
-  </section>
-
-  <section id="panneau-comptes" class="panneau" hidden>
-    <div class="panneau-tete"><h2>Comptes</h2><button class="fermer" data-cible="panneau-comptes">×</button></div>
-    <table id="liste-comptes"><tbody></tbody></table>
-    <form id="form-compte" class="inline">
-      <input name="nom" placeholder="Nom (ex. Boursorama commun)" required>
-      <input name="titulaire" placeholder="Titulaire">
-      <input name="iban_masque" placeholder="4 derniers chiffres" maxlength="4">
-      <input name="note" placeholder="Note (virement permanent…)">
-      <label><input type="checkbox" name="commun"> commun</label>
-      <button type="submit">Ajouter</button>
-    </form>
-  </section>
-</main>
+<div id="feuille-fond" class="feuille-fond" hidden></div>
+<section id="feuille" class="feuille" hidden><div class="poignee"></div><div id="feuille-corps"></div></section>
+<p id="toast" hidden></p>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>

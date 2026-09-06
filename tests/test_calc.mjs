@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { calculer, repartir, versCentimes } from "../frontend/calc.js";
+import { calculer, repartir, versCentimes, montantLigne, regleEffective } from "../frontend/calc.js";
 
 // Cas réel : Comptes 2026, février. Doit TOUJOURS donner Yann -3 236,15 ±1 ct.
 const chargesFevrier = [
@@ -65,5 +65,39 @@ const chargesCat = [
 const rcat = calculer(chargesCat, { 1: -1000, 2: -2000 }, { Yann: 100000, Claudia: 100000 });
 assert.equal(rcat.parCategorie.Logement, -1000);
 assert.equal(rcat.parCategorie.Alimentation, -2000);
+
+// Règle du mois : lignes au format objet, `regle` surcharge celle de la charge.
+const chargesRegle = [{ id: 1, libelle: "Alimentation", categorie: "Alimentation", regle: "egales" }];
+const revDeuxTiers = { Yann: 200000, Claudia: 100000 };
+const parDefaut = calculer(chargesRegle, { 1: { montant_centimes: -30000 } }, revDeuxTiers);
+assert.equal(parDefaut.totaux.egales, -30000, "sans regle de mois, la charge garde la sienne");
+assert.equal(parDefaut.parts.Yann, -15000, "egales = moitie chacun");
+
+const surchargee = calculer(chargesRegle, { 1: { montant_centimes: -30000, regle: "proport" } }, revDeuxTiers);
+assert.equal(surchargee.totaux.egales, 0, "la regle du mois retire la charge des egales");
+assert.equal(surchargee.totaux.proport, -30000);
+assert.equal(surchargee.parts.Yann, -20000, "prorata 2/3 pour Yann");
+
+// La surcharge vaut aussi pour 'cle' et 'perso'.
+const versCle = calculer([{ id: 1, libelle: "X", categorie: "Autre", regle: "egales", cle_pct: 80 }],
+  { 1: { montant_centimes: -10000, regle: "cle" } }, { Yann: 100000, Claudia: 100000 });
+assert.equal(versCle.partCle.Yann, -8000, "cle_pct de la charge s'applique a la regle du mois");
+
+const versPerso = calculer([{ id: 1, libelle: "X", categorie: "Autre", regle: "egales", payeur: "Yann" }],
+  { 1: { montant_centimes: -5000, regle: "perso" } }, { Yann: 200000, Claudia: 200000 });
+assert.equal(versPerso.totalCommun, 0, "passee en perso, la charge sort du commun");
+assert.equal(versPerso.reste.Yann, 195000);
+
+// Format ancien (nombre nu) et nouveau (objet) donnent le meme resultat.
+const ancien = calculer(chargesFevrier, lignesFevrier, revenusFevrier);
+const nouveau = calculer(chargesFevrier, { 1: { montant_centimes: -159207 }, 2: { montant_centimes: -425271 } }, revenusFevrier);
+assert.deepEqual(nouveau.parts, ancien.parts, "les deux formats de lignes sont equivalents");
+
+assert.equal(montantLigne(-500), -500);
+assert.equal(montantLigne({ montant_centimes: -500 }), -500);
+assert.equal(montantLigne(undefined), 0);
+assert.equal(regleEffective({ regle: "egales" }, { regle: "proport" }), "proport");
+assert.equal(regleEffective({ regle: "egales" }, { regle: null }), "egales");
+assert.equal(regleEffective({ regle: "egales" }, -500), "egales");
 
 console.log("test_calc OK");

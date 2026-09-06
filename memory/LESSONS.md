@@ -42,3 +42,16 @@ existant ne gérait que le premier (regex `\ben (mois)`) : sans test explicite s
 « rembours… » = positif, qui cassait le fuzzy match sur le libellé (le mot restait collé
 au texte cherché). Mnémonique : écrire le test AVEC les mots exacts du brief, pas une
 paraphrase qui masque l'écart.
+
+## L-008 — figer une valeur : la lire AVANT de changer l'état qui la calcule (2026-09-06)
+`basculer()` posait `fait_le` puis appelait `montantAffiche()` pour figer le montant. Or
+`montantAffiche()` retourne le montant stocké dès que `fait_le` est renseigné : il figeait
+donc l'ancienne valeur, pas le montant théorique du moment. Corrigé en lisant le montant
+avant de poser la date. Mnémonique : quand une fonction change de comportement selon un
+état, capturer sa valeur avant de muter cet état.
+
+## L-009 — un écran affiché n'est pas un écran prêt (2026-09-06)
+`demarrer()` appelait `montrerEcran("mois")` (qui déclenche le rendu) avant `chargerMois()`
+(qui peuple l'état) : plantage sur `etat.resultat` undefined, écran vide et bandeau d'erreur.
+`montrerEcran` a reçu une option `{ rendre: false }` pour afficher sans rendre. Mnémonique :
+séparer « montrer » de « rendre » quand les données arrivent en asynchrone.

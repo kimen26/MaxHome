@@ -113,3 +113,22 @@ GitHub Pages). Découpé en `/api/projects` (inventaire, aucune sonde) puis
 remplit dès sa réponse. Rendu refait en cartes : verdict par projet, KPI « N / total »,
 jauge une barre par sonde, liens, détail trié du plus grave au plus sain.
 `/api/status` conservé pour le watchdog et le selftest.
+
+## D-015 — refonte design : `mouvements` remplace `virements` (2026-09-06)
+Le handoff design (inbox/design_handoff_maxbudget_refonte) demandait une check-list de
+virements cochables, pas seulement les deux versements au commun. La table `virements`
+(clé annee+mois+prenom) ne pouvait pas porter un mouvement quelconque : elle est remplacée
+par un couple modèle/occurrence — `mouvements_recurrents` (défini une fois, mode
+fixe/charge/part) et `mouvements` (une ligne par mois, générée à l'ouverture, `fait_le`
+horodaté). Les deux versements au commun deviennent des récurrents `mode='part'`, ce qui
+les rend modifiables comme les autres. Migration 005 additive : `virements` conservée
+telle quelle, ses lignes recopiées ; elle sera retirée quand plus rien ne la lira.
+Le montant d'un mouvement est recalculé à l'affichage tant qu'il n'est pas fait, puis figé
+au moment de la coche — sinon un changement de charge réécrirait un virement déjà parti.
+
+## D-016 — la règle de répartition devient surchargeable au mois (2026-09-06)
+`lignes.regle` (nullable) surcharge `charges.regle` pour un mois donné ; `calculer()` lit
+`ligne.regle ?? charge.regle`. Motif : certains mois demandent un partage différent sans
+changer le réglage permanent de la charge. `calc.js` accepte les deux formes de dictionnaire
+`lignes` (nombre nu ou objet `{montant_centimes, regle}`) pour ne pas casser `calc_cli.mjs`
+ni les tests existants — équivalence vérifiée par un test dédié.

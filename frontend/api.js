@@ -2,110 +2,81 @@
 
 export function creerApi(sb) {
   const filtre = (q, annee, mois) => q.eq("annee", annee).eq("mois", mois);
+  const rendre = ({ data, error }) => { if (error) throw error; return data; };
 
   return {
     auth: {
       connecter: (email, password) => sb.auth.signInWithPassword({ email, password }),
       deconnecter: () => sb.auth.signOut(),
       surChangement: (cb) => sb.auth.onAuthStateChange(cb),
+      async prenomCourant(membres) {
+        const { data } = await sb.auth.getUser();
+        const email = data?.user?.email;
+        return membres.find((m) => m.email === email)?.prenom ?? null;
+      },
     },
 
-    async membres() {
-      const { data, error } = await sb.from("membres").select("prenom,ordre").order("ordre");
-      if (error) throw error;
-      return data;
-    },
-
-    async charges() {
-      const { data, error } = await sb.from("charges").select("*").order("ordre").order("id");
-      if (error) throw error;
-      return data;
-    },
-
-    async comptes() {
-      const { data, error } = await sb.from("comptes").select("*").order("id");
-      if (error) throw error;
-      return data;
-    },
+    membres: () => sb.from("membres").select("prenom,email,ordre").order("ordre").then(rendre),
+    charges: () => sb.from("charges").select("*").order("ordre").order("id").then(rendre),
+    comptes: () => sb.from("comptes").select("*").order("id").then(rendre),
+    recurrents: () => sb.from("mouvements_recurrents").select("*").order("ordre").order("id").then(rendre),
 
     async mois(annee, mois) {
-      const [{ data: lignes, error: e1 }, { data: revenus, error: e2 },
-        { data: ajustements, error: e3 }, { data: virements, error: e4 }] = await Promise.all([
-        filtre(sb.from("lignes").select("charge_id,montant_centimes"), annee, mois),
-        filtre(sb.from("revenus").select("prenom,montant_centimes"), annee, mois),
-        filtre(sb.from("ajustements").select("*"), annee, mois),
-        filtre(sb.from("virements").select("*"), annee, mois),
+      const [lignes, revenus, ajustements, mouvements] = await Promise.all([
+        filtre(sb.from("lignes").select("charge_id,montant_centimes,regle"), annee, mois).then(rendre),
+        filtre(sb.from("revenus").select("prenom,montant_centimes"), annee, mois).then(rendre),
+        filtre(sb.from("ajustements").select("*"), annee, mois).then(rendre),
+        filtre(sb.from("mouvements").select("*").order("id"), annee, mois).then(rendre),
       ]);
-      if (e1) throw e1;
-      if (e2) throw e2;
-      if (e3) throw e3;
-      if (e4) throw e4;
-      return { lignes, revenus, ajustements, virements };
+      return { lignes, revenus, ajustements, mouvements };
     },
 
-    async majRevenu(annee, mois, prenom, montant_centimes) {
-      const { error } = await sb.from("revenus").upsert({ annee, mois, prenom, montant_centimes });
-      if (error) throw error;
+    /** Lignes et revenus sur une plage de mois, pour les statistiques. */
+    async plage(debut, fin) {
+      const cle = (a, m) => a * 12 + (m - 1);
+      const dans = (q) => q.gte("annee", debut[0]).lte("annee", fin[0]);
+      const [lignes, revenus] = await Promise.all([
+        dans(sb.from("lignes").select("annee,mois,charge_id,montant_centimes,regle")).then(rendre),
+        dans(sb.from("revenus").select("annee,mois,prenom,montant_centimes")).then(rendre),
+      ]);
+      const garde = (r) => cle(r.annee, r.mois) >= cle(...debut) && cle(r.annee, r.mois) <= cle(...fin);
+      return { lignes: lignes.filter(garde), revenus: revenus.filter(garde) };
     },
 
-    async majLigne(annee, mois, charge_id, montant_centimes) {
-      const { error } = await sb.from("lignes").upsert({ annee, mois, charge_id, montant_centimes });
-      if (error) throw error;
+    /** Dernier montant non nul saisi pour une charge, tous mois confondus (préaffichage). */
+    async derniersMontants() {
+      const data = await sb.from("lignes").select("charge_id,montant_centimes,annee,mois")
+        .neq("montant_centimes", 0).order("annee", { ascending: false }).order("mois", { ascending: false }).then(rendre);
+      const out = {};
+      for (const l of data) if (out[l.charge_id] === undefined) out[l.charge_id] = l.montant_centimes;
+      return out;
     },
 
-    async majCharge(id, champs) {
-      const { error } = await sb.from("charges").update(champs).eq("id", id);
-      if (error) throw error;
-    },
+    majRevenu: (annee, mois, prenom, montant_centimes) =>
+      sb.from("revenus").upsert({ annee, mois, prenom, montant_centimes }).then(rendre),
 
-    async creerCharge(champs) {
-      const { data, error } = await sb.from("charges").insert(champs).select().single();
-      if (error) throw error;
-      return data;
-    },
+    majLigne: (annee, mois, charge_id, champs) =>
+      sb.from("lignes").upsert({ annee, mois, charge_id, ...champs }).then(rendre),
 
-    async creerAjustement(champs) {
-      const { data, error } = await sb.from("ajustements").insert(champs).select().single();
-      if (error) throw error;
-      return data;
-    },
+    supprimerLigne: (annee, mois, charge_id) =>
+      filtre(sb.from("lignes").delete(), annee, mois).eq("charge_id", charge_id).then(rendre),
 
-    async supprimerAjustement(id) {
-      const { error } = await sb.from("ajustements").delete().eq("id", id);
-      if (error) throw error;
-    },
+    majCharge: (id, champs) => sb.from("charges").update(champs).eq("id", id).then(rendre),
+    creerCharge: (champs) => sb.from("charges").insert(champs).select().single().then(rendre),
 
-    async majVirement(annee, mois, prenom, montant_centimes, fait_le) {
-      const { error } = await sb.from("virements").upsert({ annee, mois, prenom, montant_centimes, fait_le });
-      if (error) throw error;
-    },
+    creerAjustement: (champs) => sb.from("ajustements").insert(champs).select().single().then(rendre),
+    supprimerAjustement: (id) => sb.from("ajustements").delete().eq("id", id).then(rendre),
 
-    async creerCompte(champs) {
-      const { data, error } = await sb.from("comptes").insert(champs).select().single();
-      if (error) throw error;
-      return data;
-    },
+    creerCompte: (champs) => sb.from("comptes").insert(champs).select().single().then(rendre),
+    majCompte: (id, champs) => sb.from("comptes").update(champs).eq("id", id).then(rendre),
+    supprimerCompte: (id) => sb.from("comptes").delete().eq("id", id).then(rendre),
 
-    async majCompte(id, champs) {
-      const { error } = await sb.from("comptes").update(champs).eq("id", id);
-      if (error) throw error;
-    },
+    creerRecurrent: (champs) => sb.from("mouvements_recurrents").insert(champs).select().single().then(rendre),
+    majRecurrent: (id, champs) => sb.from("mouvements_recurrents").update(champs).eq("id", id).then(rendre),
+    supprimerRecurrent: (id) => sb.from("mouvements_recurrents").delete().eq("id", id).then(rendre),
 
-    async supprimerCompte(id) {
-      const { error } = await sb.from("comptes").delete().eq("id", id);
-      if (error) throw error;
-    },
-
-    async lignesMois(annee, mois) {
-      const { data, error } = await sb.from("lignes").select("charge_id,montant_centimes").eq("annee", annee).eq("mois", mois);
-      if (error) throw error;
-      return data;
-    },
-
-    async revenusMois(annee, mois) {
-      const { data, error } = await sb.from("revenus").select("prenom,montant_centimes").eq("annee", annee).eq("mois", mois);
-      if (error) throw error;
-      return data;
-    },
+    creerMouvements: (lignes) => sb.from("mouvements").insert(lignes).select().then(rendre),
+    majMouvement: (id, champs) => sb.from("mouvements").update(champs).eq("id", id).select().single().then(rendre),
+    supprimerMouvement: (id) => sb.from("mouvements").delete().eq("id", id).then(rendre),
   };
 }

@@ -24,9 +24,16 @@ export function repartir(total, poids) {
   return out;
 }
 
+/** Montant d'une ligne, que le dictionnaire porte un nombre ou un objet {montant_centimes, regle}. */
+export const montantLigne = (l) => (typeof l === "object" && l !== null ? l.montant_centimes ?? 0 : l ?? 0);
+
+/** Règle effective d'une charge pour un mois : la règle du mois si elle existe, sinon celle de la charge. */
+export const regleEffective = (charge, ligne) =>
+  (typeof ligne === "object" && ligne !== null && ligne.regle) || charge.regle;
+
 /**
  * @param charges    [{id, libelle, categorie, regle, cle_pct, payeur, ponctuel}]
- * @param lignes     {charge_id: montant_centimes}
+ * @param lignes     {charge_id: montant_centimes} ou {charge_id: {montant_centimes, regle}}
  * @param revenus    {prenom: montant_centimes}
  * @param ajustements [{de, vers, montant_centimes}]
  */
@@ -38,11 +45,12 @@ export function calculer(charges, lignes, revenus, ajustements = []) {
   const persoParPayeur = Object.fromEntries(prenoms.map((p) => [p, 0]));
 
   for (const c of charges) {
-    const montant = lignes[c.id] ?? 0;
+    const montant = montantLigne(lignes[c.id]);
     if (!montant) continue;
-    totaux[c.regle] += montant;
+    const regle = regleEffective(c, lignes[c.id]);
+    totaux[regle] += montant;
     parCategorie[c.categorie] = (parCategorie[c.categorie] ?? 0) + montant;
-    if (c.regle === "perso" && c.payeur) persoParPayeur[c.payeur] += montant;
+    if (regle === "perso" && c.payeur) persoParPayeur[c.payeur] += montant;
   }
 
   // Total commun = tout sauf perso (perso ne rentre pas dans le compte commun).
@@ -62,8 +70,8 @@ export function calculer(charges, lignes, revenus, ajustements = []) {
   let totalCleMontant = 0;
   let cleWeighted = 0;
   for (const c of charges) {
-    if (c.regle !== "cle") continue;
-    const montant = lignes[c.id] ?? 0;
+    if (regleEffective(c, lignes[c.id]) !== "cle") continue;
+    const montant = montantLigne(lignes[c.id]);
     if (!montant) continue;
     totalCleMontant += montant;
     cleWeighted += montant * (c.cle_pct ?? 50);
