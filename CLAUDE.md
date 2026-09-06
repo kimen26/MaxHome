@@ -17,10 +17,11 @@ En prod sur https://kimen26.github.io/MaxHome/ (Supabase `maxhome`), plus un bot
 | Mots dans la demande | Pôle | Charger |
 |---|---|---|
 | charge · règle de répartition · prorata · 50/50 · calcul | MÉTIER | docs/regles-repartition.md |
-| écran · page · saisie · affichage · UI | FRONT | frontend/blocs.js + ui-base.js, puis le ui-*.js du module |
-| tâche · ménage · points · pénibilité · balance | TÂCHES | frontend/taches.js + scripts/bot/taches.py |
-| courses · liste · rayon | COURSES | frontend/ui-courses.js |
+| écran · page · saisie · affichage · UI | FRONT | frontend/socle/blocs*.js + ui-base.js, puis le ui-*.js du module |
+| tâche · ménage · points · pénibilité · balance | TÂCHES | frontend/taches/taches.js + scripts/bot/taches.py |
+| courses · liste · rayon | COURSES | frontend/courses/ui-courses.js + scripts/bot/courses.py |
 | bot · Telegram · commande · rappel | BOT | scripts/bot/commandes.py + bot.py |
+| module · descripteur · nouveau module · arborescence · socle | ARCHI | docs/architecture.md + frontend/modules.js |
 | base · auth · Supabase · RLS · partage · sécurité | DATA | docs/architecture.md |
 | import · Excel · feuille | IMPORT | inbox/ (fichiers jamais commités) |
 | dump · idée brute | INBOX | déposer dans inbox/, demander en texte |
@@ -37,9 +38,12 @@ Annoncer avant d'agir : « Mode [X] — je charge [Y] puis j'agis. »
    par charge, pas du code en dur.
 4. Montants en centimes entiers côté base ; jamais de float pour de l'argent.
 5. Questions en TEXTE dans la réponse, jamais de formulaire.
-6. **Les écrans s'assemblent, ils ne se redessinent pas** : une ligne cochable, une
-   carte-liste, un panneau de détail viennent de `frontend/blocs.js`. Un nouveau module
-   réutilise ces blocs ou les enrichit — il n'écrit pas son propre HTML équivalent.
+6. **Les écrans s'assemblent, ils ne se redessinent pas** : l'affichage vient de
+   `frontend/socle/blocs.js`, le comportement de `blocs-checklist.js` / `blocs-reglages.js`,
+   les formulaires de `blocs-form.js`. Un écran n'écrit ni HTML équivalent ni cycle
+   optimiste/rollback équivalent (D-024).
+8. **Un module = un dossier + un descripteur `mod-*.js`** listé dans `frontend/modules.js`.
+   `app.js` ne cite aucun module par son nom (D-025).
 7. **Une règle métier qui vit en JS et en Python se teste par confrontation**, pas deux
    fois séparément : `tests/bot/test_taches.py` exécute les deux et compare (L-014).
 
@@ -56,6 +60,7 @@ Plan → TodoWrite → Exécution → Vérification → Commit → memory/ grav�
 | `node tests/test_taches.mjs` | tout changement des tâches (échéances, points, balance) |
 | `python -m pytest -q tests/bot/` | tout changement du bot |
 | `node tests/recette_visuelle.mjs` puis OUVRIR data/captures/*.png | tout changement UI |
+| `node tests/comparer_captures.mjs --attendu <écrans>` (référence : data/captures/avant/) | tout refactor censé ne rien changer |
 | `node tests/recette_connectee.mjs` (login réel + RLS) | tout changement schéma/RLS/app.js |
 
 Une capture se REGARDE, un log vert ne prouve rien (L-009). Un chevauchement vu sur une

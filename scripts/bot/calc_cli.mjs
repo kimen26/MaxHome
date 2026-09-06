@@ -1,7 +1,7 @@
 // Pont Python -> moteur JS. Lit un JSON sur stdin, écrit le résultat JSON sur stdout.
-// Un seul moteur de calcul (frontend/calc.js) : le bot ne réimplémente jamais les règles.
+// Un seul moteur de calcul (frontend/budget/calc.js) : le bot ne réimplémente jamais les règles.
 // Entrée attendue : { charges, lignes, revenus, ajustements }
-import { calculer } from "../../frontend/calc.js";
+import { calculer } from "../../frontend/budget/calc.js";
 
 async function lireStdin() {
   const chunks = [];

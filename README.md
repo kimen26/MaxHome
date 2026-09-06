@@ -1,7 +1,15 @@
 # MaxHome
 
-Suivi mensuel des charges du foyer et de leur répartition (50/50 ou prorata des revenus).
-Site statique (GitHub Pages) + Supabase (Auth + Postgres + RLS). Le repo ne contient aucune donnée.
+Les outils du foyer de Claudia et Yann : suivi mensuel des charges et de leur répartition
+(50/50 ou prorata des revenus), répartition des tâches ménagères en points de pénibilité, et
+une liste de courses commune. Site statique (GitHub Pages) + Supabase (Auth + Postgres + RLS).
+Le repo ne contient aucune donnée.
+
+## Architecture
+
+Vue d'ensemble, arborescence du frontend, contrat d'un module, modèle de données, patron
+modèle/occurrence, dispatch du bot et portes de vérification : voir
+[`docs/architecture.md`](docs/architecture.md).
 
 ## Mise en place (une fois) — automatisée par `python scripts/provision.py` (lit .env : SUPABASE_PAT, EMAIL_YANN, EMAIL_CLAUDIA). À la main :
 1. Créer un projet Supabase (gratuit). **Authentication > Providers > Email** : désactiver « Allow new users to sign up ».

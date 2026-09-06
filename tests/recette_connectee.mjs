@@ -47,6 +47,13 @@ async function connecter(page) {
   await page.waitForSelector("#ecran-accueil:not([hidden]) .module-carte", { timeout: 20000 });
   await page.waitForFunction(() => document.querySelector("#modules")?.textContent.includes("%"), null, { timeout: 20000 });
 }
+/** La feuille glisse en 200 ms : on attend la fin de la transition avant de la photographier. */
+const feuilleStable = (page) => page.waitForFunction(() => {
+  const f = document.querySelector("#feuille");
+  const t = f && getComputedStyle(f).transform;
+  return f && !f.hidden && !f.classList.contains("entrante") && (t === "none" || t === "matrix(1, 0, 0, 1, 0, 0)");
+}, null, { timeout: 5000 }).then(() => page.waitForTimeout(150));
+
 /** Navigue vers un écran : onglet direct s'il est visible, sinon par le menu « Plus ». */
 async function aller(page, ecran, attendu) {
   const nav = await page.isVisible("#barre-pc") ? "#barre-pc" : "#onglets";
@@ -81,6 +88,7 @@ try {
   if (mouvements.length) {
     await mouvements[0].click();
     await page.waitForSelector("#feuille:not([hidden]) .detail");
+    await feuilleStable(page);
     console.log("Détail mouvement :", (await page.textContent("#feuille .detail-montant .grand")).trim());
     await page.screenshot({ path: path.join(SORTIE, "detail-mobile.png"), fullPage: true });
     await page.click("#feuille [data-basculer]");
@@ -126,22 +134,37 @@ try {
   await page.locator("#taches-a-faire .mvt").first().click();
   await page.waitForSelector("#feuille:not([hidden]) .detail [data-basculer]");
   const idTache = await page.getAttribute("#feuille .detail", "data-id");
+  await feuilleStable(page);
   await page.screenshot({ path: path.join(SORTIE, "detail-tache-mobile.png"), fullPage: true });
   await page.click("#feuille [data-basculer]");
   await page.waitForSelector(`#taches-faites .mvt[data-id="${idTache}"]`, { timeout: 10000 });
   const faite = (await page.textContent(`#taches-faites .mvt[data-id="${idTache}"]`)).replace(/\s+/g, " ").trim();
   if (!/\d pts?/.test(faite) || !faite.includes("Yann")) throw new Error(`tâche faite sans points ou sans auteur : ${faite}`);
   console.log("Tâche cochée :", faite);
+  // On attend la RÉPONSE du PATCH de décoche, pas seulement le DOM (optimiste) : recharger
+  // avant qu'elle arrive annulerait la requête, et ce serait la recette qui casse, pas l'app.
+  const reponseDecoche = page.waitForResponse((r) => r.request().method() === "PATCH"
+    && r.url().includes("/rest/v1/taches") && (r.request().postData() ?? "").includes('"fait_le":null'), { timeout: 15000 });
   await page.locator(`#taches-faites .mvt[data-id="${idTache}"] .case.cochee`).click();
   await page.waitForSelector(`#taches-faites .mvt[data-id="${idTache}"]`, { state: "detached", timeout: 10000 });
+  if ((await reponseDecoche).status() >= 300) throw new Error("la décoche a été refusée par la base");
   const idsFaitsApres = await page.$$eval("#taches-faites .mvt", (e) => e.map((x) => x.dataset.id));
   if (JSON.stringify(idsFaitsApres) !== JSON.stringify(idsFaitsAvant)) {
     throw new Error(`la liste des tâches faites a changé : ${idsFaitsAvant} → ${idsFaitsApres}`);
   }
   console.log("Coche tâche annulée OK — liste des faites inchangée");
+  // Coche puis décoche sont partis à la suite sans attendre le réseau : la base doit refléter
+  // le DERNIER geste. On recharge la page (session conservée) et on relit l'écran.
+  await page.reload();
+  await page.waitForSelector("#ecran-jour:not([hidden]) #taches-a-faire .mvt", { timeout: 20000 });
+  if (await page.$(`#taches-faites .mvt[data-id="${idTache}"]`)) {
+    throw new Error(`course d'écritures : la tâche ${idTache} est restée cochée en base après la décoche`);
+  }
+  console.log("Persistance vérifiée après rechargement : la décoche a gagné");
 
   // ---------- courses (mobile) : ajout, coche, vidage — la liste revient à son état d'origine ----------
-  await aller(page, "courses", "#ecran-courses:not([hidden]) #form-course");
+  // On attend la LISTE rendue, pas le formulaire (statique) : sinon on compte avant les données.
+  await aller(page, "courses", "#ecran-courses:not([hidden]) #liste-courses .mvt, #ecran-courses:not([hidden]) #liste-courses .vide");
   const avantCourses = await page.$$eval("#liste-courses .mvt", (e) => e.length);
   await page.fill("#course-libelle", "Article de recette");
   await page.fill("#course-quantite", "2");
@@ -155,8 +178,9 @@ try {
   await page.screenshot({ path: path.join(SORTIE, "courses-mobile.png"), fullPage: true });
   await page.locator("#liste-courses .mvt .case").last().click();
   await page.waitForFunction(() => document.querySelectorAll("#courses-panier .mvt").length > 0, null, { timeout: 10000 });
-  page.once("dialog", (d) => d.accept());
   await page.click("#btn-vider-panier");
+  await page.waitForSelector("#feuille:not([hidden]) [data-ok]");
+  await page.click("#feuille [data-ok]");
   await page.waitForFunction((n) => document.querySelectorAll("#liste-courses .mvt").length === n,
     avantCourses, { timeout: 10000 });
   console.log("Courses : coché puis panier vidé, liste revenue à son état d'origine");
@@ -202,7 +226,7 @@ try {
   await pc.click("#logo");
   await pc.waitForSelector("#ecran-accueil:not([hidden])");
   await pc.click("#modules [data-ecran=courses]");
-  await pc.waitForSelector("#ecran-courses:not([hidden]) #form-course");
+  await pc.waitForSelector("#ecran-courses:not([hidden]) #liste-courses .mvt, #ecran-courses:not([hidden]) #liste-courses .vide");
   await pc.screenshot({ path: path.join(SORTIE, "courses-pc.png"), fullPage: true });
   console.log("Écran Courses rendu (PC)");
   await pc.close();

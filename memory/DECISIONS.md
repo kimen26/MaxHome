@@ -184,3 +184,36 @@ la même tâche valait 0 ou 1 selon le canal, et la balance divergeait silencieu
 Tranché : cocher une tâche rapporte toujours au moins 1 point, sinon elle ne compterait pas
 dans l'équilibre. Règle identique dans `frontend/taches.js` et `scripts/bot/taches.py`, avec
 un test croisé qui exécute les deux et compare (`tests/bot/test_taches.py`).
+
+## D-023 — une tâche prévue plusieurs fois s'affiche sur une ligne (2026-09-07)
+« Laver les biberons » deux fois par jour faisait deux lignes ; la liste du matin dépassait
+vingt lignes et se lisait mal. Désormais une ligne par tâche et par période, avec « 0/2 fait »,
+cochée autant de fois que prévu : chaque coche prend l'occurrence de rang suivant. Le modèle
+(`taches`) ne change pas, le bot continue de lister et cocher par occurrence ; seul le rendu
+regroupe. La liste passe de 20 à 13 lignes sur le jeu de départ.
+
+## D-024 — blocs de comportement à côté des blocs d'affichage (2026-09-07)
+`blocs.js` donnait le HTML mais chaque écran réécrivait le même cycle : figer → fermer la
+feuille → rendre → rouvrir sur PC → écrire → toast → rollback (check-lists), ou ouvrir →
+soumettre → écrire → fermer → rendre → toast → rafraîchir (réglages). Ces cycles vivent
+maintenant une seule fois dans `socle/blocs-checklist.js` et `socle/blocs-reglages.js` ; les
+formulaires se composent avec `socle/blocs-form.js` (échappement et `value` garantis). Un écran
+assemble affichage ET comportement, il n'écrit ni HTML équivalent ni cycle équivalent. Étend
+l'invariant 6.
+
+## D-025 — un module = un dossier et un descripteur ; app.js ne cite aucun module (2026-09-07)
+`frontend/` se lit désormais comme le produit : `socle/` (partagé), `budget/`, `taches/`,
+`courses/`. Chaque dossier porte un `mod-*.js` qui décrit le module (écrans, onglets, état
+initial, référentiels, chargement, résumé d'accueil) ; `modules.js` les liste ; `app.js`
+boucle dessus et ne connaît que le registre. Le socle reçoit le registre par injection
+(`enregistrerModules`) plutôt que par import, pour éviter un cycle de modules ES. Ajouter un
+module = un dossier, une ligne dans `modules.js`, ses sections dans `index.html`, ses tables,
+son `.py` côté bot. Pas de microservices ni de backend dédié tant qu'un seul foyer utilise
+l'app : Supabase + RLS est le backend (D-018).
+
+## D-026 — les écritures d'un même élément sont sérialisées (2026-09-07)
+L'affichage est optimiste : coche puis décoche rapprochées partaient en parallèle et la base
+gardait celle qui arrivait en dernier, pas le dernier geste. C'est l'origine des « lignes
+fantômes » restées cochées (L-013). `creerFileEcritures()` dans `blocs.js` enfile les écritures
+par identifiant ; les éléments distincts restent parallèles. Les champs sont figés à
+l'enfilement, jamais relus au moment de l'écriture.

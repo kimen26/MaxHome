@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { echeance, occurrencesManquantes, groupe, trier, balance, jourIso, decalerJours, perimees } from "../frontend/taches.js";
+import { echeance, occurrencesManquantes, groupe, trier, balance, jourIso, decalerJours, perimees } from "../frontend/taches/taches.js";
 
 // Échéances : 2026-09-06 est un dimanche.
 assert.equal(echeance("quotidien", "2026-09-06"), "2026-09-06");

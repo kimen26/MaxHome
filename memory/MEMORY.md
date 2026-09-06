@@ -98,3 +98,11 @@ _État courant. Réécrit en fin de session, jamais un journal._
   retiré. Bot relancé ; la tâche planifiée Windows reste à installer en admin. `bot.py` avait
   franchi les 400 lignes : le dispatch métier vit désormais dans `scripts/bot/actions.py`
   (une fonction par module), `bot.py` ne garde que la conversation et la boucle.
+
+- 2026-09-07 : **refactor modules livré** (lane F). `frontend/` = `socle/` + un dossier par
+  module avec son descripteur `mod-*.js` ; `app.js` ne cite aucun module (D-025). Blocs de
+  comportement (D-024), tâches regroupées par ligne (D-023), écritures sérialisées (D-026).
+  Recette connectée durcie (persistance après rechargement, attentes sur preuves : L-018) et
+  comparaison pixel `tests/comparer_captures.mjs` contre `data/captures/avant/` : tout
+  identique hors jour/detail. Trois bugs réels trouvés et corrigés par ces tests. 101 tests bot,
+  test_calc (+ montantTheorique), test_taches, recette visuelle : verts.

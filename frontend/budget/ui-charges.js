@@ -1,8 +1,9 @@
-// Écran « Charges » : saisie des revenus et des montants du mois, règle par ligne, réglages d'une charge.
+// Écran « Charges » : revenus et montants du mois, règle par ligne, réglages d'une charge, ajustements.
 
 import { euros, versCentimes, regleEffective } from "./calc.js";
-import { $, $$, txt, ouvrirFeuille, fermerFeuille, toast, MOIS, MOIS_COURT, decaler } from "./ui-base.js";
-import { ouvrirPanneau, fermerPanneau } from "./blocs.js";
+import { $, $$, txt, ouvrirFeuille, fermerFeuille, toast, MOIS, MOIS_COURT, decaler } from "../socle/ui-base.js";
+import { ouvrirPanneau, fermerPanneau, carteListe } from "../socle/blocs.js";
+import { champ, montant, select, membresOptions, lire } from "../socle/blocs-form.js";
 
 const REGLES = [["egales", "50/50"], ["proport", "Prorata"], ["cle", "Clé %"], ["perso", "Perso"]];
 const CATEGORIES = ["Logement", "Max", "Épargne", "Alimentation", "Impôts", "Banque", "Autre"];
@@ -11,7 +12,7 @@ const ASIDE = "#reglages-pc";
 
 export function creerUiCharges(api, etat, cb) {
   const ligne = (id) => etat.lignes[id];
-  const montant = (id) => ligne(id)?.montant_centimes ?? 0;
+  const montantDe = (id) => ligne(id)?.montant_centimes ?? 0;
   const saisie = (id) => ligne(id) !== undefined;
 
   /** Montant proposé si rien n'est saisi : dernier montant si la charge le demande, sinon la valeur fixe. */
@@ -25,7 +26,7 @@ export function creerUiCharges(api, etat, cb) {
     const nomMois = MOIS[etat.mois - 1];
     $("#titre-charges").textContent = `Charges · ${nomMois[0].toUpperCase()}${nomMois.slice(1)}`;
     const liste = actives();
-    const remplies = liste.filter((c) => montant(c.id)).length;
+    const remplies = liste.filter((c) => montantDe(c.id)).length;
     $("#sous-charges").textContent = `${remplies} / ${liste.length} renseignées`;
     $("#jauge-charges").style.width = liste.length ? `${Math.round((remplies / liste.length) * 100)}%` : "0%";
     $("#jauge-charges").style.background = "var(--bleu)";
@@ -39,19 +40,20 @@ export function creerUiCharges(api, etat, cb) {
     const parCat = {};
     for (const c of liste) (parCat[c.categorie] ??= []).push(c);
     $("#categories").innerHTML = CATEGORIES.filter((k) => parCat[k]).map((k) => {
-      const sous = parCat[k].reduce((s, c) => s + montant(c.id), 0);
+      const sous = parCat[k].reduce((s, c) => s + montantDe(c.id), 0);
       return `<section class="groupe">
         <div class="groupe-tete"><span>${txt(k)}</span><span class="mono">${euros(sous)}</span></div>
-        ${parCat[k].map((c) => ligneCharge(c, aPrec, mPrec)).join("")}
+        ${parCat[k].map((c) => ligneCharge(c, mPrec)).join("")}
       </section>`;
     }).join("");
 
+    rendreAjustements();
     brancher();
   }
 
-  function ligneCharge(c, aPrec, mPrec) {
+  function ligneCharge(c, mPrec) {
     const regle = regleEffective(c, ligne(c.id));
-    const m = montant(c.id);
+    const m = montantDe(c.id);
     const pre = prefixe(c);
     const precedent = etat.moisPrecedent?.[c.id];
     // Rien de saisi : on rappelle en ambre le montant habituel. Saisi et différent du mois
@@ -129,8 +131,7 @@ export function creerUiCharges(api, etat, cb) {
           const charge = etat.charges.find((c) => c.id === id);
           const choisie = b.dataset.regle;
           // null si on revient à la règle par défaut de la charge : pas de surcharge inutile.
-          ecrireLigne(id, { regle: choisie === charge.regle ? null : choisie,
-            montant_centimes: montant(id) });
+          ecrireLigne(id, { regle: choisie === charge.regle ? null : choisie, montant_centimes: montantDe(id) });
         });
       }
     }
@@ -144,20 +145,17 @@ export function creerUiCharges(api, etat, cb) {
   function htmlReglages(c) {
     const regle = regleEffective(c, ligne(c.id));
     const surchargee = regle !== c.regle;
-    const def = c.montant_defaut;
     return `<form class="pile reglages" data-charge="${c.id}">
       <div class="detail-tete"><div><h2>${txt(c.libelle)}</h2>
         <span class="sous">${txt(c.categorie)}</span></div>
         <button type="button" class="btn-lien" data-fermer-reglages>Fermer</button></div>
 
-      <label>Libellé <input class="champ" name="libelle" value="${txt(c.libelle)}" required></label>
-      <label>Catégorie <select class="champ" name="categorie">
-        ${CATEGORIES.map((k) => `<option${k === c.categorie ? " selected" : ""}>${txt(k)}</option>`).join("")}
-      </select></label>
+      ${champ("libelle", "Libellé", { valeur: c.libelle, requis: true })}
+      ${select("categorie", "Catégorie", CATEGORIES.map((k) => [k, k]), c.categorie)}
 
       <div><span class="etiquette">Montant préaffiché</span>
         <input class="champ champ-montant grand-montant" name="montant_defaut" inputmode="decimal"
-               value="${def != null ? (def / 100).toFixed(2).replace(".", ",") : ""}" placeholder="0,00">
+               value="${c.montant_defaut != null ? (c.montant_defaut / 100).toFixed(2).replace(".", ",") : ""}" placeholder="0,00">
         <label class="case-a-cocher"><input type="checkbox" name="defaut_dernier" ${c.defaut_dernier ? "checked" : ""}>
           Reprendre le dernier montant saisi</label></div>
 
@@ -166,11 +164,9 @@ export function creerUiCharges(api, etat, cb) {
           ${REGLES.map(([v, l]) => `<button type="button" data-regle="${v}" class="${c.regle === v ? "actif" : ""}">${l}</button>`).join("")}
         </span></div>
 
-      ${c.regle === "cle" ? `<label>Clé pour ${txt(etat.membres[0]?.prenom ?? "")} (%)
-        <input class="champ" name="cle_pct" type="number" min="0" max="100" value="${c.cle_pct ?? 50}"></label>` : ""}
-      ${c.regle === "perso" ? `<label>Payeur <select class="champ" name="payeur">
-        ${etat.membres.map((m) => `<option${m.prenom === c.payeur ? " selected" : ""}>${txt(m.prenom)}</option>`).join("")}
-      </select></label>` : ""}
+      ${c.regle === "cle" ? champ("cle_pct", `Clé pour ${etat.membres[0]?.prenom ?? ""} (%)`,
+    { type: "number", valeur: c.cle_pct ?? 50, attrs: 'min="0" max="100"' }) : ""}
+      ${c.regle === "perso" ? select("payeur", "Payeur", membresOptions(etat), c.payeur) : ""}
 
       <div class="regle-mois"><span class="etiquette">Règle de ce mois</span>
         <p>${txt(REGLES.find(([v]) => v === regle)?.[1] ?? regle)}${surchargee ? " (surchargée pour ce mois)" : " (règle par défaut)"}
@@ -191,8 +187,7 @@ export function creerUiCharges(api, etat, cb) {
 
   const fermerReglages = () => fermerPanneau(ASIDE);
 
-  function brancherReglages(c) {
-    const racine = estPC() ? $("#reglages-pc") : $("#feuille-corps");
+  function brancherReglages(c, racine) {
     racine.querySelector("[data-fermer-reglages]").addEventListener("click", fermerReglages);
 
     for (const b of racine.querySelectorAll("[data-regle-defaut] button")) {
@@ -209,7 +204,7 @@ export function creerUiCharges(api, etat, cb) {
     }
 
     racine.querySelector("[data-rendre-defaut]")?.addEventListener("click", async () => {
-      await ecrireLigne(c.id, { regle: null, montant_centimes: montant(c.id) });
+      await ecrireLigne(c.id, { regle: null, montant_centimes: montantDe(c.id) });
       ouvrirReglages(c.id);
     });
 
@@ -226,16 +221,15 @@ export function creerUiCharges(api, etat, cb) {
 
     racine.querySelector("form.reglages").addEventListener("submit", async (ev) => {
       ev.preventDefault();
-      const f = new FormData(ev.target);
-      const champs = {
-        libelle: f.get("libelle").trim(),
-        categorie: f.get("categorie"),
-        montant_defaut: f.get("montant_defaut").trim() ? versCentimes(f.get("montant_defaut")) : null,
-        defaut_dernier: f.get("defaut_dernier") === "on",
-      };
-      if (f.has("cle_pct")) champs.cle_pct = Number(f.get("cle_pct"));
-      if (f.has("payeur")) champs.payeur = f.get("payeur");
       try {
+        const v = lire(ev.target, { nombres: ["cle_pct"], booleens: ["defaut_dernier"] });
+        const champs = {
+          libelle: v.libelle, categorie: v.categorie,
+          montant_defaut: v.montant_defaut ? versCentimes(v.montant_defaut) : null,
+          defaut_dernier: v.defaut_dernier,
+        };
+        if ("cle_pct" in v) champs.cle_pct = v.cle_pct;
+        if ("payeur" in v) champs.payeur = v.payeur;
         await api.majCharge(c.id, champs);
         Object.assign(c, champs);
         fermerReglages();
@@ -245,6 +239,60 @@ export function creerUiCharges(api, etat, cb) {
       } catch (e) { cb.echec(e); }
     });
   }
+
+  // ---------- ajustements du mois ----------
+  const ligneAjustement = (a) => `<div class="rec">
+    <div class="rec-corps"><span class="rec-titre">${txt(a.de)} → ${txt(a.vers)}</span>
+      ${a.motif ? `<span class="rec-trajet">${txt(a.motif)}</span>` : ""}</div>
+    <div class="rec-droite"><span class="mono">${euros(a.montant_centimes)}</span></div>
+    <div class="rec-actions"><button class="btn-lien" data-suppr-ajust="${a.id}">Retirer</button></div>
+  </div>`;
+
+  function rendreAjustements() {
+    $("#ajustements").innerHTML = carteListe(etat.ajustements.map(ligneAjustement), "Aucun ajustement ce mois.");
+    for (const b of $$("#ajustements [data-suppr-ajust]")) {
+      b.addEventListener("click", async () => {
+        const id = Number(b.dataset.supprAjust);
+        try {
+          await api.supprimerAjustement(id);
+          etat.ajustements = etat.ajustements.filter((x) => x.id !== id);
+          cb.recalculer();
+          rendre();
+          toast("Ajustement retiré.");
+        } catch (e) { cb.echec(e); }
+      });
+    }
+  }
+
+  /** « X verse N € en plus ce mois » : l'autre membre verse autant de moins. */
+  function formulaireAjustement() {
+    const [a] = etat.membres.map((m) => m.prenom);
+    ouvrirFeuille(`<form id="form-ajust" class="pile">
+      <h2>Ajustement ce mois</h2>
+      ${select("de", "Qui verse en plus", membresOptions(etat), a)}
+      ${montant("montant", "Montant", null, { requis: true })}
+      ${champ("motif", "Motif", { placeholder: "ex. resto payé par l’autre" })}
+      <button type="submit" class="btn btn-bleu grandir">Ajouter</button>
+    </form>`);
+    $("#form-ajust").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      try {
+        const v = lire(ev.target);
+        const vers = etat.membres.map((m) => m.prenom).find((p) => p !== v.de) ?? v.de;
+        const cree = await api.creerAjustement({
+          annee: etat.annee, mois: etat.mois, de: v.de, vers,
+          montant_centimes: Math.abs(versCentimes(v.montant)), motif: v.motif,
+        });
+        etat.ajustements.push(cree);
+        fermerFeuille();
+        cb.recalculer();
+        rendre();
+        toast("Ajustement ajouté.");
+      } catch (e) { cb.echec(e); }
+    });
+  }
+
+  $("#btn-ajouter-ajustement").addEventListener("click", formulaireAjustement);
 
   return { rendre, fermerReglages };
 }

@@ -6,6 +6,7 @@ gestion de conversation ici : bot.py aiguille, ces fonctions agissent.
 """
 from datetime import date, timedelta
 
+import courses as courses_mod
 import mouvements
 import reponses
 import taches as taches_mod
@@ -90,8 +91,7 @@ def taches(bot, telegram_id, prenom, action):
 def courses(bot, telegram_id, prenom, action):
     a = action["action"]
     if a == "course_ajout":
-        article = bot.donnees.creer_course({"libelle": action["libelle"], "rayon": "Autre",
-                                             "ajoute_par": prenom})
+        article = courses_mod.ajouter(bot.donnees, prenom, action["libelle"])
         bot.marquer_annulable(telegram_id, "courses", {"id": article["id"]}, None)
         return f"« {article['libelle']} » ajouté à la liste de courses."
     if a == "courses_liste":

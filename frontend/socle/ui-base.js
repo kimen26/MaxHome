@@ -1,4 +1,6 @@
-// Socle UI partagé : modules et navigation, feuille mobile, toast, bandeau d'erreur, helpers DOM.
+// Socle UI partagé : navigation par modules, feuille mobile, confirmation, toast, bandeau
+// d'erreur, helpers DOM. Le socle ne connaît aucun module par son nom : app.js lui injecte
+// le registre au démarrage (enregistrerModules).
 
 export const $ = (s) => document.querySelector(s);
 export const $$ = (s) => [...document.querySelectorAll(s)];
@@ -21,26 +23,17 @@ export function decaler(annee, mois, n) {
 }
 
 // ---------- modules et écrans ----------
-// Un module = un jeu d'écrans, ses onglets (3 au plus sur mobile) et les entrées du menu « Plus ».
-export const MODULES = {
-  budget: {
-    nom: "Budget", defaut: "mois", avecMois: true,
-    onglets: [["mois", "Ce mois"], ["charges", "Charges"], ["stats", "Stats"]],
-    plus: [["recurrents", "Mouvements récurrents"], ["comptes", "Comptes"], ["annuel", "Vue annuelle"]],
-  },
-  taches: {
-    nom: "Tâches", defaut: "jour", avecMois: false,
-    onglets: [["jour", "Aujourd’hui"], ["balance", "Balance"], ["taches-rec", "Réglages"]],
-    plus: [],
-  },
-  courses: {
-    nom: "Courses", defaut: "courses", avecMois: false,
-    onglets: [["courses", "Liste"]],
-    plus: [],
-  },
-};
-const ecransDe = (m) => [...MODULES[m].onglets, ...MODULES[m].plus].map(([e]) => e);
-export const moduleDe = (ecran) => Object.keys(MODULES).find((m) => ecransDe(m).includes(ecran)) ?? null;
+let ORDRE = [];
+let MODULES = {};
+
+/** Registre des modules, dans l'ordre d'affichage. Appelé une fois par app.js. */
+export function enregistrerModules(liste) {
+  ORDRE = liste;
+  MODULES = Object.fromEntries(liste.map((m) => [m.cle, m]));
+}
+export const modules = () => ORDRE;
+const ecransDe = (m) => [...m.onglets, ...m.plus].map(([e]) => e);
+export const moduleDe = (ecran) => ORDRE.find((m) => ecransDe(m).includes(ecran))?.cle ?? null;
 const CLE_ECRAN = "maxhome.ecran";
 
 let surEcran = () => {};
@@ -72,16 +65,16 @@ function rendreOnglets(module, nom) {
   const m = module ? MODULES[module] : null;
   $("#onglets-pc").innerHTML = m
     ? [...m.onglets, ...m.plus].map(([e, l]) =>
-      `<button class="onglet${e === nom ? " actif" : ""}" data-ecran="${e}">${l}</button>`).join("")
+      `<button class="onglet${e === nom ? " actif" : ""}" data-ecran="${e}">${txt(l)}</button>`).join("")
     : "";
   $("#module-pc").textContent = m ? m.nom : "";
   // « Plus » est toujours présent dans un module : c'est la seule porte de sortie sur
   // mobile (accueil, autres modules, déconnexion), même quand le module n'a qu'un onglet.
   const mobile = m
     ? [...m.onglets.map(([e, l]) => [e, l, e === nom]), ["plus", "Plus", m.plus.some(([e]) => e === nom)]]
-    : Object.entries(MODULES).map(([, v]) => [v.defaut, v.nom, false]);
+    : ORDRE.map((v) => [v.defaut, v.nom, false]);
   $("#onglets").innerHTML = mobile.map(([e, l, actif]) =>
-    `<button data-ecran="${e}" class="${actif ? "actif" : ""}">${l}</button>`).join("");
+    `<button data-ecran="${e}" class="${actif ? "actif" : ""}">${txt(l)}</button>`).join("");
 }
 
 /** Navigation par délégation : les onglets sont reconstruits à chaque écran. */
@@ -102,11 +95,10 @@ function menuPlus() {
   const module = moduleDe(ecranCourant());
   // Le menu ouvre TOUT écran de l'app, pas seulement le premier des autres modules :
   // sans cela, un module à un seul onglet (Courses) enferme la navigation mobile.
-  const autres = Object.entries(MODULES).filter(([k]) => k !== module);
   const groupes = [
     module ? [`Encore dans ${MODULES[module].nom}`, MODULES[module].plus] : null,
     ["Aller à", [["accueil", "Accueil MaxHome"]]],
-    ...autres.map(([, v]) => [v.nom, [...v.onglets, ...v.plus]]),
+    ...ORDRE.filter((m) => m.cle !== module).map((m) => [m.nom, [...m.onglets, ...m.plus]]),
   ].filter((g) => g && g[1].length);
 
   ouvrirFeuille(`
@@ -122,6 +114,8 @@ function menuPlus() {
 }
 
 // ---------- feuille mobile ----------
+let confirmationEnAttente = null;
+
 export function ouvrirFeuille(html) {
   $("#feuille-corps").innerHTML = html;
   $("#feuille-fond").hidden = false;
@@ -135,12 +129,35 @@ export function fermerFeuille() {
   $("#feuille").hidden = true;
   $("#feuille-fond").hidden = true;
   $("#feuille-corps").innerHTML = "";
+  // Une confirmation fermée par le fond ou Échap vaut « non ».
+  const attente = confirmationEnAttente;
+  confirmationEnAttente = null;
+  attente?.(false);
 }
 
 export const feuilleOuverte = () => !$("#feuille").hidden;
 
 $("#feuille-fond").addEventListener("click", fermerFeuille);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") fermerFeuille(); });
+
+/** Confirmation en feuille, à la place de confirm() : résout true si l'utilisateur confirme. */
+export function confirmer(texte, { ok = "Confirmer", danger = true } = {}) {
+  return new Promise((resolve) => {
+    ouvrirFeuille(`<div class="pile confirmation">
+      <p class="texte-confirmation">${txt(texte)}</p>
+      <div class="detail-actions">
+        <button type="button" class="btn grandir" data-annuler>Annuler</button>
+        <button type="button" class="btn grandir ${danger ? "btn-rouge" : "btn-bleu"}" data-ok>${txt(ok)}</button>
+      </div></div>`);
+    confirmationEnAttente = resolve;
+    $("#feuille-corps [data-ok]").addEventListener("click", () => {
+      confirmationEnAttente = null;
+      fermerFeuille();
+      resolve(true);
+    });
+    $("#feuille-corps [data-annuler]").addEventListener("click", fermerFeuille);
+  });
+}
 
 // ---------- toast ----------
 let minuteurToast;

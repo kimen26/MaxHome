@@ -1,39 +1,40 @@
-import { creerApi } from "./api.js";
-import { calculer } from "./calc.js";
-import { creerUiMouvements } from "./ui-mouvements.js";
-import { creerUiCharges } from "./ui-charges.js";
-import { creerUiRecurrents } from "./ui-recurrents.js";
-import { creerUiComptes } from "./ui-comptes.js";
-import { creerUiStats } from "./ui-stats.js";
-import { creerUiTaches } from "./ui-taches.js";
-import { creerUiTachesRec } from "./ui-taches-rec.js";
-import { creerUiCourses } from "./ui-courses.js";
-import { $, $$, txt, MOIS_COURT, decaler, montrerEcran, ecranCourant, ecranDeDepart, moduleDe, MODULES,
-  brancherNavigation, toast, bandeauErreur, cacherBandeau } from "./ui-base.js";
-import { carteListe } from "./blocs.js";
-import { jourIso, decalerJours, balance, groupe } from "./taches.js";
+// Orchestrateur : authentification, état partagé, sélecteur de mois, accueil, boucle sur les
+// modules. Ne cite aucun module par son nom : tout passe par le registre (modules.js).
+
+import { creerApi } from "./socle/api.js";
+import { LISTE } from "./modules.js";
+import { $, txt, MOIS_COURT, decaler, montrerEcran, ecranCourant, ecranDeDepart, moduleDe,
+  enregistrerModules, brancherNavigation, toast, bandeauErreur, cacherBandeau } from "./socle/ui-base.js";
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const api = creerApi(sb);
-const JOURS_HISTORIQUE = 35; // couvre la balance sur 30 jours
 
-const etat = {
-  annee: 0, mois: 0, prenom: null,
-  membres: [], charges: [], comptes: [], recurrents: [],
-  lignes: {}, revenus: {}, ajustements: [], mouvements: [],
-  moisPrecedent: {}, derniers: {}, resultat: null,
-  tachesRec: [], taches: [],
-  rayons: [], courses: [],
-};
+const etat = { annee: 0, mois: 0, prenom: null, membres: [] };
+for (const m of LISTE) Object.assign(etat, structuredClone(m.etatInitial));
+
+let instances = {};
+const prets = new Set(); // modules dont le premier chargement est terminé
+const moduleDuMois = LISTE.find((m) => m.avecMois)?.cle ?? null;
 
 const echec = (e) => {
   console.error(e);
-  bandeauErreur(`Erreur : ${e.message ?? e}`, chargerMois);
+  bandeauErreur(`Erreur : ${e.message ?? e}`, () => rafraichir(moduleDuMois));
   toast(`Erreur : ${e.message ?? e}`, true);
 };
-const cb = { echec, recalculer, rafraichirMois: chargerMois, rafraichirTaches: chargerTaches, surTaches: rendreAccueil };
 
-let ui = {};
+/** Recharge les données d'un module et rend son écran s'il est visible (ou l'accueil). */
+async function rafraichir(cle) {
+  const instance = instances[cle];
+  if (!instance) return;
+  instance.avantChargement?.();
+  try {
+    await instance.charger();
+    prets.add(cle);
+    cacherBandeau();
+    rendreSi(cle);
+  } catch (e) { echec(e); }
+}
+const cb = { echec, rafraichir };
 
 // ---------- auth ----------
 $("#form-login").addEventListener("submit", async (ev) => {
@@ -43,19 +44,25 @@ $("#form-login").addEventListener("submit", async (ev) => {
   $("#login-erreur").textContent = error ? error.message : "";
 });
 $("#logout").addEventListener("click", () => { api.auth.deconnecter().catch(echec); });
+// Supabase notifie plusieurs fois une même session (INITIAL_SESSION puis SIGNED_IN au
+// rechargement) : démarrer deux fois brancherait chaque bouton statique en double et
+// chaque formulaire partirait deux fois. On ne démarre qu'une fois par session.
+let demarre = false;
 api.auth.surChangement((_ev, session) => {
   $("#login").hidden = !!session;
   $("#app").hidden = !session;
-  if (session) demarrer().catch(echec);
+  if (!session) { demarre = false; return; }
+  if (demarre) return;
+  demarre = true;
+  demarrer().catch(echec);
 });
 
-// ---------- navigation ----------
+// ---------- mois courant (sélecteur en en-tête, partagé par les modules « avecMois ») ----------
 function moisDepuisHash() {
   const m = location.hash.match(/^#(\d{4})-(\d{1,2})$/);
   const d = new Date();
   return m ? [Number(m[1]), Number(m[2])] : [d.getFullYear(), d.getMonth() + 1];
 }
-window.addEventListener("hashchange", chargerMois);
 
 function rendrePuces() {
   const html = [-2, -1, 0, 1, 2].map((n) => {
@@ -70,169 +77,52 @@ function rendrePuces() {
   }
 }
 
-// ---------- calcul ----------
-function recalculer() {
-  const revenus = Object.fromEntries(etat.membres.map((m) => [m.prenom, etat.revenus[m.prenom] ?? 0]));
-  etat.resultat = calculer(etat.charges, etat.lignes, revenus, etat.ajustements);
+function changerDeMois() {
+  [etat.annee, etat.mois] = moisDepuisHash();
+  rendrePuces();
 }
+window.addEventListener("hashchange", () => { changerDeMois(); rafraichir(moduleDuMois); });
 
 // ---------- démarrage ----------
 async function demarrer() {
-  try {
-    const [membres, charges, comptes, recurrents, tachesRec, rayons] = await Promise.all([
-      api.membres(), api.charges(), api.comptes(), api.recurrents(), api.tachesRec(), api.rayons(),
-    ]);
-    Object.assign(etat, { membres, charges, comptes, recurrents, tachesRec, rayons });
-    etat.prenom = await api.auth.prenomCourant(membres);
+  enregistrerModules(LISTE);
+  const referentiels = LISTE.flatMap((m) => Object.entries(m.referentiels(api)));
+  const [membres, ...valeurs] = await Promise.all([api.membres(), ...referentiels.map(([, p]) => p)]);
+  etat.membres = membres;
+  referentiels.forEach(([cle], i) => { etat[cle] = valeurs[i]; });
+  etat.prenom = await api.auth.prenomCourant(membres);
 
-    ui = {
-      mouvements: creerUiMouvements(api, etat, cb),
-      charges: creerUiCharges(api, etat, cb),
-      recurrents: creerUiRecurrents(api, etat, cb),
-      comptes: creerUiComptes(api, etat, cb),
-      stats: creerUiStats(api, etat, cb),
-      taches: creerUiTaches(api, etat, cb),
-      tachesRec: creerUiTachesRec(api, etat, cb),
-      courses: creerUiCourses(api, etat, cb),
-    };
-    ui.courses.rendreRayons();
-    brancherNavigation(rendreEcran);
-    // L'écran est affiché sans être rendu : les chargements peuplent l'état puis déclenchent le rendu.
-    montrerEcran(ecranDeDepart(), { rendre: false });
-    await Promise.all([chargerMois(), chargerTaches(), chargerCourses()]);
-  } catch (e) { echec(e); }
+  instances = Object.fromEntries(LISTE.map((m) => [m.cle, m.creer(api, etat, cb)]));
+  brancherNavigation(rendreEcran);
+  changerDeMois();
+  // L'écran est affiché sans être rendu : les chargements peuplent l'état puis déclenchent le rendu.
+  montrerEcran(ecranDeDepart(), { rendre: false });
+  await Promise.all(LISTE.map((m) => rafraichir(m.cle)));
 }
 
 function rendreEcran(nom) {
-  if (nom === "accueil") rendreAccueil();
-  else if (nom === "mois") ui.mouvements.rendre();
-  else if (nom === "charges") { ui.charges.rendre(); rendreAjustements(); }
-  else if (nom === "stats") ui.stats.rendre();
-  else if (nom === "recurrents") ui.recurrents.rendre();
-  else if (nom === "comptes") ui.comptes.rendre();
-  else if (nom === "annuel") ui.stats.rendreAnnuel();
-  else if (nom === "jour") ui.taches.rendre();
-  else if (nom === "balance") ui.tachesRec.rendreBalance();
-  else if (nom === "taches-rec") ui.tachesRec.rendre();
-  else if (nom === "courses") ui.courses.rendre();
+  if (nom === "accueil") return rendreAccueil();
+  // Avant le premier chargement, l'écran garde son squelette : on ne montre pas un état
+  // vide qui serait démenti une seconde plus tard.
+  const cle = moduleDe(nom);
+  if (prets.has(cle)) instances[cle].ecrans[nom]?.();
 }
 
 /** Rend l'écran courant s'il appartient au module donné (ou l'accueil, qui les résume tous). */
-function rendreSi(module) {
+function rendreSi(cle) {
   const nom = ecranCourant();
-  if (nom === "accueil" || moduleDe(nom) === module) rendreEcran(nom);
-}
-
-async function chargerMois() {
-  [etat.annee, etat.mois] = moisDepuisHash();
-  rendrePuces();
-  ui.mouvements?.fermerDetail();
-  ui.charges?.fermerReglages();
-  try {
-    const [aPrec, mPrec] = decaler(etat.annee, etat.mois, -1);
-    const [courant, precedent, derniers] = await Promise.all([
-      api.mois(etat.annee, etat.mois),
-      api.mois(aPrec, mPrec),
-      api.derniersMontants(),
-    ]);
-    etat.lignes = Object.fromEntries(courant.lignes.map((l) =>
-      [l.charge_id, { montant_centimes: l.montant_centimes, regle: l.regle }]));
-    etat.revenus = Object.fromEntries(etat.membres.map((m) => [m.prenom, 0]));
-    for (const r of courant.revenus) etat.revenus[r.prenom] = r.montant_centimes;
-    etat.ajustements = courant.ajustements;
-    etat.mouvements = courant.mouvements;
-    etat.moisPrecedent = Object.fromEntries(precedent.lignes.map((l) => [l.charge_id, l.montant_centimes]));
-    etat.derniers = derniers;
-
-    recalculer();
-    await ui.mouvements.genererOccurrences();
-    cacherBandeau();
-    rendreSi("budget");
-  } catch (e) { echec(e); }
-}
-
-async function chargerTaches() {
-  ui.taches?.fermerDetail();
-  try {
-    etat.taches = await api.taches(decalerJours(jourIso(new Date()), -JOURS_HISTORIQUE));
-    await ui.taches.genererOccurrences();
-    rendreSi("taches");
-  } catch (e) { echec(e); }
-}
-
-async function chargerCourses() {
-  try {
-    etat.courses = await api.courses();
-    rendreSi("courses");
-  } catch (e) { echec(e); }
+  if (nom === "accueil" || moduleDe(nom) === cle) rendreEcran(nom);
 }
 
 // ---------- accueil : une carte par module, avec son résumé ----------
 function rendreAccueil() {
-  const jour = jourIso(new Date());
-  const restants = etat.mouvements.filter((m) => !m.fait_le).length;
-  const aFaire = etat.taches.filter((t) => !t.fait_le && ["retard", "aujourdhui"].includes(groupe(t, jour))).length;
-  const b = balance(etat.taches, etat.membres.map((m) => m.prenom), decalerJours(jour, -6), jour);
-  const resume = {
-    budget: etat.resultat
-      ? (restants ? `${restants} mouvement${restants > 1 ? "s" : ""} à faire en ${MOIS_COURT[etat.mois - 1].toLowerCase()}` : `Tout est viré pour ${MOIS_COURT[etat.mois - 1].toLowerCase()}`)
-      : "Chargement…",
-    taches: `${aFaire ? `${aFaire} tâche${aFaire > 1 ? "s" : ""} aujourd’hui` : "Rien à faire aujourd’hui"} · 7 j : ${etat.membres.map((m) => `${m.prenom} ${Math.round(b.ratio[m.prenom] * 100)} %`).join(" / ")}`,
-    courses: (() => {
-      const n = etat.courses.filter((a) => !a.coche_le).length;
-      return n ? `${n} article${n > 1 ? "s" : ""} à prendre` : "Liste vide";
-    })(),
-  };
   $("#sous-accueil").textContent = etat.prenom ? `Bonjour ${etat.prenom}.` : "";
-  $("#modules").innerHTML = Object.entries(MODULES).map(([k, m]) => `
+  $("#modules").innerHTML = LISTE.map((m) => `
     <button class="carte module-carte" data-ecran="${m.defaut}">
       <span class="module-nom">${txt(m.nom)}</span>
-      <span class="module-resume">${txt(resume[k])}</span>
+      <span class="module-resume">${txt(prets.has(m.cle) ? instances[m.cle].resume() : "Chargement…")}</span>
     </button>`).join("");
-  for (const b of $("#modules").querySelectorAll("[data-ecran]")) b.addEventListener("click", () => montrerEcran(b.dataset.ecran));
-}
-
-// ---------- ajustements (écran Charges) ----------
-$("#btn-ajouter-ajustement").addEventListener("click", async () => {
-  const [a, b] = etat.membres.map((m) => m.prenom);
-  const montant = prompt(`Ajustement : montant en euros que ${a} verse en plus (négatif pour l'inverse)`);
-  if (montant === null) return;
-  try {
-    const { versCentimes } = await import("./calc.js");
-    const cents = versCentimes(montant);
-    const cree = await api.creerAjustement({
-      annee: etat.annee, mois: etat.mois,
-      de: cents >= 0 ? a : b, vers: cents >= 0 ? b : a,
-      montant_centimes: Math.abs(cents), motif: prompt("Motif ?") || null,
-    });
-    etat.ajustements.push(cree);
-    recalculer();
-    rendreEcran("charges");
-    toast("Ajustement ajouté.");
-  } catch (e) { echec(e); }
-});
-
-/** Un ajustement se lit comme une ligne de réglage, avec un seul verbe : Retirer. */
-const ligneAjustement = (a) => `<div class="rec">
-  <div class="rec-corps"><span class="rec-titre">${txt(a.de)} → ${txt(a.vers)}</span>
-    ${a.motif ? `<span class="rec-trajet">${txt(a.motif)}</span>` : ""}</div>
-  <div class="rec-droite"><span class="mono">${(a.montant_centimes / 100).toFixed(2).replace(".", ",")} €</span></div>
-  <div class="rec-actions"><button class="btn-lien" data-suppr-ajust="${a.id}">Retirer</button></div>
-</div>`;
-
-function rendreAjustements() {
-  $("#ajustements").innerHTML = carteListe(etat.ajustements.map((a) => ligneAjustement(a)),
-    "Aucun ajustement ce mois.");
-  for (const b of $$("#ajustements [data-suppr-ajust]")) {
-    b.addEventListener("click", async () => {
-      const id = Number(b.dataset.supprAjust);
-      try {
-        await api.supprimerAjustement(id);
-        etat.ajustements = etat.ajustements.filter((x) => x.id !== id);
-        recalculer();
-        rendreEcran("charges");
-        toast("Ajustement retiré.");
-      } catch (e) { echec(e); }
-    });
+  for (const b of $("#modules").querySelectorAll("[data-ecran]")) {
+    b.addEventListener("click", () => montrerEcran(b.dataset.ecran));
   }
 }

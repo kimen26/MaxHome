@@ -55,6 +55,22 @@ export function brancherReglages(racine, surModifier, surRetirer) {
   }
 }
 
+/**
+ * Sérialise les écritures d'un même élément : l'affichage est optimiste, donc deux gestes
+ * rapprochés (coche puis décoche) partiraient en parallèle et la base garderait celui qui
+ * arrive en dernier, pas le dernier fait. Chaque élément a sa file ; les éléments distincts
+ * restent parallèles.
+ */
+export function creerFileEcritures() {
+  const files = new Map();
+  return (cle, ecrire) => {
+    const suivant = (files.get(cle) ?? Promise.resolve()).catch(() => {}).then(ecrire);
+    files.set(cle, suivant);
+    suivant.finally(() => { if (files.get(cle) === suivant) files.delete(cle); });
+    return suivant;
+  };
+}
+
 /** Surligne la ligne dont le détail est ouvert (PC). */
 export function marquerChoisi(racine, id) {
   for (const el of racine.querySelectorAll(".mvt[data-id]")) el.classList.toggle("choisi", Number(el.dataset.id) === id);

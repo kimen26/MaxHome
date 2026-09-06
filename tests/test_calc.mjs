@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { calculer, repartir, versCentimes, montantLigne, regleEffective } from "../frontend/calc.js";
+import { calculer, repartir, versCentimes, montantLigne, regleEffective, montantTheorique } from "../frontend/budget/calc.js";
 
 // Cas réel : Comptes 2026, février. Doit TOUJOURS donner Yann -3 236,15 ±1 ct.
 const chargesFevrier = [
@@ -99,5 +99,14 @@ assert.equal(montantLigne(undefined), 0);
 assert.equal(regleEffective({ regle: "egales" }, { regle: "proport" }), "proport");
 assert.equal(regleEffective({ regle: "egales" }, { regle: null }), "egales");
 assert.equal(regleEffective({ regle: "egales" }, -500), "egales");
+
+// montantTheorique : fixe / suit une charge / part d'une personne ; mode inconnu = erreur.
+const contexte = { lignes: { 7: { montant_centimes: -12345, regle: null } }, resultat: { aVerser: { Yann: -323615 } } };
+assert.equal(montantTheorique(null, contexte), null, "ponctuel : pas de théorique");
+assert.equal(montantTheorique({ mode: "fixe", montant_centimes: 5000 }, contexte), 5000);
+assert.equal(montantTheorique({ mode: "charge", charge_id: 7 }, contexte), -12345);
+assert.equal(montantTheorique({ mode: "charge", charge_id: 99 }, contexte), 0, "charge sans montant ce mois");
+assert.equal(montantTheorique({ mode: "part", prenom_part: "Yann" }, contexte), 323615, "part = virement positif");
+assert.throws(() => montantTheorique({ mode: "??" }, contexte), /inconnu/);
 
 console.log("test_calc OK");

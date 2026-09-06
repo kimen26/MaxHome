@@ -395,3 +395,8 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
 #feuille-corps .titre-section { margin:14px 0 6px; }
 .btn-menu { width:100%; margin-bottom:8px; text-align:left; }
 .btn-menu.danger { color:var(--rouge); margin-top:14px; }
+
+/* ---------- confirmation en feuille ---------- */
+.texte-confirmation { margin:4px 0 10px; font-size:15px; line-height:1.5; }
+.btn-rouge { background:var(--rouge); border-color:var(--rouge); color:#fff; font-weight:600; }
+.confirmation .detail-actions .btn { min-height:48px; border-radius:10px; }

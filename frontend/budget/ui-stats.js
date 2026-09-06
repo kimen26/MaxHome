@@ -1,7 +1,7 @@
 // Écrans « Stats » (barres revenus, barres charges communes, camembert du mois) et « Vue annuelle ».
 
 import { calculer, euros } from "./calc.js";
-import { $, $$, txt, MOIS_COURT, MOIS, decaler } from "./ui-base.js";
+import { $, $$, txt, MOIS_COURT, MOIS, decaler } from "../socle/ui-base.js";
 
 const capitale = (s) => s[0].toUpperCase() + s.slice(1);
 

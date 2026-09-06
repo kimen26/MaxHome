@@ -76,6 +76,20 @@ _Une session = une lane. Marquer (en cours) à l'ouverture, libérer à la fin._
       elles sont génériques, pas les vôtres.
 - [ ] Yann : renseigner les rayons des articles récurrents au fil de l'eau (défaut « Autre »).
 
+## Lane F — Refactor modules (brief inbox du 2026-09-07, exécuté le jour même)
+- [x] Lot 1 : `socle/blocs-checklist.js` + `socle/occurrences.js` ; `montantTheorique` dans
+      calc.js (testé) ; Ce mois et Aujourd'hui assemblés dessus.
+- [x] Lot 2 : `socle/blocs-reglages.js` + `socle/blocs-form.js` ; Récurrents, Tâches
+      récurrentes, Comptes assemblés dessus ; `confirmer()` en feuille remplace `confirm()`.
+- [x] Lot 3 : un dossier par module (`budget/`, `taches/`, `courses/`), descripteurs
+      `mod-*.js`, `modules.js`, `app.js` générique (128 lignes), socle injecté.
+- [x] Lot 4 : ajustements dans ui-charges (formulaire en feuille), tâches regroupées
+      (D-023), `tests/comparer_captures.mjs` (pixel, sans dépendance), `scripts/bot/courses.py`.
+- [x] Trois bugs trouvés par la recette durcie : course d'écritures (D-026), double
+      démarrage (L-017), rendu avant données (L-019).
+- [ ] Bot : `mouvements.py` porte encore un miroir manuel de `montantTheorique` ; passer par
+      `calc_cli.mjs` si le miroir diverge une fois de plus (L-014).
+
 ## Lane B — V1 (après recette)
 - [x] Vue annuelle (tableau 12 mois comme l'Excel)
 - [ ] Importer les feuilles 2023 et « Garde Max » si utile

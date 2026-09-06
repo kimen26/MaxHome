@@ -114,3 +114,26 @@ Sur `recurrents-pc.png`, deux textes semblaient se superposer. Mesure des boîte
 une page courte. Une demi-heure perdue à chercher une cause CSS inexistante.
 Mnémonique : un chevauchement vu sur une capture se confirme par une mesure de géométrie
 avant d'ouvrir le CSS.
+
+
+## L-017 — Supabase notifie une même session plusieurs fois : le démarrage doit être idempotent
+Au rechargement, `onAuthStateChange` émet `INITIAL_SESSION` puis `SIGNED_IN` : `demarrer()`
+tournait deux fois, chaque bouton statique recevait ses écouteurs en double et le formulaire
+des courses créait deux articles à 4 ms d'intervalle. Invisible tant que la recette ne
+rechargeait jamais la page. Corrigé par un verrou (`demarre`) levé à la déconnexion.
+Mnémonique : tout ce qui branche des écouteurs sur du DOM statique ne doit pouvoir s'exécuter
+qu'une fois par session ; et une recette qui ne recharge jamais ne teste pas le rechargement.
+
+## L-018 — trois attentes de recette qui mentent
+(1) Attendre un élément statique (`#form-course`) ne prouve pas que les données sont là :
+attendre la liste rendue (`.mvt, .vide`). (2) Attendre le DOM après un geste ne prouve pas que
+l'écriture est partie : le DOM est optimiste ; attendre la RÉPONSE du PATCH
+(`page.waitForResponse`). (3) `waitForLoadState("networkidle")` répond immédiatement sur une
+page déjà chargée : recharger juste après annule les requêtes en vol. Deux heures perdues à
+soupçonner l'app pour trois faiblesses du test.
+Mnémonique : une recette attend des preuves (données rendues, réponse réseau), pas des signes.
+
+## L-019 — un rendu avant les données est un bug d'UX, pas un détail de test
+La liste des courses affichait « Liste vide » une seconde avant de se remplir, et la recette
+comptait zéro. Le squelette statique doit rester jusqu'au premier chargement du module
+(`prets` dans app.js) ; l'accueil dit « Chargement… » tant que le résumé n'est pas fiable.

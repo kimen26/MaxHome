@@ -1,12 +1,13 @@
 // Écran « Courses » : une liste commune, groupée par rayon, cochable dans le magasin.
 
-import { $, txt, toast, ouvrirFeuille, fermerFeuille } from "./ui-base.js";
-import { ligneCoche, carteListe, chiffres, titreSection, brancherCoches } from "./blocs.js";
+import { $, txt, toast, confirmer } from "../socle/ui-base.js";
+import { ligneCoche, carteListe, chiffres, titreSection, brancherCoches, creerFileEcritures } from "../socle/blocs.js";
 
 export function creerUiCourses(api, etat, cb) {
   const aFaire = () => etat.courses.filter((a) => !a.coche_le);
   const prises = () => etat.courses.filter((a) => a.coche_le);
   const ordreRayon = (nom) => etat.rayons.find((r) => r.nom === nom)?.ordre ?? 999;
+  const enFile = creerFileEcritures();
 
   const ligne = (a) => ligneCoche({
     id: a.id, titre: a.quantite ? `${a.libelle} · ${a.quantite}` : a.libelle,
@@ -45,8 +46,9 @@ export function creerUiCourses(api, etat, cb) {
     const avant = { coche_le: a.coche_le, coche_par: a.coche_par };
     a.coche_le = a.coche_le ? null : new Date().toISOString();
     a.coche_par = a.coche_le ? etat.prenom : null;
+    const champs = { coche_le: a.coche_le, coche_par: a.coche_par };
     rendre();
-    try { await api.majCourse(id, { coche_le: a.coche_le, coche_par: a.coche_par }); }
+    try { await enFile(id, () => api.majCourse(id, champs)); }
     catch (e) { Object.assign(a, avant); rendre(); cb.echec(e); }
   }
 
@@ -73,7 +75,8 @@ export function creerUiCourses(api, etat, cb) {
 
   async function viderPanier() {
     const faits = prises();
-    if (!faits.length || !confirm(`Retirer les ${faits.length} articles pris de la liste ?`)) return;
+    if (!faits.length) return;
+    if (!(await confirmer(`Retirer les ${faits.length} article${faits.length > 1 ? "s" : ""} pris de la liste ?`, { ok: "Vider" }))) return;
     try {
       await api.supprimerCourses(faits.map((a) => a.id));
       etat.courses = aFaire();

@@ -32,7 +32,7 @@ def test_echeances_identiques_au_frontend():
     racine = Path(__file__).resolve().parent.parent.parent
     jours = ["2026-09-06", "2026-09-07", "2026-12-31", "2028-02-10", "2026-02-28"]
     script = (
-        "import('file:///" + str(racine / "frontend" / "taches.js").replace("\\", "/") + "')"
+        "import('file:///" + str(racine / "frontend" / "taches" / "taches.js").replace("\\", "/") + "')"
         ".then(m => console.log(JSON.stringify(" + json.dumps(jours) + ".flatMap(j => "
         "['quotidien','hebdo','mensuel'].map(f => m.echeance(f, j))))))"
     )

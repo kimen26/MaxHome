@@ -104,6 +104,20 @@ export function calculer(charges, lignes, revenus, ajustements = []) {
   };
 }
 
+/**
+ * Montant théorique d'un mouvement selon le mode de son récurrent.
+ * `null` seulement sans récurrent (mouvement ponctuel) ; un mode inconnu est une donnée
+ * corrompue et lève, comme côté bot (scripts/bot/mouvements.py).
+ * @param contexte { lignes: {charge_id: {montant_centimes}}, resultat: { aVerser } }
+ */
+export function montantTheorique(recurrent, { lignes, resultat }) {
+  if (!recurrent) return null;
+  if (recurrent.mode === "fixe") return recurrent.montant_centimes ?? 0;
+  if (recurrent.mode === "charge") return montantLigne(lignes[recurrent.charge_id]);
+  if (recurrent.mode === "part") return -(resultat.aVerser[recurrent.prenom_part] ?? 0);
+  throw new Error(`mode de mouvement récurrent inconnu : ${recurrent.mode}`);
+}
+
 export const euros = (c) =>
   (c / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 export const versCentimes = (s) => {
