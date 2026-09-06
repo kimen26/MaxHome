@@ -9,7 +9,7 @@ import logging.handlers
 import subprocess
 import sys
 import time
-from datetime import date, datetime, timezone
+from datetime import date
 from pathlib import Path
 
 RACINE = Path(__file__).resolve().parent.parent.parent
@@ -19,6 +19,7 @@ sys.path.insert(0, str(RACINE / "scripts" / "bot"))
 from provision import cles, lit_env  # noqa: E402
 import commandes  # noqa: E402
 import libre  # noqa: E402
+import mouvements  # noqa: E402
 import reponses  # noqa: E402
 from donnees import Donnees  # noqa: E402
 from telegram import Telegram  # noqa: E402
@@ -101,6 +102,17 @@ class Bot:
         for r in revenus:
             self.donnees.maj_revenu(annee, mois, r["prenom"], r["montant_centimes"])
 
+    def basculer_mouvement(self, telegram_id, prenom, action, annee, mois):
+        """Coche (ou décoche) un mouvement du mois et rend l'écriture annulable."""
+        resultat, lignes, _ = self.charger_r(annee, mois)
+        cible, champs, erreur = mouvements.basculer(
+            self.donnees, prenom, action.get("titre"), action["fait"], resultat, lignes, annee, mois)
+        if erreur:
+            return erreur
+        avant = {"fait_le": cible["fait_le"], "montant_centimes": cible["montant_centimes"]}
+        self.marquer_annulable(telegram_id, "mouvements", {"id": cible["id"]}, avant)
+        return reponses.confirmation_mouvement(cible["titre"], champs["montant_centimes"], action["fait"])
+
     def marquer_annulable(self, telegram_id, table, cle_filtre, ancienne_valeur):
         self.etats.setdefault(telegram_id, {})["dernier"] = {
             "table": table, "cle": cle_filtre, "ancienne_valeur": ancienne_valeur,
@@ -118,8 +130,11 @@ class Bot:
             self.donnees.maj_ligne(cle["annee"], cle["mois"], cle["charge_id"], ancienne)
         elif table == "ajustements":
             self.donnees.supprimer_ajustement(cle["id"])
-        elif table == "virements":
-            self.donnees.maj_virement(cle["annee"], cle["mois"], cle["prenom"], ancienne["montant"], ancienne["fait_le"])
+        elif table == "mouvements":
+            self.donnees.maj_mouvement(cle["id"], {"fait_le": ancienne["fait_le"],
+                                                   "montant_centimes": ancienne["montant_centimes"]})
+        else:
+            raise RuntimeError(f"annulation non gérée pour la table {table}")
         return "Dernière écriture annulée."
 
     def traiter_action(self, telegram_id, prenom, action, texte_brut):
@@ -152,7 +167,8 @@ class Bot:
             prec_lignes = {l["charge_id"] for l in self.donnees.lignes_mois(precedent_a, precedent_m) if l["montant_centimes"]}
             actuelles = {cid for cid, m in lignes.items() if m}
             alerte = bool(prec_lignes - actuelles)
-            return reponses.bilan(r, self.membres, annee, mois, alerte)
+            restants = mouvements.restants(self.donnees, annee, mois, r, lignes)
+            return reponses.bilan(r, self.membres, annee, mois, alerte, restants)
         if a == "charges":
             _, lignes, _ = self.charger_r(annee, mois)
             return reponses.liste_charges(self.charges, lignes)
@@ -196,17 +212,8 @@ class Bot:
             self.marquer_annulable(telegram_id, "ajustements", {"id": reg["id"]}, None)
             return reponses.confirmation_ajustement(autre, action["beneficiaire"], action["montant_centimes"], action["motif"])
 
-        if a == "virement":
-            fait_le = datetime.now(timezone.utc).isoformat() if action["fait"] else None
-            virements = self.donnees.virements(*self.mois_courant())
-            ancien = next((v for v in virements if v["prenom"] == prenom), None)
-            ancienne_v = {"montant": ancien["montant_centimes"], "fait_le": ancien["fait_le"]} if ancien else {"montant": 0, "fait_le": None}
-            annee_c, mois_c = self.mois_courant()
-            r, _, _ = self.charger_r(annee_c, mois_c)
-            montant = -r["aVerser"].get(prenom, 0)
-            self.donnees.maj_virement(annee_c, mois_c, prenom, montant, fait_le)
-            self.marquer_annulable(telegram_id, "virements", {"annee": annee_c, "mois": mois_c, "prenom": prenom}, ancienne_v)
-            return "Virement marqué fait ✔" if action["fait"] else "Virement marqué non fait."
+        if a == "mouvement":
+            return self.basculer_mouvement(telegram_id, prenom, action, annee, mois)
 
         if a == "inscrire":
             self.donnees.inscrire_telegram(action["telegram_id"], action["prenom"])

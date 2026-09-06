@@ -29,8 +29,9 @@ salaire <montant> [en <mois>]        salaire du mois courant, ou "salaire claudi
 <libelle charge> <montant> [en <mois>]  ex. "impots 345", "taxe fonciere 215"
 extra <libelle> <montant> [egales]   dépense ponctuelle (prorata par défaut)
 <prenom> prend <montant> <motif>     ajustement entre les deux comptes, ex. "yann prend 200 resto"
-fait / pas fait                      coche/décoche le virement du mois pour l'expéditeur
-bilan [<mois>]                       qui verse quoi, reste à vivre, total commun
+fait / pas fait                      coche/décoche le virement au commun de l'expéditeur
+fait <titre>                         coche un autre mouvement du mois, ex. "fait epargne"
+bilan [<mois>]                       qui verse quoi, reste à vivre, total commun, reste à faire
 charges [<mois>]                     liste des charges par catégorie
 mois                                 mois courant
 annuler                              défait la dernière écriture de l'expéditeur (une profondeur)

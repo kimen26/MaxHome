@@ -50,8 +50,11 @@ class Donnees:
     def ajustements(self, annee, mois):
         return self._appel("GET", f"ajustements?annee=eq.{annee}&mois=eq.{mois}&select=*")
 
-    def virements(self, annee, mois):
-        return self._appel("GET", f"virements?annee=eq.{annee}&mois=eq.{mois}&select=*")
+    def recurrents_actifs(self):
+        return self._appel("GET", "mouvements_recurrents?actif=is.true&select=*&order=ordre&order=id")
+
+    def mouvements(self, annee, mois):
+        return self._appel("GET", f"mouvements?annee=eq.{annee}&mois=eq.{mois}&select=*&order=id")
 
     # ---------- écriture (upsert = idempotent, merge-duplicates) ----------
     def maj_revenu(self, annee, mois, prenom, montant_centimes):
@@ -73,10 +76,17 @@ class Donnees:
     def supprimer_ajustement(self, id_):
         self._appel("DELETE", f"ajustements?id=eq.{id_}")
 
-    def maj_virement(self, annee, mois, prenom, montant_centimes, fait_le):
-        self._appel("POST", "virements",
-                    {"annee": annee, "mois": mois, "prenom": prenom, "montant_centimes": montant_centimes, "fait_le": fait_le},
-                    {"Prefer": "resolution=merge-duplicates"})
+    def creer_mouvements(self, lignes):
+        """Crée les occurrences manquantes du mois. Retourne les lignes créées (avec leur id)."""
+        if not lignes:
+            return []
+        return self._appel("POST", "mouvements", lignes, {"Prefer": "return=representation"})
+
+    def maj_mouvement(self, id_, champs):
+        r = self._appel("PATCH", f"mouvements?id=eq.{id_}", champs, {"Prefer": "return=representation"})
+        if not r:
+            raise RuntimeError(f"mouvement {id_} introuvable")
+        return r[0]
 
     def lignes_mois(self, annee, mois):
         return self._appel("GET", f"lignes?annee=eq.{annee}&mois=eq.{mois}&select=charge_id,montant_centimes")

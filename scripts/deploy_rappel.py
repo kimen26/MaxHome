@@ -36,7 +36,9 @@ def main():
         cwd=RACINE, env={**os.environ, "SUPABASE_ACCESS_TOKEN": pat}, capture_output=True, text=True, shell=True,
     )
     if r.returncode != 0:
-        sys.exit(f"déploiement fonction échoué :\n{r.stderr[-800:]}")
+        # La CLI met l'erreur de compilation sur stdout et les avertissements sur stderr :
+        # afficher les deux, sinon on ne voit que « Docker is not running » (inoffensif).
+        sys.exit(f"déploiement fonction échoué :\n{r.stdout[-1200:]}\n{r.stderr[-400:]}")
     print("fonction déployée")
     appel("PATCH", f"{API}/projects/{ref}/functions/{FONCTION}", pat, {"verify_jwt": True})
 

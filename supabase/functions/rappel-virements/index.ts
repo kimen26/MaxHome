@@ -1,10 +1,10 @@
-// Edge Function : rappel Telegram des virements du mois non faits.
+// Edge Function : rappel Telegram des mouvements du mois non faits.
+// Nom conservé (« rappel-virements ») : il est câblé dans pg_cron et scripts/deploy_rappel.py.
 // Planifiée via pg_cron le 1er et le 5 de chaque mois à 09:00 Europe/Paris (voir migration 003).
 //
 // Secrets requis (Supabase > Project Settings > Edge Functions > Secrets) :
 //   MAXBUDGET_TELEGRAM_BOT_TOKEN, MAXBUDGET_TELEGRAM_CHAT_ID
-// NON déployée au Lot A : ces secrets sont absents de .env local à ce jour (2026-09-05).
-// Déployer avec : supabase functions deploy rappel-virements (une fois les secrets configurés).
+// Déployer avec : python scripts/deploy_rappel.py
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
@@ -29,31 +29,48 @@ Deno.serve(async () => {
   const annee = maintenant.getUTCFullYear();
   const mois = maintenant.getUTCMonth() + 1;
 
-  const { data: virements, error } = await sb
-    .from("virements")
-    .select("prenom, montant_centimes, fait_le")
+  const { data: mouvements, error } = await sb
+    .from("mouvements")
+    .select("titre, montant_centimes, qui, fait_le")
     .eq("annee", annee)
-    .eq("mois", mois);
+    .eq("mois", mois)
+    .is("fait_le", null)
+    .order("id");
   if (error) throw error;
 
-  if (!virements || virements.length === 0) {
-    return new Response(`aucun virement calculé pour ${MOIS[mois - 1]} ${annee}`, { status: 200 });
+  // Le 1er du mois, personne n'a encore ouvert l'app : les occurrences n'existent pas.
+  // On rappelle alors les récurrents actifs, sans montant (il dépend des charges du mois).
+  let lignes: string[];
+  if (!mouvements || mouvements.length === 0) {
+    const { data: recurrents, error: e2 } = await sb
+      .from("mouvements_recurrents")
+      .select("titre, qui, jour")
+      .eq("actif", true)
+      .order("ordre");
+    if (e2) throw e2;
+    if (!recurrents || recurrents.length === 0) {
+      return new Response(`aucun mouvement à faire pour ${MOIS[mois - 1]} ${annee}`, { status: 200 });
+    }
+    lignes = recurrents.map((r) =>
+      `• ${r.titre}${r.jour ? ` (le ${r.jour})` : ""}${r.qui ? ` — ${r.qui}` : ""}`
+    );
+    const texteRec = `MaxBudget — à faire en ${MOIS[mois - 1]} (ouvre l'app pour les montants) :\n${lignes.join("\n")}`;
+    return await envoyer(botToken, chatId, texteRec);
   }
 
-  const { data: comptes } = await sb.from("comptes").select("nom, commun").eq("commun", true).limit(1);
-  const compteCommun = comptes?.[0]?.nom ?? "compte commun";
-
-  const lignes = virements.map((v) =>
-    `${v.prenom} → ${compteCommun} : ${euros(v.montant_centimes)} (${v.fait_le ? "fait ✔" : "à faire"})`
+  lignes = mouvements.map((m) =>
+    `• ${m.titre} : ${euros(m.montant_centimes)}${m.qui ? ` (${m.qui})` : ""}`
   );
-  const texte = `Virements MaxBudget — ${MOIS[mois - 1]} :\n${lignes.join("\n")}`;
+  const texte = `MaxBudget — reste à faire en ${MOIS[mois - 1]} :\n${lignes.join("\n")}`;
+  return await envoyer(botToken, chatId, texte);
+});
 
+async function envoyer(botToken: string, chatId: string, texte: string): Promise<Response> {
   const rep = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, text: texte }),
   });
   if (!rep.ok) throw new Error(`Telegram : ${rep.status} ${await rep.text()}`);
-
   return new Response("envoyé", { status: 200 });
-});
+}

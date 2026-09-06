@@ -12,7 +12,7 @@ Actions possibles :
   {{"action":"charge","libelle":"...","montant":-12.3,"mois":null}}
   {{"action":"extra","libelle":"...","montant":-12.3,"regle":"proport","mois":null}}
   {{"action":"ajustement","de":"...","vers":"...","montant":12.3,"motif":"...","mois":null}}
-  {{"action":"virement_fait","fait":true}}
+  {{"action":"mouvement_fait","titre":null,"fait":true}}
   {{"action":"bilan","mois":null}}
   {{"action":"charges","mois":null}}
   {{"action":"question","texte":"..."}}

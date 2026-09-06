@@ -58,13 +58,21 @@ def valider_montant_euros(valeur):
     return centimes
 
 
-def meilleur_libelle(cible_norm, charges):
-    """Fuzzy match sur le libellé normalisé. Retourne (charge, ratio) ou (None, [3 plus proches])."""
-    candidats = [(c, difflib.SequenceMatcher(None, cible_norm, normaliser(c["libelle"])).ratio()) for c in charges]
+SEUIL_FLOU = 0.75
+
+
+def meilleur_flou(cible_norm, elements, champ):
+    """Fuzzy match insensible casse/accents sur `champ`. Retourne (élément, None) ou (None, [3 proches])."""
+    candidats = [(e, difflib.SequenceMatcher(None, cible_norm, normaliser(e[champ])).ratio()) for e in elements]
     candidats.sort(key=lambda x: -x[1])
-    if candidats and candidats[0][1] >= 0.75:
+    if candidats and candidats[0][1] >= SEUIL_FLOU:
         return candidats[0][0], None
-    return None, [c["libelle"] for c, _ in candidats[:3]]
+    return None, [e[champ] for e, _ in candidats[:3]]
+
+
+def meilleur_libelle(cible_norm, charges):
+    """Fuzzy match sur le libellé d'une charge."""
+    return meilleur_flou(cible_norm, charges, "libelle")
 
 
 def interpreter(texte_brut, prenoms, charges, annee_courante, mois_courant):
@@ -83,10 +91,12 @@ def interpreter(texte_brut, prenoms, charges, annee_courante, mois_courant):
         return {"action": "charges", "annee": annee, "mois": mois}
     if sans_mois in ("annuler",):
         return {"action": "annuler"}
-    if sans_mois in ("fait", "virement fait"):
-        return {"action": "virement", "fait": True}
-    if sans_mois in ("pas fait", "virement pas fait"):
-        return {"action": "virement", "fait": False}
+    # fait / pas fait [<titre de mouvement>] — sans titre : le mouvement « part » de l'expéditeur.
+    m = re.match(r"^(?:virement\s+)?(pas\s+fait|fait)\b\s*(.*)$", sans_mois)
+    if m:
+        titre = m.group(2).strip()
+        return {"action": "mouvement", "fait": not m.group(1).startswith("pas"),
+                "titre": titre or None, "annee": annee, "mois": mois}
     if sans_mois in ("oui", "non"):
         return {"action": "confirmation", "valeur": sans_mois == "oui"}
 

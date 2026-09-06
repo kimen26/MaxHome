@@ -122,10 +122,29 @@ def test_annuler():
     assert interp("annuler") == {"action": "annuler"}
 
 
-def test_virement_fait_et_pas_fait():
-    assert interp("fait") == {"action": "virement", "fait": True}
-    assert interp("virement fait") == {"action": "virement", "fait": True}
-    assert interp("pas fait") == {"action": "virement", "fait": False}
+def test_mouvement_fait_et_pas_fait():
+    a = interp("fait")
+    assert (a["action"], a["fait"], a["titre"]) == ("mouvement", True, None)
+    assert interp("virement fait")["fait"] is True
+    b = interp("pas fait")
+    assert (b["action"], b["fait"], b["titre"]) == ("mouvement", False, None)
+
+
+def test_mouvement_fait_avec_titre():
+    a = interp("fait loyer commun")
+    assert (a["action"], a["fait"], a["titre"]) == ("mouvement", True, "loyer commun")
+    b = interp("pas fait loyer commun")
+    assert (b["action"], b["fait"], b["titre"]) == ("mouvement", False, "loyer commun")
+
+
+def test_mouvement_accepte_un_suffixe_de_mois():
+    a = interp("fait en aout")
+    assert a["action"] == "mouvement" and a["mois"] == 8 and a["titre"] is None
+
+
+def test_mot_commencant_par_fait_n_est_pas_une_coche():
+    # « faites » ne doit pas être lu comme la commande « fait ».
+    assert interp("faites 100")["action"] != "mouvement"
 
 
 def test_montant_borne_basse_refusee():

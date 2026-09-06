@@ -35,7 +35,13 @@ def confirmation_ajustement(de, vers, montant_centimes, motif):
     return txt
 
 
-def bilan(r, membres, annee, mois, alerte_vide=False):
+def confirmation_mouvement(titre, montant_centimes, fait):
+    if fait:
+        return f"{titre} : {euros(montant_centimes)} — fait ✔"
+    return f"{titre} : coche annulée."
+
+
+def bilan(r, membres, annee, mois, alerte_vide=False, restants=None):
     lignes = [f"Bilan {nom_mois(annee, mois)} :"]
     for p in membres:
         a_verser = -r["aVerser"].get(p, 0)
@@ -44,6 +50,14 @@ def bilan(r, membres, annee, mois, alerte_vide=False):
     for p in membres:
         lignes.append(f"  {p} : {euros(r['reste'].get(p, 0))}")
     lignes.append(f"Total commun : {euros(r['totalCommun'])}")
+    if restants is not None:
+        if restants:
+            lignes.append("Reste à faire :")
+            for m in restants:
+                qui = f" ({m['qui']})" if m.get("qui") else ""
+                lignes.append(f"  {m['titre']} : {euros(m['montant_centimes'])}{qui}")
+        else:
+            lignes.append("Tous les mouvements sont faits ✔")
     if alerte_vide:
         lignes.append("⚠️ des lignes du mois précédent sont vides ce mois-ci.")
     return "\n".join(lignes)
@@ -72,7 +86,7 @@ AIDE = """Commandes :
   <libelle charge> <montant> [en <mois>]
   extra <libelle> <montant> [egales]
   <prenom> prend <montant> <motif>
-  fait / pas fait
+  fait / pas fait [<titre du mouvement>]
   bilan [<mois>]
   charges [<mois>]
   mois

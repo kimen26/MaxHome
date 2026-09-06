@@ -125,3 +125,110 @@ def test_charge_ambigue_ne_repond_pas_par_ecriture():
     rep = b.traiter_message(6433455282, "zzzzzzzzz 100")
     assert "correspond" in rep.lower() or "proche" in rep.lower()
     assert b.donnees.lignes_mois(ANNEE, MOIS) == []
+
+
+# ---------- mouvements (coche, bilan, annulation) ----------
+
+def bot_avec_mois_peuple(charges=None, recurrents=None):
+    """Bot dont le mois courant est peuplé : le calcul tourne, pas de proposition de copie."""
+    b = nouveau_bot(charges=charges, revenus_precedent={"Yann": 1, "Claudia": 1})
+    if recurrents is not None:
+        b.donnees._recurrents = recurrents
+    peupler_mois_courant(b, revenus={"Yann": 612000, "Claudia": 454611}, lignes={1: -159207, 2: -425271})
+    return b
+
+
+def test_fait_coche_le_mouvement_part_de_l_expediteur():
+    b = bot_avec_mois_peuple()
+    rep = b.traiter_message(6433455282, "fait")
+    assert "fait" in rep.lower()
+    faits = [m for m in b.donnees.mouvements(ANNEE, MOIS) if m["fait_le"]]
+    assert len(faits) == 1
+    # Yann est l'expéditeur : c'est SON virement au commun qui est coché.
+    assert "Yann" in faits[0]["titre"]
+    # Le montant est figé, non nul, et entier (centimes).
+    assert isinstance(faits[0]["montant_centimes"], int)
+    assert faits[0]["montant_centimes"] != 0
+
+
+def test_fait_genere_les_occurrences_manquantes():
+    b = bot_avec_mois_peuple()
+    assert b.donnees.mouvements(ANNEE, MOIS) == []
+    b.traiter_message(6433455282, "fait")
+    # Un mouvement par récurrent actif (les deux « part » issus de la migration).
+    assert len(b.donnees.mouvements(ANNEE, MOIS)) == 2
+
+
+def test_fait_par_titre_coche_un_autre_mouvement():
+    recurrents = [{"id": 1, "titre": "Virement au commun — Yann", "compte_de": None, "compte_vers": 10,
+                   "mode": "part", "montant_centimes": None, "charge_id": None, "prenom_part": "Yann",
+                   "qui": "Yann", "jour": 5, "consigne": None, "ordre": 1, "actif": True},
+                  {"id": 2, "titre": "Épargne Livret A", "compte_de": None, "compte_vers": 11,
+                   "mode": "fixe", "montant_centimes": -20000, "charge_id": None, "prenom_part": None,
+                   "qui": "Claudia", "jour": 10, "consigne": None, "ordre": 2, "actif": True}]
+    b = bot_avec_mois_peuple(recurrents=recurrents)
+    # Sans accent ni majuscule : la recherche floue doit retrouver « Épargne Livret A ».
+    rep = b.traiter_message(6433455282, "fait epargne livret a")
+    assert "Épargne" in rep
+    faits = [m for m in b.donnees.mouvements(ANNEE, MOIS) if m["fait_le"]]
+    assert [m["titre"] for m in faits] == ["Épargne Livret A"]
+    assert faits[0]["montant_centimes"] == -20000
+
+
+def test_fait_par_titre_inconnu_n_ecrit_rien():
+    b = bot_avec_mois_peuple()
+    rep = b.traiter_message(6433455282, "fait zzzzzzzzzz")
+    assert "correspond" in rep.lower()
+    assert [m for m in b.donnees.mouvements(ANNEE, MOIS) if m["fait_le"]] == []
+
+
+def test_pas_fait_decoche_le_mouvement():
+    b = bot_avec_mois_peuple()
+    b.traiter_message(6433455282, "fait")
+    assert [m for m in b.donnees.mouvements(ANNEE, MOIS) if m["fait_le"]]
+    rep = b.traiter_message(6433455282, "pas fait")
+    assert "annul" in rep.lower()
+    assert [m for m in b.donnees.mouvements(ANNEE, MOIS) if m["fait_le"]] == []
+
+
+def test_annuler_une_coche_restaure_l_etat_precedent():
+    b = bot_avec_mois_peuple()
+    # État des occurrences juste avant la coche (elles sont créées à la volée).
+    b.traiter_message(6433455282, "bilan")
+    avant = {m["id"]: (m["fait_le"], m["montant_centimes"]) for m in b.donnees.mouvements(ANNEE, MOIS)}
+    b.traiter_message(6433455282, "fait")
+    coche = [m for m in b.donnees.mouvements(ANNEE, MOIS) if m["fait_le"]]
+    assert len(coche) == 1
+    rep = b.traiter_message(6433455282, "annuler")
+    assert "annul" in rep.lower()
+    apres = {m["id"]: (m["fait_le"], m["montant_centimes"]) for m in b.donnees.mouvements(ANNEE, MOIS)}
+    assert apres == avant
+
+
+def test_bilan_liste_les_mouvements_restants():
+    b = bot_avec_mois_peuple()
+    rep = b.traiter_message(6433455282, "bilan")
+    assert "Reste à faire" in rep
+    assert "Virement au commun — Yann" in rep
+    assert "Virement au commun — Claudia" in rep
+
+
+def test_bilan_signale_quand_tout_est_fait():
+    recurrents = [{"id": 1, "titre": "Virement au commun — Yann", "compte_de": None, "compte_vers": 10,
+                   "mode": "part", "montant_centimes": None, "charge_id": None, "prenom_part": "Yann",
+                   "qui": "Yann", "jour": 5, "consigne": None, "ordre": 1, "actif": True}]
+    b = bot_avec_mois_peuple(recurrents=recurrents)
+    b.traiter_message(6433455282, "fait")
+    rep = b.traiter_message(6433455282, "bilan")
+    assert "Tous les mouvements sont faits" in rep
+    assert "Reste à faire" not in rep
+
+
+def test_fait_sans_recurrent_part_pour_l_expediteur():
+    recurrents = [{"id": 2, "titre": "Épargne", "compte_de": None, "compte_vers": 11, "mode": "fixe",
+                   "montant_centimes": -20000, "charge_id": None, "prenom_part": None, "qui": "Claudia",
+                   "jour": 10, "consigne": None, "ordre": 1, "actif": True}]
+    b = bot_avec_mois_peuple(recurrents=recurrents)
+    rep = b.traiter_message(6433455282, "fait")
+    assert "Aucun virement au commun" in rep
+    assert [m for m in b.donnees.mouvements(ANNEE, MOIS) if m["fait_le"]] == []

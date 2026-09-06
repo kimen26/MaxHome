@@ -4,16 +4,18 @@
 class DonneesFausse:
     """Reproduit la surface de scripts/bot/donnees.py::Donnees, en mémoire."""
 
-    def __init__(self, membres=None, charges=None, telegram_membres=None):
+    def __init__(self, membres=None, charges=None, telegram_membres=None, recurrents=None):
         self._membres = membres or [{"prenom": "Yann", "ordre": 1}, {"prenom": "Claudia", "ordre": 2}]
         self._charges = charges or []
         self._telegram_membres = telegram_membres or {6433455282: "Yann"}
         self._lignes = {}       # (annee, mois) -> {charge_id: montant}
         self._revenus = {}      # (annee, mois) -> {prenom: montant}
         self._ajustements = {}  # (annee, mois) -> [dict]
-        self._virements = {}    # (annee, mois) -> {prenom: {"montant_centimes":..., "fait_le":...}}
+        self._recurrents = recurrents if recurrents is not None else recurrents_part(self._membres)
+        self._mouvements = []   # liste de dicts, comme la table
         self._prochain_id_charge = 1000
         self._prochain_id_ajustement = 1
+        self._prochain_id_mouvement = 1
 
     # ---------- lecture ----------
     def membre_telegram(self, telegram_id):
@@ -33,8 +35,11 @@ class DonneesFausse:
     def ajustements(self, annee, mois):
         return list(self._ajustements.get((annee, mois), []))
 
-    def virements(self, annee, mois):
-        return [{"prenom": p, **v} for p, v in self._virements.get((annee, mois), {}).items()]
+    def recurrents_actifs(self):
+        return [r for r in self._recurrents if r.get("actif", True)]
+
+    def mouvements(self, annee, mois):
+        return [dict(m) for m in self._mouvements if (m["annee"], m["mois"]) == (annee, mois)]
 
     def lignes_mois(self, annee, mois):
         return [{"charge_id": cid, "montant_centimes": m} for cid, m in self._lignes.get((annee, mois), {}).items()]
@@ -65,11 +70,33 @@ class DonneesFausse:
         for cle, liste in self._ajustements.items():
             self._ajustements[cle] = [a for a in liste if a["id"] != id_]
 
-    def maj_virement(self, annee, mois, prenom, montant_centimes, fait_le):
-        self._virements.setdefault((annee, mois), {})[prenom] = {"montant_centimes": montant_centimes, "fait_le": fait_le}
+    def creer_mouvements(self, lignes):
+        crees = []
+        for l in lignes:
+            m = {"id": self._prochain_id_mouvement, "consigne": None, "fait_le": None, **l}
+            self._prochain_id_mouvement += 1
+            self._mouvements.append(m)
+            crees.append(dict(m))
+        return crees
+
+    def maj_mouvement(self, id_, champs):
+        for m in self._mouvements:
+            if m["id"] == id_:
+                m.update(champs)
+                return dict(m)
+        raise RuntimeError(f"mouvement {id_} introuvable")
 
     def inscrire_telegram(self, telegram_id, prenom):
         self._telegram_membres[telegram_id] = prenom
+
+
+def recurrents_part(membres):
+    """Les deux récurrents « part » issus de la migration 005 (virement au commun)."""
+    return [{"id": i + 1, "titre": f"Virement au commun — {m['prenom']}", "compte_de": None,
+             "compte_vers": 10, "mode": "part", "montant_centimes": None, "charge_id": None,
+             "prenom_part": m["prenom"], "qui": m["prenom"], "jour": 5, "consigne": None,
+             "ordre": m["ordre"], "actif": True}
+            for i, m in enumerate(membres)]
 
 
 class TelegramFaux:
