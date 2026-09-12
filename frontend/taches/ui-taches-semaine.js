@@ -11,7 +11,7 @@ import { partsTexte, partsDe, balance, jourIso, depuisIso, decalerJours, echeanc
 const A_DEUX = "_deux";
 const CADENCES = [["quotidien", "Chaque jour"], ["hebdo", "Cette semaine"], ["mensuel", "Ce mois"]];
 
-export function creerUiTachesSemaine(api, etat, cb, ui) {
+export function creerUiTachesSemaine(api, etat, cb, ui, ouvrirAjout) {
   const membres = () => etat.membres.map((m) => m.prenom);
   const enFile = creerFileEcritures();
 
@@ -225,6 +225,7 @@ export function creerUiTachesSemaine(api, etat, cb, ui) {
     const b = e.target.closest("[data-vue]");
     if (b) montrerEcran(b.dataset.vue);
   });
+  $("#btn-ajouter-tache-semaine")?.addEventListener("click", () => ouvrirAjout?.());
 
   return { rendre };
 }

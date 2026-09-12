@@ -25,7 +25,7 @@ export function creerUiTachesRec(api, etat, cb) {
   const categories = () => [...new Set(etat.tachesRec.map((r) => r.categorie))];
   const membres = () => etat.membres.map((m) => m.prenom);
 
-  // ---------- rendu des cycles de la colonne 1 (minutes, écart) ----------
+  // ---------- rendu des cycles de la colonne 1 (minutes, écart, moment) ----------
   function renduMinutes(v) { return v ? `${v}′` : "—"; }
   function renduEcart(r, v) {
     if (!v) return "les deux pareil";
@@ -34,6 +34,9 @@ export function creerUiTachesRec(api, etat, cb) {
     return `${v[0]} ${partsTexte(unCranPlus(r.parts_quart))} · ${autre[0]} ${partsTexte(r.parts_quart)}`;
   }
   const unCranPlus = (base) => { const i = ECHELLE_QUART.indexOf(base); return ECHELLE_QUART[Math.min(ECHELLE_QUART.length - 1, i + 1)] ?? base; };
+  // Moment (matin/soir) : seules les tâches quotidiennes alimentent les deux cartes de l'écran
+  // Jour (012_moment.sql) — un cycle « Matin → Soir → — » pour régler ça sans quitter le tableau.
+  function renduMoment(v) { return v === "matin" ? "Matin" : v === "soir" ? "Soir" : "—"; }
 
   // ---------- rendu des colonnes du tableau ----------
   function renduParts(q) {
@@ -60,6 +63,9 @@ export function creerUiTachesRec(api, etat, cb) {
         <span class="rp-mini">
           ${boutonCycle({ cle: `minutes|${r.id}`, valeurs: CYCLE_MINUTES, valeur: r.minutes ?? 0, rendu: renduMinutes, classe: "rp-bouton-texte", taille: "mini" })}
           ${boutonCycle({ cle: `ecart|${r.id}`, valeurs: [null, ...membres()], valeur: r.ecart_prenom ?? null, rendu: (v) => renduEcart(r, v), classe: "rp-bouton-texte rp-ecart", taille: "mini" })}
+          ${r.frequence === "quotidien"
+            ? boutonCycle({ cle: `moment|${r.id}`, valeurs: ["matin", "soir", null], valeur: r.moment ?? null, rendu: renduMoment, classe: "rp-bouton-texte rp-moment", taille: "mini" })
+            : ""}
         </span>
       </div>
       ${boutonCycle({ cle: `parts|${r.id}`, valeurs: ECHELLE_QUART, valeur: r.parts_quart, rendu: renduParts, taille: "reglage" })}
@@ -148,6 +154,7 @@ export function creerUiTachesRec(api, etat, cb) {
     }
     if (champNom === "minutes") return { minutes: suivante([0, ...CYCLE_MINUTES], r.minutes ?? 0) || null };
     if (champNom === "ecart") return { ecart_prenom: suivante([null, ...membres()], r.ecart_prenom ?? null) };
+    if (champNom === "moment") return { moment: suivante(["matin", "soir", null], r.moment ?? null) };
     return null;
   }
 
@@ -206,5 +213,9 @@ export function creerUiTachesRec(api, etat, cb) {
     rendreTableau();
   }
 
-  return { rendre };
+  // Le FAB « + Ajouter » des écrans Jour et Semaine (handoff « Structure de l'écran ») ouvre
+  // ce même formulaire de création : c'est la seule création de tâche que l'app sait faire
+  // aujourd'hui (une occurrence libre, sans tâche récurrente, n'existe pas côté métier —
+  // cf. rapport de l'agent). Pas de deuxième formulaire réinventé pour la même action (D-024).
+  return { rendre, ouvrirAjout: () => reglages.formulaire(null) };
 }

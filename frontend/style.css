@@ -386,32 +386,92 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
 @media (min-width:1024px) { .stats-grille:has(> .carte:nth-child(2):last-child) { grid-template-columns:repeat(2, minmax(0,1fr)); } }
 
 /* ================= Courses ================= */
-.ajout-rapide { display:flex; gap:8px; margin:14px 0; flex-wrap:wrap; }
-.ajout-rapide .champ { flex:1 1 160px; min-width:0; }
-.ajout-rapide .champ.court { flex:0 0 80px; }
-.ajout-rapide select.champ { flex:0 0 auto; max-width:180px; }
-.ajout-rapide .btn { flex:0 0 auto; }
-#btn-vider-panier { margin-top:10px; }
-@media (max-width:600px) { .ajout-rapide .btn { width:100%; } }
+/* En-tête compact spécifique à Courses (maquette §4) : titre + bouton « On fait le tour »
+   sur une même ligne, poussé à droite. Classe additionnelle sur .tete-ecran : le générique
+   (gros h1) reste inchangé pour les autres écrans (Budget, Tâches, Comptes...). */
+.tete-courses-ligne { display:flex; align-items:center; gap:7px; }
+.tete-courses h1 { font-size:15px; font-weight:600; line-height:1.15; }
+.tete-courses .sous { margin-top:4px; }
+/* Bouton visuellement compact (28px, comme la maquette) mais zone tactile élargie à 44px :
+   la cible tactile du projet (rules/mobile-parents.md) prime sur les 28px de la maquette. */
+.btn-tour {
+  margin-left:auto; flex:0 0 auto; position:relative; height:28px; padding:0 11px; border:0;
+  border-radius:8px; background:var(--bleu); color:#fff; font-size:13px; font-weight:600; cursor:pointer;
+}
+.btn-tour::before {
+  content:""; position:absolute; inset:50% auto auto 50%; transform:translate(-50%,-50%);
+  width:100%; height:44px; min-width:44px;
+}
 
-/* ---------- Lot 5 : groupes du magasin, repas, classiques, réglages Magasin ---------- */
-/* « On fait le tour » : pleine largeur sous l'en-tête, avant la ligne d'ajout (README §4). */
-#btn-tour { width:100%; margin:10px 0; min-height:44px; }
+/* Ligne d'ajout compacte (README §4) : Article flex, Qté 52px, groupe 96px, bouton + carré. */
+.ajout-rapide { display:flex; gap:6px; margin:10px 0; align-items:stretch; }
+.ajout-rapide .champ { flex:1 1 auto; min-width:0; height:36px; font-size:13px; padding:0 10px; }
+.ajout-rapide .champ.court { flex:0 0 52px; width:52px; text-align:center; padding:0 4px; }
+.ajout-rapide select.champ { flex:0 0 96px; width:96px; padding:0 4px; }
+.ajout-rapide button[type="submit"] {
+  flex:0 0 auto; width:36px; min-height:36px; min-width:44px; padding:0; font-size:18px; line-height:1;
+  border-radius:8px;
+}
+/* Panier : carte avec en-tête vert (comme une tête de carte de tâches complète), le bouton
+   « Vider » est DANS l'en-tête, à droite du titre — pas un bouton pleine largeur en pied. */
+#panier { background:#fff; border:1px solid var(--bordure); border-radius:11px; overflow:hidden; margin-top:7px; }
+.panier-tete {
+  display:flex; justify-content:space-between; align-items:center; gap:8px; padding:3px 10px;
+  border-bottom:1px solid var(--separateur); background:#f2f8f4;
+}
+.panier-tete .titre-section { margin:0; }
+#btn-vider-panier {
+  height:28px; min-height:28px; padding:0 8px; border:1px solid var(--bordure); border-radius:6px;
+  background:#fff; font-size:11px; font-weight:600; color:var(--bleu); cursor:pointer; position:relative;
+}
+/* Zone tactile réelle élargie à 44px sans agrandir le bouton visuel (mobile-parents.md). */
+#btn-vider-panier::before {
+  content:""; position:absolute; inset:50% auto auto 50%; transform:translate(-50%,-50%);
+  width:100%; height:44px; min-width:44px;
+}
 
-/* Groupes du magasin en deux colonnes, comme les cartes Matin/Soir des Tâches. Une seule
-   colonne sous 600 px (360 px de conception, rules/mobile-parents.md) : deux colonnes à
-   360 px rendraient chaque carte trop étroite pour un libellé d'article. */
-/* Deux colonnes dès le mobile, comme les cartes de l'écran Jour (handoff §4) : le seuil à
-   600 px laissait une seule colonne sur tout téléphone, donc la maquette n'était jamais
-   atteinte là où elle compte. On serre les espacements sous 360 px plus bas. */
+/* Groupes du magasin en deux colonnes, comme les cartes Matin/Soir des Tâches (README §4).
+   Deux colonnes dès 360 px : le seuil à 600 px laissait une seule colonne sur tout téléphone,
+   donc la maquette n'était jamais atteinte là où elle compte. */
 .grille-groupes { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:10px; align-items:start; }
 .grille-groupes > * { min-width:0; }
 .groupe-magasin .titre-section { margin:0 0 6px; }
 .grille-groupes .titre-section { margin-top:0; }
+/* En-têtes de carte bleus 10px 700 (groupes, repas, panier, classiques) — la maquette réserve
+   le gris de .titre-section aux autres écrans (Budget : « À faire », « Fait »). */
+#ecran-courses .titre-section {
+  font-size:10px; font-weight:700; color:var(--bleu); letter-spacing:.05em; margin:0 0 6px;
+}
+
+/* Cartes denses façon maquette (tête 3/9, ligne 13px) pour les groupes du magasin ET le
+   panier, sans toucher le .mvt générique (mouvements du Budget, tâches). Le zoom mobile :
+   min-height visuel 29px comme la maquette, mais un padding vertical qui porte la zone
+   cliquable réelle à 44px (rules/mobile-parents.md prime sur la densité de la maquette). */
+#groupes-courses .carte-liste, #courses-panier .carte-liste {
+  border-radius:11px;
+}
+#groupes-courses .mvt, #courses-panier .mvt {
+  grid-template-columns:17px minmax(0,1fr) auto; gap:6px; padding:11px 8px; min-height:44px;
+}
+#groupes-courses .mvt .case, #courses-panier .mvt .case {
+  width:17px; height:17px; min-width:17px; border-radius:5px; border-width:1.5px; margin-top:0;
+}
+#groupes-courses .mvt-titre, #courses-panier .mvt-titre {
+  font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#groupes-courses .mvt-trajet, #courses-panier .mvt-trajet { font-size:11px; }
+#courses-panier .mvt.fait { padding:11px 8px; min-height:44px; }
 
 /* ---------- Repas de la semaine ---------- */
-.repas-tete { display:flex; flex-direction:column; gap:2px; margin-bottom:8px; }
+/* Carte pleine largeur avec tête bleue (comme les groupes), et titre + note à la bot Telegram
+   sur la même ligne, tête à tête comme la maquette (README §4). */
+#carte-repas { border-radius:11px; padding:0; }
+.repas-tete {
+  display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;
+  padding:4px 10px; margin:0; border-bottom:1px solid var(--separateur);
+}
 .repas-tete .sous { font-size:11px; color:var(--texte-2); }
+#liste-repas { padding:0 10px; }
 #liste-repas { display:flex; flex-direction:column; }
 .repas-ligne {
   display:flex; align-items:center; justify-content:space-between; gap:12px;
@@ -438,13 +498,16 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
 .classique.present .mono { color:var(--placeholder); }
 
 /* ---------- Réglages · Magasin ---------- */
-#liste-magasin { background:#fff; border:1px solid var(--bordure); border-radius:14px; overflow:hidden; margin-top:10px; }
+/* Une seule carte, une liste ordonnée (maquette : pas de deux-colonnes ici, contrairement
+   aux groupes de l'écran Courses — l'ordre de haut en bas EST l'information). */
+#liste-magasin { background:#fff; border:1px solid var(--bordure); border-radius:11px; overflow:hidden; margin-top:10px; }
 .mag-ligne {
-  display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--separateur);
+  display:flex; align-items:center; gap:8px; min-height:44px; padding:6px 8px 6px 10px;
+  border-bottom:1px solid var(--separateur-2);
 }
 .mag-ligne:last-child { border-bottom:0; }
 .mag-rang { width:13px; flex:0 0 auto; font-size:11px; color:var(--placeholder); }
-.mag-nom { flex:1; min-width:0; font-size:13px; font-weight:500; }
+.mag-nom { flex:1; min-width:0; font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .mag-attente { flex:0 0 auto; font-size:10px; color:var(--texte-2); }
 .mag-fleches { display:flex; gap:6px; flex:0 0 auto; }
 .btn-fleche {
@@ -453,10 +516,30 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
 }
 .btn-fleche:disabled { opacity:.3; cursor:default; }
 
-/* ---------- Feuille « On fait le tour » : une question, deux réponses (README §4) ---------- */
+/* ---------- Feuille « On fait le tour » : classiques (une question), puis menus (3 cartes),
+   puis bilan (README §4). ---------- */
 .tournee-etape { padding:4px 0; }
-.tournee-question { font-size:20px; font-weight:600; margin:4px 0 2px; }
-.tournee-etape .sous { font-size:13px; color:var(--texte-2); margin:0 0 6px; }
+.tournee-tete { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.tournee-tete h2 { font-size:17px; font-weight:600; }
+.tournee-tete .sous { font-size:12px; margin:0; }
+.tournee-etape .sous { font-size:12px; color:var(--texte-2); margin:0 0 6px; }
+.tournee-question-bloc {
+  background:var(--fond); border:1px solid var(--bordure); border-radius:12px; padding:14px;
+  display:flex; flex-direction:column; gap:3px;
+}
+.tournee-question { font-size:20px; font-weight:600; }
+.tournee-menus { display:flex; flex-direction:column; gap:8px; }
+.tournee-carte-menu {
+  border:1px solid var(--bordure); border-radius:12px; background:#fff; padding:10px 12px; text-align:left;
+  display:flex; flex-direction:column; gap:3px; cursor:pointer; min-height:44px;
+}
+.tournee-menu-ligne1 { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.tournee-menu-nom { font-size:15px; font-weight:600; }
+.tournee-bilan {
+  background:#f2f8f4; border:1px solid #cfe3d6; border-radius:12px; padding:14px;
+  display:flex; flex-direction:column; gap:3px;
+}
+.tournee-bilan-titre { font-size:16px; font-weight:600; }
 
 /* ---------- menu « Plus » (mobile) ---------- */
 .feuille-titre { font-size:18px; margin-bottom:4px; }
@@ -499,8 +582,18 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
    Couleurs des personnes : jamais la seule couleur qui porte l'information — la lettre (C/Y/CY)
    est toujours là aussi. `case-cycle-p1` = première personne du foyer (ambre, comme Claudia dans
    le handoff), `case-cycle-p2` = la seconde (bleu, comme Yann) : générique, pas de prénom en dur. */
-.ecran-taches { padding-top:10px; display:flex; flex-direction:column; gap:8px; }
-.tete-taches { background:none; border:0; padding:0 0 4px; display:flex; align-items:center; gap:8px; }
+/* En-tête fixe (handoff « Structure de l'écran ») : sur mobile, le segment Jour|Semaine, le
+   bouton Todo et la bande des 7 jours restent visibles pendant que le contenu défile en
+   dessous. `main` scrolle avec la fenêtre (ui-base.js ne gère pas de conteneur interne), donc
+   `position:sticky` suffit : rien au-dessus n'a son propre scroll. Sur PC, la mise en page
+   deux-colonnes existante prend le dessus (règle plus bas) : pas de bande des 7 jours à fixer,
+   l'écran est plus large que haut. */
+.ecran-taches { padding-top:0; display:flex; flex-direction:column; }
+.tete-taches {
+  position:sticky; top:0; z-index:5; background:#fff; border-bottom:1px solid var(--bordure);
+  margin:0 -16px; padding:8px 16px; display:flex; flex-direction:column; gap:7px;
+}
+.tete-taches .ligne-segment-todo { display:flex; align-items:center; gap:8px; }
 .btn-todo {
   margin-left:auto; display:flex; align-items:center; gap:5px; min-height:44px; padding:0 12px;
   border:1px solid var(--bordure); border-radius:8px; background:#fff; color:var(--bleu);
@@ -509,6 +602,25 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
 .badge-todo {
   min-width:17px; height:17px; border-radius:9px; background:var(--ambre-texte); color:#fff;
   font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 4px;
+}
+
+/* Contenu scrollable sous l'en-tête fixe : seule zone qui défile (handoff « padding de contenu
+   8px 12px 92px » — le 92px de bas devient le padding-bottom déjà porté par main + de la marge
+   pour le FAB, jamais recalculé en dur ici). */
+.contenu-taches { display:flex; flex-direction:column; gap:8px; padding-top:8px; }
+
+/* FAB « + Ajouter » (handoff « Structure de l'écran », visible sur Tâches) : ancré à la
+   fenêtre comme #onglets (même patron), au-dessus de la barre de navigation du bas. */
+.fab-ajouter {
+  position:fixed; right:16px; bottom:calc(var(--barre-basse) + 12px); z-index:19;
+  height:44px; padding:0 15px 0 12px; border:0; border-radius:13px; background:var(--bleu); color:#fff;
+  font-size:14px; font-weight:600; display:flex; align-items:center; gap:6px; cursor:pointer;
+  box-shadow:0 4px 14px rgba(31,78,121,.35);
+}
+.fab-ajouter span { font-size:20px; line-height:1; font-weight:400; }
+@media (min-width:1024px) {
+  /* PC : la nav du bas disparaît (#onglets{display:none}), le FAB revient près du bas d'écran. */
+  .fab-ajouter { bottom:24px; }
 }
 
 /* ---------- bande des 7 jours ---------- */
@@ -571,8 +683,15 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
 .parts-ligne.vert { color:var(--vert); font-weight:600; }
 .parts-ligne.ambre { color:var(--ambre-texte); font-weight:600; }
 
-/* Case de coche tri-état : la couleur ne suffit jamais, la lettre (C/Y/CY) porte l'information. */
-.case-tache.cycle { width:auto; min-width:24px; min-height:24px; padding:0; border-radius:5px; font-size:10px; }
+/* Case de coche tri-état : la couleur ne suffit jamais, la lettre (C/Y/CY) porte l'information.
+   Visuellement 17-24 px (fidèle à la maquette), mais c'est le geste le plus fréquent de l'écran
+   Jour — pas un réglage rare (rules/mobile-parents.md, cible 48x48) : un ::before invisible
+   étend la zone tapable sans changer l'apparence ni pousser les voisins (position:relative sur
+   .ligne-tache, .cellule-semaine pour le contenir). */
+.case-tache.cycle { position:relative; width:auto; min-width:24px; min-height:24px; padding:0; border-radius:5px; font-size:10px; }
+.case-tache.cycle::before {
+  content:""; position:absolute; inset:-14px -8px; /* ~48px de haut, cible large sans déborder sur le titre */
+}
 .case-cycle-vide { background:#fff; border-color:var(--tirets); }
 .case-cycle-p1 { background:var(--claudia); border-color:var(--claudia); color:#fff; }
 .case-cycle-p2 { background:var(--bleu); border-color:var(--bleu); color:#fff; }
@@ -616,7 +735,13 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
   font-size:10px; font-weight:700; padding:0; cursor:pointer;
 }
 .lettre-jour-semaine.lettre-jour-auj { background:var(--bleu); color:#fff; }
-.cellule-semaine.cycle { width:25px; min-width:25px; height:22px; min-height:22px; border-radius:5px; font-size:10px; padding:0; }
+/* 25x22 px, sous 48x48 : la grille (7 jours + titre en 320 px, gap 2px) ne peut pas grandir en
+   largeur sans rendre deux jours voisins ambigus au tap (rules/mobile-parents.md l'emporterait
+   sinon, mais casserait la fonction). On grandit la cible verticalement, où les lignes n'ont pas
+   de voisin adjacent au pixel près : ::before ajoute ~13 px en haut et en bas (largeur inchangée,
+   pas de chevauchement latéral). Compromis documenté, pas un renoncement silencieux. */
+.cellule-semaine.cycle { position:relative; width:25px; min-width:25px; height:22px; min-height:22px; border-radius:5px; font-size:10px; padding:0; }
+.cellule-semaine.cycle::before { content:""; position:absolute; inset:-13px 0; }
 .cellule-semaine.cycle.cellule-vide { background:var(--fond-bandeau); border-color:var(--separateur-2); }
 .cellule-semaine.cellule-future { opacity:.45; }
 .bandeau-cadence {

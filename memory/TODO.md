@@ -121,12 +121,29 @@ _Brief : docs/briefs/maxhome-parts.md (handoff inbox/design_handoff_maxhome_tach
 - [ ] **Yann : installer la tâche planifiée** — toujours pas faite (L-006, exige une session
       PowerShell admin). Sans elle le bot ne survit pas à un redémarrage de la machine.
 
+- [x] **Fidélité au design** (2026-09-12, demande de Yann : « garde l'affichage de ce qui est
+      donné, c'est la cible ») : écrans Tâches et Courses repris contre la maquette — en-tête
+      fixe, densité des cartes, « Liste commune », bouton « On fait le tour » compact, ligne
+      d'ajout sur une ligne, FAB « + Ajouter », ordre groupes → repas → panier → classiques.
+      Les cibles tactiles de la maquette (26-29 px) sont conservées VISUELLEMENT mais leur zone
+      tapable est portée à 44 px (rules/mobile-parents.md prime).
+- [x] **Matin / Soir** : migration 012 appliquée (`taches_recurrentes.moment`, nullable, D-029).
+      12 quotidiennes réparties : 7 matin, 5 soir, 0 sans moment. Deux cartes côte à côte sur
+      l'écran Jour, cycle Matin/Soir/— dans Réglages · Parts.
+- [x] **Prénom de l'enfant** : les titres le portent en base ; le dépôt reste générique
+      (`scripts/renommer_enfant.py` + PRENOM_ENFANT dans .env, D-030).
+
 ### À trancher par Yann
-- [ ] **Matin / Soir** : le handoff veut deux cartes séparées sur l'écran Jour, mais rien en base
-      ne porte ce moment. Une seule carte « Aujourd'hui » a été livrée. Ajouter une colonne
-      `taches_recurrentes.moment` (migration + cycle dans Réglages) ou en rester là ?
+- [ ] Trois tâches à `fois: 2` (biberons, dents, table) se font matin ET soir mais n'ont qu'un
+      moment en base : elles sont au matin, à rebasculer d'un tap si besoin (D-029).
 - [ ] **Écran Balance retiré** : le handoff ne prévoit que Jour/Semaine/Réglages. Le détail par
       catégorie a été remis en bas de l'écran Semaine ; le choix de période (7/30 j) est perdu.
+      Ce bloc n'est PAS dans la maquette : le garder (fonctionnalité utile) ou s'aligner ?
+- [ ] **Formulaire « Ajouter une tâche » du handoff §8** non implémenté : le FAB ouvre le
+      formulaire de tâche récurrente existant, pas le formulaire riche de la maquette (Quand ·
+      Fait par · Parts en boutons · bascules Obligatoire / Faisable à deux · bouton vert
+      « ✓ Fait · 2 parts pour Claudia »). C'est un chantier métier (créer une tâche ponctuelle
+      déjà faite n'existe pas aujourd'hui), pas de la fidélité visuelle.
 
 ## Lane B — V1 (après recette)
 - [x] Vue annuelle (tableau 12 mois comme l'Excel)

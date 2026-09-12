@@ -2,10 +2,10 @@
 // Semaine/Mois, barre « Fait » repliable. Le comportement de la coche (cycle, écriture,
 // rollback) vient de blocs-checklist ; ici, le HTML et les règles d'affichage (D-024, inv. 6).
 //
-// Écart avec le handoff, assumé faute de donnée : la maquette sépare les tâches quotidiennes
-// en cartes « Matin / Soir », mais aucune colonne ne porte ce moment en base (006_taches.sql,
-// 008_parts.sql) et ce n'est pas dans le périmètre du Lot 3. Une seule carte « Aujourd’hui »
-// les regroupe ; Semaine/Mois, eux, reposent sur `frequence` qui existe réellement.
+// Le quotidien se répartit en deux cartes « Matin / Soir » (handoff §1), portées par
+// `taches_recurrentes.moment` (012_moment.sql, nullable). Une tâche quotidienne sans moment
+// réglé reste visible dans une troisième carte « Sans moment » plutôt que de disparaître —
+// jamais de tâche qu'un tap ailleurs ferait perdre de vue.
 //
 // Une tâche prévue plusieurs fois par période s'affiche sur UNE ligne, cochée autant de fois
 // que prévu (D-023) : la liste se lit d'un coup d'œil, le bot garde une occurrence par coche.
@@ -32,7 +32,7 @@ export const STRATEGIE_TACHES = {
   poser: (etat, restantes, creees) => { etat.taches = [...restantes, ...creees]; },
 };
 
-export function creerUiTaches(api, etat, cb) {
+export function creerUiTaches(api, etat, cb, ouvrirAjout) {
   const recDe = (t) => etat.tachesRec.find((r) => r.id === t.recurrent_id);
   const membres = () => etat.membres.map((m) => m.prenom);
   let jourSel = jourIso(new Date());
@@ -107,15 +107,29 @@ export function creerUiTaches(api, etat, cb) {
     ${lignesHtml || '<p class="vide-carte">Rien.</p>'}
   </div>`;
 
-  /** Carte « Aujourd’hui » : les occurrences quotidiennes du jour (cf. écart en tête de fichier). */
-  function carteAujourdhui(jour) {
-    const restantes = regrouper(duJour(jour));
-    const faites = faitesLe(jour);
+  /** Carte « Matin » / « Soir » (ou « Sans moment ») : les occurrences quotidiennes du jour
+   *  dont la tâche récurrente porte ce moment (handoff §1). `null` regroupe les tâches
+   *  quotidiennes pas encore réglées : jamais invisibles, juste pas encore rangées. */
+  function carteMoment(nom, moment, jour) {
+    const quotidienne = (t) => recDe(t)?.frequence === "quotidien";
+    const appartient = (t) => quotidienne(t) && (recDe(t)?.moment ?? null) === moment;
+    const restantes = regrouper(duJour(jour)).filter(appartient);
+    const faites = faitesLe(jour).filter(appartient);
     const total = restantes.length + faites.length;
     const complet = total > 0 && restantes.length === 0;
     const compte = total ? `${faites.length}/${total}` : "—";
     const lignes = [...restantes, ...faites].map((t) => ligneTache(t)).join("");
-    return carte("Aujourd’hui", lignes, complet ? "auj." : compte, complet ? "vert" : "ambre");
+    return carte(nom, lignes, complet ? "fait" : compte, complet ? "vert" : "ambre");
+  }
+
+  /** Cartes du quotidien : Matin + Soir toujours affichées (structure de la maquette), et une
+   *  troisième carte « Sans moment » seulement si une tâche quotidienne n'a pas encore de
+   *  moment réglé — jamais de tâche cochable qui disparaîtrait de l'écran faute de réglage. */
+  function cartesMoment(jour) {
+    const quotidienneSansMoment = (t) => recDe(t)?.frequence === "quotidien" && !recDe(t)?.moment;
+    const sansMoment = regrouper(duJour(jour)).some(quotidienneSansMoment) || faitesLe(jour).some(quotidienneSansMoment);
+    return carteMoment("Matin", "matin", jour) + carteMoment("Soir", "soir", jour)
+      + (sansMoment ? carteMoment("Sans moment", null, jour) : "");
   }
 
   /** Carte Semaine/Mois : avancement sur la période entière, la tâche se coche sur `jour` choisi. */
@@ -235,7 +249,7 @@ export function creerUiTaches(api, etat, cb) {
       b.addEventListener("click", () => { jourSel = b.dataset.jour; rendre(); });
     }
 
-    $("#cartes-moment").innerHTML = `<div class="grille-cartes">${carteAujourdhui(jour)}</div>`;
+    $("#cartes-moment").innerHTML = `<div class="grille-cartes">${cartesMoment(jour)}</div>`;
     $("#cartes-periode").innerHTML = `<div class="grille-cartes">
       ${cartePeriode("Cette semaine", "hebdo", jour)}${cartePeriode("Ce mois", "mensuel", jour)}
     </div>`;
@@ -312,6 +326,7 @@ export function creerUiTaches(api, etat, cb) {
     if (b) montrerEcran(b.dataset.vue);
   });
   $("#btn-todo")?.addEventListener("click", ouvrirTodo);
+  $("#btn-ajouter-tache")?.addEventListener("click", () => ouvrirAjout?.());
 
   return {
     rendre, fermerDetail: liste.fermerDetail,

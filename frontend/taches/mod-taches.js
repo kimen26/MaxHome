@@ -16,9 +16,9 @@ export default {
   referentiels: (api) => ({ tachesRec: api.tachesRec() }),
 
   creer(api, etat, cb) {
-    const jour = creerUiTaches(api, etat, cb);
-    const semaine = creerUiTachesSemaine(api, etat, cb, jour);
     const rec = creerUiTachesRec(api, etat, cb);
+    const jour = creerUiTaches(api, etat, cb, rec.ouvrirAjout);
+    const semaine = creerUiTachesSemaine(api, etat, cb, jour, rec.ouvrirAjout);
     return {
       ecrans: { jour: jour.rendre, semaine: semaine.rendre, "taches-rec": rec.rendre },
       avantChargement() { jour.fermerDetail(); },

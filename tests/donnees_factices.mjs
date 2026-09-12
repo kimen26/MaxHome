@@ -74,10 +74,10 @@ export const MOUVEMENTS = [
 export const TACHES_RECURRENTES = [
   { id: 1, titre: "Laver les biberons", categorie: "Enfant", frequence: "quotidien", fois: 2,
     penibilite: 1, importance: 3, attribue_a: null, consigne: null, ordre: 10, actif: true,
-    parts_quart: 4, obligatoire: true, partageable: false, ecart_prenom: null, minutes: 5 },
+    parts_quart: 4, obligatoire: true, partageable: false, ecart_prenom: null, minutes: 5, moment: "matin" },
   { id: 2, titre: "Faire à manger", categorie: "Cuisine", frequence: "quotidien", fois: 2,
     penibilite: 3, importance: 3, attribue_a: null, consigne: null, ordre: 20, actif: true,
-    parts_quart: 12, obligatoire: true, partageable: true, ecart_prenom: null, minutes: 30 },
+    parts_quart: 12, obligatoire: true, partageable: true, ecart_prenom: null, minutes: 30, moment: "soir" },
   { id: 3, titre: "Lancer une machine", categorie: "Linge", frequence: "hebdo", fois: 3,
     penibilite: 1, importance: 2, attribue_a: null, consigne: null, ordre: 30, actif: true,
     parts_quart: 4, obligatoire: true, partageable: false, ecart_prenom: null, minutes: 10 },

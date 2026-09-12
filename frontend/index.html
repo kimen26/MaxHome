@@ -119,53 +119,63 @@
     <!-- ===== Tâches · Jour ===== -->
     <section id="ecran-jour" class="ecran ecran-taches" hidden>
       <div class="tete-ecran tete-taches">
-        <div class="segment" id="segment-vue-taches">
-          <button data-vue="jour" class="actif">Jour</button>
-          <button data-vue="semaine">Semaine</button>
+        <div class="ligne-segment-todo">
+          <div class="segment" id="segment-vue-taches">
+            <button data-vue="jour" class="actif">Jour</button>
+            <button data-vue="semaine">Semaine</button>
+          </div>
+          <button type="button" class="btn-todo" id="btn-todo">Todo<span class="badge-todo" id="badge-todo"></span></button>
         </div>
-        <button type="button" class="btn-todo" id="btn-todo">Todo<span class="badge-todo" id="badge-todo"></span></button>
+        <div id="bande-jours-taches"></div>
       </div>
-      <div id="bande-jours-taches"></div>
-      <div class="ligne-titre-jour">
-        <div class="titre-jour-bloc">
-          <h1 id="titre-jour"></h1>
-          <p class="sous" id="sous-jour"></p>
+      <div class="contenu-taches">
+        <div class="ligne-titre-jour">
+          <div class="titre-jour-bloc">
+            <h1 id="titre-jour"></h1>
+            <p class="sous" id="sous-jour"></p>
+          </div>
+          <div id="chiffres-jour" class="chiffres-jour"></div>
         </div>
-        <div id="chiffres-jour" class="chiffres-jour"></div>
-      </div>
-      <div class="deux-colonnes">
-        <div>
-          <div id="cartes-moment"></div>
-          <div id="cartes-periode"></div>
-          <div id="barre-faites"></div>
-          <div id="liste-faites-jour" hidden></div>
-          <p class="legende-taches">Tap : Claudia → Yann → les deux (parts ÷ 2) → rien. Le point rouge marque l’obligatoire.</p>
+        <div class="deux-colonnes">
+          <div>
+            <div id="cartes-moment"></div>
+            <div id="cartes-periode"></div>
+            <div id="barre-faites"></div>
+            <div id="liste-faites-jour" hidden></div>
+            <p class="legende-taches">Tap : Claudia → Yann → les deux (parts ÷ 2) → rien. Le point rouge marque l’obligatoire.</p>
+          </div>
+          <aside id="detail-tache-pc" class="carte" hidden></aside>
         </div>
-        <aside id="detail-tache-pc" class="carte" hidden></aside>
       </div>
+      <button type="button" class="fab-ajouter" id="btn-ajouter-tache" aria-label="Ajouter une tâche"><span aria-hidden="true">+</span>Ajouter</button>
     </section>
 
     <!-- ===== Tâches · Semaine ===== -->
     <section id="ecran-semaine" class="ecran ecran-taches" hidden>
       <div class="tete-ecran tete-taches">
-        <div class="segment" id="segment-vue-taches-semaine">
-          <button data-vue="jour">Jour</button>
-          <button data-vue="semaine" class="actif">Semaine</button>
+        <div class="ligne-segment-todo">
+          <div class="segment" id="segment-vue-taches-semaine">
+            <button data-vue="jour">Jour</button>
+            <button data-vue="semaine" class="actif">Semaine</button>
+          </div>
         </div>
       </div>
-      <div class="ligne-titre-jour">
-        <div class="titre-jour-bloc">
-          <h1 id="titre-semaine"></h1>
-          <p class="sous" id="sous-semaine"></p>
+      <div class="contenu-taches">
+        <div class="ligne-titre-jour">
+          <div class="titre-jour-bloc">
+            <h1 id="titre-semaine"></h1>
+            <p class="sous" id="sous-semaine"></p>
+          </div>
+          <span class="mono" id="total-semaine"></span>
         </div>
-        <span class="mono" id="total-semaine"></span>
+        <div class="carte-kpi-oblig" id="kpi-obligatoire"></div>
+        <div class="grille-semaine-carte">
+          <div id="grille-semaine"></div>
+        </div>
+        <p class="legende-taches">Tap une case pour corriger, une lettre pour ouvrir le jour.</p>
+        <div id="detail-categories-semaine"></div>
       </div>
-      <div class="carte-kpi-oblig" id="kpi-obligatoire"></div>
-      <div class="grille-semaine-carte">
-        <div id="grille-semaine"></div>
-      </div>
-      <p class="legende-taches">Tap une case pour corriger, une lettre pour ouvrir le jour.</p>
-      <div id="detail-categories-semaine"></div>
+      <button type="button" class="fab-ajouter" id="btn-ajouter-tache-semaine" aria-label="Ajouter une tâche"><span aria-hidden="true">+</span>Ajouter</button>
     </section>
 
     <!-- ===== Tâches · Réglages · Parts ===== -->
@@ -177,20 +187,22 @@
     </section>
     <!-- ===== Courses ===== -->
     <section id="ecran-courses" class="ecran" hidden>
-      <div class="tete-ecran">
-        <div>
-          <h1>Courses</h1>
-          <p class="sous" id="sous-courses"></p>
+      <div class="tete-ecran tete-courses">
+        <div class="tete-courses-ligne">
+          <h1>Liste commune</h1>
+          <button type="button" id="btn-tour" class="btn-tour">On fait le tour</button>
         </div>
-        <div id="chiffres-courses" class="chiffres"></div>
+        <p class="sous" id="sous-courses"></p>
       </div>
-      <button type="button" id="btn-tour" class="btn btn-bleu">On fait le tour</button>
       <form id="form-course" class="ajout-rapide">
         <input id="course-libelle" class="champ" placeholder="Article" autocomplete="off" required>
         <input id="course-quantite" class="champ court" placeholder="Qté" autocomplete="off">
         <select id="course-rayon" class="champ"></select>
         <button type="submit" class="btn btn-bleu">+</button>
       </form>
+      <!-- Ordre de la maquette : la liste à prendre d'abord (c'est elle qu'on lit dans le
+           magasin), les repas ensuite, puis le panier et les classiques. -->
+      <div id="groupes-courses" class="grille-groupes"></div>
       <div id="carte-repas" class="carte" hidden>
         <div class="repas-tete">
           <h2 class="titre-section" style="margin:0">Repas de la semaine</h2>
@@ -198,11 +210,12 @@
         </div>
         <div id="liste-repas"></div>
       </div>
-      <div id="groupes-courses" class="grille-groupes"></div>
       <aside id="panier" hidden>
-        <h2 class="titre-section">Dans le panier</h2>
+        <div class="panier-tete">
+          <h2 class="titre-section">Panier</h2>
+          <button id="btn-vider-panier" type="button">Vider le panier</button>
+        </div>
         <div id="courses-panier"></div>
-        <button id="btn-vider-panier" class="btn btn-tirets">Vider le panier</button>
       </aside>
       <h2 class="titre-section">Les classiques</h2>
       <div id="liste-classiques" class="puces-classiques"></div>

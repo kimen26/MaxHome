@@ -246,3 +246,27 @@ restait le seul lecteur de `importance == 3`. Une colonne qu'on cesse de mainten
 elle se vide, et le rappel du soir n'aurait plus rien envoyé, sans erreur ni log. Le filtre bascule
 sur `obligatoire` dans le même lot. Règle générale : avant d'abandonner une colonne, chercher TOUS
 ses lecteurs, y compris hors du dépôt front (Edge Functions, bot, cron).
+
+## D-029 — le moment (matin / soir) vit sur la tâche récurrente, et il est nullable (2026-09-12)
+La maquette de l'écran Jour montre deux cartes côte à côte, « Matin » et « Soir ». Aucune colonne
+ne portait ce moment. Arbitrage : `taches_recurrentes.moment` (pas `taches.moment`) — le moment
+d'une routine ne change pas d'un jour à l'autre, comme sa fréquence ou son obligation ; le mettre
+sur l'occurrence obligerait à le recopier à chaque génération.
+Nullable à dessein : une tâche hebdo, mensuelle ou « au besoin » n'a pas de moment, et une
+quotidienne pas encore réglée reste NULL plutôt que de se voir imposer un choix arbitraire.
+L'écran Jour la montre alors dans une carte « Sans moment » — une tâche n'est jamais invisible
+parce qu'un réglage manque.
+Limite acceptée : une tâche faite DEUX fois par jour (biberons, dents, table) n'a qu'un moment en
+base, alors qu'elle appartient aux deux. Deux colonnes ou une table de moments seraient plus
+justes, mais pour trois tâches dans un foyer, le réglage se corrige d'un tap. À rouvrir seulement
+si l'usage le réclame.
+
+## D-030 — le prénom de l'enfant vit en base, jamais dans le dépôt (2026-09-12)
+Les titres de tâches portent le prénom de l'enfant (« Bain de … », « Déposer … ») : c'est ce que Claudia et Yann
+veulent lire. Mais le dépôt est PUBLIC (invariant 1), donc le prénom ne peut pas être écrit dans
+une migration versionnée. Arbitrage : les migrations créent les titres avec « le petit », et
+`scripts/renommer_enfant.py` applique le prénom lu dans `.env` (PRENOM_ENFANT, ignoré par git).
+Idempotent, réversible (`--inverse`). Le prénom n'existe donc qu'en base et dans un fichier local.
+Corollaire pour les migrations futures : elles doivent accepter les DEUX formes de titre (avec le
+prénom et avec « le petit »), sinon un `where titre in (...)` ne trouve plus rien après renommage
+— c'est ce que fait 012_moment.sql.

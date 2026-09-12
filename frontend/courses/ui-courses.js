@@ -2,8 +2,8 @@
 // semaine, panier, classiques. Affichage : socle/blocs.js. Comportement propre à l'écran ici ;
 // la séquence de la feuille « On fait le tour » vit dans tournee.js (pure, partagée avec le bot).
 
-import { $, txt, toast, confirmer, ouvrirFeuille, fermerFeuille } from "../socle/ui-base.js";
-import { ligneCoche, carteListe, chiffres, titreSection, brancherCoches, creerFileEcritures } from "../socle/blocs.js";
+import { $, $$, txt, toast, confirmer, ouvrirFeuille, fermerFeuille } from "../socle/ui-base.js";
+import { ligneCoche, carteListe, titreSection, brancherCoches, creerFileEcritures } from "../socle/blocs.js";
 import { classiquesAbsents, repasProposes, sequenceTournee } from "./tournee.js";
 
 export function creerUiCourses(api, etat, cb) {
@@ -173,67 +173,83 @@ export function creerUiCourses(api, etat, cb) {
   }
 
   // ---------- feuille « On fait le tour » ----------
+  // Deux étapes distinctes, comme la maquette : d'abord les classiques absents, une question
+  // à la fois (Non, on a / Oui, ajoute) ; puis les menus, une seule fois, sous forme de
+  // plusieurs cartes cliquables (pas une question par repas). « Passer aux menus » saute
+  // directement à la deuxième étape sans répondre aux classiques restants.
   function ouvrirTournee() {
     const seq = sequenceTournee({
       classiques: etat.classiques, repas: etat.repas,
       ingredients: etat.repasIngredients, articlesEnAttente: aFaire(),
     });
-    const etapes = [
-      ...seq.classiques.map((c) => ({ type: "classique", classique: c })),
-      ...seq.repas.map((p) => ({ type: "repas", proposition: p })),
-    ];
-    let i = 0;
-    afficherEtape();
+    const classiquesRestants = [...seq.classiques];
+    let ajoutes = 0;
+    afficherClassiques();
 
-    function afficherEtape() {
-      if (i >= etapes.length) return afficherBilan();
-      const e = etapes[i];
-      ouvrirFeuille(e.type === "classique" ? htmlEtapeClassique(e.classique) : htmlEtapeRepas(e.proposition));
-      $("#tournee-oui")?.addEventListener("click", () => { agirEtape(e, true); });
-      $("#tournee-non")?.addEventListener("click", () => { agirEtape(e, false); });
-      $("#tournee-passer-menus")?.addEventListener("click", () => {
-        i = etapes.findIndex((x, k) => k >= i && x.type === "repas");
-        if (i === -1) i = etapes.length;
-        afficherEtape();
-      });
+    function enTete(progres) {
+      return `<div class="tournee-tete"><h2>On fait le tour</h2><span class="sous">${txt(progres)}</span></div>`;
     }
 
-    async function agirEtape(e, oui) {
-      try {
-        if (oui && e.type === "classique") await remonterClassique(e.classique.libelle);
-        if (oui && e.type === "repas") await verserRepas(e.proposition.repas.id);
-      } catch (err) { cb.echec(err); }
-      i += 1;
-      afficherEtape();
-    }
-
-    function htmlEtapeClassique(c) {
-      return `<div class="pile tournee-etape">
-        <p class="tournee-question">${txt(c.libelle)} ?</p>
-        <p class="sous">${txt(c.rayon)} · pris ${c.fois} fois${c.quantite ? ` · d’habitude ${txt(c.quantite)}` : ""}</p>
+    function afficherClassiques() {
+      if (!classiquesRestants.length) return afficherMenus();
+      const c = classiquesRestants[0];
+      ouvrirFeuille(`<div class="pile tournee-etape">
+        ${enTete(`${seq.classiques.length - classiquesRestants.length + 1} / ${seq.classiques.length}`)}
+        <div class="tournee-question-bloc">
+          <span class="tournee-question">${txt(c.libelle)} ?</span>
+          <span class="sous">${txt(c.rayon)} · pris ${c.fois} fois${c.quantite ? ` · d’habitude ${txt(c.quantite)}` : ""}</span>
+        </div>
         <div class="detail-actions">
           <button type="button" class="btn grandir" id="tournee-non">Non, on a</button>
           <button type="button" class="btn btn-vert grandir" id="tournee-oui">Oui, ajoute</button>
         </div>
         <button type="button" class="btn-lien centre" id="tournee-passer-menus">Passer aux menus →</button>
-      </div>`;
+      </div>`);
+      $("#tournee-oui").addEventListener("click", async () => {
+        try { await remonterClassique(c.libelle); ajoutes += 1; }
+        catch (err) { cb.echec(err); }
+        classiquesRestants.shift();
+        afficherClassiques();
+      });
+      $("#tournee-non").addEventListener("click", () => { classiquesRestants.shift(); afficherClassiques(); });
+      $("#tournee-passer-menus").addEventListener("click", afficherMenus);
     }
 
-    function htmlEtapeRepas(p) {
-      return `<div class="pile tournee-etape">
-        <p class="tournee-question">${txt(p.repas.titre)} ?</p>
-        <p class="sous">${txt(p.repas.detail ?? "")}${p.repas.detail ? " · " : ""}${txt(p.manquants.map((m) => m.libelle).join(", "))}</p>
-        <div class="detail-actions">
-          <button type="button" class="btn grandir" id="tournee-non">Non merci</button>
-          <button type="button" class="btn btn-vert grandir" id="tournee-oui">Oui, ajoute</button>
-        </div>
-      </div>`;
+    function afficherMenus() {
+      if (!seq.repas.length) return afficherBilan();
+      ouvrirFeuille(`<div class="pile tournee-etape">
+        ${enTete("Menus")}
+        <span class="sous">Trois idées pour la semaine. Le menu choisi envoie ses ingrédients dans les bons rayons.</span>
+        <div class="tournee-menus">${seq.repas.map(htmlCarteMenu).join("")}</div>
+        <button type="button" class="btn btn-bleu grandir" id="tournee-terminer">Terminer le tour</button>
+      </div>`);
+      for (const b of $$("[data-choisir-menu]")) {
+        b.addEventListener("click", async () => {
+          const id = Number(b.dataset.choisirMenu);
+          const p = seq.repas.find((x) => x.repas.id === id);
+          try { await verserRepas(id); ajoutes += p.manquants.length; } catch (err) { cb.echec(err); }
+          afficherBilan();
+        });
+      }
+      $("#tournee-terminer").addEventListener("click", afficherBilan);
+    }
+
+    function htmlCarteMenu(p) {
+      return `<button type="button" class="tournee-carte-menu" data-choisir-menu="${p.repas.id}">
+        <span class="tournee-menu-ligne1">
+          <span class="tournee-menu-nom">${txt(p.repas.titre)}</span>
+          <span class="sous">${txt(p.repas.detail ?? "")}</span>
+        </span>
+        <span class="sous">${txt(p.manquants.map((m) => m.libelle).join(", "))}</span>
+      </button>`;
     }
 
     function afficherBilan() {
       ouvrirFeuille(`<div class="pile tournee-etape">
-        <h2>Tournée terminée</h2>
-        <p class="sous">La liste est à jour. Bonnes courses !</p>
+        <div class="tournee-bilan">
+          <span class="tournee-bilan-titre">Tour fini</span>
+          <span class="sous">${ajoutes} article${ajoutes > 1 ? "s" : ""} ajouté${ajoutes > 1 ? "s" : ""} à la liste.</span>
+        </div>
         <button type="button" class="btn btn-bleu grandir" id="tournee-fermer">Fermer</button>
       </div>`);
       $("#tournee-fermer").addEventListener("click", fermerFeuille);
@@ -243,13 +259,14 @@ export function creerUiCourses(api, etat, cb) {
   // ---------- rendu global ----------
   function rendre() {
     const restants = aFaire();
-    $("#sous-courses").textContent = restants.length
+    const nPanier = prises().length;
+    const texteRestants = restants.length
       ? `${restants.length} article${restants.length > 1 ? "s" : ""} à prendre`
-      : "Liste vide. Ajoute ce qui manque.";
-    $("#chiffres-courses").innerHTML = chiffres([
-      { etiquette: "À prendre", valeur: String(restants.length), accent: true },
-      { etiquette: "Dans le panier", valeur: String(prises().length) },
-    ]);
+      : "Liste vide, ajoute ce qui manque";
+    // Sous-titre compact façon maquette : « 3 articles à prendre · 1 dans le panier » (README §4).
+    $("#sous-courses").textContent = nPanier
+      ? `${texteRestants} · ${nPanier} dans le panier`
+      : texteRestants;
     rendreGroupes();
     rendreRepas();
     rendrePanier();
