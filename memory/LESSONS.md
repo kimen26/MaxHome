@@ -220,3 +220,17 @@ PREUVE que le voile est parti (`#feuille-fond[hidden]`), jamais un délai.
 Mnémonique : dans un test, on n'avale pas une erreur qu'on n'a pas comprise — et quand deux
 hypothèses tombent, on arrête de supposer et on mesure l'état réel du DOM (L-016 appliquée aux
 gestes, pas seulement aux chevauchements).
+
+## L-027 — une icône se juge à la taille où elle sera vue, et à ce qu'on y reconnaît (2026-09-12)
+Trois dessins successifs pour l'icône PWA. (1) Une maison : propre, mais générique — elle ne
+disait rien de l'app. (2) Un panier de courses, que l'agent qui l'avait dessiné jugeait réussi :
+regardé, il se lisait comme un SAC À MAIN, son anse pleine formant une masse au lieu d'un arc, et
+ses barres internes comme des fentes. (3) Une check-list, trois lignes dont la première cochée :
+le geste même de l'app, reconnaissable sans effort.
+Un rapport d'agent qui dit « lisible et bien centré » ne remplace pas le fait de l'ouvrir : les
+deux défauts des versions 1 et 2 (décentrage, ergots de toit, anse pleine) étaient invisibles dans
+le code et évidents à l'image.
+Et l'épreuve décisive n'est pas le PNG en 512 px : c'est un rendu à **48 px**, la taille réelle sur
+un écran d'accueil, agrandi ensuite sans lissage pour voir ce que l'œil perçoit vraiment.
+Mnémonique : une icône se regarde à sa taille d'usage, et se valide sur ce qu'un inconnu y
+reconnaît — pas sur ce qu'on a voulu y mettre.

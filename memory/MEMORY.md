@@ -145,3 +145,19 @@ _État courant. Réécrit en fin de session, jamais un journal._
   poli que le vrai PostgREST.
   Restent à trancher par Yann : les cartes Matin/Soir (aucune colonne ne porte ce moment) et la
   disparition de l'écran Balance (son détail par catégorie vit au bas de Semaine).
+
+- 2026-09-12 (fin de session) : **tout est EN LIGNE**. https://kimen26.github.io/MaxHome/ sert la
+  refonte complète (six commits poussés, `3a7469e..ca045ea`). Migrations 008, 009, 010 et 012
+  appliquées ; budget intact du début à la fin (272 lignes / 38 revenus / 16 charges).
+  L'app s'**installe sur le téléphone** : manifeste, cinq icônes, service worker calqué sur
+  MaxPlay (D-033 révisée par D-034). Le hash de version est calculé DANS le workflow GitHub
+  Actions, MaxHome n'ayant pas d'étape de build — vérifié en réel : le hash déployé diffère du
+  hash local, donc le workflow le recalcule bien, et le cache s'invalide seul à chaque
+  déploiement. Supabase n'est jamais mis en cache (deux téléphones écrivent dans la même base).
+  Icône : une check-list, après une maison trop générique et un panier qui se lisait comme un sac
+  à main (L-027). Validée à 48 px, la taille réelle sur l'écran d'accueil.
+  Le bot redémarre par le dossier de démarrage de Windows (D-031) — la tâche planifiée est
+  refusée sur cette machine quel que soit le privilège, ce que D-011 et L-006 attendaient en vain.
+  Reste à faire côté humain : installer l'app sur les deux téléphones, et trancher les deux
+  points ouverts de `TODO.md` (le moment des tâches faites deux fois par jour, le bloc « Par
+  catégorie » de la vue Semaine absent de la maquette).
