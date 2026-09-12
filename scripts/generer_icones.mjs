@@ -18,56 +18,74 @@ fs.mkdirSync(SORTIE, { recursive: true });
 
 const BLEU = "#1f4e79";
 const BLANC = "#ffffff";
+const VERT = "#1b7f3b";
 
-// Dessin : une maison stylisée (toit + corps + porte), traits épais, aucun dégradé, aucun
-// détail fin — jugée à l'œil pour rester lisible à 48 px sur un téléphone (cf. rapport).
-// viewBox 0-100 : c'est le pourcentage de marge qui distingue les variantes "any"/"maskable".
-function svgMaison({ margeCote }) {
-  // margeCote : zone de sécurité de chaque bord, en unités de viewBox (0-100). Android peut
-  // rogner cette marge sur les icônes "maskable" (découpe en rond ou squircle) : le dessin
-  // doit rester entier même si elle disparaît.
+// Dessin : un panier de courses (silhouette trapèze + anse) surmonté d'une coche verte.
+// Remplace l'ancienne maison, qui ne disait rien du contenu de l'app (budget/tâches/courses).
+// Le panier dit "courses", la coche dit "fait" (tâches cochées, courses cochées dans le
+// magasin) — les deux usages centraux de MaxHome tiennent dans une seule silhouette franche.
+// Traits épais, zéro dégradé, zéro détail fin — jugée à l'œil pour rester lisible à 48 px
+// (cf. rapport). viewBox 0-100 : le pourcentage de marge distingue les variantes "any"/"maskable".
+function svgListe({ margeCote }) {
+  // margeCote : zone de sécurité de chaque bord, en unités de viewBox (0-100). Android rogne
+  // cette marge sur les icônes « maskable » (découpe ronde) : le dessin doit rester entier.
   const cote = 100;
   const centre = cote / 2;
 
-  // Le dessin est CENTRÉ dans la zone utile, verticalement comme horizontalement : une maison
-  // collée en bas laisse un vide en haut qui saute aux yeux sur l'écran d'accueil, entre des
-  // icônes qui, elles, remplissent leur carré.
-  const zone = cote - margeCote * 2;       // côté de la zone utile
-  const largeur = zone;                    // le toit occupe toute la largeur utile
-  const hauteur = zone * 0.78;             // la maison est un peu moins haute que large
-  const gauche = centre - largeur / 2;
-  const droite = centre + largeur / 2;
-  const haut = centre - hauteur / 2;       // pointe du toit
-  const bas = centre + hauteur / 2;        // sol
-  const basToit = haut + hauteur * 0.45;   // jonction toit / corps
+  // Une CHECK-LIST plutôt qu'un objet (maison, panier) : c'est le geste de l'app — cocher ce
+  // qui est fait, à la maison comme au magasin. Trois lignes, la première cochée en vert.
+  // Un essai « panier » a été écarté : son anse pleine se lisait comme un sac à main, et les
+  // barres internes comme des fentes. Une icône se juge à ce qu'on y reconnaît, pas à ce
+  // qu'on a voulu y mettre.
+  const zone = cote - margeCote * 2;
+  const gauche = centre - zone / 2;
+  const haut = centre - zone / 2;
 
-  // Le corps chevauche le bas du toit : deux formes blanches jointives laissent sinon un
-  // liseré bleu d'anti-aliasing sur la ligne de jonction, visible même à grande taille.
-  const chevauchement = hauteur * 0.03;
+  // Trois rangées régulières. La case est un carré plein, la ligne un rectangle arrondi :
+  // deux formes franches, aucune ne disparaît à 48 px.
+  const rangees = 3;
+  const pas = zone / rangees;             // hauteur d'une rangée
+  const caseCote = pas * 0.52;            // la case occupe un peu plus de la moitié
+  const ligneHauteur = pas * 0.3;
+  const ecart = zone * 0.09;              // entre la case et la ligne
+  const ligneGauche = gauche + caseCote + ecart;
+  const ligneLargeur = zone - caseCote - ecart;
 
-  // Le toit s'arrête EXACTEMENT aux bords du corps : un débordement (ancien `+3`) produisait
-  // deux petits ergots aux extrémités, visibles comme des défauts à 192 px.
-  const porteLargeur = largeur * 0.26;
-  const porteHaut = bas - hauteur * 0.34;
+  const y = (i) => haut + pas * i + (pas - caseCote) / 2;   // haut de la case de la rangée i
+  const rayonCase = caseCote * 0.22;
+  const rayonLigne = ligneHauteur / 2;
+
+  // La coche tient DANS sa case : débordante, elle se lisait comme une rature par-dessus la
+  // case plutôt que comme une case cochée. Contenue, le geste est net même à 48 px.
+  const c0x = gauche + caseCote / 2;
+  const c0y = y(0) + caseCote / 2;
+  const d = caseCote * 0.52;              // demi-envergure de la coche
+
+  const rangee = (i, remplie) => {
+    const yy = y(i);
+    return `
+  <rect x="${gauche}" y="${yy}" width="${caseCote}" height="${caseCote}" rx="${rayonCase}"
+        fill="${remplie ? VERT : "none"}" stroke="${BLANC}" stroke-width="${caseCote * 0.16}"/>
+  <rect x="${ligneGauche}" y="${yy + (caseCote - ligneHauteur) / 2}"
+        width="${ligneLargeur}" height="${ligneHauteur}" rx="${rayonLigne}" fill="${BLANC}"/>`;
+  };
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cote} ${cote}">
-  <rect width="${cote}" height="${cote}" fill="${BLEU}"/>
-  <polygon points="${gauche},${basToit} ${centre},${haut} ${droite},${basToit}" fill="${BLANC}"/>
-  <rect x="${gauche + largeur * 0.08}" y="${basToit - chevauchement}"
-        width="${largeur * 0.84}" height="${bas - basToit + chevauchement}" fill="${BLANC}"/>
-  <rect x="${centre - porteLargeur / 2}" y="${porteHaut}"
-        width="${porteLargeur}" height="${bas - porteHaut}" fill="${BLEU}"/>
+  <rect width="${cote}" height="${cote}" fill="${BLEU}"/>${rangee(0, true)}${rangee(1, false)}${rangee(2, false)}
+  <path d="M ${c0x - d * 0.62} ${c0y + d * 0.05} L ${c0x - d * 0.16} ${c0y + d * 0.5} L ${c0x + d * 0.66} ${c0y - d * 0.5}"
+        fill="none" stroke="${BLANC}" stroke-width="${caseCote * 0.26}"
+        stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
 }
 
 // "any" : le dessin peut toucher les bords, l'OS ne rogne rien. Marge minime pour l'esthétique.
-const svgPlein = svgMaison({ margeCote: 6 });
-// "maskable" : ~10 % de marge de sécurité sur chaque bord (consigne Android), le dessin utile
+const svgPlein = svgListe({ margeCote: 8 });
+// "maskable" : ~12 % de marge de sécurité sur chaque bord (consigne Android), le dessin utile
 // tient dans le cercle inscrit même si l'OS découpe un rond ou un squircle par-dessus.
-const svgMaskable = svgMaison({ margeCote: 12 });
+const svgMaskable = svgListe({ margeCote: 14 });
 
-fs.writeFileSync(path.join(SORTIE, "maison.svg"), svgPlein, "utf8");
-fs.writeFileSync(path.join(SORTIE, "maison-maskable.svg"), svgMaskable, "utf8");
+fs.writeFileSync(path.join(SORTIE, "liste.svg"), svgPlein, "utf8");
+fs.writeFileSync(path.join(SORTIE, "liste-maskable.svg"), svgMaskable, "utf8");
 
 const CIBLES = [
   { svg: svgPlein, taille: 192, fichier: "icone-192.png" },
