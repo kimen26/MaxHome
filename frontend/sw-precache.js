@@ -1,0 +1,46 @@
+// GÉNÉRÉ par scripts/gen-sw-version.mjs — ne pas éditer à la main.
+// Liste de tous les fichiers de la coquille MaxHome (frontend/, hors sw.js et
+// les fichiers générés eux-mêmes), obtenue par parcours du disque : un fichier
+// neuf dans un sous-dossier existant (socle/, budget/, taches/, courses/) est
+// automatiquement inclus au prochain déploiement, sans y penser.
+self.SW_PRECACHE = [
+  "./",
+  "app.js",
+  "budget/calc.js",
+  "budget/mod-budget.js",
+  "budget/ui-charges.js",
+  "budget/ui-comptes.js",
+  "budget/ui-mouvements.js",
+  "budget/ui-recurrents.js",
+  "budget/ui-stats.js",
+  "config.js",
+  "courses/mod-courses.js",
+  "courses/tournee.js",
+  "courses/ui-courses.js",
+  "courses/ui-magasin.js",
+  "icones/icone-192.png",
+  "icones/icone-512.png",
+  "icones/icone-apple-180.png",
+  "icones/icone-maskable-192.png",
+  "icones/icone-maskable-512.png",
+  "icones/maison-maskable.svg",
+  "icones/maison.svg",
+  "index.html",
+  "manifest.webmanifest",
+  "modules.js",
+  "socle/api.js",
+  "socle/blocs-checklist.js",
+  "socle/blocs-cycle.js",
+  "socle/blocs-form.js",
+  "socle/blocs-reglages.js",
+  "socle/blocs.js",
+  "socle/occurrences.js",
+  "socle/ui-base.js",
+  "style.css",
+  "taches/mod-taches.js",
+  "taches/taches.js",
+  "taches/ui-taches-ajout.js",
+  "taches/ui-taches-rec.js",
+  "taches/ui-taches-semaine.js",
+  "taches/ui-taches.js"
+];

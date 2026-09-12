@@ -319,3 +319,29 @@ installent une PWA sur la seule base d'un manifeste valide avec icônes et `disp
 Position réversible : si un besoin hors-ligne réel apparaît, un worker minimal (coquille
 seulement, network-first sur le HTML, versionné, purge à l'activation) s'ajoutera sans toucher
 au manifeste.
+
+**Remplacée par D-034** : le besoin hors-ligne réel est apparu (courses en magasin), le worker a
+été ajouté.
+
+## D-034 — service worker ajouté, hash calculé dans le workflow (pas de build local) (2026-09-12)
+Le besoin qui manquait à D-033 est arrivé : la liste de courses doit rester utilisable dans le
+magasin, là où le réseau est mauvais. Calqué sur `MaxPlay/site/sw.js` (stratégie par type) et
+`MaxPlay/studio/minijeux/scripts/gen-sw-version.mjs` (hash de contenu, jamais de version en dur).
+Le risque que D-033 redoutait (un worker mal purgé sert un JS périmé sans recours pour Claudia et
+Yann) est résolu, pas contourné :
+- `frontend/sw.js` — coquille (tout `frontend/`, listée par parcours du disque, jamais à la main)
+  en cache-first, versionnée par un hash de contenu. Supabase (tout hôte contenant `supabase`) en
+  **network-first, jamais mis en cache** : deux téléphones écrivent dans la même base, un cache
+  ici créerait des divergences invisibles entre Claudia et Yann — non négociable. Google Fonts en
+  stale-while-revalidate. `skipWaiting()` + `clients.claim()` à l'activation : la mise à jour ne
+  demande aucun geste (fermer un onglet, vider un cache) que Claudia et Yann ne sauraient pas faire.
+- `scripts/gen-sw-version.mjs` — différence clé avec MaxPlay : **MaxHome n'a aucune étape de
+  build** (`.github/workflows/pages.yml` publie `frontend/` tel quel). Le hash est donc calculé
+  DANS le workflow, juste avant `upload-pages-artifact` (`node scripts/gen-sw-version.mjs`), pas
+  via un `npm run build` local qui n'existe pas. Vérifié : changer un fichier de `frontend/` puis
+  relancer le script change bien le hash (`caa85942267c` → `71c56980c74e` sur un octet ajouté à
+  `style.css`, confirmé une seconde fois proprement après un faux négatif de protocole de test).
+- Vérifié avec Playwright, `frontend/` servi sous `/MaxHome/` (condition réelle GitHub Pages, pas
+  à la racine) : le worker s'enregistre, la coquille (39 fichiers) est bien en cache après le
+  premier chargement, **une requête vers `*.supabase.co` n'est jamais mise en cache** (test explicite,
+  le plus important), et un second chargement réseau coupé affiche l'app.

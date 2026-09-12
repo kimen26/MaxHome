@@ -19,6 +19,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # MaxHome n'a pas d'étape de build : frontend/ est publié tel quel. Le
+      # hash du service worker doit donc être calculé ICI, au déploiement,
+      # sinon il resterait figé et servirait un JS périmé indéfiniment
+      # (voir memory/DECISIONS.md, D-033 révisée).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/gen-sw-version.mjs
       - uses: actions/upload-pages-artifact@v3
         with:
           path: frontend

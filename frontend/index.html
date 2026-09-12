@@ -7,6 +7,9 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1f4e79">
 <!-- iOS ignore une partie du manifeste : balises dédiées pour un lancement plein écran. -->
+<!-- mobile-web-app-capable est la balise standard (Chrome déprécie la variante apple-) ;
+     on garde apple- pour iOS, qui ne lit que celle-là. Même paire que MaxPlay. -->
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MaxHome">
@@ -250,5 +253,16 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
 <script type="module" src="app.js"></script>
+<script>
+  // Chemin RELATIF ('./sw.js', scope './') : le site est servi sous
+  // /MaxHome/, un chemin absolu casserait l'enregistrement (voir sw.js).
+  // Le worker est un plus (usage hors ligne en magasin) : un échec ne doit
+  // JAMAIS empêcher l'app de démarrer, d'où le catch qui se contente de logguer.
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch((erreur) => {
+      console.error("Service worker MaxHome non enregistré (l'app fonctionne quand même) :", erreur);
+    });
+  }
+</script>
 </body>
 </html>
