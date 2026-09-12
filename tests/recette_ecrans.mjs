@@ -14,6 +14,17 @@ const SORTIE = path.resolve("data/captures/ecrans");
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
 const LARGEURS = [320, 360, 1200]; // non-régression, conception, desktop (règle mobile-parents.md)
 
+// Les feuilles modales ne s'ouvrent que par un geste : on les visite explicitement, sinon
+// elles échappent à toute capture et la recette valide des écrans qu'elle n'a jamais vus.
+// UNE feuille par largeur, la dernière visitée : refermer une feuille de l'extérieur s'est
+// révélé peu fiable (clic sur le voile avalé, Échap sans effet, rechargement qui emporte le
+// bouchon Supabase injecté par addInitScript) — voir L-026. Plutôt qu'un enchaînement fragile,
+// on capture la feuille la plus riche du §8 et on s'arrête là ; la feuille Todo se vérifie à
+// l'œil quand on y touche.
+const FEUILLES = [
+  { ecran: "jour", moduleDefaut: "jour", bouton: "#btn-ajouter-tache", nom: "feuille-ajout-tache" },
+];
+
 // ---------- 1. écrans à visiter, lus depuis les descripteurs (pas de liste en dur) ----------
 /** Extrait cle/onglets/plus d'un descripteur mod-*.js sans l'exécuter (il touche le DOM au
  *  chargement dans certains fichiers UI qu'il importe) : lecture texte + JSON.parse ciblé. */
@@ -228,6 +239,10 @@ let nbCaptures = 0;
  *  pour le patron général, adapté ici pour rester générique sur N'IMPORTE quel écran plutôt que
  *  sur une liste écrite à la main, et pour échouer proprement plutôt que planter. */
 async function aller(page, ecran, moduleDefaut) {
+  // Déjà sur l'écran demandé : ne rien faire. Sans ce court-circuit, deux feuilles visitées à
+  // la suite sur le même écran repassent par le menu « Plus », qui réutilise le conteneur de
+  // feuille qu'on vient de refermer — et le clic n'aboutit jamais.
+  if (await page.isVisible(`#ecran-${ecran}:not([hidden])`)) return;
   const surPC = await page.isVisible("#barre-pc");
   const nav = surPC ? "#barre-pc" : "#onglets";
   if (await page.isVisible(`${nav} button[data-ecran=${ecran}]`)) {
@@ -294,6 +309,26 @@ try {
         // On revient à l'accueil pour ne pas propager la casse d'un écran aux suivants.
         try { await page.click("#logo"); await page.waitForSelector("#ecran-accueil:not([hidden])", { timeout: 3000 }); }
         catch { /* si même l'accueil ne répond plus, la page suivante repartira de zéro */ }
+      }
+    }
+    // ---------- les feuilles ----------
+    // Une feuille ne s'ouvre que par un geste : sans ça, « Ajouter une tâche » et « Travaux
+    // en attente » n'apparaissent sur AUCUNE capture, et la recette dirait vert sur des
+    // écrans qu'elle n'a jamais vus (L-009, L-024).
+    for (const { ecran, moduleDefaut, bouton, nom } of FEUILLES) {
+      try {
+        await aller(page, ecran, moduleDefaut);
+        await page.click(bouton, { timeout: 5000 });
+        await page.waitForSelector("#feuille:not([hidden])", { timeout: 5000 });
+        await page.waitForTimeout(250); // la feuille glisse en 200 ms
+        await capturer(page, nom, largeur, erreursPage);
+        // Refermer ET attendre que la feuille soit vraiment partie : le voile reste cliquable
+        // pendant la transition de sortie et intercepterait le geste suivant (L-018 : on attend
+        // une preuve, pas un délai).
+      } catch (e) {
+        ecransCasses.push(`${nom} @ ${largeur}px : ${e.message.split("\n")[0]}`);
+        try { await page.click("#logo"); await page.waitForSelector("#ecran-accueil:not([hidden])", { timeout: 3000 }); }
+        catch { /* la page suivante repartira de zéro */ }
       }
     }
     erreurs.push(...erreursPage.map((m) => `${largeur}px: ${m}`));

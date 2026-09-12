@@ -107,12 +107,21 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
     ${lignesHtml || '<p class="vide-carte">Rien.</p>'}
   </div>`;
 
+  /** Une tâche ajoutée depuis la feuille « Ajouter une tâche » (§8 du handoff) est une
+   *  occurrence SANS récurrent : elle ne porte ni fréquence ni moment, donc les filtres
+   *  ci-dessous (qui ne lisent que `recDe(t)`) la manqueraient. Elle rejoint la carte
+   *  « Sans moment » du jour, ou les cartes Semaine/Mois à côté des lignes des récurrents —
+   *  jamais invisible faute de rattachement (même principe que le « sans moment » du §1). */
+  const ponctuelle = (t) => !t.recurrent_id;
+
   /** Carte « Matin » / « Soir » (ou « Sans moment ») : les occurrences quotidiennes du jour
    *  dont la tâche récurrente porte ce moment (handoff §1). `null` regroupe les tâches
-   *  quotidiennes pas encore réglées : jamais invisibles, juste pas encore rangées. */
+   *  quotidiennes pas encore réglées, et les ponctuelles du jour sans récurrent : jamais
+   *  invisibles, juste pas encore rangées. */
   function carteMoment(nom, moment, jour) {
     const quotidienne = (t) => recDe(t)?.frequence === "quotidien";
-    const appartient = (t) => quotidienne(t) && (recDe(t)?.moment ?? null) === moment;
+    const appartient = (t) => moment === null && ponctuelle(t) ? true
+      : quotidienne(t) && (recDe(t)?.moment ?? null) === moment;
     const restantes = regrouper(duJour(jour)).filter(appartient);
     const faites = faitesLe(jour).filter(appartient);
     const total = restantes.length + faites.length;
@@ -123,20 +132,24 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
   }
 
   /** Cartes du quotidien : Matin + Soir toujours affichées (structure de la maquette), et une
-   *  troisième carte « Sans moment » seulement si une tâche quotidienne n'a pas encore de
-   *  moment réglé — jamais de tâche cochable qui disparaîtrait de l'écran faute de réglage. */
+   *  troisième carte « Sans moment » dès qu'une tâche quotidienne n'a pas encore de moment
+   *  réglé OU qu'une ponctuelle sans récurrent est due ce jour — jamais de tâche cochable qui
+   *  disparaîtrait de l'écran faute de réglage. */
   function cartesMoment(jour) {
-    const quotidienneSansMoment = (t) => recDe(t)?.frequence === "quotidien" && !recDe(t)?.moment;
-    const sansMoment = regrouper(duJour(jour)).some(quotidienneSansMoment) || faitesLe(jour).some(quotidienneSansMoment);
+    const sansMoment = (t) => (recDe(t)?.frequence === "quotidien" && !recDe(t)?.moment) || ponctuelle(t);
+    const aSansMoment = regrouper(duJour(jour)).some(sansMoment) || faitesLe(jour).some(sansMoment);
     return carteMoment("Matin", "matin", jour) + carteMoment("Soir", "soir", jour)
-      + (sansMoment ? carteMoment("Sans moment", null, jour) : "");
+      + (aSansMoment ? carteMoment("Sans moment", null, jour) : "");
   }
 
-  /** Carte Semaine/Mois : avancement sur la période entière, la tâche se coche sur `jour` choisi. */
+  /** Carte Semaine/Mois : avancement sur la période entière, la tâche se coche sur `jour` choisi.
+   *  Les récurrents d'abord (une ligne par tâche, avancement `x/fois`), puis les occurrences
+   *  ponctuelles sans récurrent dont l'échéance tombe en fin de cette période (une tâche « Ce
+   *  jour » ajoutée un lundi vaut pour la semaine qui finit ce dimanche-là). */
   function cartePeriode(nom, frequence, jour) {
     const recs = etat.tachesRec.filter((r) => r.actif && r.frequence === frequence);
     const finPeriode = echeance(frequence, jour);
-    const lignes = recs.map((r) => {
+    const lignesRec = recs.map((r) => {
       const occs = etat.taches.filter((t) => t.recurrent_id === r.id && t.echeance === finPeriode);
       const faitesN = occs.filter((t) => t.fait_le).length;
       // Occurrence à cocher : la première non faite, sinon la dernière faite (annulation possible).
@@ -146,7 +159,8 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
       const meta = complet ? "fait" : faitesN > 0 ? `${faitesN}/${r.fois}` : "—";
       return ligneTache(t, { metaDroite: meta, metaClasse: complet ? "vert" : faitesN > 0 ? "ambre" : "" });
     }).filter(Boolean);
-    return carte(nom, lignes.join(""), "", "");
+    const lignesPonctuelles = etat.taches.filter((t) => ponctuelle(t) && t.echeance === finPeriode).map((t) => ligneTache(t));
+    return carte(nom, [...lignesRec, ...lignesPonctuelles].join(""), "", "");
   }
 
   // ---------- détail (feuille / colonne PC) ----------
@@ -306,19 +320,40 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
     } catch (e) { cb.echec(e); }
   }
 
+  /** Dernière occurrence connue d'un récurrent « au besoin » (pour la méta « fait par … »
+   *  de la feuille Todo). Les occurrences faites restent en base (D-024 : pas de suppression
+   *  qui perdrait l'historique), donc la plus récente par échéance suffit. */
+  const derniereOccurrence = (recId) => etat.taches.filter((t) => t.recurrent_id === recId)
+    .sort((a, b) => b.echeance.localeCompare(a.echeance))[0] ?? null;
+
+  /** Feuille « Travaux en attente » (§8 du handoff) : liste sans date, case 19 px, titre 14 px,
+   *  méta 11 px (« fait par Claudia » si une occurrence récente existe, sinon la catégorie —
+   *  la date d'ajout n'est pas stockée en base, cf. rapport), bouton en tirets pour en ajouter. */
   function ouvrirTodo() {
     const items = auBesoinActives();
-    ouvrirFeuille(`<h2 class="feuille-titre">Travaux en attente</h2>
-      <p class="sous">Comptent en parts, sans date fixe.</p>
-      ${items.length ? `<div class="carte-liste">${items.map((r) => `<div class="mvt rapide" data-todo="${r.id}">
-          <span class="case rapide" aria-hidden="true">+</span>
-          <div class="mvt-corps"><span class="mvt-titre">${txt(r.titre)}</span>
-            <span class="mvt-trajet">${txt(r.categorie)} · quand c’est nécessaire</span></div>
-          <div class="mvt-droite"><span class="mono">${txt(partsTexte(r.parts_quart))}</span></div>
-        </div>`).join("")}</div>` : '<p class="vide">Aucun travail en attente.</p>'}`);
+    const ligne = (r) => {
+      const derniere = derniereOccurrence(r.id);
+      const fait = derniere?.fait_le;
+      const meta = fait ? `fait par ${txt(derniere.qui)}${derniere.qui2 ? ` et ${txt(derniere.qui2)}` : ""}` : txt(r.categorie);
+      return `<div class="ligne-todo" data-todo="${r.id}">
+        <span class="case-todo${fait ? " case-todo-faite" : ""}" aria-hidden="true">${fait ? "✓" : ""}</span>
+        <div class="todo-corps">
+          <span class="todo-titre${fait ? " fait" : ""}">${txt(r.titre)}</span>
+          <span class="todo-meta">${meta}</span>
+        </div>
+        <span class="mono todo-parts">${txt(partsTexte(r.parts_quart))}</span>
+      </div>`;
+    };
+    ouvrirFeuille(`<div class="entete-feuille-todo">
+        <h2 class="feuille-titre">Travaux en attente</h2>
+        <span class="sous">sans date · comptent en parts</span>
+      </div>
+      <div class="liste-todo">${items.length ? items.map(ligne).join("") : '<p class="vide">Aucun travail en attente.</p>'}</div>
+      <button type="button" class="btn-tirets" id="btn-ajouter-todo">+ Ajouter aux travaux</button>`);
     for (const el of $("#feuille-corps").querySelectorAll("[data-todo]")) {
       el.addEventListener("click", () => faireDepuisTodo(Number(el.dataset.todo)));
     }
+    $("#btn-ajouter-todo").addEventListener("click", () => ouvrirAjout?.({ cad: "todo" }));
   }
 
   $("#segment-vue-taches")?.addEventListener("click", (e) => {

@@ -147,17 +147,24 @@ def recurrents_part(membres):
 
 
 def taches_rec_defaut():
-    """Trois tâches récurrentes couvrant les trois fréquences génératrices et « au besoin »."""
+    """Trois tâches récurrentes couvrant les trois fréquences génératrices et « au besoin ».
+
+    `moment` (012_moment.sql) : la quotidienne est réglée au matin par défaut, hebdo/au_besoin
+    restent à None — seule une quotidienne porte un moment en base, comme en production.
+    """
     return [
         {"id": 1, "titre": "Laver les biberons", "categorie": "Enfant", "frequence": "quotidien",
          "fois": 2, "parts_quart": 4, "obligatoire": True, "partageable": False,
-         "ecart_prenom": None, "attribue_a": None, "consigne": None, "ordre": 10, "actif": True},
+         "ecart_prenom": None, "attribue_a": None, "consigne": None, "ordre": 10, "actif": True,
+         "moment": "matin"},
         {"id": 2, "titre": "Étendre et plier le linge", "categorie": "Linge", "frequence": "hebdo",
          "fois": 1, "parts_quart": 20, "obligatoire": False, "partageable": False,
-         "ecart_prenom": None, "attribue_a": "Claudia", "consigne": None, "ordre": 20, "actif": True},
+         "ecart_prenom": None, "attribue_a": "Claudia", "consigne": None, "ordre": 20, "actif": True,
+         "moment": None},
         {"id": 3, "titre": "Sortir la poubelle", "categorie": "Déchets", "frequence": "au_besoin",
          "fois": 1, "parts_quart": 12, "obligatoire": False, "partageable": False,
-         "ecart_prenom": None, "attribue_a": None, "consigne": None, "ordre": 30, "actif": True},
+         "ecart_prenom": None, "attribue_a": None, "consigne": None, "ordre": 30, "actif": True,
+         "moment": None},
     ]
 
 

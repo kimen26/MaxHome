@@ -822,3 +822,68 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
   .rp-mini { gap:1px 6px; }
 }
 
+/* ================= Feuilles « Travaux en attente » et « Ajouter une tâche » (handoff §8) ================= */
+/* En-tête de feuille titre + sous-titre sur une ligne (comme .tete-ecran, réutilisé pour deux
+   feuilles) : jamais de hauteur fixe, un sous-titre long doit pouvoir passer à la ligne. */
+.entete-feuille-todo { display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.entete-feuille-todo .sous { font-size:12px; color:var(--texte-2); }
+
+/* ---------- Travaux en attente : liste sans date, case 19 px, titre 14 px, méta 11 px ---------- */
+.liste-todo { border:1px solid var(--bordure); border-radius:11px; overflow:auto; max-height:50vh; }
+.ligne-todo {
+  display:flex; align-items:center; gap:9px; min-height:48px; padding:4px 10px;
+  border-bottom:1px solid var(--separateur); cursor:pointer;
+}
+.ligne-todo:last-child { border-bottom:0; }
+/* Case 19 px : plancher accepté par mobile-parents.md (≥8 px d'espacement autour, ligne de
+   48 px de haut qui porte la vraie cible tactile — c'est la ligne entière qui bascule, pas
+   seulement la case, cf. brancherDetail plus bas dans ui-taches.js). */
+.case-todo {
+  width:19px; height:19px; flex:none; border-radius:6px; box-sizing:border-box;
+  border:1.5px solid var(--tirets); background:#fff; color:#fff;
+  display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;
+}
+.case-todo-faite { background:var(--vert); border-color:var(--vert); }
+.todo-corps { flex:1; min-width:0; display:flex; flex-direction:column; }
+.todo-titre { font-size:14px; font-weight:600; color:var(--texte); }
+.todo-titre.fait { font-weight:400; text-decoration:line-through; color:var(--texte-2); }
+.todo-meta { font-size:11px; color:var(--texte-2); }
+.todo-parts { font-size:11px; color:var(--texte-2); flex:none; }
+
+/* ---------- Ajouter une tâche : champs empilés, boutons de choix direct (pas des cycles : un
+   seul état actif à la fois, pas de "tap = valeur suivante" — cf. rapport de l'agent). ---------- */
+.champ-groupe { display:flex; flex-direction:column; gap:4px; }
+.etiquette-champ { font-size:10px; font-weight:700; color:var(--texte-2); text-transform:uppercase; letter-spacing:.06em; }
+.puces-suggestions { display:flex; flex-wrap:wrap; gap:5px; }
+.puce-suggestion {
+  border:1px solid var(--bordure); background:#fff; color:var(--texte); font-size:13px; font-weight:500;
+  border-radius:999px; padding:0 12px; min-height:36px; cursor:pointer;
+}
+.puce-suggestion.actif { background:var(--bleu-clair); border-color:var(--bleu); color:var(--bleu); }
+
+/* Quand / Fait par / drapeaux : boutons pleine largeur en ligne, cible 48 px (règle mobile du
+   projet — le handoff dessine 32 px, mais rules/mobile-parents.md est non négociable ici). */
+.ligne-boutons-4, .ligne-boutons-3, .ligne-boutons-2 { display:flex; gap:5px; }
+.btn-choix {
+  flex:1; min-height:48px; border:1px solid var(--bordure); border-radius:8px; background:#fff;
+  color:var(--texte); font-size:13px; font-weight:600; padding:2px 4px; cursor:pointer; line-height:1.2;
+}
+.btn-choix.actif { background:var(--bleu-clair); border-color:var(--bleu); color:var(--bleu); }
+
+/* Parts : 6 boutons — l'échelle tient sur une ligne à 360 px avec un gap serré ; 44 px de haut
+   reste au-dessus du plancher 24 px de mobile-parents.md tout en approchant les 48 px cible. */
+.ligne-parts { display:flex; gap:3px; }
+.btn-part {
+  flex:1; min-height:44px; border:1px solid var(--bordure); border-radius:8px; background:#fff;
+  color:var(--texte); font-family:var(--mono); font-variant-numeric:tabular-nums; font-weight:700;
+  font-size:13px; padding:2px 2px; cursor:pointer;
+}
+.btn-part.actif { background:var(--bleu); border-color:var(--bleu); color:#fff; }
+
+/* < 360 px : les 4 boutons Quand et les 6 boutons Parts sont les plus serrés — on réduit la
+   police avant de laisser déborder (recette obligatoire à 320 px, rules/mobile-parents.md). */
+@media (max-width:359px) {
+  .btn-choix { font-size:12px; padding:2px 2px; }
+  .btn-part { font-size:12px; }
+}
+

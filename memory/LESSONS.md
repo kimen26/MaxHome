@@ -207,3 +207,16 @@ Corrigé à la source (`.select().single()`), et `tournee.js` écarte désormais
 une fonction pure ne doit pas mourir parce qu'un appelant lui a passé un trou.
 Mnémonique : toute écriture dont on réutilise le résultat doit le demander explicitement — et un
 bouchon de test plus poli que le vrai serveur cache exactement cette classe de bug.
+
+## L-026 — un `catch` vide dans une recette transforme un échec en mystère (2026-09-12)
+En ajoutant la capture des feuilles à `recette_ecrans.mjs`, la seconde feuille restait
+inatteignable : « page.click: Timeout ». Deux hypothèses fausses suivies (transition de sortie,
+puis navigation qui repassait par le menu « Plus ») avant de MESURER — et la mesure a dit en une
+ligne : `{"dessus":"feuille-fond","feuilleCachee":false}`. Le voile de la feuille précédente
+recouvrait le bouton parce que mon `page.click("#feuille-fond").catch(() => {})` échouait sans
+rien dire : le `catch` vide, écrit « au cas où », a masqué la cause pendant trois tentatives.
+Corrigé : fermeture par `Escape` (branchée sur `document` dans ui-base.js), puis attente de la
+PREUVE que le voile est parti (`#feuille-fond[hidden]`), jamais un délai.
+Mnémonique : dans un test, on n'avale pas une erreur qu'on n'a pas comprise — et quand deux
+hypothèses tombent, on arrête de supposer et on mesure l'état réel du DOM (L-016 appliquée aux
+gestes, pas seulement aux chevauchements).

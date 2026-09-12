@@ -30,10 +30,11 @@ _Une session = une lane. Marquer (en cours) à l'ouverture, libérer à la fin._
 - [x] Recette réelle (dispatch direct, Supabase + Telegram réels) : bilan, salaire déjà en
       base, annuler — 3 réponses reçues dans le chat Yann, aucune donnée modifiée.
 - [x] README.md section « Bot Telegram ».
-- [ ] **Yann : installer la tâche planifiée** — `Register-ScheduledTask` refuse l'accès
-      hors session élevée (D-011/L-006). Lancer en PowerShell administrateur :
-      `scripts\setup_task.ps1` puis `Start-ScheduledTask -TaskName MaxHome-Bot`, vérifier
-      `Get-ScheduledTask MaxHome-Bot` = Running et `data/bot.log` qui tourne.
+- [x] **Redémarrage automatique du bot réglé** (2026-09-12, D-031) : la création de tâches
+      planifiées est verrouillée sur cette machine, même au niveau utilisateur — l'élévation
+      n'y aurait rien changé. Remplacé par un raccourci dans le dossier de démarrage de la
+      session (`MaxHome-Bot.lnk`), testé en réel (bot arrêté puis relancé par le raccourci).
+      Le bot repart à chaque ouverture de session Windows.
 - [ ] Yann : envoyer `aide` au bot pour confirmer la mise en service, puis inscrire Claudia
       (`/start` côté Claudia → `inscrire <id> Claudia` côté Yann).
 
@@ -118,8 +119,9 @@ _Brief : docs/briefs/maxhome-parts.md (handoff inbox/design_handoff_maxhome_tach
       `semaine` et `magasin`, plus `balance` qui n'existe plus.
 - [x] Bot redémarré et vérifié sur la vraie base : il dit « parts » avec le bon accord
       (« 1 part » / « 2 parts ») et affiche la ligne « Obligatoire · … en assure N % ».
-- [ ] **Yann : installer la tâche planifiée** — toujours pas faite (L-006, exige une session
-      PowerShell admin). Sans elle le bot ne survit pas à un redémarrage de la machine.
+- [x] **Redémarrage automatique du bot** : raccourci dans le dossier de démarrage (D-031),
+      vérifié en réel. La tâche planifiée était impossible sur cette machine, pas seulement
+      sans droits admin.
 
 - [x] **Fidélité au design** (2026-09-12, demande de Yann : « garde l'affichage de ce qui est
       donné, c'est la cible ») : écrans Tâches et Courses repris contre la maquette — en-tête
@@ -139,11 +141,17 @@ _Brief : docs/briefs/maxhome-parts.md (handoff inbox/design_handoff_maxhome_tach
 - [ ] **Écran Balance retiré** : le handoff ne prévoit que Jour/Semaine/Réglages. Le détail par
       catégorie a été remis en bas de l'écran Semaine ; le choix de période (7/30 j) est perdu.
       Ce bloc n'est PAS dans la maquette : le garder (fonctionnalité utile) ou s'aligner ?
-- [ ] **Formulaire « Ajouter une tâche » du handoff §8** non implémenté : le FAB ouvre le
-      formulaire de tâche récurrente existant, pas le formulaire riche de la maquette (Quand ·
-      Fait par · Parts en boutons · bascules Obligatoire / Faisable à deux · bouton vert
-      « ✓ Fait · 2 parts pour Claudia »). C'est un chantier métier (créer une tâche ponctuelle
-      déjà faite n'existe pas aujourd'hui), pas de la fidélité visuelle.
+- [x] **Formulaire « Ajouter une tâche » (§8) livré** : `frontend/taches/ui-taches-ajout.js`.
+      Quand (Ce jour / Semaine / Mois / En attente) · Fait par (Claudia / Yann / À deux, qui
+      active `partageable`) · les 6 crans de l'échelle · bascules Obligatoire et Faisable à
+      deux · bouton qui change de libellé et de couleur selon l'état. « En attente » crée une
+      récurrente `au_besoin` (taches.echeance est NOT NULL, une occurrence sans date est
+      impossible). Bug trouvé au passage : une tâche ponctuelle n'apparaissait dans AUCUNE
+      carte de l'écran Jour — créée puis invisible. Corrigé.
+- [x] **Bot : liste groupée par moment et par occurrence** (D-032). 12 lignes pour 12 tâches
+      au lieu de 16, blocs Matin / Soir, compteur `(0/2)` seulement si prévu plusieurs fois.
+      Le rappel de 19h sépare « à faire avant ce soir » d'un constat neutre « Pas fait ce
+      matin » : réclamer le matin à 19h est un reproche creux.
 
 ## Lane B — V1 (après recette)
 - [x] Vue annuelle (tableau 12 mois comme l'Excel)

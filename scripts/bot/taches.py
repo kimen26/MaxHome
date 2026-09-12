@@ -104,14 +104,52 @@ def credit_de(recurrent, tache):
 
 
 def restantes(taches, recurrents, jour=None):
-    """Tâches non faites dues aujourd'hui ou en retard, triées par obligatoire puis échéance.
+    """Tâches non faites dues aujourd'hui ou en retard, triées par obligatoire puis moment
+    puis échéance.
 
     `importance` n'est plus lu : obligatoire porte seul le tri (cf. logique-metier.md §3).
+    Le moment (012_moment.sql) s'intercale juste après : matin avant soir, comme les deux
+    cartes de l'écran Jour (frontend/taches/ui-taches.js::cartesMoment). Une tâche sans
+    moment — hebdo, mensuelle, au besoin, ou quotidienne pas encore réglée — n'a pas sa
+    place dans ces deux blocs : elle est classée APRÈS matin/soir (rang 2), jamais perdue,
+    de la même façon que la carte « Sans moment » du front vient après Matin et Soir plutôt
+    que de faire disparaître la tâche.
     """
     jour = (jour or date.today()).isoformat()
     dues = [t for t in taches if not t["fait_le"] and t["echeance"] <= jour]
     oblig = lambda t: 1 if recurrents.get(t["recurrent_id"], {}).get("obligatoire") else 0  # noqa: E731
-    return sorted(dues, key=lambda t: (-oblig(t), t["echeance"], t["rang"], t["id"]))
+    rang_moment = {"matin": 0, "soir": 1}
+
+    def moment(t):
+        return rang_moment.get(recurrents.get(t["recurrent_id"], {}).get("moment"), 2)
+
+    return sorted(dues, key=lambda t: (-oblig(t), moment(t), t["echeance"], t["rang"], t["id"]))
+
+
+def regrouper_pour_affichage(restantes_triees, recurrents):
+    """Une ligne par récurrent + échéance, avec le compte fait/total — AFFICHAGE seulement.
+
+    Miroir de frontend/taches/ui-taches.js::regrouper (esprit D-023, étendu au bot). Le
+    ciblage (`cibler`) et la coche (`basculer`) continuent de travailler occurrence par
+    occurrence : ce regroupement ne change ni le modèle ni le tri, il fusionne seulement
+    des lignes déjà triées pour l'affichage.
+
+    `restantes_triees` ne contient QUE des tâches non faites (sortie de `restantes()`), le
+    bot n'a pas non plus les occurrences déjà cochées sous la main à cet endroit — le total
+    prévu vient donc de `recurrents[...]["fois"]` (le récurrent le connaît, lui), et le
+    nombre de faites se déduit par soustraction : `total - restantes`. Une tâche ponctuelle
+    (`recurrent_id` None, pas de `fois`) garde sa propre ligne, jamais fusionnée.
+    """
+    groupes = {}
+    ordre = []
+    for t in restantes_triees:
+        cle = (t["recurrent_id"], t["echeance"]) if t["recurrent_id"] else ("ponctuelle", t["id"])
+        if cle not in groupes:
+            total = recurrents.get(t["recurrent_id"], {}).get("fois", 1) if t["recurrent_id"] else 1
+            groupes[cle] = {"tache": t, "restantes": 0, "total": total}
+            ordre.append(cle)
+        groupes[cle]["restantes"] += 1
+    return [groupes[cle] for cle in ordre]
 
 
 def cibler(taches, titre):

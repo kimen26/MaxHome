@@ -110,16 +110,54 @@ def confirmation_tache(titre, parts_quart, prenom, fait):
     return f"{titre} : coche annulée."
 
 
+def _ligne_tache(groupe, recurrents, aujourdhui):
+    """Une ligne « titre — N part(s) (prénom) (fait/total) ⚠️ en retard », comme l'écran Jour.
+
+    `groupe` vient de taches.regrouper_pour_affichage : une tâche prévue une seule fois
+    (total == 1) garde exactement le format d'avant, sans compteur parasite (D-023 étendu
+    au bot — cf. frontend/taches/ui-taches.js::regrouper et sa méta « 0/2 fait »). Le nombre
+    fait se déduit par soustraction (total - restantes) : `restantes` ne contient que les
+    occurrences non cochées de ce groupe, donc la différence est exacte sans requête de plus.
+    """
+    t = groupe["tache"]
+    quart = recurrents.get(t["recurrent_id"], {}).get("parts_quart") or t.get("parts_quart") or 0
+    retard = " ⚠️ en retard" if t["echeance"] < aujourdhui else ""
+    qui = f" ({t['qui']})" if t.get("qui") else ""
+    total = groupe["total"]
+    fait = total - groupe["restantes"]
+    compte = f" ({fait}/{total})" if total > 1 else ""
+    return f"  {t['titre']} — {parts_mot(quart)}{qui}{compte}{retard}"
+
+
 def liste_taches(restantes, recurrents, aujourdhui):
-    """`restantes` déjà triées (taches.restantes), `aujourdhui` au format AAAA-MM-JJ."""
+    """`restantes` déjà triées (taches.restantes : obligatoire, moment, échéance, rang, id).
+
+    Groupée par moment (Matin / Soir), comme les deux cartes de l'écran Jour — texte brut,
+    le bot n'envoie pas de HTML. Les tâches sans moment (hebdo, mensuelle, au besoin, ou
+    quotidienne pas encore réglée) suivent sous un bloc « Autres tâches » plutôt que d'être
+    mélangées ou perdues, miroir de la carte « Sans moment » du front. Une tâche à `fois` > 1
+    (biberons, dents...) tient sur une seule ligne avec un compte, esprit D-023 étendu au bot :
+    16 lignes pour 12 tâches devenaient illisibles sur un écran de téléphone.
+    """
     if not restantes:
         return "Rien à faire aujourd'hui ✔"
+    # Import local : `taches` importe `commandes`, qui importe `normaliser` DE ce module
+    # (reponses) — un import en tête de fichier créerait un cycle au chargement.
+    import taches as taches_mod
+    groupes = {"matin": [], "soir": [], None: []}
+    for g in taches_mod.regrouper_pour_affichage(restantes, recurrents):
+        m = recurrents.get(g["tache"]["recurrent_id"], {}).get("moment")
+        groupes[m if m in ("matin", "soir") else None].append(g)
+
     lignes = ["À faire aujourd'hui :"]
-    for t in restantes:
-        quart = recurrents.get(t["recurrent_id"], {}).get("parts_quart") or t.get("parts_quart") or 0
-        retard = " ⚠️ en retard" if t["echeance"] < aujourdhui else ""
-        qui = f" ({t['qui']})" if t.get("qui") else ""
-        lignes.append(f"  {t['titre']} — {parts_mot(quart)}{qui}{retard}")
+    intitules = [("matin", "Matin"), ("soir", "Soir"), (None, "Autres tâches")]
+    for cle, intitule in intitules:
+        bloc = groupes[cle]
+        if not bloc:
+            continue
+        lignes.append(f"{intitule} :")
+        for g in bloc:
+            lignes.append(_ligne_tache(g, recurrents, aujourdhui))
     return "\n".join(lignes)
 
 

@@ -61,15 +61,34 @@ Claudia envoie `/start` au bot `BudgetCYM_bot` pour obtenir son identifiant Tele
 Yann l'inscrit avec `inscrire <id> Claudia` (seul un membre déjà connu peut inscrire
 quelqu'un).
 
-### Installation (tâche planifiée Windows)
-Le bot tourne en long polling (pas de webhook), redémarre seul s'il plante.
+### Démarrage automatique
+Le bot tourne en long polling (pas de webhook) et redémarre seul s'il plante (5 s après
+l'arrêt de `bot.py`). Il repart à chaque ouverture de session Windows grâce à un raccourci
+dans le dossier de démarrage de l'utilisateur :
+
 ```
-powershell -ExecutionPolicy Bypass -File scripts\setup_task.ps1
-Start-ScheduledTask -TaskName MaxHome-Bot
-Get-ScheduledTask MaxHome-Bot          # doit passer à Running
+explorer shell:startup          # doit contenir MaxHome-Bot.lnk
 ```
-`scripts/setup_task.ps1` doit être lancé depuis une session PowerShell **avec élévation**
-(clic droit > Exécuter en tant qu'administrateur) : la création de tâche planifiée refuse
-l'accès sans ça. Le script est idempotent, ré-exécutable sans risque.
+
+Le raccourci lance `scripts/start_bot.ps1` en fenêtre masquée. Ce script porte le verrou
+anti-double-instance (`data/bot.lock` : si le PID qu'il contient est encore vivant, il sort
+sans rien faire) et la boucle de relance.
+
+Pour le recréer s'il disparaît :
+```powershell
+$lnk = Join-Path ([Environment]::GetFolderPath('Startup')) "MaxHome-Bot.lnk"
+$s = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk)
+$s.TargetPath = "powershell.exe"
+$s.Arguments  = '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "<racine>\scripts\start_bot.ps1"'
+$s.WorkingDirectory = "<racine>"
+$s.Save()
+```
+
+**Pourquoi pas une tâche planifiée** : `Register-ScheduledTask` et `schtasks /Create` sont
+refusés sur cette machine, y compris pour une tâche au niveau utilisateur — ce n'est pas une
+question d'élévation (D-031). `scripts/setup_task.ps1` reste livré pour une machine qui
+l'autoriserait. Conséquence à connaître : le bot n'écoute que si la session Windows est
+ouverte.
+
 Journal applicatif : `data/bot.log` (rotatif, jamais de secret dedans). Journal du
 processus (démarrages/arrêts) : `data/bot_process.log`.

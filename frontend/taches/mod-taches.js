@@ -3,6 +3,7 @@
 import { creerUiTaches, STRATEGIE_TACHES } from "./ui-taches.js";
 import { creerUiTachesSemaine } from "./ui-taches-semaine.js";
 import { creerUiTachesRec } from "./ui-taches-rec.js";
+import { creerAjoutTache } from "./ui-taches-ajout.js";
 import { jourIso, decalerJours, balance, groupe } from "./taches.js";
 import { synchroniserOccurrences } from "../socle/occurrences.js";
 
@@ -17,8 +18,15 @@ export default {
 
   creer(api, etat, cb) {
     const rec = creerUiTachesRec(api, etat, cb);
-    const jour = creerUiTaches(api, etat, cb, rec.ouvrirAjout);
-    const semaine = creerUiTachesSemaine(api, etat, cb, jour, rec.ouvrirAjout);
+    // Le FAB « + Ajouter » (écrans Jour et Semaine) et le bouton « + Ajouter aux travaux » du
+    // Todo ouvrent la feuille du handoff §8 — plus le formulaire de tâche RÉCURRENTE de
+    // `rec.ouvrirAjout`, qui reste la porte d'entrée du seul écran Réglages (D-024 : deux
+    // formulaires différents pour deux objets différents, occurrence vs récurrent).
+    // `onEcrit` référence `jour.rendre` par une fonction (pas par valeur) : `jour` n'existe
+    // pas encore à la construction de `ajout`, seulement au moment où `onEcrit` s'exécutera.
+    const ajout = creerAjoutTache(api, etat, cb, { onEcrit: () => jour.rendre() });
+    const jour = creerUiTaches(api, etat, cb, ajout.ouvrir);
+    const semaine = creerUiTachesSemaine(api, etat, cb, jour, ajout.ouvrir);
     return {
       ecrans: { jour: jour.rendre, semaine: semaine.rendre, "taches-rec": rec.rendre },
       avantChargement() { jour.fermerDetail(); },

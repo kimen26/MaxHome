@@ -209,6 +209,45 @@ def test_basculer_titre_inconnu_n_ecrit_rien():
     assert d.taches(depuis="2026-01-01") == avant
 
 
+def test_basculer_biberons_ne_coche_qu_une_occurrence():
+    """Non-régression D-023 étendu au bot : le regroupement change l'AFFICHAGE, jamais la
+    coche. « fait biberons » doit cocher UNE occurrence (la suivante non faite, rang 1),
+    laisser l'autre (rang 2) intacte — jamais les deux d'un coup."""
+    d = DonneesFausse()
+    taches_mod.du_jour(d, LUNDI)
+    avant = [dict(t) for t in d.taches(depuis="2026-01-01") if t["titre"] == "Laver les biberons"]
+    assert len(avant) == 2 and all(t["fait_le"] is None for t in avant)
+
+    cible, champs, erreur = taches_mod.basculer(d, "Yann", "biberons", True, LUNDI)
+    assert erreur is None
+    assert cible["rang"] == 1, "la première occurrence non faite est ciblée"
+
+    apres = [dict(t) for t in d.taches(depuis="2026-01-01") if t["titre"] == "Laver les biberons"]
+    faites = [t for t in apres if t["fait_le"]]
+    restantes = [t for t in apres if not t["fait_le"]]
+    assert len(faites) == 1 and faites[0]["rang"] == 1, "une seule occurrence cochée"
+    assert len(restantes) == 1 and restantes[0]["rang"] == 2, "l'autre occurrence reste à faire"
+
+
+# ---------- regrouper_pour_affichage (D-023 étendu au bot) : AFFICHAGE seulement ----------
+def test_regrouper_pour_affichage_fusionne_une_seule_ligne():
+    d = DonneesFausse()
+    liste, recurrents = taches_mod.du_jour(d, LUNDI)
+    restantes = taches_mod.restantes(liste, recurrents, LUNDI)
+    groupes = taches_mod.regrouper_pour_affichage(restantes, recurrents)
+    biberons = [g for g in groupes if g["tache"]["titre"] == "Laver les biberons"]
+    assert len(biberons) == 1, "les deux occurrences de biberons fusionnent en un seul groupe"
+    assert biberons[0]["total"] == 2 and biberons[0]["restantes"] == 2
+
+
+def test_regrouper_pour_affichage_fois_1_total_1():
+    d = DonneesFausse()
+    liste, recurrents = taches_mod.du_jour(d, LUNDI)
+    restantes = taches_mod.restantes(liste, recurrents, LUNDI)
+    groupes = taches_mod.regrouper_pour_affichage(restantes, recurrents)
+    assert all(g["total"] == 1 for g in groupes if g["tache"]["titre"] != "Laver les biberons")
+
+
 def test_restantes_trie_par_obligatoire_puis_echeance():
     d = DonneesFausse()
     liste, recurrents = taches_mod.du_jour(d, LUNDI)
@@ -216,6 +255,42 @@ def test_restantes_trie_par_obligatoire_puis_echeance():
     # Le linge (échéance dimanche prochain) n'est pas dû aujourd'hui.
     assert [t["titre"] for t in restantes] == ["Laver les biberons", "Laver les biberons"]
     assert [t["rang"] for t in restantes] == [1, 2]
+
+
+# ---------- tri par moment (012_moment.sql) ----------
+def _tache(id_, recurrent_id, echeance=None, rang=1):
+    return {"id": id_, "recurrent_id": recurrent_id, "echeance": echeance or LUNDI.isoformat(),
+            "rang": rang, "fait_le": None}
+
+
+def test_restantes_trie_matin_avant_soir():
+    recurrents = {1: {"obligatoire": False, "moment": "soir"},
+                  2: {"obligatoire": False, "moment": "matin"}}
+    taches = [_tache(10, 1), _tache(11, 2)]
+    restantes = taches_mod.restantes(taches, recurrents, LUNDI)
+    assert [t["id"] for t in restantes] == [11, 10], "le matin passe avant le soir à obligatoire égal"
+
+
+def test_restantes_moment_n_ecrase_pas_obligatoire():
+    """Obligatoire reste le premier critère : un « soir » obligatoire passe avant un « matin » qui ne l'est pas."""
+    recurrents = {1: {"obligatoire": True, "moment": "soir"},
+                  2: {"obligatoire": False, "moment": "matin"}}
+    taches = [_tache(10, 2), _tache(11, 1)]
+    restantes = taches_mod.restantes(taches, recurrents, LUNDI)
+    assert [t["id"] for t in restantes] == [11, 10]
+
+
+def test_restantes_sans_moment_ne_sont_pas_perdues_et_passent_apres():
+    """Hebdo/mensuelle/au besoin/quotidienne non réglée : rangées après matin et soir, jamais absentes."""
+    recurrents = {1: {"obligatoire": False, "moment": "matin"},
+                  2: {"obligatoire": False, "moment": None},
+                  3: {"obligatoire": False}}  # `moment` absent de la fiche récurrente
+    taches = [_tache(10, 2), _tache(11, 1), _tache(12, 3)]
+    restantes = taches_mod.restantes(taches, recurrents, LUNDI)
+    ids = [t["id"] for t in restantes]
+    assert set(ids) == {10, 11, 12}, "aucune tâche perdue"
+    assert ids[0] == 11, "le moment réglé (matin) vient en premier"
+    assert ids.index(11) < ids.index(10) and ids.index(11) < ids.index(12)
 
 
 # ---------- balance ----------

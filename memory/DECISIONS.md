@@ -270,3 +270,36 @@ Idempotent, réversible (`--inverse`). Le prénom n'existe donc qu'en base et da
 Corollaire pour les migrations futures : elles doivent accepter les DEUX formes de titre (avec le
 prénom et avec « le petit »), sinon un `where titre in (...)` ne trouve plus rien après renommage
 — c'est ce que fait 012_moment.sql.
+
+## D-031 — le bot redémarre par le dossier de démarrage, pas par une tâche planifiée (2026-09-12)
+`Register-ScheduledTask` et `schtasks /Create` sont refusés sur cette machine, même pour une tâche
+au niveau utilisateur (`/RL LIMITED`) et même hors session élevée : la création de tâches planifiées
+y est verrouillée par politique. D-011 et L-006 attendaient « Yann le fera en PowerShell admin » —
+l'élévation n'aurait rien changé, ce n'est pas une question de droits de session.
+Arbitrage : un raccourci `MaxHome-Bot.lnk` dans le dossier de démarrage de l'utilisateur
+(`[Environment]::GetFolderPath('Startup')`), qui lance `scripts/start_bot.ps1` masqué. Aucun
+privilège requis, le bot repart à chaque ouverture de session, et `start_bot.ps1` garde son rôle :
+verrou anti-double-instance (`data/bot.lock`, PID mort = on écrase) et relance automatique 5 s
+après un arrêt de `bot.py`.
+Vérifié en réel : bot et superviseur arrêtés, verrou retiré, raccourci lancé comme Windows le
+ferait — le bot est reparti sous un nouveau PID et a journalisé « bot démarré ».
+Limite : le bot ne tourne que si la session Windows de Yann est ouverte. Un service (NSSM) ou une
+Edge Function planifiée serait nécessaire pour une écoute 24/7 — inutile tant que le PC reste
+allumé aux heures où le foyer s'en sert.
+
+## D-032 — le bot groupe aussi les occurrences, et sépare le matin du soir (2026-09-12)
+D-023 avait tranché « une tâche prévue plusieurs fois tient sur une ligne » pour l'application,
+en excluant explicitement le bot (« il continue de lister par occurrence »). La raison invoquée
+alors — une liste illisible — valait pourtant autant sur Telegram : le message du soir affichait
+16 lignes pour 12 tâches, « Laver les biberons » deux fois, « Faire à manger » deux fois.
+Le bot groupe désormais à l'AFFICHAGE (`regrouper_pour_affichage` dans taches.py, pure et testée),
+avec le compte `(0/2)` seulement quand la tâche est prévue plusieurs fois. Le CIBLAGE et la COCHE
+restent par occurrence : `fait biberons` coche le rang suivant, pas les deux — une non-régression
+que le test `test_basculer_biberons_ne_coche_qu_une_occurrence` protège (vérifié par mutation :
+saboter la coche fait bien échouer le test).
+Depuis 012_moment.sql, la liste se lit en deux blocs « Matin » / « Soir », plus un bloc pour les
+tâches sans moment, jamais perdues.
+Le rappel de 19h suit la même logique de ton : « à faire avant ce soir » pour ce qui est encore
+faisable, puis un constat neutre « Pas fait ce matin ». Réclamer à 19h une tâche du matin comme si
+elle restait à faire est un reproche creux ; la faire disparaître trahirait le but du module, qui
+est justement de rendre visible ce que chacun porte.
