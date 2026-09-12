@@ -303,3 +303,19 @@ Le rappel de 19h suit la même logique de ton : « à faire avant ce soir » pou
 faisable, puis un constat neutre « Pas fait ce matin ». Réclamer à 19h une tâche du matin comme si
 elle restait à faire est un reproche creux ; la faire disparaître trahirait le but du module, qui
 est justement de rendre visible ce que chacun porte.
+
+## D-033 — MaxHome s'installe comme une app, mais sans service worker (2026-09-12)
+`frontend/manifest.webmanifest` + cinq icônes (`frontend/icones/`, générées par
+`scripts/generer_icones.mjs`, rejouable) rendent l'app installable sur l'écran d'accueil :
+icône, plein écran sans barre d'URL, barre d'état au bleu du projet.
+Piège du sous-chemin : le site est servi sous `https://kimen26.github.io/MaxHome/`, pas à la
+racine du domaine. `start_url` et `scope` sont donc RELATIFS (`./`) ; un `/` initial pointerait
+sur `kimen26.github.io/` et casserait l'installation. Vérifié en servant `frontend/` sous
+`/MaxHome/` en local, pas seulement raisonné.
+**Pas de service worker**, volontairement. Toute donnée utile vient de Supabase : un cache
+n'apporterait rien hors ligne, et le risque dominant est inverse — un worker mal purgé sert un
+JS périmé à Claudia et Yann, qui ne vont pas vider un cache navigateur. Chrome et Brave
+installent une PWA sur la seule base d'un manifeste valide avec icônes et `display: standalone`.
+Position réversible : si un besoin hors-ligne réel apparaît, un worker minimal (coquille
+seulement, network-first sur le HTML, versionné, purge à l'activation) s'ajoutera sans toucher
+au manifeste.
