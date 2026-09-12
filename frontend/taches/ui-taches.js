@@ -1,16 +1,26 @@
-// Écran « Aujourd'hui » du module Tâches : à faire (par groupe), au besoin, fait aujourd'hui, détail.
-// Le comportement (coche, panneau, rollback) vient de blocs-checklist ; ici, le HTML et les règles.
+// Écran « Tâches · Jour » : segmenté Jour|Semaine, bande des 7 jours, cartes du jour puis
+// Semaine/Mois, barre « Fait » repliable. Le comportement de la coche (cycle, écriture,
+// rollback) vient de blocs-checklist ; ici, le HTML et les règles d'affichage (D-024, inv. 6).
+//
+// Écart avec le handoff, assumé faute de donnée : la maquette sépare les tâches quotidiennes
+// en cartes « Matin / Soir », mais aucune colonne ne porte ce moment en base (006_taches.sql,
+// 008_parts.sql) et ce n'est pas dans le périmètre du Lot 3. Une seule carte « Aujourd’hui »
+// les regroupe ; Semaine/Mois, eux, reposent sur `frequence` qui existe réellement.
+//
 // Une tâche prévue plusieurs fois par période s'affiche sur UNE ligne, cochée autant de fois
 // que prévu (D-023) : la liste se lit d'un coup d'œil, le bot garde une occurrence par coche.
 
-import { $, txt, toast, ouvrirFeuille, fermerFeuille, montrerEcran } from "../socle/ui-base.js";
-import { ligneCoche, carteListe, chiffres, titreSection, enteteDetail, choixQui } from "../socle/blocs.js";
+import { $, txt, montrerEcran, ouvrirFeuille, fermerFeuille, toast } from "../socle/ui-base.js";
+import { enteteDetail, choixQui } from "../socle/blocs.js";
 import { creerCheckList } from "../socle/blocs-checklist.js";
-import { champ, select, listeChoix, membresOptions, lire } from "../socle/blocs-form.js";
-import { occurrencesManquantes, perimees, pointsDe, groupe, GROUPES, trier, jourIso, balance,
-  decalerJours, FREQUENCES, PENIBILITES, pts } from "./taches.js";
+import { boutonCycle, brancherCycles, suivante } from "../socle/blocs-cycle.js";
+import { occurrencesManquantes, perimees, partsDe, creditDe, partsTexte, groupe, trier,
+  jourIso, depuisIso, decalerJours, echeance, FREQUENCES } from "./taches.js";
 
 const ASIDE = "#detail-tache-pc";
+// Marqueur du cran « fait à deux » dans le cycle de coche : ni un prénom, ni null, jamais
+// écrit tel quel en base (basculer() le traduit en qui + qui2, cf. creditDe).
+const A_DEUX = "_deux";
 
 /** Occurrences du jour : purge des périmées, création des manquantes (taches.js, testé). */
 export const STRATEGIE_TACHES = {
@@ -24,61 +34,120 @@ export const STRATEGIE_TACHES = {
 
 export function creerUiTaches(api, etat, cb) {
   const recDe = (t) => etat.tachesRec.find((r) => r.id === t.recurrent_id);
-  const aujourdhui = () => jourIso(new Date());
-  const faiteAujourdhui = (t) => t.fait_le && jourIso(new Date(t.fait_le)) === aujourdhui();
+  const membres = () => etat.membres.map((m) => m.prenom);
+  let jourSel = jourIso(new Date());
+  let faitesOuvertes = false;
+
   const aFaire = () => trier(etat.taches.filter((t) => !t.fait_le), etat.tachesRec);
-  const faites = () => etat.taches.filter(faiteAujourdhui).sort((a, b) => b.fait_le.localeCompare(a.fait_le));
-  const duJour = () => aFaire().filter((t) => ["retard", "aujourdhui"].includes(groupe(t, aujourdhui())));
+  const faitesLe = (jour) => etat.taches.filter((t) => t.fait_le && jourIso(new Date(t.fait_le)) === jour)
+    .sort((a, b) => b.fait_le.localeCompare(a.fait_le));
+  const duJour = (jour) => aFaire().filter((t) => ["retard", "aujourdhui"].includes(groupe(t, jour)));
+
+  /** Crédit d'une occurrence, quelle que soit la forme de l'objet (occurrence réelle ou figurée). */
+  const credit = (t) => creditDe({ parts_quart: t.parts_quart }, t);
+  const totalCredit = (c) => Object.values(c).reduce((s, n) => s + n, 0);
+  const partDe = (c, prenom) => c[prenom] ?? 0;
+
+  // ---------- cycle de coche (tri-état) ----------
+  /** Valeurs du cycle, dans l'ordre du handoff : Claudia → Yann → (les deux) → rien. */
+  const valeursCycle = (r) => (r?.partageable ? [null, ...membres(), A_DEUX] : [null, ...membres()]);
+  /** Valeur courante de la case, dérivée de l'état réel de la tâche (jamais recalculée à part). */
+  const valeurCourante = (t) => (!t.fait_le ? null : t.qui2 ? A_DEUX : t.qui);
+
+  function renduCase(valeur) {
+    if (valeur === null) return { libelle: "", classe: "case-cycle-vide" };
+    if (valeur === A_DEUX) return { libelle: "CY", classe: "case-cycle-deux" };
+    const [p1] = membres();
+    return { libelle: valeur[0].toUpperCase(), classe: valeur === p1 ? "case-cycle-p1" : "case-cycle-p2" };
+  }
+  function caseTacheHtml(t) {
+    const r = recDe(t);
+    return boutonCycle({
+      cle: String(t.id), valeurs: valeursCycle(r), valeur: valeurCourante(t),
+      rendu: renduCase, classe: "case-tache", taille: "jour",
+    });
+  }
 
   /** Regroupe les occurrences d'un même récurrent et d'une même échéance : une ligne par tâche. */
   function regrouper(liste) {
     const groupes = new Map();
     for (const t of liste) {
       const cle = t.recurrent_id ? `${t.recurrent_id}|${t.echeance}` : `ponctuelle-${t.id}`;
-      if (!groupes.has(cle)) groupes.set(cle, { tache: t, restantes: 0 });
-      groupes.get(cle).restantes += 1;
+      if (!groupes.has(cle)) groupes.set(cle, t);
     }
     return [...groupes.values()];
   }
 
-  const sousTitre = (t, restantes) => {
-    const r = recDe(t);
-    const morceaux = [t.categorie];
-    if (r && r.fois > 1) {
-      const faitesDuGroupe = etat.taches.filter((x) => x.recurrent_id === t.recurrent_id && x.echeance === t.echeance && x.fait_le).length;
-      morceaux.push(`${faitesDuGroupe}/${r.fois} fait${faitesDuGroupe > 1 ? "s" : ""}${restantes > 1 ? "" : ", dernière"}`);
+  /** Parts affichées sur une ligne : `1+1` quand fait à deux, sinon la valeur qui suit qui a coché. */
+  function partsLigne(t) {
+    if (t.fait_le) {
+      const c = credit(t);
+      return t.qui2 ? `${partsTexte(c[t.qui] ?? 0)}+${partsTexte(c[t.qui2] ?? 0)}` : partsTexte(c[t.qui] ?? 0);
     }
-    if (r) morceaux.push(FREQUENCES[r.frequence].toLowerCase());
-    return morceaux.join(" · ");
-  };
+    const r = recDe(t);
+    return partsTexte(partsDe(r, r?.attribue_a ?? null));
+  }
 
-  const ligne = ({ tache: t, restantes = 1 }, prioritaire = false) => ligneCoche({
-    id: t.id, titre: t.titre, sous: sousTitre(t, restantes), prioritaire,
-    cochee: !!t.fait_le, pastille: t.qui,
-    droite: `<span class="pts">${pts(t.fait_le ? t.points : pointsDe(recDe(t), t))}</span>`,
-    notes: t.fait_le ? [] : [t.echeance < aujourdhui() ? `Prévue le ${t.echeance.slice(8)}/${t.echeance.slice(5, 7)}` : null],
-    alerte: !t.fait_le && t.echeance < aujourdhui(),
-  });
+  function ligneTache(t, { metaDroite = null, metaClasse = "" } = {}) {
+    const r = recDe(t);
+    const fait = !!t.fait_le;
+    const droite = metaDroite ?? partsLigne(t);
+    return `<div class="ligne-tache${fait ? " ligne-faite" : ""}" data-id="${t.id}">
+      ${caseTacheHtml(t)}
+      <span class="point-oblig ${r?.obligatoire ? (fait ? "oblig-faite" : "oblig-due") : "oblig-non"}" aria-hidden="true"></span>
+      <span class="titre-tache${fait ? " fait" : ""}">${txt(t.titre)}</span>
+      <span class="mono parts-ligne ${metaClasse}">${txt(droite)}</span>
+    </div>`;
+  }
 
-  // ---------- détail ----------
+  const carte = (nom, lignesHtml, compte, compteClasse) => `<div class="carte-taches">
+    <div class="carte-taches-tete${compteClasse === "vert" ? " tete-complete" : ""}">
+      <span>${txt(nom)}</span><span class="mono compte-${compteClasse || "ambre"}">${txt(compte)}</span>
+    </div>
+    ${lignesHtml || '<p class="vide-carte">Rien.</p>'}
+  </div>`;
+
+  /** Carte « Aujourd’hui » : les occurrences quotidiennes du jour (cf. écart en tête de fichier). */
+  function carteAujourdhui(jour) {
+    const restantes = regrouper(duJour(jour));
+    const faites = faitesLe(jour);
+    const total = restantes.length + faites.length;
+    const complet = total > 0 && restantes.length === 0;
+    const compte = total ? `${faites.length}/${total}` : "—";
+    const lignes = [...restantes, ...faites].map((t) => ligneTache(t)).join("");
+    return carte("Aujourd’hui", lignes, complet ? "auj." : compte, complet ? "vert" : "ambre");
+  }
+
+  /** Carte Semaine/Mois : avancement sur la période entière, la tâche se coche sur `jour` choisi. */
+  function cartePeriode(nom, frequence, jour) {
+    const recs = etat.tachesRec.filter((r) => r.actif && r.frequence === frequence);
+    const finPeriode = echeance(frequence, jour);
+    const lignes = recs.map((r) => {
+      const occs = etat.taches.filter((t) => t.recurrent_id === r.id && t.echeance === finPeriode);
+      const faitesN = occs.filter((t) => t.fait_le).length;
+      // Occurrence à cocher : la première non faite, sinon la dernière faite (annulation possible).
+      const t = occs.find((x) => !x.fait_le) ?? occs.find((x) => x.fait_le) ?? occs[0];
+      if (!t) return "";
+      const complet = faitesN >= r.fois;
+      const meta = complet ? "fait" : faitesN > 0 ? `${faitesN}/${r.fois}` : "—";
+      return ligneTache(t, { metaDroite: meta, metaClasse: complet ? "vert" : faitesN > 0 ? "ambre" : "" });
+    }).filter(Boolean);
+    return carte(nom, lignes.join(""), "", "");
+  }
+
+  // ---------- détail (feuille / colonne PC) ----------
   function htmlDetail(t) {
     const r = recDe(t);
-    const points = t.fait_le ? t.points : pointsDe(r, t);
     const quand = t.fait_le ? new Date(t.fait_le).toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : null;
-    const autres = etat.membres.map((m) => m.prenom).filter((p) => p !== etat.prenom);
     return `<div class="detail" data-id="${t.id}">
-      ${enteteDetail(t.titre, r ? `${FREQUENCES[r.frequence]}${r.fois > 1 ? ` · ${r.fois} fois` : ""} · ${t.categorie}` : `Hors liste · ${t.categorie}`)}
+      ${enteteDetail(t.titre, r ? `${FREQUENCES[r.frequence]}${r.obligatoire ? " · obligatoire" : ""}` : "Hors liste")}
       <div class="detail-montant">
-        <span class="mono grand">${pts(points)}</span>
-        <span class="sous">${r ? `Pénibilité « ${PENIBILITES[r.penibilite]} ». ` : ""}${t.fait_le ? `Fait le ${quand}${t.qui ? ` par ${txt(t.qui)}` : ""}.` : "Les points vont à la personne qui coche."}</span>
+        <span class="mono grand">${txt(partsLigne(t))}</span>
+        <span class="sous">${t.fait_le ? `Fait le ${quand}${t.qui ? ` par ${txt(t.qui)}${t.qui2 ? ` et ${txt(t.qui2)}` : ""}` : ""}.` : "Les parts vont à qui coche."}</span>
       </div>
-      ${t.fait_le ? `<div class="detail-consigne"><span class="etiquette">Fait par</span>${choixQui(etat.membres.map((m) => m.prenom), t.qui)}</div>` : ""}
       ${r?.consigne ? `<div class="detail-consigne"><span class="etiquette">Consigne</span><p class="texte-consigne">${txt(r.consigne)}</p></div>` : ""}
       <div class="detail-actions">
-        ${t.fait_le
-    ? '<button class="btn grandir" data-basculer>Annuler la coche</button>'
-    : `<button class="btn btn-vert grandir" data-basculer>✓ Fait par moi</button>
-           ${autres.map((p) => `<button class="btn grandir" data-pour="${txt(p)}">Fait par ${txt(p)}</button>`).join("")}`}
+        ${t.fait_le ? '<button class="btn grandir" data-basculer>Annuler la coche</button>' : choixQui(membres(), null)}
       </div>
       ${r ? '<button class="btn-lien centre" data-vers-reglages>Modifier la tâche récurrente</button>' : ""}
     </div>`;
@@ -87,121 +156,166 @@ export function creerUiTaches(api, etat, cb) {
   const liste = creerCheckList({
     ecran: "#ecran-jour", aside: ASIDE,
     trouver: (id) => etat.taches.find((t) => t.id === id),
-    premier: () => duJour()[0] ?? faites()[0],
+    premier: () => duJour(jourSel)[0] ?? faitesLe(jourSel)[0],
     htmlDetail, rendre, echec: cb.echec,
     brancherDetail: (t, racine, { basculer, fermer }) => {
-      for (const b of racine.querySelectorAll("[data-pour]")) b.addEventListener("click", () => basculer({ pour: b.dataset.pour }));
-      for (const b of racine.querySelectorAll("[data-qui]")) b.addEventListener("click", () => attribuer(t, b.dataset.qui));
+      for (const b of racine.querySelectorAll("[data-qui]")) b.addEventListener("click", () => basculer({ suivant: b.dataset.qui }));
       racine.querySelector("[data-vers-reglages]")?.addEventListener("click", () => { fermer(); montrerEcran("taches-rec"); });
     },
     basculer: {
-      // Les points se figent à la coche : lus AVANT de poser la date (L-008).
-      figer: (t) => pointsDe(recDe(t), t),
-      appliquer: (t, figes, { pour = etat.prenom } = {}) => {
-        if (t.fait_le) Object.assign(t, { fait_le: null, points: 0, qui: recDe(t)?.attribue_a ?? null });
-        else Object.assign(t, { fait_le: new Date().toISOString(), qui: pour, points: figes });
-        return { fait_le: t.fait_le, qui: t.qui, points: t.points };
+      // Les parts se figent à la coche : lues AVANT de poser la date (L-008).
+      figer: (t) => partsDe(recDe(t), t.qui ?? recDe(t)?.attribue_a ?? null),
+      appliquer(t, figees, { suivant } = {}) {
+        const r = recDe(t);
+        // `suivant` vient du cycle (case tapée) ou du choix « Fait par » du détail.
+        const cible = suivant !== undefined ? suivant : (t.fait_le ? null : etat.prenom);
+        if (cible === null) Object.assign(t, { fait_le: null, qui: null, qui2: null, parts_quart: 0 });
+        else if (cible === A_DEUX) {
+          const [p1, p2] = membres();
+          Object.assign(t, { fait_le: t.fait_le ?? new Date().toISOString(), qui: p1, qui2: p2, parts_quart: r.parts_quart });
+        } else Object.assign(t, { fait_le: t.fait_le ?? new Date().toISOString(), qui: cible, qui2: null, parts_quart: figees });
+        return { fait_le: t.fait_le, qui: t.qui, qui2: t.qui2, parts_quart: t.parts_quart };
       },
       ecrire: (id, champs) => api.majTache(id, champs),
-      message: (t, avant) => (avant.fait_le ? "Coche annulée." : `Fait. +${pts(t.points)} pour ${t.qui}.`),
+      message: (t) => {
+        if (!t.fait_le) return "Coche annulée.";
+        const c = credit(t);
+        return `Fait. ${Object.entries(c).map(([p, q]) => `${partsTexte(q)} part${q >= 8 ? "s" : ""} pour ${p}`).join(" et ")}.`;
+      },
     },
   });
 
-  async function attribuer(t, qui) {
-    if (t.qui === qui) return;
-    const avant = t.qui;
-    t.qui = qui;
-    rendre();
-    liste.ouvrirDetail(t.id);
-    try { await api.majTache(t.id, { qui }); toast(`Attribuée à ${qui}.`); }
-    catch (e) { t.qui = avant; rendre(); cb.echec(e); }
-  }
-
-  /** Tâche « au besoin » : créée déjà faite, par moi, maintenant. */
-  async function faireMaintenant(recId) {
-    const r = etat.tachesRec.find((x) => x.id === recId);
-    if (!r) return;
-    try {
-      const rang = 1 + etat.taches.filter((x) => x.recurrent_id === r.id && x.echeance === aujourdhui()).length;
-      const [t] = await api.creerTaches([{ recurrent_id: r.id, titre: r.titre, categorie: r.categorie,
-        echeance: aujourdhui(), rang, qui: etat.prenom, fait_le: new Date().toISOString(), points: r.penibilite }]);
-      etat.taches.push(t);
-      rendre();
-      toast(`${r.titre} : +${pts(t.points)} pour ${etat.prenom}.`);
-    } catch (e) { cb.echec(e); }
-  }
-
-  function formulairePonctuelle() {
-    ouvrirFeuille(`<form id="form-tache-ponct" class="pile">
-      <h2>Tâche faite hors liste</h2>
-      ${champ("titre", "Quoi", { requis: true, placeholder: "ex. Monter le lit", attrs: 'autocomplete="off"' })}
-      ${champ("categorie", "Catégorie", { valeur: "Maison", attrs: 'list="categories-taches"' })}
-      ${listeChoix("categories-taches", [...new Set(etat.tachesRec.map((r) => r.categorie))])}
-      ${select("points", "Pénibilité", PENIBILITES.slice(1).map((l, i) => [i + 1, `${i + 1} — ${l}`]), 3)}
-      ${select("qui", "Fait par", membresOptions(etat), etat.prenom)}
-      <button type="submit" class="btn btn-bleu grandir">Enregistrer</button>
-    </form>`);
-    $("#form-tache-ponct").addEventListener("submit", async (ev) => {
-      ev.preventDefault();
-      try {
-        const v = lire(ev.target, { nombres: ["points"] });
-        const [t] = await api.creerTaches([{ recurrent_id: null, titre: v.titre, categorie: v.categorie ?? "Maison",
-          echeance: aujourdhui(), rang: 1, qui: v.qui, fait_le: new Date().toISOString(), points: v.points }]);
-        etat.taches.push(t);
-        fermerFeuille();
-        rendre();
-        toast("Tâche enregistrée.");
-      } catch (e) { cb.echec(e); }
-    });
+  // ---------- bande des 7 jours ----------
+  function bandeJours() {
+    const lundi = decalerJours(jourSel, -((depuisIso(jourSel).getDay() + 6) % 7));
+    const jours = Array.from({ length: 7 }, (_, i) => decalerJours(lundi, i));
+    const auj = jourIso(new Date());
+    const [p1] = membres();
+    return `<div class="bande-jours">${jours.map((j) => {
+      const c = faitesLe(j).reduce((acc, t) => {
+        for (const [p, q] of Object.entries(credit(t))) acc[p] = (acc[p] ?? 0) + q;
+        return acc;
+      }, {});
+      const total = totalCredit(c);
+      const pctP1 = total ? Math.round((partDe(c, p1) / total) * 100) : 50;
+      const d = depuisIso(j);
+      const classes = ["jour-bande", j === jourSel ? "jour-choisi" : "", j === auj && j !== jourSel ? "jour-auj" : "", j > auj ? "jour-futur" : ""].filter(Boolean).join(" ");
+      const aria = `${d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric" })}${j === auj ? ", aujourd’hui" : ""}`;
+      return `<button type="button" class="${classes}" data-jour="${j}" aria-label="${txt(aria)}">
+        <span class="jour-lettre">${d.toLocaleDateString("fr-FR", { weekday: "narrow" }).toUpperCase()}</span>
+        <span class="jour-num">${d.getDate()}</span>
+        <span class="jour-barre"><span style="width:${pctP1}%"></span></span>
+      </button>`;
+    }).join("")}</div>`;
   }
 
   // ---------- rendu ----------
   function rendre() {
-    const jour = aujourdhui();
-    const restantes = aFaire();
-    const termines = faites();
-    const total = duJour().length + termines.length;
+    const jour = jourSel;
+    const restantes = duJour(jour);
+    const termines = faitesLe(jour);
+    const [p1, p2] = membres();
 
-    $("#titre-jour").textContent = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })
-      .replace(/^./, (c) => c.toUpperCase());
-    $("#sous-jour").textContent = total
-      ? `${termines.length} tâche${termines.length > 1 ? "s" : ""} sur ${total} faite${termines.length > 1 ? "s" : ""}`
-      : "Rien de prévu aujourd’hui.";
-    $("#jauge-jour").style.width = total ? `${Math.round((termines.length / total) * 100)}%` : "0%";
+    const oblRestants = regrouper(restantes).filter((t) => recDe(t)?.obligatoire).map((t) => t.titre);
+    const d = depuisIso(jour);
+    $("#titre-jour").textContent = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "short" }).replace(/^./, (c) => c.toUpperCase());
+    $("#sous-jour").textContent = oblRestants.length
+      ? `aujourd’hui · oblig. : ${oblRestants.join(", ")}`
+      : restantes.length || termines.length ? "aujourd’hui · rien oublié aujourd’hui" : "aujourd’hui · rien de prévu";
 
-    const b = balance(etat.taches, etat.membres.map((m) => m.prenom), decalerJours(jour, -6), jour);
-    $("#chiffres-jour").innerHTML = chiffres([
-      { etiquette: "Reste aujourd’hui", valeur: String(duJour().length), accent: true },
-      ...etat.membres.map((m) => ({ etiquette: `${m.prenom} · 7 j`, valeur: `${Math.round(b.ratio[m.prenom] * 100)} %` })),
-    ]);
+    const c = termines.reduce((acc, t) => { for (const [p, q] of Object.entries(credit(t))) acc[p] = (acc[p] ?? 0) + q; return acc; }, {});
+    const total = totalCredit(c);
+    const pctP1 = total ? Math.round((partDe(c, p1) / total) * 100) : 50;
+    $("#chiffres-jour").innerHTML = `<span class="mono repere-p1">${txt(p1?.[0] ?? "")} ${txt(partsTexte(partDe(c, p1)))}</span>
+      <span class="barre-partagee"><span style="width:${pctP1}%"></span></span>
+      <span class="mono repere-p2">${txt(partsTexte(partDe(c, p2)))} ${txt(p2?.[0] ?? "")}</span>`;
 
-    let html = "";
-    let premier = true;
-    for (const [cle, libelle] of GROUPES) {
-      const groupes = regrouper(restantes.filter((t) => groupe(t, jour) === cle));
-      if (!groupes.length) continue;
-      html += titreSection(libelle) + carteListe(groupes.map((g) => { const l = ligne(g, premier); premier = false; return l; }), "");
+    $("#bande-jours-taches").innerHTML = bandeJours();
+    for (const b of $("#bande-jours-taches").querySelectorAll("[data-jour]")) {
+      b.addEventListener("click", () => { jourSel = b.dataset.jour; rendre(); });
     }
-    $("#taches-a-faire").innerHTML = html || `${titreSection("À faire")}<p class="vide">Tout est fait. Bravo.</p>`;
 
-    const auBesoin = etat.tachesRec.filter((r) => r.actif && r.frequence === "au_besoin");
-    $("#taches-au-besoin").innerHTML = auBesoin.length
-      ? `<div class="carte-liste">${auBesoin.map((r) => `<div class="mvt rapide" data-rapide="${r.id}">
+    $("#cartes-moment").innerHTML = `<div class="grille-cartes">${carteAujourdhui(jour)}</div>`;
+    $("#cartes-periode").innerHTML = `<div class="grille-cartes">
+      ${cartePeriode("Cette semaine", "hebdo", jour)}${cartePeriode("Ce mois", "mensuel", jour)}
+    </div>`;
+
+    $("#barre-faites").innerHTML = `<button type="button" class="barre-fait-bouton" id="bouton-plier-faites"
+        aria-expanded="${faitesOuvertes}">
+      <span class="fait-label">Fait · ${termines.length}</span>
+      <span class="fait-pastilles">${termines.slice(0, 6).map((t) => {
+        const q = Object.values(credit(t))[0] ?? 0;
+        return `<span class="pastille-fait ${t.qui2 ? "case-cycle-deux" : t.qui === p1 ? "case-cycle-p1" : "case-cycle-p2"}">${txt(partsTexte(q))}</span>`;
+      }).join("")}</span>
+      <span class="fait-voir">${faitesOuvertes ? "Replier" : "Voir"}</span>
+    </button>`;
+    $("#bouton-plier-faites").addEventListener("click", () => { faitesOuvertes = !faitesOuvertes; rendre(); });
+
+    $("#liste-faites-jour").hidden = !faitesOuvertes;
+    if (faitesOuvertes) {
+      $("#liste-faites-jour").innerHTML = termines.length
+        ? `<div class="carte-taches">${termines.map((t) => ligneTache(t)).join("")}</div>`
+        : '<p class="vide-carte">Rien de coché.</p>';
+    }
+
+    $("#badge-todo").textContent = String(auBesoinActives().length);
+
+    liste.apresRendu();
+    brancherCycles($("#ecran-jour"), (cle) => {
+      const t = etat.taches.find((x) => x.id === Number(cle));
+      if (!t) return;
+      liste.basculer(t.id, { suivant: suivante(valeursCycle(recDe(t)), valeurCourante(t)) });
+    });
+    // apresRendu() ouvre le détail via brancherCoches(), qui ne connaît que .mvt[data-id] : nos
+    // lignes portent leur propre layout (.ligne-tache), donc on branche nous-même l'ouverture au
+    // tap sur la ligne. La case-cycle stoppe sa propagation (blocs-cycle.js), pas de conflit.
+    for (const el of $("#ecran-jour").querySelectorAll(".ligne-tache[data-id]")) {
+      el.addEventListener("click", () => { if (Number(el.dataset.id) > 0) liste.ouvrirDetail(Number(el.dataset.id)); });
+    }
+  }
+
+  // ---------- Todo : travaux sans date (tâches récurrentes « au besoin ») ----------
+  const auBesoinActives = () => etat.tachesRec.filter((r) => r.actif && r.frequence === "au_besoin");
+
+  /** Tâche « au besoin » cochée depuis le Todo : créée déjà faite, par moi, maintenant. */
+  async function faireDepuisTodo(recId) {
+    const r = etat.tachesRec.find((x) => x.id === recId);
+    if (!r) return;
+    try {
+      const rang = 1 + etat.taches.filter((x) => x.recurrent_id === r.id && x.echeance === jourSel).length;
+      const [t] = await api.creerTaches([{ recurrent_id: r.id, titre: r.titre, categorie: r.categorie,
+        echeance: jourSel, rang, qui: etat.prenom, fait_le: new Date().toISOString(), parts_quart: r.parts_quart }]);
+      etat.taches.push(t);
+      fermerFeuille();
+      rendre();
+      toast(`${r.titre} : ${partsTexte(r.parts_quart)} part${r.parts_quart >= 8 ? "s" : ""} pour ${etat.prenom}.`);
+    } catch (e) { cb.echec(e); }
+  }
+
+  function ouvrirTodo() {
+    const items = auBesoinActives();
+    ouvrirFeuille(`<h2 class="feuille-titre">Travaux en attente</h2>
+      <p class="sous">Comptent en parts, sans date fixe.</p>
+      ${items.length ? `<div class="carte-liste">${items.map((r) => `<div class="mvt rapide" data-todo="${r.id}">
           <span class="case rapide" aria-hidden="true">+</span>
           <div class="mvt-corps"><span class="mvt-titre">${txt(r.titre)}</span>
             <span class="mvt-trajet">${txt(r.categorie)} · quand c’est nécessaire</span></div>
-          <div class="mvt-droite"><span class="pts">${pts(r.penibilite)}</span></div>
-        </div>`).join("")}</div>`
-      : '<p class="vide">Aucune tâche « au besoin ».</p>';
-
-    $("#taches-faites").innerHTML = carteListe(termines.map((t) => ligne({ tache: t })), "Rien de coché pour l’instant.");
-    for (const el of $("#ecran-jour").querySelectorAll("[data-rapide]")) {
-      el.addEventListener("click", () => faireMaintenant(Number(el.dataset.rapide)));
+          <div class="mvt-droite"><span class="mono">${txt(partsTexte(r.parts_quart))}</span></div>
+        </div>`).join("")}</div>` : '<p class="vide">Aucun travail en attente.</p>'}`);
+    for (const el of $("#feuille-corps").querySelectorAll("[data-todo]")) {
+      el.addEventListener("click", () => faireDepuisTodo(Number(el.dataset.todo)));
     }
-    liste.apresRendu();
   }
 
-  $("#btn-tache-ponctuelle").addEventListener("click", formulairePonctuelle);
+  $("#segment-vue-taches")?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-vue]");
+    if (b) montrerEcran(b.dataset.vue);
+  });
+  $("#btn-todo")?.addEventListener("click", ouvrirTodo);
 
-  return { rendre, fermerDetail: liste.fermerDetail };
+  return {
+    rendre, fermerDetail: liste.fermerDetail,
+    jourSelectionne: () => jourSel,
+    allerAuJour: (j) => { jourSel = j; montrerEcran("jour"); },
+  };
 }

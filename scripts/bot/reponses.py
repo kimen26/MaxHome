@@ -84,9 +84,29 @@ def pluriel(n, mot):
     return f"{n} {mot}{'s' if n > 1 else ''}"
 
 
-def confirmation_tache(titre, points, prenom, fait):
+def parts_texte(quart):
+    """« 0,5 » « 1,5 » « 8 » — virgule française, pas de zéro inutile.
+
+    Miroir de frontend/taches/taches.js::partsTexte.
+    """
+    valeur = quart / 4
+    if valeur == int(valeur):
+        valeur = int(valeur)
+    return str(valeur).replace(".", ",")
+
+
+def parts_mot(quart):
+    """« 1 part » / « 2 parts » — un seul endroit, l'accord se fait ici.
+
+    Miroir de frontend/taches/taches.js::parts. Pluriel à partir de 2 (8 quarts), pas de 1 :
+    en français « 1,5 part » reste au singulier.
+    """
+    return f"{parts_texte(quart)} part{'s' if quart >= 8 else ''}"
+
+
+def confirmation_tache(titre, parts_quart, prenom, fait):
     if fait:
-        return f"{titre} : fait par {prenom} ✔ (+{pluriel(points, 'pt')})"
+        return f"{titre} : fait par {prenom} ✔ (+{parts_mot(parts_quart)})"
     return f"{titre} : coche annulée."
 
 
@@ -96,20 +116,24 @@ def liste_taches(restantes, recurrents, aujourdhui):
         return "Rien à faire aujourd'hui ✔"
     lignes = ["À faire aujourd'hui :"]
     for t in restantes:
-        pts = recurrents.get(t["recurrent_id"], {}).get("penibilite") or t.get("points") or 1
+        quart = recurrents.get(t["recurrent_id"], {}).get("parts_quart") or t.get("parts_quart") or 0
         retard = " ⚠️ en retard" if t["echeance"] < aujourdhui else ""
         qui = f" ({t['qui']})" if t.get("qui") else ""
-        lignes.append(f"  {t['titre']} — {pluriel(pts, 'pt')}{qui}{retard}")
+        lignes.append(f"  {t['titre']} — {parts_mot(quart)}{qui}{retard}")
     return "\n".join(lignes)
 
 
-def balance_taches(b, membres, jours):
+def balance_taches(b, membres, jours, obligatoire=None):
+    """`obligatoire` : ratio KPI hebdomadaire optionnel ({prenom: ratio}), affiché en plus."""
     lignes = [f"Balance sur {jours} jours :"]
     for p in membres:
-        lignes.append(f"  {p} : {round(b['ratio'][p] * 100)} % — {pluriel(b['points'][p], 'pt')}"
+        lignes.append(f"  {p} : {round(b['ratio'][p] * 100)} % — {parts_mot(b['parts'][p])}"
                       f" · {pluriel(b['nombre'][p], 'tâche')}")
     if not b["total"]:
         lignes.append("Aucune tâche cochée sur la période.")
+    if obligatoire:
+        meneur = max(obligatoire, key=obligatoire.get)
+        lignes.append(f"Obligatoire · {meneur} en assure {round(obligatoire[meneur] * 100)} %")
     return "\n".join(lignes)
 
 

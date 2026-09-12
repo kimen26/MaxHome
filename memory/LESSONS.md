@@ -137,3 +137,73 @@ Mnémonique : une recette attend des preuves (données rendues, réponse réseau
 La liste des courses affichait « Liste vide » une seconde avant de se remplir, et la recette
 comptait zéro. Le squelette statique doit rester jusqu'au premier chargement du module
 (`prets` dans app.js) ; l'accueil dit « Chargement… » tant que le résumé n'est pas fiable.
+
+## L-020 — un module du socle qui touche le DOM à l'import rend tout le socle intestable (2026-09-12)
+`ui-base.js` branchait `document.addEventListener("keydown", …)` et le clic du fond de feuille au
+NIVEAU MODULE, pas dans une fonction. Conséquence invisible pendant des mois : tout module qui
+importe `ui-base.js` — donc `blocs.js`, `blocs-cycle.js`, tout le socle — lève
+`document is not defined` dès qu'on l'importe en Node. Un agent a « corrigé » en dupliquant `txt()`
+dans son fichier plutôt qu'en cherchant pourquoi l'import échouait : le contournement marche et
+cache la cause, et la duplication viole l'invariant 6.
+Corrigé : le branchement vit dans `brancherFeuille()`, appelée par `ouvrirFeuille()`, idempotente
+(L-017). Le socle s'importe à nouveau en Node, donc se teste.
+Mnémonique : un fichier du socle n'exécute rien à l'import — il expose des fonctions, on l'appelle.
+Et un `import` qui échoue se diagnostique, il ne se contourne pas en recopiant le symbole manquant.
+
+## L-021 — un garde d'idempotence posé sur une valeur métier écrase les réglages de l'utilisateur (2026-09-12)
+La migration 008 reprenait l'ancien barème avec `where parts_quart = 4`, en croyant que 4 = « pas
+encore repris » (la valeur par défaut). Mais 4 est AUSSI la valeur légitime d'une tâche à 1 part :
+rejouer la migration aurait réécrit `obligatoire` et `parts_quart` de toutes les tâches réglées à
+1 part, effaçant un décochage fait à la main par Claudia ou Yann. Même piège sur les
+`update … where titre in (…)` qui rétablissaient des drapeaux retirés depuis.
+Corrigé par une colonne témoin `parts_reprises`, posée EN DERNIER une fois les trois `update`
+passés, tous gardés sur `not parts_reprises`.
+Mnémonique : l'idempotence se marque avec un témoin dédié, jamais en devinant l'état depuis une
+valeur métier — une valeur par défaut est toujours aussi une valeur légitime.
+
+## L-022 — le pluriel français ne commence pas à 1 (2026-09-12)
+`parts(q)` accordait sur `q > 4` (en quarts), donc affichait « 1,5 parts ». En français le pluriel
+commence à 2 : « 0,5 part », « 1 part », « 1,5 part », « 2 parts ». Le test écrit en même temps que
+le code gravait l'erreur au lieu de l'attraper — il avait été écrit pour confirmer le code, pas
+pour dire la règle.
+Mnémonique : un test d'affichage se rédige depuis la règle de langue, pas depuis ce que le code
+produit déjà.
+
+## L-023 — le test de confrontation JS/Python compare des valeurs, pas des types (2026-09-12)
+`credit_de` divisait avec `/` côté Python : `8 / 2` rend `4.0` (float) là où le JS rend `4`. Le test
+croisé passait — `4.0 == 4` est vrai en Python — et un flottant serait parti dans `taches.parts_quart`,
+colonne `int`. Même famille de piège que les centimes : la division des quarts doit rester entière
+(`//`). Second écart trouvé au même endroit : sur une base hors échelle, `list.index()` LÈVE quand
+`indexOf` rend -1, donc le bot plantait là où le navigateur dégradait.
+Les deux sont invisibles pour une comparaison d'égalité : le test vérifie désormais aussi le TYPE
+du crédit, et un cas « hors échelle » a été ajouté.
+Mnémonique : deux implémentations d'une même règle divergent sur le type et sur le chemin d'erreur,
+pas seulement sur la valeur du cas nominal — un test croisé qui ne compare que des valeurs égales
+laisse passer les deux.
+
+## L-024 — la recette visuelle ne prouvait rien : elle ne voyait que l'écran de connexion (2026-09-12)
+`recette_visuelle.mjs` charge la page sans session Supabase : elle ne capture donc QUE le login.
+Pendant des mois, « recette visuelle OK » a été lu comme « les écrans vont bien », alors que la
+commande ne prouvait que l'absence d'erreur console au chargement. `recette_connectee.mjs`, elle,
+voit tout mais exige un vrai login et ÉCRIT dans la base de prod — inutilisable en boucle.
+Comblé par `tests/recette_ecrans.mjs` : Supabase bouchonné dans la page (`addInitScript`), tous les
+écrans énumérés depuis les descripteurs `mod-*.js` (pas de liste en dur qui se périme), capture à
+320 / 360 / 1200 px, et surtout DÉTECTION des débordements par mesure de géométrie plutôt qu'à l'œil.
+Deux pièges rencontrés en l'écrivant : un port en dur (une recette interrompue laisse son serveur
+quelques secondes et la relance échoue sur EADDRINUSE — port éphémère `listen(0)`), et le bruit
+réseau attendu (Google Fonts, CDN Supabase coupés) qu'il faut filtrer, sinon la recette crie au loup
+et finit ignorée.
+Mnémonique : une recette qui « passe » doit dire CE QU'ELLE A VU ; si elle ne visite pas l'écran,
+son vert ne parle pas de l'écran.
+
+## L-025 — un upsert sans `.select()` renvoie null, et ce null finit dans l'état (2026-09-12)
+`api.classerCommeClassique` faisait `sb.from(...).upsert({...}).then(rendre)` : PostgREST ne
+renvoie rien par défaut sur une écriture, donc la fonction rendait `null`. « Vider le panier »
+poussait ce `null` dans `etat.classiques`, et le rendu suivant mourait sur `c.libelle` — l'écran
+Courses restait mort jusqu'au rechargement. Invisible aux tests unitaires (qui n'appellent pas
+l'API) comme à la recette hors ligne (dont le bouchon, lui, renvoyait bien la ligne) : il a fallu
+la recette CONNECTÉE, sur la vraie base, pour le voir.
+Corrigé à la source (`.select().single()`), et `tournee.js` écarte désormais les entrées vides :
+une fonction pure ne doit pas mourir parce qu'un appelant lui a passé un trou.
+Mnémonique : toute écriture dont on réutilise le résultat doit le demander explicitement — et un
+bouchon de test plus poli que le vrai serveur cache exactement cette classe de bug.

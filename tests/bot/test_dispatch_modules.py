@@ -59,10 +59,18 @@ def test_taches_liste_les_restantes(bot):
 
 def test_fait_titre_de_tache_coche_une_tache_pas_un_virement(bot):
     r = bot.traiter_message(YANN, "fait biberons")
-    assert "fait par Yann" in r and "+1 pt" in r
+    assert "fait par Yann" in r and "+1 part" in r
     faites = [t for t in bot.donnees.taches(depuis="2026-01-01") if t["fait_le"]]
     assert len(faites) == 1 and faites[0]["qui"] == "Yann"
     assert not any(m["fait_le"] for m in bot.donnees._mouvements), "aucun virement touché"
+
+
+def test_fait_a_deux_credite_les_deux_membres(bot):
+    r = bot.traiter_message(YANN, "fait linge a deux")
+    assert "fait par Yann" in r
+    faites = [t for t in bot.donnees.taches(depuis="2026-01-01") if t["fait_le"]]
+    assert len(faites) == 1
+    assert faites[0]["qui"] == "Yann" and faites[0]["qui2"] == "Claudia"
 
 
 def test_fait_sans_titre_vise_toujours_le_virement(bot):
@@ -72,18 +80,18 @@ def test_fait_sans_titre_vise_toujours_le_virement(bot):
     assert not any(t["fait_le"] for t in bot.donnees.taches(depuis="2026-01-01"))
 
 
-def test_annuler_apres_une_tache_remet_les_points_a_zero(bot):
+def test_annuler_apres_une_tache_remet_les_parts_a_zero(bot):
     bot.traiter_message(YANN, "fait biberons")
     assert bot.traiter_message(YANN, "annuler") == "Dernière écriture annulée."
     taches = bot.donnees.taches(depuis="2026-01-01")
-    assert all(t["fait_le"] is None and t["points"] == 0 for t in taches)
+    assert all(t["fait_le"] is None and t["parts_quart"] == 0 for t in taches)
 
 
 def test_balance_apres_une_coche(bot):
-    bot.traiter_message(YANN, "fait linge")   # 4 points
+    bot.traiter_message(YANN, "fait linge")   # 20 quarts = 5 parts
     r = bot.traiter_message(YANN, "balance")
     assert "Balance sur 7 jours" in r
-    assert "Yann : 100 %" in r and "4 pts" in r
+    assert "Yann : 100 %" in r and "5 parts" in r
 
 
 def test_balance_vide_ne_divise_pas_par_zero(bot):

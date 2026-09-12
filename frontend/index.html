@@ -116,42 +116,62 @@
       <div id="tableau-annuel"></div>
     </section>
 
-    <!-- ===== Tâches · Aujourd'hui ===== -->
-    <section id="ecran-jour" class="ecran" hidden>
-      <div class="tete-ecran">
-        <div>
+    <!-- ===== Tâches · Jour ===== -->
+    <section id="ecran-jour" class="ecran ecran-taches" hidden>
+      <div class="tete-ecran tete-taches">
+        <div class="segment" id="segment-vue-taches">
+          <button data-vue="jour" class="actif">Jour</button>
+          <button data-vue="semaine">Semaine</button>
+        </div>
+        <button type="button" class="btn-todo" id="btn-todo">Todo<span class="badge-todo" id="badge-todo"></span></button>
+      </div>
+      <div id="bande-jours-taches"></div>
+      <div class="ligne-titre-jour">
+        <div class="titre-jour-bloc">
           <h1 id="titre-jour"></h1>
           <p class="sous" id="sous-jour"></p>
         </div>
-        <div id="chiffres-jour" class="chiffres"></div>
+        <div id="chiffres-jour" class="chiffres-jour"></div>
       </div>
-      <div class="progression"><div id="jauge-jour"></div></div>
       <div class="deux-colonnes">
         <div>
-          <div id="taches-a-faire"></div>
-          <h2 class="titre-section">Au besoin</h2>
-          <div id="taches-au-besoin"></div>
-          <button id="btn-tache-ponctuelle" class="btn btn-tirets">+ Tâche faite hors liste</button>
-          <h2 class="titre-section">Fait aujourd’hui</h2>
-          <div id="taches-faites"></div>
+          <div id="cartes-moment"></div>
+          <div id="cartes-periode"></div>
+          <div id="barre-faites"></div>
+          <div id="liste-faites-jour" hidden></div>
+          <p class="legende-taches">Tap : Claudia → Yann → les deux (parts ÷ 2) → rien. Le point rouge marque l’obligatoire.</p>
         </div>
         <aside id="detail-tache-pc" class="carte" hidden></aside>
       </div>
     </section>
 
-    <!-- ===== Tâches · Balance ===== -->
-    <section id="ecran-balance" class="ecran" hidden>
-      <div class="tete-ecran"><div><h1>Balance</h1><p class="sous">Points de pénibilité des tâches faites.</p></div></div>
-      <div id="periode-balance" class="segment">
-        <button data-jours="7" class="actif">7 jours</button>
-        <button data-jours="30">30 jours</button>
+    <!-- ===== Tâches · Semaine ===== -->
+    <section id="ecran-semaine" class="ecran ecran-taches" hidden>
+      <div class="tete-ecran tete-taches">
+        <div class="segment" id="segment-vue-taches-semaine">
+          <button data-vue="jour">Jour</button>
+          <button data-vue="semaine" class="actif">Semaine</button>
+        </div>
       </div>
-      <div id="balance-corps"></div>
+      <div class="ligne-titre-jour">
+        <div class="titre-jour-bloc">
+          <h1 id="titre-semaine"></h1>
+          <p class="sous" id="sous-semaine"></p>
+        </div>
+        <span class="mono" id="total-semaine"></span>
+      </div>
+      <div class="carte-kpi-oblig" id="kpi-obligatoire"></div>
+      <div class="grille-semaine-carte">
+        <div id="grille-semaine"></div>
+      </div>
+      <p class="legende-taches">Tap une case pour corriger, une lettre pour ouvrir le jour.</p>
+      <div id="detail-categories-semaine"></div>
     </section>
 
-    <!-- ===== Tâches · Réglages ===== -->
+    <!-- ===== Tâches · Réglages · Parts ===== -->
     <section id="ecran-taches-rec" class="ecran" hidden>
-      <div class="tete-ecran"><div><h1>Tâches récurrentes</h1><p class="sous">Fréquence, pénibilité (les points), importance (l’ordre).</p></div></div>
+      <div class="tete-ecran"><div><h1>Réglages · Parts</h1><p class="sous">Tap une valeur pour la changer, ça se recalcule partout.</p></div></div>
+      <div id="tableau-taches-parts"></div>
       <div id="liste-taches-rec"></div>
       <div id="form-tache-rec"></div>
     </section>
@@ -164,20 +184,39 @@
         </div>
         <div id="chiffres-courses" class="chiffres"></div>
       </div>
+      <button type="button" id="btn-tour" class="btn btn-bleu">On fait le tour</button>
       <form id="form-course" class="ajout-rapide">
-        <input id="course-libelle" class="champ" placeholder="Ajouter un article" autocomplete="off" required>
+        <input id="course-libelle" class="champ" placeholder="Article" autocomplete="off" required>
         <input id="course-quantite" class="champ court" placeholder="Qté" autocomplete="off">
         <select id="course-rayon" class="champ"></select>
-        <button type="submit" class="btn btn-bleu">Ajouter</button>
+        <button type="submit" class="btn btn-bleu">+</button>
       </form>
-      <div class="deux-colonnes etroit">
-        <div id="liste-courses"></div>
-        <aside id="panier" hidden>
-          <h2 class="titre-section">Dans le panier</h2>
-          <div id="courses-panier"></div>
-          <button id="btn-vider-panier" class="btn btn-tirets">Vider le panier</button>
-        </aside>
+      <div id="carte-repas" class="carte" hidden>
+        <div class="repas-tete">
+          <h2 class="titre-section" style="margin:0">Repas de la semaine</h2>
+          <span class="sous">proposés aussi par le bot Telegram</span>
+        </div>
+        <div id="liste-repas"></div>
       </div>
+      <div id="groupes-courses" class="grille-groupes"></div>
+      <aside id="panier" hidden>
+        <h2 class="titre-section">Dans le panier</h2>
+        <div id="courses-panier"></div>
+        <button id="btn-vider-panier" class="btn btn-tirets">Vider le panier</button>
+      </aside>
+      <h2 class="titre-section">Les classiques</h2>
+      <div id="liste-classiques" class="puces-classiques"></div>
+    </section>
+
+    <!-- ===== Courses · Réglages · Magasin ===== -->
+    <section id="ecran-magasin" class="ecran" hidden>
+      <div class="tete-ecran">
+        <div>
+          <h1>Réglages · Magasin</h1>
+          <p class="sous">L’ordre où on traverse le magasin ; la liste de courses suit cet ordre.</p>
+        </div>
+      </div>
+      <div id="liste-magasin"></div>
     </section>
   </main>
 

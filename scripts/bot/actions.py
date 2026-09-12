@@ -81,10 +81,15 @@ def taches(bot, telegram_id, prenom, action):
         return reponses.liste_taches(taches_mod.restantes(liste, recurrents),
                                      recurrents, date.today().isoformat())
     if a == "balance":
-        liste, _ = taches_mod.du_jour(bot.donnees)
+        liste, recurrents = taches_mod.du_jour(bot.donnees)
         auj = date.today()
-        b = taches_mod.balance(liste, bot.membres, auj - timedelta(days=action["jours"] - 1), auj)
-        return reponses.balance_taches(b, bot.membres, action["jours"])
+        depuis = auj - timedelta(days=action["jours"] - 1)
+        recurrents_liste = list(recurrents.values())
+        b = taches_mod.balance(liste, recurrents_liste, bot.membres, depuis, auj)
+        b_oblig = taches_mod.balance(liste, recurrents_liste, bot.membres, depuis, auj,
+                                     obligatoire_seul=True)
+        return reponses.balance_taches(b, bot.membres, action["jours"],
+                                       obligatoire=b_oblig["ratio"] if b_oblig["total"] else None)
     return None
 
 # ---------- module Courses ----------

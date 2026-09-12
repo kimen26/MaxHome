@@ -6,9 +6,9 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
-// Seules les tâches « le jour même » (importance 3) déclenchent un rappel : rappeler
-// la salle de bain tous les soirs rendrait le message inutile, donc ignoré.
-const IMPORTANCE_RAPPEL = 3;
+// Seules les tâches obligatoires déclenchent un rappel : rappeler la salle de bain tous
+// les soirs rendrait le message inutile, donc ignoré. Avant le Lot 4, ce filtre lisait
+// `importance == 3` ; `importance` n'étant plus maintenue, il se serait tu en silence.
 
 /** Jour local à Paris au format AAAA-MM-JJ (le serveur tourne en UTC). */
 function jourParis(): string {
@@ -40,13 +40,13 @@ Deno.serve(async () => {
   }
 
   const { data: recurrents, error: e2 } = await sb
-    .from("taches_recurrentes").select("id, importance");
+    .from("taches_recurrentes").select("id, obligatoire");
   if (e2) throw e2;
-  const importance = new Map((recurrents ?? []).map((r) => [r.id, r.importance]));
+  const obligatoire = new Map((recurrents ?? []).map((r) => [r.id, r.obligatoire]));
 
-  const urgentes = taches.filter((t) => (importance.get(t.recurrent_id) ?? 2) >= IMPORTANCE_RAPPEL);
+  const urgentes = taches.filter((t) => obligatoire.get(t.recurrent_id) === true);
   if (urgentes.length === 0) {
-    return new Response("rien d'urgent ce soir", { status: 200 });
+    return new Response("rien d'obligatoire ce soir", { status: 200 });
   }
 
   const lignes = urgentes.map((t) =>

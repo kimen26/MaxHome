@@ -119,7 +119,8 @@ class DonneesFausse:
     def creer_taches(self, lignes):
         crees = []
         for l in lignes:
-            t = {"id": self._prochain_id_tache, "fait_le": None, "qui": None, "points": 0, **l}
+            t = {"id": self._prochain_id_tache, "fait_le": None, "qui": None, "qui2": None,
+                 "parts_quart": 0, **l}
             self._prochain_id_tache += 1
             self._taches.append(t)
             crees.append(dict(t))
@@ -149,14 +150,14 @@ def taches_rec_defaut():
     """Trois tâches récurrentes couvrant les trois fréquences génératrices et « au besoin »."""
     return [
         {"id": 1, "titre": "Laver les biberons", "categorie": "Enfant", "frequence": "quotidien",
-         "fois": 2, "penibilite": 1, "importance": 3, "attribue_a": None, "consigne": None,
-         "ordre": 10, "actif": True},
+         "fois": 2, "parts_quart": 4, "obligatoire": True, "partageable": False,
+         "ecart_prenom": None, "attribue_a": None, "consigne": None, "ordre": 10, "actif": True},
         {"id": 2, "titre": "Étendre et plier le linge", "categorie": "Linge", "frequence": "hebdo",
-         "fois": 1, "penibilite": 4, "importance": 2, "attribue_a": "Claudia", "consigne": None,
-         "ordre": 20, "actif": True},
+         "fois": 1, "parts_quart": 20, "obligatoire": False, "partageable": False,
+         "ecart_prenom": None, "attribue_a": "Claudia", "consigne": None, "ordre": 20, "actif": True},
         {"id": 3, "titre": "Sortir la poubelle", "categorie": "Déchets", "frequence": "au_besoin",
-         "fois": 1, "penibilite": 3, "importance": 2, "attribue_a": None, "consigne": None,
-         "ordre": 30, "actif": True},
+         "fois": 1, "parts_quart": 12, "obligatoire": False, "partageable": False,
+         "ecart_prenom": None, "attribue_a": None, "consigne": None, "ordre": 30, "actif": True},
     ]
 
 

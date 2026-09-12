@@ -6,8 +6,8 @@ discussion « c'est toujours moi » n'ait plus lieu d'être. Trois modules, un h
 | Module | Ce qu'il fait | Écrans |
 |---|---|---|
 | **Budget** | salaires et charges du mois, qui verse quoi au commun, ce qui reste | Ce mois · Charges · Stats · Récurrents · Comptes · Vue annuelle |
-| **Tâches** | qui fait quoi à la maison, en points de pénibilité | Aujourd'hui · Balance · Réglages |
-| **Courses** | une liste commune, cochable dans le magasin | Liste |
+| **Tâches** | qui fait quoi à la maison, en parts (0,5 · 1 · 2 · 3 · 5 · 8) | Jour · Semaine · Réglages |
+| **Courses** | une liste commune, cochable dans l'ordre du magasin | Liste · Magasin |
 
 En prod sur https://kimen26.github.io/MaxHome/ (Supabase `maxhome`), plus un bot Telegram
 `@BudgetCYM_bot` qui sert les trois modules. Le budget remplace un classeur Excel de 4 feuilles.
@@ -18,7 +18,7 @@ En prod sur https://kimen26.github.io/MaxHome/ (Supabase `maxhome`), plus un bot
 |---|---|---|
 | charge · règle de répartition · prorata · 50/50 · calcul | MÉTIER | docs/regles-repartition.md |
 | écran · page · saisie · affichage · UI | FRONT | frontend/socle/blocs*.js + ui-base.js, puis le ui-*.js du module |
-| tâche · ménage · points · pénibilité · balance | TÂCHES | frontend/taches/taches.js + scripts/bot/taches.py |
+| tâche · ménage · parts · obligatoire · à deux · balance | TÂCHES | frontend/taches/taches.js + scripts/bot/taches.py |
 | courses · liste · rayon | COURSES | frontend/courses/ui-courses.js + scripts/bot/courses.py |
 | bot · Telegram · commande · rappel | BOT | scripts/bot/commandes.py + bot.py |
 | module · descripteur · nouveau module · arborescence · socle | ARCHI | docs/architecture.md + frontend/modules.js |
@@ -57,9 +57,10 @@ Plan → TodoWrite → Exécution → Vérification → Commit → memory/ grav�
 |---|---|
 | `git diff --cached --name-only \| grep -Ei 'xlsx|\.env$'` doit être vide | avant chaque commit |
 | `node tests/test_calc.mjs` | tout changement du calcul budgétaire |
-| `node tests/test_taches.mjs` | tout changement des tâches (échéances, points, balance) |
+| `node tests/test_taches.mjs` | tout changement des tâches (échéances, parts, balance) |
 | `python -m pytest -q tests/bot/` | tout changement du bot |
-| `node tests/recette_visuelle.mjs` puis OUVRIR data/captures/*.png | tout changement UI |
+| `node tests/recette_ecrans.mjs` puis OUVRIR data/captures/ecrans/*.png | tout changement UI |
+| `node tests/test_courses.mjs` | tout changement de la tournée / des repas |
 | `node tests/comparer_captures.mjs --attendu <écrans>` (référence : data/captures/avant/) | tout refactor censé ne rien changer |
 | `node tests/recette_connectee.mjs` (login réel + RLS) | tout changement schéma/RLS/app.js |
 

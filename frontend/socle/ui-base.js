@@ -117,6 +117,7 @@ function menuPlus() {
 let confirmationEnAttente = null;
 
 export function ouvrirFeuille(html) {
+  brancherFeuille();
   $("#feuille-corps").innerHTML = html;
   $("#feuille-fond").hidden = false;
   const f = $("#feuille");
@@ -137,8 +138,16 @@ export function fermerFeuille() {
 
 export const feuilleOuverte = () => !$("#feuille").hidden;
 
-$("#feuille-fond").addEventListener("click", fermerFeuille);
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") fermerFeuille(); });
+// Branché au premier usage, pas à l'import : un module du socle qui touche le DOM au
+// chargement ne s'importe plus en Node, et toute la logique pure qu'il exporte devient
+// intestable (blocs-cycle.js importe `txt` d'ici). Idempotent comme le démarrage (L-017).
+let feuilleBranchee = false;
+function brancherFeuille() {
+  if (feuilleBranchee) return;
+  feuilleBranchee = true;
+  $("#feuille-fond").addEventListener("click", fermerFeuille);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") fermerFeuille(); });
+}
 
 /** Confirmation en feuille, à la place de confirm() : résout true si l'utilisateur confirme. */
 export function confirmer(texte, { ok = "Confirmer", danger = true } = {}) {

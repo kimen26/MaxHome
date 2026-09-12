@@ -90,6 +90,44 @@ _Une session = une lane. Marquer (en cours) à l'ouverture, libérer à la fin._
 - [ ] Bot : `mouvements.py` porte encore un miroir manuel de `montantTheorique` ; passer par
       `calc_cli.mjs` si le miroir diverge une fois de plus (L-014).
 
+## Lane G — Refonte Tâches/Courses : parts, obligatoire, magasin, repas (2026-09-12)
+_Brief : docs/briefs/maxhome-parts.md (handoff inbox/design_handoff_maxhome_taches, jamais commité)._
+- [x] Lot 1 : métier des parts dans `taches.js` (échelle en quarts, `partsDe`, `creditDe`,
+      `balance` avec `obligatoireSeul`, `trier` sur obligatoire) + migration 008. `pointsDe`
+      et son plancher supprimés (D-027, D-022 caduque).
+- [x] Lot 2 : `socle/blocs-cycle.js` — le geste « tap = valeur suivante », 7 usages du handoff.
+- [x] Lot 3 : écrans Jour (bande 7 jours, cartes, coche tri-état), Semaine (grille tâches × jours,
+      KPI Obligatoire, détail par catégorie) et Réglages · Parts (tableau de boutons-cycles).
+- [x] Lot 4 : bot — `parts_de`/`credit_de`, vocabulaire « parts », `fait <titre> à deux`,
+      ligne obligatoire au bilan ; rappel du soir basculé sur `obligatoire` (D-028).
+- [x] Lot 5 : migration 009 (magasin reséquencé, repas, classiques), écrans Courses et
+      Réglages · Magasin, `tournee.js` (logique pure partagée avec le bot).
+- [x] `tests/recette_ecrans.mjs` : recette hors ligne de TOUS les écrans à 320/360/1200 px,
+      avec détection des débordements par géométrie (L-024). 36 captures, verte.
+
+### Reste à faire — bloqué sur Yann
+- [x] **Appliquer les migrations 008, 009 et 010** : 008 (15 tâches récurrentes, 40
+      occurrences, 8 obligatoires, 3 partageables), 009 (10 rayons, 3 repas, 9 ingrédients,
+      table courses vide), 010 (9 tâches ajoutées, 3 mises à jour, 24 tâches actives, 12
+      obligatoires, 8 partageables, 40 occurrences). Données budget intactes (272/38/16).
+      Migrations rejouées deux fois, idempotence vérifiée.
+- [x] `node tests/recette_connectee.mjs` verte : RLS sur 9 tables, février 2026 toujours
+      −5 844,78 €, coche d'une tâche avec persistance après rechargement, panier vidé et
+      liste revenue à son état d'origine, écrans Semaine et Magasin rendus (mobile + PC).
+      Ses sélecteurs ont dû être repris (l'écran Tâches a changé) — elle visite désormais
+      `semaine` et `magasin`, plus `balance` qui n'existe plus.
+- [x] Bot redémarré et vérifié sur la vraie base : il dit « parts » avec le bon accord
+      (« 1 part » / « 2 parts ») et affiche la ligne « Obligatoire · … en assure N % ».
+- [ ] **Yann : installer la tâche planifiée** — toujours pas faite (L-006, exige une session
+      PowerShell admin). Sans elle le bot ne survit pas à un redémarrage de la machine.
+
+### À trancher par Yann
+- [ ] **Matin / Soir** : le handoff veut deux cartes séparées sur l'écran Jour, mais rien en base
+      ne porte ce moment. Une seule carte « Aujourd'hui » a été livrée. Ajouter une colonne
+      `taches_recurrentes.moment` (migration + cycle dans Réglages) ou en rester là ?
+- [ ] **Écran Balance retiré** : le handoff ne prévoit que Jour/Semaine/Réglages. Le détail par
+      catégorie a été remis en bas de l'écran Semaine ; le choix de période (7/30 j) est perdu.
+
 ## Lane B — V1 (après recette)
 - [x] Vue annuelle (tableau 12 mois comme l'Excel)
 - [ ] Importer les feuilles 2023 et « Garde Max » si utile

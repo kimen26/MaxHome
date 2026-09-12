@@ -217,3 +217,32 @@ gardait celle qui arrivait en dernier, pas le dernier geste. C'est l'origine des
 fantômes » restées cochées (L-013). `creerFileEcritures()` dans `blocs.js` enfile les écritures
 par identifiant ; les éléments distincts restent parallèles. Les champs sont figés à
 l'enfilement, jamais relus au moment de l'écriture.
+
+## D-027 — les parts remplacent la pénibilité ; obligatoire et « à deux » sont des axes séparés (2026-09-12)
+Handoff `inbox/design_handoff_maxhome_taches`. Trois changements liés, tous dictés par le même
+souci : un seul chiffre, pas de coefficient à débattre.
+1. La valeur d'une tâche est CHOISIE sur une échelle non linéaire `0,5 · 1 · 2 · 3 · 5 · 8`,
+   stockée en quarts de part (entiers, comme les centimes pour l'argent — le quart permet de
+   diviser exactement un 0,5 fait à deux). Chaque cran contient déjà le temps et la pénibilité :
+   cinq bricoles du matin (4 parts) ne rattrapent pas une salle de bain (8). Les minutes restent
+   affichées comme repère, jamais dans une formule. Abandonnés : `penibilite` 1-5, et la piste
+   intermédiaire `points = (minutes / 5) × coef`.
+2. `obligatoire` est un booléen INDÉPENDANT des parts : il ne rapporte rien. Un bonus créerait un
+   second système de points en concurrence avec l'échelle. Il affiche un point rouge, il trie, et
+   il alimente un KPI hebdomadaire calculé sur les seules tâches obligatoires — la réponse mesurée
+   à « untel gère toujours l'incontournable ».
+3. Fait à deux, les parts se DIVISENT (`qui` + `qui2`, base / 2 chacun). Jamais multiplier : sinon
+   tout faire à deux devient la stratégie gagnante et la balance ne veut plus rien dire. L'écart
+   par personne ne s'applique pas quand c'est fait à deux.
+Les parts se figent à la coche (`taches.parts_quart`) : changer le barème ne réécrit jamais une
+semaine passée. Rend D-019 et D-022 caducs (voir L-020).
+Points tranchés à l'ouverture : le mot reste « parts » (pas « coups de main ») ; le palier 5 est
+gardé même si aucune tâche de départ ne l'utilise ; `importance` reste en base sans usage ; l'écart
+vaut exactement un cran.
+
+## D-028 — `importance` meurt en silence si on oublie le rappel du soir (2026-09-12)
+En basculant le tri de `importance` vers `obligatoire`, `supabase/functions/rappel-taches/index.ts`
+restait le seul lecteur de `importance == 3`. Une colonne qu'on cesse de maintenir ne casse rien :
+elle se vide, et le rappel du soir n'aurait plus rien envoyé, sans erreur ni log. Le filtre bascule
+sur `obligatoire` dans le même lot. Règle générale : avant d'abandonner une colonne, chercher TOUS
+ses lecteurs, y compris hors du dépôt front (Edge Functions, bot, cron).

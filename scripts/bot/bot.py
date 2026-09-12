@@ -108,7 +108,8 @@ class Bot:
         """`fait <titre>` vise une tâche si le titre lui correspond, sinon un mouvement.
 
         Sans titre, c'est toujours le virement au commun : cocher une tâche demande
-        laquelle, on ne devine pas à la place de l'utilisateur.
+        laquelle, on ne devine pas à la place de l'utilisateur. « à deux » ne s'applique
+        qu'à une tâche : sur un mouvement (pas de titre reconnu comme tâche), ignoré.
         """
         titre = action.get("titre")
         if titre:
@@ -117,17 +118,26 @@ class Bot:
             if candidates:
                 trouve, _ = commandes.meilleur_flou(reponses.normaliser(titre), candidates, "titre")
                 if trouve:
-                    return self.basculer_tache(telegram_id, prenom, titre, action["fait"])
+                    return self.basculer_tache(telegram_id, prenom, titre, action["fait"],
+                                               action.get("a_deux", False))
         return self.basculer_mouvement(telegram_id, prenom, action, annee, mois)
 
-    def basculer_tache(self, telegram_id, prenom, titre, fait):
-        """Coche (ou décoche) une tâche et rend l'écriture annulable."""
-        cible, champs, erreur = taches_mod.basculer(self.donnees, prenom, titre, fait)
+    def basculer_tache(self, telegram_id, prenom, titre, fait, a_deux=False):
+        """Coche (ou décoche) une tâche et rend l'écriture annulable.
+
+        `a_deux` crédite l'autre membre du foyer en `qui2` : `credit_de` divisera la base
+        en deux au moment de la balance.
+        """
+        qui2 = None
+        if a_deux and fait:
+            qui2 = next((p for p in self.membres if p != prenom), None)
+        cible, champs, erreur = taches_mod.basculer(self.donnees, prenom, titre, fait, qui2=qui2)
         if erreur:
             return erreur
-        avant = {"fait_le": cible["fait_le"], "qui": cible["qui"], "points": cible["points"]}
+        avant = {"fait_le": cible["fait_le"], "qui": cible["qui"], "qui2": cible.get("qui2"),
+                 "parts_quart": cible["parts_quart"]}
         self.marquer_annulable(telegram_id, "taches", {"id": cible["id"]}, avant)
-        return reponses.confirmation_tache(cible["titre"], champs["points"], prenom, fait)
+        return reponses.confirmation_tache(cible["titre"], champs["parts_quart"], prenom, fait)
 
     def basculer_mouvement(self, telegram_id, prenom, action, annee, mois):
         """Coche (ou décoche) un mouvement du mois et rend l'écriture annulable."""

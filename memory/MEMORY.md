@@ -106,3 +106,42 @@ _État courant. Réécrit en fin de session, jamais un journal._
   comparaison pixel `tests/comparer_captures.mjs` contre `data/captures/avant/` : tout
   identique hors jour/detail. Trois bugs réels trouvés et corrigés par ces tests. 101 tests bot,
   test_calc (+ montantTheorique), test_taches, recette visuelle : verts.
+
+- 2026-09-12 : **refonte Tâches/Courses livrée en local — PAS ENCORE EN PROD** (lane G, brief
+  `docs/briefs/maxhome-parts.md`, handoff `inbox/design_handoff_maxhome_taches` jamais commité).
+  Les **parts remplacent la pénibilité** : échelle `0,5 · 1 · 2 · 3 · 5 · 8` choisie à la main,
+  stockée en quarts entiers (D-027). `obligatoire` et `partageable` sont des axes séparés —
+  l'obligatoire ne rapporte rien mais alimente un KPI hebdomadaire, le « fait à deux » DIVISE les
+  parts (`qui` + `qui2`). Écart d'un cran par personne (`ecart_prenom`). Les parts se figent à la
+  coche, changer le barème ne réécrit pas l'historique.
+  Module Tâches : trois écrans refondus — Jour (bande des 7 jours, cartes, coche tri-état
+  Claudia → Yann → les deux → rien), Semaine (grille tâches × jours, KPI Obligatoire, détail par
+  catégorie) et Réglages · Parts (tableau de boutons-cycles, effet immédiat). L'ancien écran
+  Balance a disparu ; son détail par catégorie vit désormais au bas de Semaine.
+  Module Courses : magasin reséquencé selon le parcours réel et réordonnable (nouvel écran
+  Réglages · Magasin), zone Repas de la semaine, classiques par fréquence, feuille « On fait le
+  tour » dont la logique pure (`courses/tournee.js`) est partagée avec le bot.
+  Socle : `blocs-cycle.js` porte le geste « tap = valeur suivante » (7 usages).
+  Bot : vocabulaire « parts », `fait <titre> à deux`, ligne obligatoire au bilan, plus aucun
+  plancher à 1. **Rappel du soir basculé de `importance == 3` sur `obligatoire`** (D-028) : sans
+  ça il se serait vidé en silence.
+  Nouvelle porte : `tests/recette_ecrans.mjs` — TOUS les écrans, hors ligne (Supabase bouchonné),
+  à 320/360/1200 px, avec détection des débordements par mesure de géométrie (L-024). 36 captures,
+  verte. `recette_visuelle.mjs` ne voyait que l'écran de connexion et ne prouvait donc rien.
+  Portes vertes : test_calc, test_taches, test_courses, 113 tests bot, recette visuelle,
+  recette écrans.
+  **EN PROD** : migrations 008, 009 et 010 appliquées le 2026-09-12 (chacune rejouée pour
+  prouver son idempotence ; budget intact : 272 lignes / 38 revenus / 16 charges). 010 ajoute
+  les 9 tâches que le handoff citait sans qu'elles existent en base et aligne trois valeurs
+  (salle de bain à 8 parts ET mensuelle, poubelle et verre à 1 part) — les titres disent
+  « le petit », jamais le prénom de l'enfant (invariant 1). 24 tâches récurrentes actives,
+  12 obligatoires, 8 partageables.
+  Recette connectée verte sur la vraie base ; bot redémarré et vérifié (il dit « parts »,
+  affiche la ligne Obligatoire). La tâche planifiée Windows n'est TOUJOURS pas installée :
+  le bot tourne en process détaché et ne survivra pas à un redémarrage de la machine (L-006).
+  Un bug réel n'a été trouvé que par la recette connectée : `classerCommeClassique` faisait un
+  upsert sans `.select()`, renvoyait `null`, et vider le panier tuait l'écran Courses (L-025).
+  Ni les tests unitaires ni la recette hors ligne ne pouvaient le voir — son bouchon était plus
+  poli que le vrai PostgREST.
+  Restent à trancher par Yann : les cartes Matin/Soir (aucune colonne ne porte ce moment) et la
+  disparition de l'écran Balance (son détail par catégorie vit au bas de Semaine).

@@ -1,5 +1,6 @@
 // Recette connectée : login réel (mot de passe lu dans .env, jamais affiché), février 2026.
-// Accueil, six écrans Budget, trois écrans Tâches ; coche un mouvement et une tâche, remet tout en place.
+// Accueil, six écrans Budget, trois écrans Tâches, deux écrans Courses (dont Magasin) ; coche
+// un mouvement et une tâche (cycle tri-état via le détail), remet tout en place.
 // Vérifie aussi que sans session la RLS renvoie vide.
 // Usage : node tests/recette_connectee.mjs
 import { chromium } from "playwright";
@@ -123,32 +124,42 @@ try {
   await page.screenshot({ path: path.join(SORTIE, "stats-mobile.png"), fullPage: true });
 
   // ---------- tâches (mobile) : via Plus > Module Tâches ----------
-  await aller(page, "jour", "#ecran-jour:not([hidden]) #taches-a-faire .mvt");
+  // L'écran Jour a trois cadences (Aujourd'hui / Semaine / Mois) : on vise la carte
+  // Aujourd'hui, seule garantie non vide tant qu'il reste des tâches quotidiennes actives.
+  await aller(page, "jour", "#ecran-jour:not([hidden]) #cartes-moment .ligne-tache");
   console.log("Aujourd’hui :", (await page.textContent("#sous-jour")).trim());
   await page.screenshot({ path: path.join(SORTIE, "jour-mobile.png"), fullPage: true });
 
   // Coche une tâche depuis son détail, vérifie les points, puis annule LA MÊME.
+  // Le cycle de coche est tri-état (Claudia → Yann → les deux → rien, D-024 / ui-taches.js) :
+  // on ne tape jamais la case cycle directement (nombre de taps variable selon le cran de
+  // départ). On passe par le détail, où [data-qui] pose TOUJOURS le premier cran (fait par
+  // moi) et où [data-basculer] — visible seulement une fois fait_le posé — ANNULE en un seul
+  // geste quel que soit le cran atteint (ui-taches.js: `cible = t.fait_le ? null : etat.prenom`).
   // Les compteurs sont relatifs : une tâche cochée par ailleurs ne doit ni faire
   // passer ce test à tort, ni le faire échouer.
-  const idsFaitsAvant = await page.$$eval("#taches-faites .mvt", (e) => e.map((x) => x.dataset.id));
-  await page.locator("#taches-a-faire .mvt").first().click();
-  await page.waitForSelector("#feuille:not([hidden]) .detail [data-basculer]");
+  const idsFaitsAvant = await page.$$eval("#cartes-moment .ligne-tache.ligne-faite", (e) => e.map((x) => x.dataset.id));
+  await page.locator("#cartes-moment .ligne-tache:not(.ligne-faite)").first().click();
+  await page.waitForSelector("#feuille:not([hidden]) .detail [data-qui]");
   const idTache = await page.getAttribute("#feuille .detail", "data-id");
   await feuilleStable(page);
   await page.screenshot({ path: path.join(SORTIE, "detail-tache-mobile.png"), fullPage: true });
-  await page.click("#feuille [data-basculer]");
-  await page.waitForSelector(`#taches-faites .mvt[data-id="${idTache}"]`, { timeout: 10000 });
-  const faite = (await page.textContent(`#taches-faites .mvt[data-id="${idTache}"]`)).replace(/\s+/g, " ").trim();
-  if (!/\d pts?/.test(faite) || !faite.includes("Yann")) throw new Error(`tâche faite sans points ou sans auteur : ${faite}`);
+  await page.locator("#feuille [data-qui]").first().click();
+  await page.waitForSelector(`#cartes-moment .ligne-tache.ligne-faite[data-id="${idTache}"]`, { timeout: 10000 });
+  const faite = (await page.textContent(`#cartes-moment .ligne-tache.ligne-faite[data-id="${idTache}"]`)).replace(/\s+/g, " ").trim();
+  if (!/[\d,]/.test(faite)) throw new Error(`tâche faite sans parts affichées : ${faite}`);
   console.log("Tâche cochée :", faite);
   // On attend la RÉPONSE du PATCH de décoche, pas seulement le DOM (optimiste) : recharger
   // avant qu'elle arrive annulerait la requête, et ce serait la recette qui casse, pas l'app.
   const reponseDecoche = page.waitForResponse((r) => r.request().method() === "PATCH"
     && r.url().includes("/rest/v1/taches") && (r.request().postData() ?? "").includes('"fait_le":null'), { timeout: 15000 });
-  await page.locator(`#taches-faites .mvt[data-id="${idTache}"] .case.cochee`).click();
-  await page.waitForSelector(`#taches-faites .mvt[data-id="${idTache}"]`, { state: "detached", timeout: 10000 });
+  await page.locator(`#cartes-moment .ligne-tache.ligne-faite[data-id="${idTache}"]`).click();
+  await page.waitForSelector("#feuille:not([hidden]) .detail [data-basculer]");
+  await feuilleStable(page);
+  await page.click("#feuille [data-basculer]");
+  await page.waitForSelector(`#cartes-moment .ligne-tache.ligne-faite[data-id="${idTache}"]`, { state: "detached", timeout: 10000 });
   if ((await reponseDecoche).status() >= 300) throw new Error("la décoche a été refusée par la base");
-  const idsFaitsApres = await page.$$eval("#taches-faites .mvt", (e) => e.map((x) => x.dataset.id));
+  const idsFaitsApres = await page.$$eval("#cartes-moment .ligne-tache.ligne-faite", (e) => e.map((x) => x.dataset.id));
   if (JSON.stringify(idsFaitsApres) !== JSON.stringify(idsFaitsAvant)) {
     throw new Error(`la liste des tâches faites a changé : ${idsFaitsAvant} → ${idsFaitsApres}`);
   }
@@ -156,39 +167,52 @@ try {
   // Coche puis décoche sont partis à la suite sans attendre le réseau : la base doit refléter
   // le DERNIER geste. On recharge la page (session conservée) et on relit l'écran.
   await page.reload();
-  await page.waitForSelector("#ecran-jour:not([hidden]) #taches-a-faire .mvt", { timeout: 20000 });
-  if (await page.$(`#taches-faites .mvt[data-id="${idTache}"]`)) {
+  await page.waitForSelector("#ecran-jour:not([hidden]) #cartes-moment .ligne-tache", { timeout: 20000 });
+  if (await page.$(`#cartes-moment .ligne-tache.ligne-faite[data-id="${idTache}"]`)) {
     throw new Error(`course d'écritures : la tâche ${idTache} est restée cochée en base après la décoche`);
   }
   console.log("Persistance vérifiée après rechargement : la décoche a gagné");
 
   // ---------- courses (mobile) : ajout, coche, vidage — la liste revient à son état d'origine ----------
   // On attend la LISTE rendue, pas le formulaire (statique) : sinon on compte avant les données.
-  await aller(page, "courses", "#ecran-courses:not([hidden]) #liste-courses .mvt, #ecran-courses:not([hidden]) #liste-courses .vide");
-  const avantCourses = await page.$$eval("#liste-courses .mvt", (e) => e.length);
+  await aller(page, "courses", "#ecran-courses:not([hidden]) #groupes-courses .mvt, #ecran-courses:not([hidden]) #groupes-courses .vide");
+  const avantCourses = await page.$$eval("#groupes-courses .mvt", (e) => e.length);
   await page.fill("#course-libelle", "Article de recette");
   await page.fill("#course-quantite", "2");
-  await page.selectOption("#course-rayon", "Épicerie");
+  // Les rayons du magasin ont été réorganisés (nouvel écran Réglages · Magasin) : le rayon
+  // « Épicerie » seul n'existe plus, regroupé en « Épicerie, alcool, lait ». Nom lu depuis la
+  // vraie base plutôt que deviné (l'accent y est, un sélecteur figé sur l'ancien nom se périme).
+  const RAYON_TEST = "Épicerie, alcool, lait";
+  await page.selectOption("#course-rayon", RAYON_TEST);
   await page.click("#form-course button[type=submit]");
-  await page.waitForFunction((n) => document.querySelectorAll("#liste-courses .mvt").length === n + 1,
+  await page.waitForFunction((n) => document.querySelectorAll("#groupes-courses .mvt").length === n + 1,
     avantCourses, { timeout: 10000 });
-  const rayons = await page.$$eval("#liste-courses .titre-section", (e) => e.map((x) => x.textContent.trim()));
-  if (!rayons.includes("Épicerie")) throw new Error(`article rangé hors de son rayon : ${rayons.join(", ")}`);
-  console.log("Courses : article ajouté dans le rayon Épicerie");
+  const rayons = await page.$$eval("#groupes-courses .titre-section", (e) => e.map((x) => x.textContent.trim()));
+  if (!rayons.includes(RAYON_TEST)) throw new Error(`article rangé hors de son rayon : ${rayons.join(", ")}`);
+  console.log(`Courses : article ajouté dans le rayon ${RAYON_TEST}`);
   await page.screenshot({ path: path.join(SORTIE, "courses-mobile.png"), fullPage: true });
-  await page.locator("#liste-courses .mvt .case").last().click();
+  await page.locator("#groupes-courses .mvt .case").last().click();
   await page.waitForFunction(() => document.querySelectorAll("#courses-panier .mvt").length > 0, null, { timeout: 10000 });
   await page.click("#btn-vider-panier");
   await page.waitForSelector("#feuille:not([hidden]) [data-ok]");
   await page.click("#feuille [data-ok]");
-  await page.waitForFunction((n) => document.querySelectorAll("#liste-courses .mvt").length === n,
+  await page.waitForFunction((n) => document.querySelectorAll("#groupes-courses .mvt").length === n,
     avantCourses, { timeout: 10000 });
   console.log("Courses : coché puis panier vidé, liste revenue à son état d'origine");
 
-  await aller(page, "balance", "#balance-corps .carte");
-  await page.screenshot({ path: path.join(SORTIE, "balance-mobile.png"), fullPage: true });
+  // L'écran Balance a disparu (refonte du jour même) : son détail par catégorie vit
+  // maintenant au bas de l'écran Semaine, à côté de la grille et du KPI Obligatoire.
+  await aller(page, "semaine", "#ecran-semaine:not([hidden]) #grille-semaine .ligne-grille-semaine");
+  await page.waitForSelector("#kpi-obligatoire .kpi-oblig-phrase:not(:empty)");
+  console.log("Semaine :", (await page.textContent("#kpi-obligatoire .kpi-oblig-ligne1")).replace(/\s+/g, " ").trim());
+  await page.screenshot({ path: path.join(SORTIE, "semaine-mobile.png"), fullPage: true });
   await aller(page, "taches-rec", "#liste-taches-rec .groupe");
   await page.screenshot({ path: path.join(SORTIE, "taches-rec-mobile.png"), fullPage: true });
+
+  // ---------- courses · réglages magasin (mobile) : nouvel écran, la liste de groupes ----------
+  await aller(page, "magasin", "#ecran-magasin:not([hidden]) #liste-magasin .mag-ligne");
+  await page.screenshot({ path: path.join(SORTIE, "magasin-mobile.png"), fullPage: true });
+  console.log("Magasin : liste des groupes affichée");
   await page.close();
 
   // ---------- PC ----------
@@ -218,7 +242,8 @@ try {
   await pc.click("#modules [data-ecran=jour]");
   await pc.waitForSelector("#ecran-jour:not([hidden]) #detail-tache-pc:not([hidden]) .detail", { timeout: 15000 });
   await pc.screenshot({ path: path.join(SORTIE, "jour-pc.png"), fullPage: true });
-  for (const [ecran, selecteur] of [["balance", "#balance-corps .carte"], ["taches-rec", "#liste-taches-rec .groupe"]]) {
+  for (const [ecran, selecteur] of [["semaine", "#ecran-semaine:not([hidden]) #grille-semaine .ligne-grille-semaine"],
+    ["taches-rec", "#liste-taches-rec .groupe"]]) {
     await aller(pc, ecran, selecteur);
     await pc.screenshot({ path: path.join(SORTIE, `${ecran}-pc.png`), fullPage: true });
   }
@@ -226,9 +251,12 @@ try {
   await pc.click("#logo");
   await pc.waitForSelector("#ecran-accueil:not([hidden])");
   await pc.click("#modules [data-ecran=courses]");
-  await pc.waitForSelector("#ecran-courses:not([hidden]) #liste-courses .mvt, #ecran-courses:not([hidden]) #liste-courses .vide");
+  await pc.waitForSelector("#ecran-courses:not([hidden]) #groupes-courses .mvt, #ecran-courses:not([hidden]) #groupes-courses .vide");
   await pc.screenshot({ path: path.join(SORTIE, "courses-pc.png"), fullPage: true });
   console.log("Écran Courses rendu (PC)");
+  await aller(pc, "magasin", "#ecran-magasin:not([hidden]) #liste-magasin .mag-ligne");
+  await pc.screenshot({ path: path.join(SORTIE, "magasin-pc.png"), fullPage: true });
+  console.log("Écran Magasin rendu (PC)");
   await pc.close();
 } finally {
   await navigateur.close();

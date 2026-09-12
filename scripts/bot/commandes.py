@@ -122,13 +122,20 @@ def interpreter(texte_brut, prenoms, charges, annee_courante, mois_courant):
     m = re.match(r"^balance\s+(\d{1,3})\s*(?:j|jours?)?$", sans_mois)
     if m:
         return {"action": "balance", "jours": max(1, min(365, int(m.group(1))))}
-    # fait / pas fait [<titre>] — le titre peut viser une tâche ou un mouvement : bot.py
-    # tranche, lui seul a les deux listes. Sans titre, c'est le virement au commun.
+    # fait / pas fait [<titre>] [à deux] — le titre peut viser une tâche ou un mouvement :
+    # bot.py tranche, lui seul a les deux listes. Sans titre, c'est le virement au commun.
+    # « à deux » (et ses variantes) ne s'applique qu'aux tâches : basculer_fait l'ignore
+    # si le titre finit par viser un mouvement.
     m = re.match(r"^(?:virement\s+)?(pas\s+fait|fait)\b\s*(.*)$", sans_mois)
     if m:
         titre = m.group(2).strip()
+        a_deux = False
+        m_deux = re.match(r"^(.*?)\s+(?:a deux|ensemble|tous les deux)$", titre)
+        if m_deux:
+            titre = m_deux.group(1).strip()
+            a_deux = True
         return {"action": "mouvement", "fait": not m.group(1).startswith("pas"),
-                "titre": titre or None, "annee": annee, "mois": mois}
+                "titre": titre or None, "a_deux": a_deux, "annee": annee, "mois": mois}
     if sans_mois in ("oui", "non"):
         return {"action": "confirmation", "valeur": sans_mois == "oui"}
 

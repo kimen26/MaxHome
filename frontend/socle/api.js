@@ -82,6 +82,30 @@ export function creerApi(sb) {
     majCourse: (id, champs) => sb.from("courses").update(champs).eq("id", id).then(rendre),
     supprimerCourses: (ids) => sb.from("courses").delete().in("id", ids).then(rendre),
 
+    /** Échange l'`ordre` de deux groupes (Réglages · Magasin) : une seule paire à la fois. */
+    async echangerOrdreRayons(rayonA, rayonB) {
+      await Promise.all([
+        sb.from("courses_rayons").update({ ordre: rayonB.ordre }).eq("nom", rayonA.nom).then(rendre),
+        sb.from("courses_rayons").update({ ordre: rayonA.ordre }).eq("nom", rayonB.nom).then(rendre),
+      ]);
+    },
+
+    repas: () => sb.from("repas").select("*").eq("actif", true).order("ordre").then(rendre),
+    repasIngredients: () => sb.from("repas_ingredients").select("*").then(rendre),
+    classiques: () => sb.from("courses_classiques").select("*").order("fois", { ascending: false }).then(rendre),
+    /** Alimenté uniquement par « Vider le panier » : upsert qui incrémente `fois`. */
+    async classerCommeClassique(article) {
+      const existant = await sb.from("courses_classiques").select("fois").eq("libelle", article.libelle)
+        .maybeSingle().then(rendre);
+      // `.select().single()` est indispensable : sans lui, un upsert PostgREST renvoie `null`,
+      // et l'appelant (viderPanier) poussait ce null dans `etat.classiques` — le rendu suivant
+      // plantait alors sur `c.libelle`. Une écriture dont on réutilise le résultat doit le rendre.
+      return sb.from("courses_classiques").upsert({
+        libelle: article.libelle, quantite: article.quantite, rayon: article.rayon,
+        fois: (existant?.fois ?? 0) + 1,
+      }).select().single().then(rendre);
+    },
+
     // ---------- module Tâches ----------
     tachesRec: () => sb.from("taches_recurrentes").select("*").order("ordre").order("id").then(rendre),
     /** Tâches non faites (quelle que soit leur date) et tâches depuis `depuis` (AAAA-MM-JJ). */

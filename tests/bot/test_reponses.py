@@ -53,3 +53,24 @@ def test_inconnu_et_non_compris():
 
 def test_liste_charges_vide():
     assert reponses.liste_charges([], {}) == "Aucune charge ce mois."
+
+
+def test_parts_texte_virgule_francaise_sans_zero_inutile():
+    assert reponses.parts_texte(2) == "0,5"
+    assert reponses.parts_texte(4) == "1"
+    assert reponses.parts_texte(6) == "1,5"
+    assert reponses.parts_texte(32) == "8"
+
+
+def test_parts_mot_pluriel_a_partir_de_2_parts():
+    assert reponses.parts_mot(2) == "0,5 part"
+    assert reponses.parts_mot(4) == "1 part"
+    assert reponses.parts_mot(6) == "1,5 part", "1,5 reste au singulier en français"
+    assert reponses.parts_mot(8) == "2 parts"
+
+
+def test_balance_taches_affiche_la_ligne_obligatoire():
+    b = {"ratio": {"Yann": 0.4, "Claudia": 0.6}, "parts": {"Yann": 8, "Claudia": 12},
+         "nombre": {"Yann": 2, "Claudia": 3}, "total": 20}
+    txt = reponses.balance_taches(b, ["Yann", "Claudia"], 7, obligatoire={"Yann": 0.42, "Claudia": 0.58})
+    assert "Obligatoire · Claudia en assure 58 %" in txt
