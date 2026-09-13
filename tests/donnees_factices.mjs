@@ -1,6 +1,8 @@
 // Données factices pour la recette hors ligne (tests/recette_ecrans.mjs).
 // Génériques et sans rien de personnel : prénoms Claudia/Yann (déjà publics dans le code),
 // montants ronds inventés, tâches et articles génériques repris des migrations de départ.
+// L'enfant s'appelle « Léo » ICI, prénom d'exemple : ce fichier est versionné dans un dépôt
+// public (invariant 1). Le vrai prénom vit en base, posé par scripts/renommer_enfant.py.
 // Le format de chaque table suit exactement les colonnes lues par frontend/socle/api.js
 // (voir supabase/migrations/*.sql pour le schéma).
 
@@ -13,6 +15,9 @@ const auj = iso(AUJOURDHUI);
 const ilYA = (n) => { const d = new Date(AUJOURDHUI); d.setDate(d.getDate() - n); return iso(d); };
 // Fin de la période d'une tâche mensuelle, comme la calcule taches.js::echeance("mensuel").
 const finDuMois = iso(new Date(AUJOURDHUI.getFullYear(), AUJOURDHUI.getMonth() + 1, 0));
+// Fin de la période d'une tâche hebdo (le dimanche qui suit ou clôt la semaine courante),
+// comme la calcule taches.js::echeance("hebdo") : jour + (7 - jour.getDay()) % 7.
+const echeanceSemaine = ilYA(-((7 - AUJOURDHUI.getDay()) % 7));
 const ANNEE = AUJOURDHUI.getFullYear();
 const MOIS = AUJOURDHUI.getMonth() + 1;
 
@@ -36,7 +41,7 @@ export const CHARGES = [
     cle_pct: null, payeur: null, ponctuel: false, montant_defaut: 60000, defaut_dernier: true },
   { id: 4, libelle: "Impôts", ordre: 40, categorie: "Impôts", type: "proport", regle: "proport",
     cle_pct: null, payeur: null, ponctuel: false, montant_defaut: 25000, defaut_dernier: true },
-  { id: 5, libelle: "Crèche", ordre: 50, categorie: "Max", type: "egales", regle: "egales",
+  { id: 5, libelle: "Crèche", ordre: 50, categorie: "Léo", type: "egales", regle: "egales",
     cle_pct: null, payeur: null, ponctuel: false, montant_defaut: 45000, defaut_dernier: true },
 ];
 
@@ -71,54 +76,145 @@ export const MOUVEMENTS = [
 ];
 
 // ---------- module Tâches ----------
+// Les 24 récurrentes réelles (reprises telles quelles, cf. brief) : sept le matin, cinq le
+// soir, cinq hebdo, deux mensuelles, quatre au besoin. Sept tâches seulement masquait la carte
+// MATIN et laissait l'écran Jour quasi vide sur les captures — la recette disait vert sans
+// avoir vu la vraie densité (L-009 : une capture se regarde).
 export const TACHES_RECURRENTES = [
-  { id: 1, titre: "Laver les biberons", categorie: "Enfant", frequence: "quotidien", fois: 2,
+  // -- quotidien / matin --
+  { id: 1, titre: "Biberons", categorie: "Enfant", frequence: "quotidien", fois: 2,
     penibilite: 1, importance: 3, attribue_a: null, consigne: null, ordre: 10, actif: true,
     parts_quart: 4, obligatoire: true, partageable: false, ecart_prenom: null, minutes: 5, moment: "matin" },
-  { id: 2, titre: "Faire à manger", categorie: "Cuisine", frequence: "quotidien", fois: 2,
-    penibilite: 3, importance: 3, attribue_a: null, consigne: null, ordre: 20, actif: true,
-    parts_quart: 12, obligatoire: true, partageable: true, ecart_prenom: null, minutes: 30, moment: "soir" },
-  { id: 3, titre: "Lancer une machine", categorie: "Linge", frequence: "hebdo", fois: 3,
+  { id: 2, titre: "Petit déj Léo", categorie: "Enfant", frequence: "quotidien", fois: 1,
+    penibilite: 1, importance: 3, attribue_a: null, consigne: null, ordre: 20, actif: true,
+    parts_quart: 4, obligatoire: true, partageable: false, ecart_prenom: null, minutes: 10, moment: "matin" },
+  { id: 3, titre: "Habiller Léo", categorie: "Enfant", frequence: "quotidien", fois: 1,
     penibilite: 1, importance: 2, attribue_a: null, consigne: null, ordre: 30, actif: true,
-    parts_quart: 4, obligatoire: true, partageable: false, ecart_prenom: null, minutes: 10 },
-  { id: 4, titre: "Courses", categorie: "Courses", frequence: "hebdo", fois: 1,
-    penibilite: 3, importance: 3, attribue_a: null, consigne: null, ordre: 40, actif: true,
-    parts_quart: 12, obligatoire: true, partageable: true, ecart_prenom: null, minutes: 45 },
-  { id: 5, titre: "Aspirateur et sols", categorie: "Ménage", frequence: "hebdo", fois: 1,
-    penibilite: 3, importance: 2, attribue_a: null, consigne: null, ordre: 50, actif: true,
-    parts_quart: 12, obligatoire: false, partageable: false, ecart_prenom: null, minutes: 20 },
-  // Les quatre cadences doivent être représentées, sinon des branches entières du rendu ne
-  // sont jamais capturées : le « 1× » figé du mensuel, la carte « Ce mois », et les tâches
-  // « au besoin » qui ne génèrent aucune occurrence. Un écran qu'aucune donnée n'atteint est
-  // un écran que la recette dit vert sans l'avoir vu.
-  { id: 6, titre: "Salle de bain", categorie: "Ménage", frequence: "mensuel", fois: 1,
+    parts_quart: 2, obligatoire: true, partageable: false, ecart_prenom: null, minutes: 5, moment: "matin" },
+  { id: 4, titre: "Dents Léo", categorie: "Enfant", frequence: "quotidien", fois: 1,
+    penibilite: 1, importance: 2, attribue_a: null, consigne: null, ordre: 40, actif: true,
+    parts_quart: 2, obligatoire: false, partageable: false, ecart_prenom: null, minutes: 2, moment: "matin" },
+  { id: 5, titre: "Dépose école", categorie: "Enfant", frequence: "quotidien", fois: 1,
+    penibilite: 2, importance: 3, attribue_a: null, consigne: null, ordre: 50, actif: true,
+    parts_quart: 4, obligatoire: true, partageable: false, ecart_prenom: null, minutes: 15, moment: "matin" },
+  { id: 6, titre: "Table", categorie: "Cuisine", frequence: "quotidien", fois: 1,
+    penibilite: 1, importance: 1, attribue_a: null, consigne: null, ordre: 60, actif: true,
+    parts_quart: 2, obligatoire: false, partageable: false, ecart_prenom: null, minutes: 5, moment: "matin" },
+  { id: 7, titre: "LV - ranger", categorie: "Cuisine", frequence: "quotidien", fois: 1,
+    penibilite: 1, importance: 1, attribue_a: null, consigne: null, ordre: 70, actif: true,
+    parts_quart: 2, obligatoire: false, partageable: false, ecart_prenom: null, minutes: 5, moment: "matin" },
+  // -- quotidien / soir --
+  { id: 8, titre: "Chercher Léo", categorie: "Enfant", frequence: "quotidien", fois: 1,
+    penibilite: 2, importance: 3, attribue_a: null, consigne: null, ordre: 80, actif: true,
+    parts_quart: 4, obligatoire: true, partageable: false, ecart_prenom: null, minutes: 15, moment: "soir" },
+  { id: 9, titre: "Bain", categorie: "Enfant", frequence: "quotidien", fois: 1,
+    penibilite: 2, importance: 2, attribue_a: null, consigne: null, ordre: 90, actif: true,
+    parts_quart: 4, obligatoire: true, partageable: false, ecart_prenom: null, minutes: 15, moment: "soir" },
+  { id: 10, titre: "Préparer le lait", categorie: "Enfant", frequence: "quotidien", fois: 1,
+    penibilite: 1, importance: 2, attribue_a: null, consigne: null, ordre: 100, actif: true,
+    parts_quart: 2, obligatoire: true, partageable: false, ecart_prenom: null, minutes: 5, moment: "soir" },
+  { id: 11, titre: "Cuisine", categorie: "Cuisine", frequence: "quotidien", fois: 1,
+    penibilite: 3, importance: 3, attribue_a: null, consigne: null, ordre: 110, actif: true,
+    parts_quart: 12, obligatoire: true, partageable: true, ecart_prenom: null, minutes: 30, moment: "soir" },
+  { id: 12, titre: "LV - vider", categorie: "Cuisine", frequence: "quotidien", fois: 1,
+    penibilite: 1, importance: 1, attribue_a: null, consigne: null, ordre: 120, actif: true,
+    parts_quart: 2, obligatoire: false, partageable: false, ecart_prenom: null, minutes: 5, moment: "soir" },
+  // -- hebdo (moment null) --
+  { id: 13, titre: "Courses", categorie: "Courses", frequence: "hebdo", fois: 1,
+    penibilite: 3, importance: 3, attribue_a: null, consigne: null, ordre: 130, actif: true,
+    parts_quart: 12, obligatoire: false, partageable: true, ecart_prenom: null, minutes: 45, moment: null },
+  { id: 14, titre: "Lessive", categorie: "Linge", frequence: "hebdo", fois: 1,
+    penibilite: 1, importance: 2, attribue_a: null, consigne: null, ordre: 140, actif: true,
+    parts_quart: 4, obligatoire: false, partageable: false, ecart_prenom: null, minutes: 10, moment: null },
+  { id: 15, titre: "Sols", categorie: "Ménage", frequence: "hebdo", fois: 1,
+    penibilite: 3, importance: 2, attribue_a: null, consigne: null, ordre: 150, actif: true,
+    parts_quart: 12, obligatoire: false, partageable: false, ecart_prenom: null, minutes: 20, moment: null },
+  { id: 16, titre: "Linge", categorie: "Linge", frequence: "hebdo", fois: 1,
+    penibilite: 2, importance: 1, attribue_a: null, consigne: null, ordre: 160, actif: true,
+    parts_quart: 8, obligatoire: false, partageable: false, ecart_prenom: null, minutes: 15, moment: null },
+  { id: 17, titre: "Draps", categorie: "Linge", frequence: "hebdo", fois: 1,
+    penibilite: 2, importance: 1, attribue_a: null, consigne: null, ordre: 170, actif: true,
+    parts_quart: 8, obligatoire: false, partageable: false, ecart_prenom: null, minutes: 15, moment: null },
+  // -- mensuel (moment null) --
+  { id: 18, titre: "Salle de bain", categorie: "Ménage", frequence: "mensuel", fois: 1,
     penibilite: 5, importance: 1, attribue_a: null, consigne: "Le gros morceau du mois.",
-    ordre: 60, actif: true,
-    parts_quart: 32, obligatoire: false, partageable: true, ecart_prenom: "Yann", minutes: 90 },
-  { id: 7, titre: "Sortir la poubelle", categorie: "Déchets", frequence: "au_besoin", fois: 1,
-    penibilite: 2, importance: 2, attribue_a: null, consigne: null, ordre: 70, actif: true,
-    parts_quart: 4, obligatoire: true, partageable: false, ecart_prenom: null, minutes: 5 },
+    ordre: 180, actif: true,
+    parts_quart: 32, obligatoire: false, partageable: true, ecart_prenom: "Yann", minutes: 90, moment: null },
+  { id: 19, titre: "Vitres", categorie: "Ménage", frequence: "mensuel", fois: 1,
+    penibilite: 4, importance: 1, attribue_a: null, consigne: null, ordre: 190, actif: true,
+    parts_quart: 20, obligatoire: false, partageable: false, ecart_prenom: null, minutes: 45, moment: null },
+  // -- au_besoin (moment null, jamais d'occurrence — cf. Todo) --
+  { id: 20, titre: "Poubelle", categorie: "Déchets", frequence: "au_besoin", fois: 1,
+    penibilite: 2, importance: 2, attribue_a: null, consigne: null, ordre: 200, actif: true,
+    parts_quart: 2, obligatoire: false, partageable: false, ecart_prenom: null, minutes: 5, moment: null },
+  { id: 21, titre: "Verre", categorie: "Déchets", frequence: "au_besoin", fois: 1,
+    penibilite: 1, importance: 1, attribue_a: null, consigne: null, ordre: 210, actif: true,
+    parts_quart: 2, obligatoire: false, partageable: false, ecart_prenom: null, minutes: 5, moment: null },
+  { id: 22, titre: "Garage", categorie: "Ménage", frequence: "au_besoin", fois: 1,
+    penibilite: 3, importance: 1, attribue_a: null, consigne: null, ordre: 220, actif: true,
+    parts_quart: 12, obligatoire: false, partageable: false, ecart_prenom: null, minutes: 30, moment: null },
+  { id: 23, titre: "Cadres", categorie: "Ménage", frequence: "au_besoin", fois: 1,
+    penibilite: 1, importance: 1, attribue_a: null, consigne: null, ordre: 230, actif: true,
+    parts_quart: 4, obligatoire: false, partageable: false, ecart_prenom: null, minutes: 10, moment: null },
+  { id: 24, titre: "Étagère", categorie: "Ménage", frequence: "au_besoin", fois: 1,
+    penibilite: 2, importance: 1, attribue_a: null, consigne: null, ordre: 240, actif: true,
+    parts_quart: 8, obligatoire: false, partageable: false, ecart_prenom: null, minutes: 20, moment: null },
 ];
 
-// Occurrences : une en retard, une aujourd'hui, quelques faites dans les 7 derniers jours
-// (pour peupler balance/semaine), une au besoin.
+// Occurrences du jour pour les quotidiennes (fois occurrences chacune), des hebdo à l'échéance
+// de la semaine (le dimanche, cf. taches.js::echeance) et des mensuelles à la fin du mois.
+// Aucune pour les au_besoin (L-consigne du brief : elles vivent dans le Todo).
+// 9 occurrences déjà faites (fait_le renseigné, qui/qui2, parts_quart figé) dont deux à deux
+// (Cuisine et Courses, qui portent qui2) pour que la case « CY » apparaisse sur les captures.
+const maintenant = new Date().toISOString();
+
 export const TACHES = [
-  { id: 1, recurrent_id: 1, titre: "Laver les biberons", categorie: "Enfant", echeance: ilYA(1),
+  // Matin : Biberons (2×, une faite), Petit déj fait, Habiller à faire, Dents à faire,
+  // Dépose école faite, Table à faire, LV - ranger faite.
+  { id: 1, recurrent_id: 1, titre: "Biberons", categorie: "Enfant", echeance: auj,
+    rang: 1, qui: "Claudia", qui2: null, fait_le: maintenant, points: 1, parts_quart: 4 },
+  { id: 2, recurrent_id: 1, titre: "Biberons", categorie: "Enfant", echeance: auj,
+    rang: 2, qui: null, qui2: null, fait_le: null, points: 0, parts_quart: 0 },
+  { id: 3, recurrent_id: 2, titre: "Petit déj Léo", categorie: "Enfant", echeance: auj,
+    rang: 1, qui: "Yann", qui2: null, fait_le: maintenant, points: 1, parts_quart: 4 },
+  { id: 4, recurrent_id: 3, titre: "Habiller Léo", categorie: "Enfant", echeance: auj,
     rang: 1, qui: null, qui2: null, fait_le: null, points: 0, parts_quart: 0 },
-  { id: 2, recurrent_id: 2, titre: "Faire à manger", categorie: "Cuisine", echeance: auj,
+  { id: 5, recurrent_id: 4, titre: "Dents Léo", categorie: "Enfant", echeance: auj,
     rang: 1, qui: null, qui2: null, fait_le: null, points: 0, parts_quart: 0 },
-  { id: 3, recurrent_id: 3, titre: "Lancer une machine", categorie: "Linge", echeance: auj,
-    rang: 1, qui: "Claudia", qui2: null, fait_le: new Date().toISOString(), points: 1, parts_quart: 4 },
-  { id: 4, recurrent_id: 4, titre: "Courses", categorie: "Courses", echeance: ilYA(2),
-    rang: 1, qui: "Yann", qui2: null, fait_le: new Date().toISOString(), points: 3, parts_quart: 12 },
-  { id: 5, recurrent_id: 2, titre: "Faire à manger", categorie: "Cuisine", echeance: ilYA(3),
-    rang: 2, qui: "Claudia", qui2: "Yann", fait_le: new Date().toISOString(), points: 3, parts_quart: 12 },
-  { id: 6, recurrent_id: null, titre: "Monter l'étagère", categorie: "Ménage", echeance: ilYA(1),
-    rang: 1, qui: "Yann", qui2: null, fait_le: new Date().toISOString(), points: 2, parts_quart: 8 },
-  // Mensuelle non faite : peuple la carte « Ce mois » de l'écran Jour et la cadence
-  // « Chaque mois » des Réglages (colonne figée à « 1× »), sinon jamais rendues.
-  { id: 7, recurrent_id: 6, titre: "Salle de bain", categorie: "Ménage", echeance: finDuMois,
+  { id: 6, recurrent_id: 5, titre: "Dépose école", categorie: "Enfant", echeance: auj,
+    rang: 1, qui: "Claudia", qui2: null, fait_le: maintenant, points: 1, parts_quart: 4 },
+  { id: 7, recurrent_id: 6, titre: "Table", categorie: "Cuisine", echeance: auj,
     rang: 1, qui: null, qui2: null, fait_le: null, points: 0, parts_quart: 0 },
+  { id: 8, recurrent_id: 7, titre: "LV - ranger", categorie: "Cuisine", echeance: auj,
+    rang: 1, qui: "Yann", qui2: null, fait_le: maintenant, points: 1, parts_quart: 2 },
+  // Soir : Chercher Léo et Bain à faire, Préparer le lait faite, Cuisine faite à deux,
+  // LV - vider à faire.
+  { id: 9, recurrent_id: 8, titre: "Chercher Léo", categorie: "Enfant", echeance: auj,
+    rang: 1, qui: null, qui2: null, fait_le: null, points: 0, parts_quart: 0 },
+  { id: 10, recurrent_id: 9, titre: "Bain", categorie: "Enfant", echeance: auj,
+    rang: 1, qui: null, qui2: null, fait_le: null, points: 0, parts_quart: 0 },
+  { id: 11, recurrent_id: 10, titre: "Préparer le lait", categorie: "Enfant", echeance: auj,
+    rang: 1, qui: "Claudia", qui2: null, fait_le: maintenant, points: 1, parts_quart: 2 },
+  { id: 12, recurrent_id: 11, titre: "Cuisine", categorie: "Cuisine", echeance: auj,
+    rang: 1, qui: "Claudia", qui2: "Yann", fait_le: maintenant, points: 3, parts_quart: 12 },
+  { id: 13, recurrent_id: 12, titre: "LV - vider", categorie: "Cuisine", echeance: auj,
+    rang: 1, qui: null, qui2: null, fait_le: null, points: 0, parts_quart: 0 },
+  // Hebdo, à échéance de la semaine (dimanche) : Courses faite à deux, les autres à faire.
+  { id: 14, recurrent_id: 13, titre: "Courses", categorie: "Courses", echeance: echeanceSemaine,
+    rang: 1, qui: "Yann", qui2: "Claudia", fait_le: maintenant, points: 3, parts_quart: 12 },
+  { id: 15, recurrent_id: 14, titre: "Lessive", categorie: "Linge", echeance: echeanceSemaine,
+    rang: 1, qui: null, qui2: null, fait_le: null, points: 0, parts_quart: 0 },
+  { id: 16, recurrent_id: 15, titre: "Sols", categorie: "Ménage", echeance: echeanceSemaine,
+    rang: 1, qui: null, qui2: null, fait_le: null, points: 0, parts_quart: 0 },
+  { id: 17, recurrent_id: 16, titre: "Linge", categorie: "Linge", echeance: echeanceSemaine,
+    rang: 1, qui: "Yann", qui2: null, fait_le: maintenant, points: 2, parts_quart: 8 },
+  { id: 18, recurrent_id: 17, titre: "Draps", categorie: "Linge", echeance: echeanceSemaine,
+    rang: 1, qui: null, qui2: null, fait_le: null, points: 0, parts_quart: 0 },
+  // Mensuel, à fin de mois : Vitres faite, Salle de bain à faire (peuple la carte « Ce mois »).
+  { id: 19, recurrent_id: 18, titre: "Salle de bain", categorie: "Ménage", echeance: finDuMois,
+    rang: 1, qui: null, qui2: null, fait_le: null, points: 0, parts_quart: 0 },
+  { id: 20, recurrent_id: 19, titre: "Vitres", categorie: "Ménage", echeance: finDuMois,
+    rang: 1, qui: "Claudia", qui2: null, fait_le: maintenant, points: 5, parts_quart: 20 },
 ];
 
 // ---------- module Courses ----------

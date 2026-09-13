@@ -234,3 +234,21 @@ Et l'épreuve décisive n'est pas le PNG en 512 px : c'est un rendu à **48 px**
 un écran d'accueil, agrandi ensuite sans lissage pour voir ce que l'œil perçoit vraiment.
 Mnémonique : une icône se regarde à sa taille d'usage, et se valide sur ce qu'un inconnu y
 reconnaît — pas sur ce qu'on a voulu y mettre.
+
+## L-028 — une capture produite n'est pas une capture regardée (2026-09-13)
+La refonte de l'écran Tâches a été livrée, poussée en production et annoncée finie. Yann a
+comparé la maquette et le résultat : titres qui passent sur deux lignes, cases de coche trois fois
+trop grosses, fond ambre sur toutes les lignes, sous-titre qui déborde sur huit lignes et écrase
+le haut de l'écran. Un écart massif, visible au premier coup d'œil.
+Or `data/captures/ecrans/jour-360.png` existait, produite par `recette_ecrans.mjs`, et montrait
+EXACTEMENT ces quatre défauts. Elle était sur le disque avant le commit. Personne ne l'a ouverte.
+J'ai lu « recette écrans OK » et « 39 captures produites » dans un log, et j'ai conclu que l'écran
+était conforme — alors que le script ne vérifie que l'absence de débordement géométrique, jamais
+la ressemblance à la maquette. Le chantier précédent (L-024) avait justement construit cette
+recette parce que l'ancienne ne capturait que l'écran de login : j'ai corrigé l'outil, puis commis
+sur le résultat de l'outil la faute même qu'il existait pour rendre impossible.
+CLAUDE.md dit « puis OUVRIR data/captures/ecrans/*.png ». C'était écrit. Je ne l'ai pas fait.
+Mnémonique : « captures produites » est un résultat de script, « écran conforme » est un jugement
+humain sur une image — et quand une maquette existe, la porte de sortie n'est pas « ça ne déborde
+pas », c'est la capture et la maquette côte à côte. Un outil de vérification qu'on ne regarde pas
+ne vérifie rien : il déplace seulement l'endroit où l'on se ment.

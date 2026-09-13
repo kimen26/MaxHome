@@ -209,6 +209,49 @@ async function chercherDebordement(page, largeur) {
   }, largeur);
 }
 
+/** Élément flottant (FAB) qui recouvre du contenu : un `position:fixed` est hors flux, donc
+ *  aucun débordement horizontal ne le signale — seul l'œil le voyait, et l'œil ne regardait pas
+ *  (L-028). On mesure l'intersection réelle entre le rectangle du bouton flottant et celui des
+ *  blocs de contenu, en ignorant ses propres descendants et les conteneurs qui l'englobent. */
+async function chercherRecouvrements(page) {
+  // Fond de page : position de repos du FAB. Ailleurs, le survol est transitoire (on défile).
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.waitForTimeout(120);
+  const touches = await page.evaluate(() => {
+    const nom = (e) => `${e.tagName.toLowerCase()}${e.id ? "#" + e.id : ""}` +
+      (typeof e.className === "string" && e.className.trim() ? "." + e.className.trim().split(/\s+/).join(".") : "");
+    const flottants = [...document.querySelectorAll("body *")].filter((el) => {
+      const st = getComputedStyle(el);
+      return st.position === "fixed" && st.display !== "none" && st.visibility !== "hidden"
+        && !el.closest("nav") && el.getBoundingClientRect().width > 0
+        // Le voile d'une feuille modale RECOUVRE l'écran : c'est sa fonction, pas un défaut.
+        // La barre d'onglets non plus (exclue par `nav` ci-dessus) : contenu et barre coexistent.
+        && el.id !== "feuille-fond" && !el.classList.contains("feuille");
+    });
+    // Un FAB `position:fixed` survole forcément le contenu d'une page qui défile : ce qu'on
+    // traque n'est pas ce survol, c'est qu'il masque quelque chose d'ACTIONNABLE ou une valeur
+    // qu'on ne peut plus lire EN FIN DE PAGE, là où il se pose au repos. On mesure donc à fond
+    // de page (défilement en bas), seul état où le recouvrement est permanent.
+    const CIBLES = ".ligne-tache, .carte-taches, .grille-semaine-carte, .legende-taches, .barre-fait-bouton, #detail-categories-semaine > *";
+    const touches = [];
+    for (const f of flottants) {
+      const rf = f.getBoundingClientRect();
+      for (const el of document.querySelectorAll(CIBLES)) {
+        if (f.contains(el) || el.contains(f)) continue;
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) continue;
+        const l = Math.min(r.right, rf.right) - Math.max(r.left, rf.left);
+        const h = Math.min(r.bottom, rf.bottom) - Math.max(r.top, rf.top);
+        // 4 px de marge : un simple contact de bordure n'est pas un recouvrement.
+        if (l > 4 && h > 4) touches.push(`${nom(f)} recouvre ${nom(el)} sur ${Math.round(l)}x${Math.round(h)}px`);
+      }
+    }
+    return touches.slice(0, 6);
+  });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  return touches;
+}
+
 // ---------- 4. lancement ----------
 const serveur = http.createServer((req, res) => {
   const p = path.join(RACINE, req.url === "/" ? "index.html" : req.url.split("?")[0]);
@@ -230,6 +273,8 @@ const ecrans = listerEcrans();
 const navigateur = await chromium.launch();
 const erreurs = [];
 const debordements = [];
+const recouvrements = [];
+const BR = String.fromCharCode(10);
 const ecransCasses = [];
 let nbCaptures = 0;
 
@@ -345,6 +390,8 @@ async function capturer(page, ecran, largeur, erreursPage) {
     debordements.push(`${ecran} @ ${largeur}px : scrollWidth=${scrollWidth} > innerWidth=${innerWidth} — `
       + `éléments fautifs : ${fautifs.join(", ") || "non identifiés"}`);
   }
+  // Mesuré AVANT la capture : `fullPage` déplace les éléments `position:fixed`.
+  for (const t of await chercherRecouvrements(page)) recouvrements.push(`${ecran} @ ${largeur}px : ${t}`);
   await page.screenshot({ path: path.join(SORTIE, `${ecran}-${largeur}.png`), fullPage: true });
   nbCaptures++;
 }
@@ -360,8 +407,11 @@ if (ecransCasses.length) {
 if (debordements.length) {
   console.error(`\nDébordements horizontaux (${debordements.length}) :\n` + debordements.join("\n"));
 }
+if (recouvrements.length) {
+  console.error(BR + `Contenu masqué par un élément flottant (${recouvrements.length}) :` + BR + recouvrements.join(BR));
+}
 if (erreurs.length) {
   console.error(`\nErreurs console/page (${erreurs.length}) :\n` + erreurs.join("\n"));
 }
-if (ecransCasses.length || debordements.length || erreurs.length) process.exit(1);
+if (ecransCasses.length || debordements.length || recouvrements.length || erreurs.length) process.exit(1);
 console.log("recette écrans OK");

@@ -64,7 +64,7 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
     const r = recDe(t);
     return boutonCycle({
       cle: String(t.id), valeurs: valeursCycle(r), valeur: valeurCourante(t),
-      rendu: renduCase, classe: "case-tache", taille: "jour",
+      rendu: renduCase, classe: "case-tache", taille: "compacte",
     });
   }
 
@@ -92,7 +92,9 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
     const r = recDe(t);
     const fait = !!t.fait_le;
     const droite = metaDroite ?? partsLigne(t);
-    return `<div class="ligne-tache${fait ? " ligne-faite" : ""}" data-id="${t.id}">
+    // Ambre = en retard (échéance passée), jamais l'état normal d'une tâche à faire.
+    const retard = !fait && t.echeance && t.echeance < jourIso(new Date());
+    return `<div class="ligne-tache${fait ? " ligne-faite" : retard ? " ligne-retard" : ""}" data-id="${t.id}">
       ${caseTacheHtml(t)}
       <span class="point-oblig ${r?.obligatoire ? (fait ? "oblig-faite" : "oblig-due") : "oblig-non"}" aria-hidden="true"></span>
       <span class="titre-tache${fait ? " fait" : ""}">${txt(t.titre)}</span>
@@ -247,8 +249,12 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
     const oblRestants = regrouper(restantes).filter((t) => recDe(t)?.obligatoire).map((t) => t.titre);
     const d = depuisIso(jour);
     $("#titre-jour").textContent = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "short" }).replace(/^./, (c) => c.toUpperCase());
+    // Trois titres au plus : le sous-titre tient sur une ligne (le CSS tronque aussi, mais un
+    // texte déjà court reste lisible ; la liste entière se lit dans les cartes, juste dessous).
+    const apercuObl = oblRestants.slice(0, 3).join(", ")
+      + (oblRestants.length > 3 ? ` +${oblRestants.length - 3}` : "");
     $("#sous-jour").textContent = oblRestants.length
-      ? `aujourd’hui · oblig. : ${oblRestants.join(", ")}`
+      ? `aujourd’hui · oblig. : ${apercuObl}`
       : restantes.length || termines.length ? "aujourd’hui · rien oublié aujourd’hui" : "aujourd’hui · rien de prévu";
 
     const c = termines.reduce((acc, t) => { for (const [p, q] of Object.entries(credit(t))) acc[p] = (acc[p] ?? 0) + q; return acc; }, {});

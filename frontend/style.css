@@ -4,7 +4,7 @@
 :root {
   --bleu:#1f4e79; --bleu-fonce:#1a4266; --bleu-clair:#e8eff6;
   --barre-1:#8fb3d9; --barre-2:#4a7fb0; --barre-3:#c5d5e6;
-  --fond:#f5f7fa; --fond-bandeau:#eef1f4;
+  --fond:#faf8f3; --fond-bandeau:#f2efe8;
   --bordure:#d9dee5; --separateur:#eef1f4; --separateur-2:#e6eaef;
   --texte:#1a1f26; --texte-2:#5b6572; --placeholder:#9aa4b0;
   --rouge:#b00020; --rouge-fond:#fbeaec; --vert:#1b7f3b; --vert-clair:#e9f5ec;
@@ -14,6 +14,9 @@
   --claudia:#b8860b; --a-deux:#6b6f4f; --a-deux-texte:#4f5338; --a-deux-fond:#eceedf;
   --ambre-texte:#8a6d3b; --ambre-fond:#fff3cd; --ambre-ligne:#fffbea;
   --ambre-champ:#fffae6; --ambre-bordure:#e0b84a; --tirets:#b8c2cc;
+  --fab-hauteur:44px; --fab-ecart:12px;
+  /* Bordure d'une case à cocher vide : >= 3:1 sur blanc, une bordure porte ici du sens. */
+  --bordure-case:#9aa6b4;
   --police:'IBM Plex Sans', system-ui, -apple-system, sans-serif;
   --mono:'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
   --barre-basse: calc(64px + env(safe-area-inset-bottom, 0px));
@@ -565,8 +568,12 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
 }
 /* Cibles de réglage (tableau Parts) : 30 px, usage rare, à deux mains (handoff §5). */
 .cycle-reglage { min-width:30px; min-height:30px; font-size:13px; }
-/* Cibles de l'écran Jour (coche tri-état) : 44 px, cible tactile courante (rules/mobile-parents.md). */
+/* Cibles de la grille Semaine : 44 px, cible tactile courante (rules/mobile-parents.md). */
 .cycle-jour { min-width:44px; min-height:44px; font-size:14px; }
+/* Taille « compacte » : AUCUNE contrainte de gabarit ici — l'appelant fixe la sienne (l'écran Jour
+   veut 18 px visuels avec une cible tapable étendue par ::before). Deux règles qui se disputent la
+   taille du même bouton, c'est une ligne deux fois trop haute (L-028). */
+.cycle-compacte { font-size:10px; }
 
 /* Échelle des parts : blanc (< 2), bleu clair (2-3), bleu plein (>= 5) — jamais la couleur seule,
    le libellé mono porte toujours la valeur, et l'aria-label dit l'état en toutes lettres. */
@@ -607,20 +614,31 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
 /* Contenu scrollable sous l'en-tête fixe : seule zone qui défile (handoff « padding de contenu
    8px 12px 92px » — le 92px de bas devient le padding-bottom déjà porté par main + de la marge
    pour le FAB, jamais recalculé en dur ici). */
-.contenu-taches { display:flex; flex-direction:column; gap:8px; padding-top:8px; }
+/* `padding-bottom` : le FAB est `position:fixed`, donc hors flux — sans cette réserve il
+   recouvre la légende et la barre « Fait ». Hauteur du FAB (44) + son écart au bas (12) + air. */
+/* `padding-bottom` : le FAB est `position:fixed`, donc hors flux — sans réserve il recouvre le
+   bas du contenu (mesuré : 94x44 px sur la carte « Par catégorie », recette_ecrans.mjs).
+   Dérivé, jamais deviné : hauteur du FAB + son écart au bas + de l'air. `main` porte déjà la
+   réserve pour la barre d'onglets, d'où l'absence de --barre-basse ici. */
+.contenu-taches {
+  display:flex; flex-direction:column; gap:8px; padding-top:8px;
+  padding-bottom:calc(var(--fab-hauteur) + var(--fab-ecart) + 16px);
+}
 
 /* FAB « + Ajouter » (handoff « Structure de l'écran », visible sur Tâches) : ancré à la
-   fenêtre comme #onglets (même patron), au-dessus de la barre de navigation du bas. */
+   fenêtre comme #onglets (même patron), au-dessus de la barre de navigation du bas.
+   Sa hauteur et son écart sont des variables : la réserve de `.contenu-taches` s'en déduit,
+   elle ne peut donc pas se désynchroniser quand on retouche le bouton. */
 .fab-ajouter {
-  position:fixed; right:16px; bottom:calc(var(--barre-basse) + 12px); z-index:19;
-  height:44px; padding:0 15px 0 12px; border:0; border-radius:13px; background:var(--bleu); color:#fff;
+  position:fixed; right:16px; bottom:calc(var(--barre-basse) + var(--fab-ecart)); z-index:19;
+  height:var(--fab-hauteur); padding:0 15px 0 12px; border:0; border-radius:13px; background:var(--bleu); color:#fff;
   font-size:14px; font-weight:600; display:flex; align-items:center; gap:6px; cursor:pointer;
   box-shadow:0 4px 14px rgba(31,78,121,.35);
 }
 .fab-ajouter span { font-size:20px; line-height:1; font-weight:400; }
 @media (min-width:1024px) {
   /* PC : la nav du bas disparaît (#onglets{display:none}), le FAB revient près du bas d'écran. */
-  .fab-ajouter { bottom:24px; }
+  .fab-ajouter { bottom:24px; right:24px; }
 }
 
 /* ---------- bande des 7 jours ---------- */
@@ -642,7 +660,13 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
 .ligne-titre-jour { display:flex; align-items:center; gap:8px; }
 .titre-jour-bloc { min-width:0; flex:1; }
 .titre-jour-bloc h1 { margin:0; font-size:15px; font-weight:600; line-height:1.15; }
-.titre-jour-bloc .sous { font-size:12px; color:var(--texte-2); margin:2px 0 0; }
+.titre-jour-bloc .sous {
+  font-size:12px; color:var(--texte-2); margin:2px 0 0;
+  /* La liste des obligatoires restants peut compter dix titres : sans limite elle pousse les
+     cartes hors de l'écran. Une ligne, ellipsis — le détail se lit dans les cartes, qui sont
+     la source de vérité. `min-width:0` sur le parent (flex) rend la troncature effective. */
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
 .chiffres-jour { display:flex; align-items:center; gap:6px; flex:none; }
 .chiffres-jour .mono { font-size:11px; font-weight:600; white-space:nowrap; }
 .chiffres-jour .repere-p1 { color:var(--ambre-texte); }
@@ -655,7 +679,7 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
 .grille-cartes { display:grid; grid-template-columns:1fr 1fr; gap:7px; align-items:start; }
 .carte-taches { background:#fff; border:1px solid var(--bordure); border-radius:11px; overflow:hidden; min-width:0; }
 .carte-taches-tete {
-  display:flex; justify-content:space-between; align-items:center; gap:8px; padding:3px 9px;
+  display:flex; justify-content:space-between; align-items:center; gap:8px; padding:3px 8px;
   border-bottom:1px solid var(--separateur);
 }
 .carte-taches-tete span:first-child {
@@ -666,20 +690,30 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
 .carte-taches-tete .compte-vert { color:var(--vert); font-size:10px; font-weight:600; }
 .vide-carte { margin:0; padding:8px 9px; font-size:12px; color:var(--texte-2); font-style:italic; }
 
+/* Ligne compacte (maquette) : ~26 px. La cible tactile de 48 px n'est PAS portée par la hauteur
+   de la ligne — elle le serait au prix d'un écran qui ne montre plus que six tâches — mais par le
+   ::before de la case de coche, qui déborde en hauteur sans pousser ses voisins (plus bas).
+   `position:relative` contient ce ::before. */
 .ligne-tache {
-  display:flex; align-items:center; gap:6px; min-height:44px; padding:2px 8px;
-  border-bottom:1px solid var(--separateur); background:var(--ambre-ligne);
+  display:flex; align-items:center; gap:6px; min-height:26px; padding:3px 8px; position:relative;
+  border-bottom:1px solid var(--separateur); background:#fff;
 }
 .ligne-tache:last-child { border-bottom:0; }
-.ligne-tache.ligne-faite { background:#fff; }
+/* Le fond ambre signale un RETARD (sens qu'il porte déjà dans Budget, cf. `.mvt.alerte`), il
+   n'est pas l'état normal d'une tâche à faire — sinon tout l'écran est jaune et le signal ne
+   signale plus rien. */
+.ligne-tache.ligne-retard { background:var(--ambre-ligne); }
 .point-oblig { width:5px; height:5px; border-radius:3px; flex:none; }
 .point-oblig.oblig-due { background:var(--rouge); }
 .point-oblig.oblig-faite { background:var(--tirets); }
 .point-oblig.oblig-non { background:transparent; }
-.titre-tache { flex:1; min-width:0; font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:normal; word-break:break-word; }
+/* `white-space:nowrap` est ce qui rend `text-overflow:ellipsis` opérant : sans lui le titre
+   revient à la ligne et double la hauteur de chaque ligne (L-028). Le titre entier reste lisible
+   dans le détail, ouvert au tap sur la ligne. */
+.titre-tache { flex:1; min-width:0; font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .titre-tache.fait { font-weight:400; text-decoration:line-through; color:var(--texte-2); }
 .titre-tache.en-cours { color:var(--ambre-texte); }
-.parts-ligne { font-size:11px; color:var(--texte-2); flex:none; }
+.parts-ligne { font-size:10px; color:var(--texte-2); flex:none; }
 .parts-ligne.vert { color:var(--vert); font-weight:600; }
 .parts-ligne.ambre { color:var(--ambre-texte); font-weight:600; }
 
@@ -688,11 +722,11 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
    Jour — pas un réglage rare (rules/mobile-parents.md, cible 48x48) : un ::before invisible
    étend la zone tapable sans changer l'apparence ni pousser les voisins (position:relative sur
    .ligne-tache, .cellule-semaine pour le contenir). */
-.case-tache.cycle { position:relative; width:auto; min-width:24px; min-height:24px; padding:0; border-radius:5px; font-size:10px; }
+.case-tache.cycle { position:relative; width:auto; min-width:18px; min-height:18px; padding:0; border-radius:4px; font-size:9px; border-width:1.5px; }
 .case-tache.cycle::before {
-  content:""; position:absolute; inset:-14px -8px; /* ~48px de haut, cible large sans déborder sur le titre */
+  content:""; position:absolute; inset:-15px -10px; /* 48px de haut x 38 de large : cible pleine, invisible */
 }
-.case-cycle-vide { background:#fff; border-color:var(--tirets); }
+.case-cycle-vide { background:#fff; border-color:var(--bordure-case); }
 .case-cycle-p1 { background:var(--claudia); border-color:var(--claudia); color:#fff; }
 .case-cycle-p2 { background:var(--bleu); border-color:var(--bleu); color:#fff; }
 .case-cycle-deux { background:var(--a-deux); border-color:var(--a-deux); color:#fff; }
