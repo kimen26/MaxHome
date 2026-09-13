@@ -126,6 +126,10 @@ main { padding:0 16px calc(var(--barre-basse) + 24px); }
   padding:10px 16px; font-size:13px; display:flex; align-items:center; justify-content:space-between; gap:12px;
 }
 #bandeau-erreur button { background:#fff; color:var(--rouge); border:0; border-radius:8px; padding:6px 12px; font-weight:600; cursor:pointer; }
+/* Attente, pas panne : une reprise automatique en cours ne doit pas s'afficher en rouge —
+   pour Claudia et Yann le rouge veut dire « c'est cassé », et ici rien ne l'est. Ambre sur
+   fond clair, contraste 7:1 (var(--ambre-texte) sur var(--ambre-fond)). */
+#bandeau-erreur.patience { background:var(--ambre-fond); color:var(--ambre-texte); }
 
 /* ---------- connexion ---------- */
 #login { display:flex; align-items:center; justify-content:center; min-height:100vh; padding:16px; }

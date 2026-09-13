@@ -345,3 +345,29 @@ Yann) est résolu, pas contourné :
   à la racine) : le worker s'enregistre, la coquille (39 fichiers) est bien en cache après le
   premier chargement, **une requête vers `*.supabase.co` n'est jamais mise en cache** (test explicite,
   le plus important), et un second chargement réseau coupé affiche l'app.
+
+## D-035 — Un bandeau sans reprise possible n'affiche pas de bouton, et l'attente n'est pas rouge
+
+Contexte : correction du démarrage sur token pas encore valide (L-029). Trois choix d'affichage
+ont été tranchés au passage, tous visibles sur `data/captures/token/`.
+
+**Bandeau OU toast, jamais les deux.** `echec()` appelait les deux avec le même texte : Claudia et
+Yann voyaient le message deux fois à l'écran, ce qui se lit comme deux pannes distinctes (visible
+sur la capture d'origine du rapport). Le bandeau seul suffit — il est persistant, le toast s'efface.
+
+**Pas de bouton « Réessayer » quand retenter redonnerait la même erreur.** `bandeauErreur(msg, null)`
+affichait quand même le bouton, qui ne faisait que masquer le bandeau. Un bouton qui ne répare rien
+apprend à ne plus faire confiance aux boutons. Désormais `$("#btn-reessayer").hidden = !reessayer` :
+pas d'action de reprise fournie, pas de bouton. La reprise manuelle reste en place partout où elle
+a un sens (pannes réseau), c'est seulement l'attente automatique qui s'en passe.
+
+**L'attente s'affiche en ambre, pas en rouge.** Une reprise automatique en cours n'est pas une
+panne. Pour des parents, rouge veut dire « c'est cassé, appelle ton fils ». Variante `.patience`
+sur le bandeau, palette ambre déjà présente (`--ambre-texte` sur `--ambre-fond`, contraste ~7:1,
+au-delà du 4.5:1 exigé). Le message dit ce qui se passe et ce qu'il faut faire — rien :
+« Connexion en cours de validation… », et non le brut « JWT issued at future ».
+
+Vérification : `tests/recette_token.mjs` rejoue la séquence réelle (token refusé au démarrage,
+puis `TOKEN_REFRESHED`) et mesure sur le DOM — message unique, pas de bouton, pas de jargon, puis
+bandeau parti et cartes réellement peuplées. Les deux captures ont été ouvertes, pas seulement le
+log (L-009, L-028).

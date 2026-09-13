@@ -4,7 +4,7 @@
 import { creerApi } from "./socle/api.js";
 import { LISTE } from "./modules.js";
 import { $, txt, MOIS_COURT, decaler, montrerEcran, ecranCourant, ecranDeDepart, moduleDe,
-  enregistrerModules, brancherNavigation, toast, bandeauErreur, cacherBandeau } from "./socle/ui-base.js";
+  enregistrerModules, brancherNavigation, bandeauErreur, cacherBandeau } from "./socle/ui-base.js";
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const api = creerApi(sb);
@@ -16,10 +16,21 @@ let instances = {};
 const prets = new Set(); // modules dont le premier chargement est terminé
 const moduleDuMois = LISTE.find((m) => m.avecMois)?.cle ?? null;
 
+// Un JWT refusé pour cause d'horodatage n'est pas une panne : supabase-js rafraîchit
+// le token peu après et l'app repart seule (voir TOKEN_REFRESHED plus bas). On le dit
+// donc sans bouton « Réessayer », qui ne ferait que redonner la même erreur.
+const estJetonPasEncoreValide = (e) =>
+  /issued at future|jwt.*not yet valid/i.test(e?.message ?? String(e));
+
 const echec = (e) => {
   console.error(e);
+  if (estJetonPasEncoreValide(e)) {
+    bandeauErreur("Connexion en cours de validation…", null, { patience: true });
+    return;
+  }
+  // Bandeau OU toast, jamais les deux : le même message affiché deux fois se lit
+  // comme deux pannes distinctes.
   bandeauErreur(`Erreur : ${e.message ?? e}`, () => rafraichir(moduleDuMois));
-  toast(`Erreur : ${e.message ?? e}`, true);
 };
 
 /** Recharge les données d'un module et rend son écran s'il est visible (ou l'accueil). */
@@ -48,13 +59,29 @@ $("#logout").addEventListener("click", () => { api.auth.deconnecter().catch(eche
 // rechargement) : démarrer deux fois brancherait chaque bouton statique en double et
 // chaque formulaire partirait deux fois. On ne démarre qu'une fois par session.
 let demarre = false;
-api.auth.surChangement((_ev, session) => {
+let socleEnPlace = false; // demarrer() est allé jusqu'au bout : modules construits, navigation branchée
+
+async function lancer() {
+  demarre = true;
+  try { await demarrer(); } catch (e) { echec(e); }
+}
+
+api.auth.surChangement((ev, session) => {
   $("#login").hidden = !!session;
   $("#app").hidden = !session;
-  if (!session) { demarre = false; return; }
-  if (demarre) return;
-  demarre = true;
-  demarrer().catch(echec);
+  if (!session) { demarre = false; socleEnPlace = false; return; }
+  if (!demarre) { lancer(); return; }
+
+  // Déjà démarré. INITIAL_SESSION rend la session telle qu'elle dort dans localStorage :
+  // si son token était périmé, demarrer() a échoué AVANT de construire les modules, et
+  // l'app est restée sur son bandeau (il fallait un Ctrl+F5 pour s'en sortir). supabase-js
+  // émet un token neuf peu après : c'est le moment de repartir seule.
+  if (ev !== "TOKEN_REFRESHED") return;
+  cacherBandeau();
+  // Distinguer les deux échecs possibles : si demarrer() n'a jamais abouti, il n'y a aucune
+  // instance à rafraîchir (rafraichir() sortirait aussitôt) — il faut le rejouer entièrement.
+  if (socleEnPlace) for (const m of LISTE) rafraichir(m.cle);
+  else lancer();
 });
 
 // ---------- mois courant (sélecteur en en-tête, partagé par les modules « avecMois ») ----------
@@ -94,6 +121,7 @@ async function demarrer() {
 
   instances = Object.fromEntries(LISTE.map((m) => [m.cle, m.creer(api, etat, cb)]));
   brancherNavigation(rendreEcran);
+  socleEnPlace = true;
   changerDeMois();
   // L'écran est affiché sans être rendu : les chargements peuplent l'état puis déclenchent le rendu.
   montrerEcran(ecranDeDepart(), { rendre: false });

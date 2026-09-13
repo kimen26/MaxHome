@@ -180,9 +180,14 @@ export function toast(message, erreur = false) {
 }
 
 // ---------- bandeau d'erreur réseau ----------
-export function bandeauErreur(message, reessayer) {
+export function bandeauErreur(message, reessayer, { patience = false } = {}) {
   $("#bandeau-erreur-texte").textContent = message;
   $("#bandeau-erreur").hidden = false;
+  $("#bandeau-erreur").classList.toggle("patience", patience);
+  // Sans action de reprise, pas de bouton : proposer « Réessayer » là où retenter
+  // redonnerait la même erreur est un faux espoir, et un bouton qui ne répare rien
+  // apprend à ne plus faire confiance aux boutons.
+  $("#btn-reessayer").hidden = !reessayer;
   $("#btn-reessayer").onclick = () => { cacherBandeau(); reessayer?.(); };
 }
 export const cacherBandeau = () => { $("#bandeau-erreur").hidden = true; };

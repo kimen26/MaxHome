@@ -62,6 +62,7 @@ Plan → TodoWrite → Exécution → Vérification → Commit → memory/ grav�
 | `node tests/recette_ecrans.mjs` puis **OUVRIR** data/captures/ecrans/*.png — et, s'il existe une maquette, la mettre À CÔTÉ de la capture (L-028) | tout changement UI |
 | `node tests/test_courses.mjs` | tout changement de la tournée / des repas |
 | `node tests/comparer_captures.mjs --attendu <écrans>` (référence : data/captures/avant/) | tout refactor censé ne rien changer |
+| `node tests/recette_token.mjs` (jeton refusé puis rafraîchi) | tout changement de `surChangement` / `demarrer()` / gestion d'erreur |
 | `node tests/recette_connectee.mjs` (login réel + RLS) | tout changement schéma/RLS/app.js |
 
 Une capture se REGARDE, un log vert ne prouve rien (L-009). « Captures produites » est un

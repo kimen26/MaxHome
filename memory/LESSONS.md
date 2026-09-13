@@ -252,3 +252,34 @@ Mnémonique : « captures produites » est un résultat de script, « écran con
 humain sur une image — et quand une maquette existe, la porte de sortie n'est pas « ça ne déborde
 pas », c'est la capture et la maquette côte à côte. Un outil de vérification qu'on ne regarde pas
 ne vérifie rien : il déplace seulement l'endroit où l'on se ment.
+
+## L-029 — Un garde anti-double-démarrage fige aussi les reprises
+
+Symptôme rapporté : après le login, bandeau rouge « Erreur : JWT issued at future », et seul un
+Ctrl+F5 en sortait. Le réflexe naturel — accuser l'horloge du téléphone, puisque c'est la cause
+classique de ce message — était faux ici : l'horloge du poste était juste à 1 seconde près, et
+surtout un décalage d'horloge ne se répare pas en rechargeant la page. C'est le Ctrl+F5 qui
+guérissait qui désignait le vrai coupable, pas le libellé de l'erreur.
+
+Cause réelle, dans `app.js` : `onAuthStateChange` émet `INITIAL_SESSION` avec la session telle
+qu'elle dort dans `localStorage`, token périmé compris. `demarrer()` partait sur ce token et
+échouait dès le `Promise.all` des référentiels — donc AVANT de construire les instances de
+modules et de brancher la navigation. supabase-js émettait un token neuf quelques instants plus
+tard via `TOKEN_REFRESHED`, mais le drapeau `demarre` (posé pour éviter le double démarrage,
+commentaire d'origine ligne 47) valait déjà `true` : plus rien ne repartait. L'app restait sur son
+bandeau alors que la session était redevenue bonne.
+
+La leçon n'est pas « gérer TOKEN_REFRESHED ». Elle est : **un drapeau qui protège contre la
+répétition d'une réussite empêche aussi la reprise après un échec.** `demarre = true` était posé
+avant de savoir si `demarrer()` allait aboutir. Deux états distincts étaient confondus sous un
+seul booléen — « démarrage lancé » et « démarrage abouti ». D'où `socleEnPlace`, posé seulement
+après `brancherNavigation` : sans lui, la reprise appelait `rafraichir()` sur des instances
+inexistantes, qui sortait aussitôt sur `if (!instance) return` et laissait un écran VIDE — un
+second bug que le test a révélé et qu'une lecture du code n'avait pas vu.
+
+Piège de méthode qui a failli passer : la première version du test affichait
+`Résumés : []` et concluait « recette token OK ». L'assertion était
+`resumes.some((r) => r === "Chargement…")` — toujours fausse sur un tableau vide. Un test vert sur
+une page blanche. C'est l'ouverture de la capture (L-009, L-028) qui a montré l'écran vide, et
+l'ajout de `if (resumes.length === 0)` qui a rendu l'échec visible. **Une assertion sur le contenu
+d'une collection doit d'abord exiger que la collection ne soit pas vide.**
