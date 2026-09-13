@@ -59,13 +59,16 @@ Plan → TodoWrite → Exécution → Vérification → Commit → memory/ grav�
 | `node tests/test_calc.mjs` | tout changement du calcul budgétaire |
 | `node tests/test_taches.mjs` | tout changement des tâches (échéances, parts, balance) |
 | `python -m pytest -q tests/bot/` | tout changement du bot |
-| `node tests/recette_ecrans.mjs` puis OUVRIR data/captures/ecrans/*.png | tout changement UI |
+| `node tests/recette_ecrans.mjs` puis **OUVRIR** data/captures/ecrans/*.png — et, s'il existe une maquette, la mettre À CÔTÉ de la capture (L-028) | tout changement UI |
 | `node tests/test_courses.mjs` | tout changement de la tournée / des repas |
 | `node tests/comparer_captures.mjs --attendu <écrans>` (référence : data/captures/avant/) | tout refactor censé ne rien changer |
 | `node tests/recette_connectee.mjs` (login réel + RLS) | tout changement schéma/RLS/app.js |
 
-Une capture se REGARDE, un log vert ne prouve rien (L-009). Un chevauchement vu sur une
-capture pleine page se confirme par une mesure de géométrie avant d'ouvrir le CSS (L-016).
+Une capture se REGARDE, un log vert ne prouve rien (L-009). « Captures produites » est un
+résultat de script ; « écran conforme » est un jugement porté sur une image — les deux ne se
+remplacent pas (L-028). Un chevauchement vu sur une capture pleine page se confirme par une
+mesure de géométrie avant d'ouvrir le CSS (L-016) : la capture `fullPage` fige les éléments
+`position:fixed`, ce qu'on y voit flotter au milieu du contenu n'y est pas forcément.
 
 ## Fichiers transversaux
 

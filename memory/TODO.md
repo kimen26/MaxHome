@@ -156,3 +156,11 @@ _Brief : docs/briefs/maxhome-parts.md (handoff inbox/design_handoff_maxhome_tach
 ## Lane B — V1 (après recette)
 - [x] Vue annuelle (tableau 12 mois comme l'Excel)
 - [ ] Importer les feuilles 2023 et « Garde Max » si utile
+
+## Écran Tâches — reste à trancher (2026-09-13)
+- Les trois tâches faites deux fois par jour (Biberons, Dents, Table) ne portent qu'un
+  `moment` (matin). Un tap dans Réglages · Parts les bascule au soir si besoin.
+- Le bloc « Par catégorie » sous la grille Semaine n'est pas dans la maquette. Gardé faute
+  de remplaçant : à supprimer si Yann le juge inutile.
+- Titres raccourcis en base par 013_titres_courts.sql (« Petit déjeuner de … » → « Petit déj … »).
+  Si un libellé gêne, il se change dans Réglages · Parts, pas dans une migration.
