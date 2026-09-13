@@ -86,6 +86,65 @@ export function creditDe(recurrent, tache) {
   return out;
 }
 
+/** Méta « ajouté … » de la feuille Todo (§8 du handoff, bug 6) : « ajouté aujourd'hui »,
+ *  « ajouté hier », ou « ajouté il y a N j », suivi de « · M min » quand la tâche porte des
+ *  minutes indicatives (le repère de durée déjà stocké sur le récurrent, cf. logique-metier.md
+ *  §1 — jamais un calcul sur l'écart de temps, qui n'aurait aucun sens ici). `maintenant` est un
+ *  paramètre explicite (pas `new Date()` interne) pour rester testable sans horloge système
+ *  (L-004), comme jourIso/libelleRelatif. */
+export function libelleAjoutTodo(creeLeIso, minutes, maintenant) {
+  const jourCreation = jourIso(new Date(creeLeIso));
+  const jourMaintenant = jourIso(maintenant);
+  const ecartJours = Math.round((depuisIso(jourMaintenant) - depuisIso(jourCreation)) / 86400000);
+  const quand = ecartJours <= 0 ? "ajouté aujourd’hui" : ecartJours === 1 ? "ajouté hier" : `ajouté il y a ${ecartJours} j`;
+  return minutes ? `${quand} · ${minutes} min` : quand;
+}
+
+/** Préfixe relatif du jour affiché par rapport à aujourd'hui (maquette écran Jour, D-036) :
+ *  « aujourd'hui · », « hier · », « il y a N j · », « demain · », « dans N j · ». Pur (deux
+ *  ISO en entrée), pour rester testable sans horloge système (L-004). */
+export function libelleRelatif(jourAffiche, aujourdhui) {
+  const ecart = Math.round((depuisIso(jourAffiche) - depuisIso(aujourdhui)) / 86400000);
+  if (ecart === 0) return "aujourd’hui · ";
+  if (ecart === -1) return "hier · ";
+  if (ecart < -1) return `il y a ${-ecart} j · `;
+  if (ecart === 1) return "demain · ";
+  return `dans ${ecart} j · `;
+}
+
+/** Dernière occurrence FAITE d'un récurrent, cherchée dans l'historique chargé (`taches`,
+ *  `JOURS_HISTORIQUE` jours) — jamais au-delà, on ne prétend pas savoir ce qu'on n'a pas
+ *  chargé. Renvoie `{ jour, texte }` (jour ISO de la coche, date `jj/mm` fr. sans année) ou
+ *  `null` si aucune trouvée : c'est à l'appelant de dire « +3 mois » dans ce cas
+ *  (avancementPeriode ci-dessous), jamais « jamais » — on ne sait pas, on ne l'affirme pas
+ *  (brief §« ce que le modèle ne portait pas »). */
+export function dernierPassage(taches, recurrentId) {
+  const faites = taches.filter((t) => t.recurrent_id === recurrentId && t.fait_le)
+    .sort((a, b) => b.fait_le.localeCompare(a.fait_le));
+  if (!faites.length) return null;
+  const jour = jourIso(new Date(faites[0].fait_le));
+  const d = depuisIso(jour);
+  return { jour, texte: `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}` };
+}
+
+/** Avancement d'une tâche récurrente hebdo/mensuelle sur la période affichée : colonne de
+ *  droite d'une ligne dans les cartes Semaine/Mois (handoff écran Jour). `faites`/`prevues`
+ *  comptent les OCCURRENCES de la période (fois > 1 : « 2/3 »). Complet → vert, jour de la
+ *  dernière coche (« auj. » si c'est le jour sélectionné, sinon l'abrégé fr. du jour de
+ *  semaine) ; pour une mensuelle non faite, la date du dernier passage connu (`dernierPassage`,
+ *  passé en `passe`) ou « +3 mois » si aucun ; pour une hebdo non faite sans occurrence
+ *  antérieure, « — » (rien à affirmer). */
+export function avancementPeriode({ faites, prevues, jourDerniereCoche, jourSel, frequence, passe }) {
+  if (faites >= prevues && prevues > 0) {
+    const texte = jourDerniereCoche === jourSel ? "auj." : depuisIso(jourDerniereCoche)
+      .toLocaleDateString("fr-FR", { weekday: "short" }).replace(/\.?$/, ".");
+    return { texte, classe: "vert" };
+  }
+  if (faites > 0) return { texte: `${faites}/${prevues}`, classe: "ambre" };
+  if (frequence === "mensuel") return { texte: passe?.texte ?? "+3 mois", classe: "" };
+  return { texte: "—", classe: "" };
+}
+
 /** Groupe d'affichage d'une tâche non faite, relativement à `jour`. */
 export function groupe(tache, jour) {
   if (tache.echeance < jour) return "retard";

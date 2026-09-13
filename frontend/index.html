@@ -18,6 +18,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="socle/socle.css">
+<link rel="stylesheet" href="budget/budget.css">
+<link rel="stylesheet" href="taches/taches.css">
+<link rel="stylesheet" href="courses/courses.css">
 </head>
 <body>
 
@@ -39,7 +43,7 @@
 
   <nav id="barre-pc">
     <button id="logo" class="logo">MaxHome</button>
-    <span id="module-pc" class="module-pc"></span>
+    <span id="modules-pc" class="modules-pc"></span>
     <span id="onglets-pc"></span>
     <span class="droite">
       <span id="puces-pc" class="puces-mois"></span>
@@ -54,51 +58,65 @@
       <div id="modules" class="modules"></div>
     </section>
 
-    <!-- ===== Budget · Ce mois ===== -->
+    <!-- ===== Budget · Mois (fusion Ce mois + Charges, D-036 §4) ===== -->
     <section id="ecran-mois" class="ecran" hidden>
       <div class="tete-ecran">
-        <div>
-          <h1 id="titre-mois"></h1>
-          <p class="sous" id="sous-mois"></p>
+        <div class="tete-ligne">
+          <h1 class="tete-titre">Budget</h1>
+          <div class="segment" data-segment="budget"></div>
         </div>
-        <div id="chiffres-mois" class="chiffres"></div>
+        <span class="sous" id="commun-mois"></span>
+        <div id="puces-mobile" class="puces-mois"></div>
       </div>
-      <div id="puces-mobile" class="puces-mois"></div>
-      <div class="progression"><div id="jauge-mois"></div></div>
       <div class="deux-colonnes">
         <div>
-          <h2 class="titre-section">À faire</h2>
-          <div id="mvts-a-faire"></div>
-          <button id="btn-mvt-ponctuel" class="btn btn-tirets">+ Mouvement ce mois seulement</button>
-          <h2 class="titre-section">Fait</h2>
-          <div id="mvts-faits"></div>
+          <div class="ligne-titre-mois">
+            <div><h2 id="titre-mois" class="titre-mois-h2"></h2>
+              <p class="sous" id="sous-mois"></p></div>
+            <span class="mono total-charges-mois" id="total-charges-mois"></span>
+          </div>
+
+          <div class="carte carte-salaires">
+            <span class="salaires-etiquette">SALAIRES</span>
+            <div id="salaires" class="salaires-corps"></div>
+          </div>
+
+          <div id="chiffres-mois" class="trois-chiffres"></div>
+
+          <div class="carte">
+            <div class="carte-tete" id="afaire-tete"><span>À FAIRE</span><span class="mono" id="afaire-tete-total"></span></div>
+            <div id="mvts-a-faire"></div>
+          </div>
+          <button id="btn-mvt-ponctuel" class="lien-discret">+ Mouvement ce mois seulement</button>
+          <div class="carte">
+            <div class="carte-tete complete" id="fait-tete"><span>FAIT</span><span class="mono" id="fait-tete-total"></span></div>
+            <div id="mvts-faits"></div>
+          </div>
+
+          <div id="mois-categories" class="deux-cartes"></div>
+
+          <div class="carte">
+            <div class="carte-tete"><span>CE MOIS SEULEMENT</span><span class="mono" id="ce-mois-tete-total"></span></div>
+            <div id="ajustements"></div>
+          </div>
+
+          <p class="legende avec-fab">Tap un virement pour le marquer fait. Les charges manquantes
+          sont en ambre. « Ajouter » crée une ligne pour ce mois seulement (resto, vacances, cadeau).</p>
         </div>
         <aside id="detail-pc" class="carte" hidden></aside>
-      </div>
-    </section>
-
-    <!-- ===== Budget · Charges ===== -->
-    <section id="ecran-charges" class="ecran" hidden>
-      <div class="tete-ecran">
-        <div>
-          <h1 id="titre-charges"></h1>
-          <p class="sous" id="sous-charges"></p>
-        </div>
-      </div>
-      <div class="progression"><div id="jauge-charges"></div></div>
-      <div id="revenus"></div>
-      <div class="deux-colonnes etroit">
-        <div id="categories"></div>
         <aside id="reglages-pc" class="carte" hidden></aside>
       </div>
-      <h2 class="titre-section">Ajustements</h2>
-      <div id="ajustements"></div>
-      <button id="btn-ajouter-ajustement" class="btn btn-tirets">+ Ajustement</button>
+      <button id="fab-ajouter-mois" class="fab-ajouter" type="button"><span>+</span> Ajouter</button>
     </section>
 
     <!-- ===== Budget · Stats ===== -->
     <section id="ecran-stats" class="ecran" hidden>
-      <div class="tete-ecran"><h1>Statistiques</h1></div>
+      <div class="tete-ecran">
+        <div class="tete-ligne">
+          <h1 class="tete-titre">Statistiques</h1>
+          <div class="segment" data-segment="budget"></div>
+        </div>
+      </div>
       <div id="periode" class="segment">
         <button data-mois="6" class="actif">6 mois</button>
         <button data-mois="12">12 mois</button>
@@ -106,35 +124,40 @@
       <div id="stats-corps"></div>
     </section>
 
-    <!-- ===== Budget · Mouvements récurrents ===== -->
-    <section id="ecran-recurrents" class="ecran" hidden>
-      <div class="tete-ecran"><h1>Mouvements récurrents</h1></div>
+    <!-- ===== Budget · Réglages · Comptes (deux cartes : comptes + récurrents, D-036 §4) ===== -->
+    <section id="ecran-comptes" class="ecran" hidden>
+      <div class="tete-ecran"><div class="segment large" data-segment="reglages"></div></div>
+      <div class="carte-tete"><span>COMPTES</span></div>
+      <div id="liste-comptes"></div>
+      <div id="form-compte"></div>
+      <div class="carte-tete"><span>MOUVEMENTS RÉCURRENTS</span></div>
       <div id="liste-recurrents"></div>
       <div id="form-recurrent"></div>
     </section>
 
-    <!-- ===== Budget · Comptes ===== -->
-    <section id="ecran-comptes" class="ecran" hidden>
-      <div class="tete-ecran"><h1>Comptes</h1></div>
-      <div id="liste-comptes"></div>
-      <div id="form-compte"></div>
-    </section>
-
     <!-- ===== Budget · Vue annuelle ===== -->
     <section id="ecran-annuel" class="ecran" hidden>
-      <div class="tete-ecran"><h1 id="titre-annuel"></h1></div>
+      <div class="tete-ecran">
+        <div class="tete-ligne">
+          <h1 id="titre-annuel" class="tete-titre"></h1>
+          <div class="segment" data-segment="budget"></div>
+        </div>
+      </div>
       <div id="tableau-annuel"></div>
+    </section>
+
+    <!-- ===== Budget · Réglages · Charges ===== -->
+    <section id="ecran-charges-ref" class="ecran" hidden>
+      <div class="tete-ecran"><div class="segment large" data-segment="reglages"></div></div>
+      <div id="charges-ref-corps"></div>
     </section>
 
     <!-- ===== Tâches · Jour ===== -->
     <section id="ecran-jour" class="ecran ecran-taches" hidden>
       <div class="tete-ecran tete-taches">
         <div class="ligne-segment-todo">
-          <div class="segment" id="segment-vue-taches">
-            <button data-vue="jour" class="actif">Jour</button>
-            <button data-vue="semaine">Semaine</button>
-          </div>
-          <button type="button" class="btn-todo" id="btn-todo">Todo<span class="badge-todo" id="badge-todo"></span></button>
+          <div class="segment" data-segment="taches"></div>
+          <button type="button" class="btn-todo cible44" id="btn-todo">Todo<span class="badge-todo" id="badge-todo"></span></button>
         </div>
         <div id="bande-jours-taches"></div>
       </div>
@@ -164,10 +187,7 @@
     <section id="ecran-semaine" class="ecran ecran-taches" hidden>
       <div class="tete-ecran tete-taches">
         <div class="ligne-segment-todo">
-          <div class="segment" id="segment-vue-taches-semaine">
-            <button data-vue="jour">Jour</button>
-            <button data-vue="semaine" class="actif">Semaine</button>
-          </div>
+          <div class="segment" data-segment="taches"></div>
         </div>
       </div>
       <div class="contenu-taches">
@@ -183,71 +203,94 @@
           <div id="grille-semaine"></div>
         </div>
         <p class="legende-taches">Tap une case pour corriger, une lettre pour ouvrir le jour.</p>
-        <div id="detail-categories-semaine"></div>
       </div>
       <button type="button" class="fab-ajouter" id="btn-ajouter-tache-semaine" aria-label="Ajouter une tâche"><span aria-hidden="true">+</span>Ajouter</button>
     </section>
 
     <!-- ===== Tâches · Réglages · Parts ===== -->
+    <!-- D-036 décision 5 : la liste héritée « Catégorie, consigne, attribution » a disparu ;
+         le tableau (carte d'explication + une carte par cadence) est la seule vue, le bouton
+         « + Nouvelle tâche récurrente » (créé par creerReglages dans #form-tache-rec) et la
+         légende de pied ferment l'écran. -->
     <section id="ecran-taches-rec" class="ecran" hidden>
-      <div class="tete-ecran"><div><h1>Réglages · Parts</h1><p class="sous">Tap une valeur pour la changer, ça se recalcule partout.</p></div></div>
+      <div class="tete-ecran"><div class="segment large" data-segment="reglages"></div></div>
       <div id="tableau-taches-parts"></div>
-      <div id="liste-taches-rec"></div>
       <div id="form-tache-rec"></div>
+      <p class="legende">Tap les points pour monter d'un cran dans l'échelle, « Oblig. » et « À 2 » pour les activer. Tout se recalcule partout.</p>
     </section>
     <!-- ===== Courses ===== -->
     <section id="ecran-courses" class="ecran" hidden>
-      <div class="tete-ecran tete-courses">
-        <div class="tete-courses-ligne">
-          <h1>Liste commune</h1>
-          <button type="button" id="btn-tour" class="btn-tour">On fait le tour</button>
+      <div class="tete-ecran">
+        <div class="tete-ligne">
+          <h1 class="tete-titre">Courses</h1>
+          <button type="button" id="btn-tour" class="btn-tour cible44">On fait le tour</button>
         </div>
-        <p class="sous" id="sous-courses"></p>
+        <form id="form-course" class="ajout-rapide">
+          <input id="course-libelle" class="champ" placeholder="Article…" autocomplete="off" required>
+          <input id="course-quantite" class="champ court" placeholder="Qté" autocomplete="off">
+          <select id="course-rayon" class="champ"></select>
+          <button type="submit" class="btn-ajout-course cible44">+</button>
+        </form>
       </div>
-      <form id="form-course" class="ajout-rapide">
-        <input id="course-libelle" class="champ" placeholder="Article" autocomplete="off" required>
-        <input id="course-quantite" class="champ court" placeholder="Qté" autocomplete="off">
-        <select id="course-rayon" class="champ"></select>
-        <button type="submit" class="btn btn-bleu">+</button>
-      </form>
+      <h2 class="titre-liste-courses">Liste commune</h2>
+      <p class="sous" id="sous-courses"></p>
       <!-- Ordre de la maquette : la liste à prendre d'abord (c'est elle qu'on lit dans le
            magasin), les repas ensuite, puis le panier et les classiques. -->
-      <div id="groupes-courses" class="grille-groupes"></div>
+      <div id="groupes-courses" class="deux-cartes"></div>
       <div id="carte-repas" class="carte" hidden>
-        <div class="repas-tete">
-          <h2 class="titre-section" style="margin:0">Repas de la semaine</h2>
-          <span class="sous">proposés aussi par le bot Telegram</span>
+        <div class="carte-tete">
+          <span>Repas de la semaine</span>
+          <span class="repas-bot">proposés aussi par le bot Telegram</span>
         </div>
         <div id="liste-repas"></div>
+        <p class="repas-note">Le soir, le bot pose la même question dans Telegram : réponds
+          « 2 » et les ingrédients du deuxième repas tombent dans la liste, rangés par groupe
+          du magasin.</p>
       </div>
-      <aside id="panier" hidden>
-        <div class="panier-tete">
-          <h2 class="titre-section">Panier</h2>
-          <button id="btn-vider-panier" type="button">Vider le panier</button>
+      <aside id="panier" class="carte" hidden>
+        <div class="carte-tete">
+          <span>Panier</span>
+          <button id="btn-vider-panier" type="button" class="cible44">Vider le panier</button>
         </div>
         <div id="courses-panier"></div>
       </aside>
-      <h2 class="titre-section">Les classiques</h2>
-      <div id="liste-classiques" class="puces-classiques"></div>
+      <div id="carte-classiques" class="carte">
+        <div class="carte-tete">
+          <span>Les classiques</span>
+          <span class="classiques-note">tap pour remonter dans la liste</span>
+        </div>
+        <div id="liste-classiques" class="puces-classiques"></div>
+      </div>
+      <p class="legende">Tap un article pour le mettre au panier. Vider le panier alimente les classiques.</p>
     </section>
 
     <!-- ===== Courses · Réglages · Magasin ===== -->
     <section id="ecran-magasin" class="ecran" hidden>
-      <div class="tete-ecran">
-        <div>
-          <h1>Réglages · Magasin</h1>
-          <p class="sous">L’ordre où on traverse le magasin ; la liste de courses suit cet ordre.</p>
-        </div>
+      <div class="tete-ecran"><div class="segment large" data-segment="reglages"></div></div>
+      <div class="carte-explication">
+        <h3>Le magasin dans l'ordre où on le traverse</h3>
+        <p>La liste de courses suit cet ordre, pas l'alphabet : on entre, on prend le premier
+          groupe, on repart avec le dernier. Un article ajouté tombe dans son groupe, où qu'on
+          soit dans le magasin.</p>
       </div>
       <div id="liste-magasin"></div>
+      <p class="legende">Le chiffre à droite est le nombre d'articles en attente dans ce groupe.
+        Un groupe vide ne s'affiche pas dans la liste.</p>
     </section>
+
+    <!-- Pied des écrans Réglages (mobile, D-036 §3) : Accueil et Déconnexion, absents de la
+         barre basse une fois qu'on est entré dans Réglages (elle ne porte que 4 boutons). -->
+    <footer id="pied-reglages" class="pied-reglages" hidden>
+      <button type="button" class="btn" data-ecran="accueil">Accueil MaxHome</button>
+      <button type="button" class="btn" id="pied-reglages-logout">Déconnexion</button>
+    </footer>
   </main>
 
   <nav id="onglets"></nav>
 </div>
 
 <div id="feuille-fond" class="feuille-fond" hidden></div>
-<section id="feuille" class="feuille" hidden><div class="poignee"></div><div id="feuille-corps"></div></section>
+<section id="feuille" class="feuille" hidden><div id="feuille-corps"></div></section>
 <p id="toast" hidden></p>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>

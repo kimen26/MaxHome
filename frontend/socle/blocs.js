@@ -3,9 +3,26 @@
 
 import { $, txt, estPC, ouvrirFeuille, fermerFeuille, feuilleOuverte } from "./ui-base.js";
 
-/** Ligne cochable (mouvement, tâche) : case à gauche, corps, colonne de droite. */
+/** Ligne cochable (mouvement, tâche) : case à gauche, corps, colonne de droite.
+ *  Variante `compacte` (D-036, fidélité maquette Courses) : 29 px, case 17 px vide, titre
+ *  13 px 600, valeur mono 10 px à droite — pas de sous-ligne, pas de concaténation dans le
+ *  titre. Sa case peut aussi porter la lettre d'une personne (`caseTexte`, `caseClasse`) au
+ *  lieu du ✓, pour le panier (case = qui a pris l'article). N'émet aucune classe `.mvt` :
+ *  c'est un gabarit distinct, stylé par le module qui l'utilise (courses.css), pas une
+ *  variante du `.mvt` du Budget (D-036 §CSS par module : une règle ne vit qu'à un endroit). */
 export function ligneCoche({ id, titre, sous = "", notes = [], droite = "", pastille = null,
-  cochee = false, prioritaire = false, alerte = false }) {
+  cochee = false, prioritaire = false, alerte = false, compacte = false, caseTexte = "",
+  caseClasse = "", droiteMono = true }) {
+  if (compacte) {
+    const aria = cochee ? `Annuler la coche de ${titre}` : `Marquer ${titre} comme fait`;
+    const classes = ["ligne-compacte", "cliquable", cochee ? "fait" : ""].filter(Boolean).join(" ");
+    return `<div class="${classes}" data-id="${id}">
+      <span class="case-compacte${cochee ? " cochee" : ""} ${txt(caseClasse)}" data-cocher="${id}"
+            role="checkbox" aria-checked="${cochee}" tabindex="0" aria-label="${txt(aria)}">${txt(caseTexte)}</span>
+      <span class="titre-compact">${txt(titre)}</span>
+      <span class="${droiteMono ? "mono " : ""}valeur-compacte">${droite}</span>
+    </div>`;
+  }
   const classes = ["mvt", "cliquable", cochee ? "fait" : "", alerte ? "alerte" : ""].filter(Boolean).join(" ");
   const aria = cochee ? `Annuler la coche de ${titre}` : `Marquer ${titre} comme fait`;
   return `<div class="${classes}" data-id="${id}">
@@ -39,7 +56,7 @@ export function brancherCoches(racine, surCoche, surLigne) {
     el.addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); agir(e); } });
   }
   if (surLigne) {
-    for (const el of racine.querySelectorAll(".mvt[data-id]")) {
+    for (const el of racine.querySelectorAll(".mvt[data-id], .ligne-compacte[data-id]")) {
       el.addEventListener("click", () => surLigne(Number(el.dataset.id)));
     }
   }

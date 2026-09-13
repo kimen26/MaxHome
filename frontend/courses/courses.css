@@ -1,0 +1,146 @@
+/* MaxHome — Courses : en-tête (titre + « on fait le tour » + ajout rapide), groupes du
+   magasin, repas, panier, classiques, Réglages · Magasin, feuille « On fait le tour ».
+   D-036 §CSS par module : les gabarits génériques (.tete-ecran, .carte, .carte-tete,
+   .deux-cartes, .ligne-compacte, .cible44) viennent du socle, cette feuille ne pose que ce
+   qui est propre à Courses. */
+
+/* ================= En-tête ================= */
+/* Bouton « On fait le tour » : 28 px visuel (maquette), cible tactile 44 px via .cible44
+   (rules/mobile-parents.md prime sur la densité de la maquette — la classe, pas un ::before
+   dupliqué ici). */
+.btn-tour {
+  margin-left:auto; flex:0 0 auto; height:28px; padding:0 11px; border:0;
+  border-radius:8px; background:var(--bleu); color:#fff; font-size:13px; font-weight:600; cursor:pointer;
+}
+
+/* Formulaire d'ajout DANS l'en-tête (ligne 2 de .tete-ecran, D-036 §4) : Article flex,
+   Qté 52px, groupe 96px, bouton + carré 32px. */
+#form-course { display:flex; gap:6px; align-items:stretch; }
+#form-course .champ { flex:1 1 auto; min-width:0; height:32px; font-size:13px; padding:0 10px; }
+#form-course .champ.court { flex:0 0 52px; width:52px; text-align:center; padding:0 4px; }
+#form-course select.champ { flex:0 0 96px; width:96px; padding:0 4px; }
+.btn-ajout-course {
+  flex:0 0 auto; width:32px; height:32px; padding:0; border:0; border-radius:8px;
+  background:var(--bleu); color:#fff; font-size:18px; font-weight:600; line-height:1; cursor:pointer;
+}
+
+/* Titre de contenu « Liste commune » + sous-titre (hors en-tête, dans le flux — D-036 §4). */
+.titre-liste-courses { font-size:15px; font-weight:600; margin:10px 0 2px; }
+#sous-courses { font-size:12px; color:var(--texte-2); margin:0 0 8px; }
+
+/* ================= Groupes du magasin ================= */
+/* `.deux-cartes` (socle) porte déjà la grille 1fr 1fr gap 7 ; ici juste l'espacement vertical
+   entre le sous-titre et la grille, et entre la grille et les cartes qui suivent. */
+#groupes-courses { margin-bottom:7px; }
+#groupes-courses .carte + .carte { margin-top:0; }
+
+/* ================= Repas de la semaine ================= */
+#carte-repas { margin-top:7px; }
+.repas-bot { font-size:11px; font-weight:400; color:var(--texte-2); text-transform:none; letter-spacing:normal; }
+#liste-repas { display:flex; flex-direction:column; }
+.repas-ligne {
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:9px 10px; border-bottom:1px solid var(--separateur); cursor:default;
+}
+.repas-ligne:last-child { border-bottom:0; }
+.repas-corps { min-width:0; display:flex; flex-direction:column; gap:2px; }
+.repas-titre { font-size:13px; font-weight:600; }
+.repas-detail { font-size:11px; color:var(--texte-2); line-height:1.4; }
+/* Action à droite : TEXTE, pas un bouton bordé (écart audité §2.3) — bleu « Ajouter »,
+   vert sur fond vert-clair quand tous les ingrédients sont déjà dans la liste. */
+.repas-action {
+  flex:0 0 auto; border:0; background:none; color:var(--bleu); font-size:11px; font-weight:600;
+  padding:0; cursor:pointer; min-height:44px; display:flex; align-items:center;
+}
+.repas-action.dans-liste {
+  color:var(--vert); background:var(--vert-clair); border:1px solid var(--vert-bordure);
+  border-radius:8px; padding:2px 8px; cursor:default;
+}
+.repas-note { margin:0; padding:7px 10px; font-size:11px; color:var(--texte-2); line-height:1.35; border-top:1px solid var(--separateur); }
+
+/* ================= Panier ================= */
+/* Tête vert clair en permanence (pas de variante « complet », le panier EST l'état complet
+   de son propre groupe) : .carte-tete générique + fond dédié ici. */
+#panier .carte-tete { background:var(--vert-clair); }
+#btn-vider-panier {
+  height:28px; min-height:28px; padding:0 8px; border:1px solid var(--bordure); border-radius:6px;
+  background:#fff; font-size:11px; font-weight:600; color:var(--bleu); cursor:pointer;
+}
+/* Lignes du panier : barrées, case = lettre de la personne (jamais la couleur seule). */
+#courses-panier .titre-compact { text-decoration:line-through; color:var(--texte-2); font-weight:400; }
+#courses-panier .valeur-compacte { color:var(--texte-2); }
+#courses-panier .case-compacte { cursor:default; }
+
+/* ================= Classiques ================= */
+.classiques-note { font-size:11px; font-weight:400; color:var(--texte-2); text-transform:none; letter-spacing:normal; }
+.puces-classiques { display:flex; flex-wrap:wrap; gap:8px; padding:8px 10px; }
+.classique {
+  display:inline-flex; align-items:center; gap:6px; border:1px solid var(--bordure); background:#fff;
+  color:var(--texte); font-size:13px; border-radius:999px; padding:0 14px; min-height:30px; cursor:pointer;
+}
+.classique .mono { font-size:10px; color:var(--texte-2); }
+/* Déjà dans la liste : fond bandeau, texte placeholder, inerte (README §4). */
+.classique.present { background:var(--fond-bandeau); color:var(--placeholder); cursor:default; }
+.classique.present .mono { color:var(--placeholder); }
+
+/* ================= Réglages · Magasin ================= */
+/* Une seule carte, une liste ordonnée (maquette : pas de deux-colonnes ici, contrairement
+   aux groupes de l'écran Courses — l'ordre de haut en bas EST l'information). */
+#liste-magasin { background:#fff; border:1px solid var(--bordure); border-radius:11px; overflow:hidden; margin-top:10px; }
+.mag-ligne {
+  display:flex; align-items:center; gap:8px; min-height:44px; padding:6px 8px 6px 10px;
+  border-bottom:1px solid var(--separateur-2);
+}
+.mag-ligne:last-child { border-bottom:0; }
+.mag-rang { width:13px; flex:0 0 auto; font-size:11px; color:var(--placeholder); }
+.mag-nom { flex:1; min-width:0; font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mag-attente { flex:0 0 auto; font-size:10px; color:var(--texte-2); }
+.mag-fleches { display:flex; gap:6px; flex:0 0 auto; }
+.btn-fleche {
+  width:28px; height:28px; min-width:28px; min-height:28px; border:1px solid var(--bordure);
+  background:#fff; border-radius:7px; font-size:14px; line-height:1; cursor:pointer; color:var(--texte);
+}
+.btn-fleche:disabled { opacity:.3; cursor:default; }
+
+/* ================= Feuille « On fait le tour » : classiques (une question), puis menus
+   (3 cartes), puis bilan (README §4). ================= */
+.tournee-etape { padding:4px 0; }
+.tournee-tete { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.tournee-tete h2 { font-size:17px; font-weight:600; }
+.tournee-tete .sous { font-size:12px; margin:0; }
+.tournee-etape .sous { font-size:12px; color:var(--texte-2); margin:0 0 6px; }
+.tournee-question-bloc {
+  background:var(--fond); border:1px solid var(--bordure); border-radius:12px; padding:14px;
+  display:flex; flex-direction:column; gap:3px;
+}
+.tournee-question { font-size:20px; font-weight:600; }
+.tournee-menus { display:flex; flex-direction:column; gap:8px; }
+.tournee-carte-menu {
+  border:1px solid var(--bordure); border-radius:12px; background:#fff; padding:10px 12px; text-align:left;
+  display:flex; flex-direction:column; gap:3px; cursor:pointer; min-height:44px;
+}
+.tournee-menu-ligne1 { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.tournee-menu-nom { font-size:15px; font-weight:600; }
+.tournee-bilan {
+  background:#f2f8f4; border:1px solid #cfe3d6; border-radius:12px; padding:14px;
+  display:flex; flex-direction:column; gap:3px;
+}
+.tournee-bilan-titre { font-size:16px; font-weight:600; }
+/* Boutons de la feuille « On fait le tour » : tailles et couleurs exactes de la maquette
+   (dc.html l. 408-412), pas les gabarits génériques .btn/.btn-vert/.btn-lien qui ne
+   correspondent pas (48px, radius 11, dashed pour « Passer aux menus »). */
+.tournee-choix { display:flex; gap:8px; }
+.tournee-non, .tournee-oui {
+  flex:1; height:48px; border-radius:11px; font-size:15px; font-weight:600; cursor:pointer;
+}
+.tournee-non { border:1px solid var(--bordure); background:#fff; color:var(--texte-2); }
+.tournee-oui { border:0; background:var(--vert); color:#fff; }
+.tournee-passer {
+  height:38px; border:1px dashed var(--tirets); border-radius:10px; background:transparent;
+  color:var(--bleu); font-size:13px; font-weight:600; cursor:pointer;
+}
+.tournee-terminer {
+  height:44px; border:0; border-radius:10px; background:var(--bleu); color:#fff;
+  font-size:15px; font-weight:600; cursor:pointer;
+}
+.tournee-note { margin:0; font-size:11px; color:var(--texte-2); line-height:1.35; }

@@ -283,3 +283,21 @@ Piège de méthode qui a failli passer : la première version du test affichait
 une page blanche. C'est l'ouverture de la capture (L-009, L-028) qui a montré l'écran vide, et
 l'ajout de `if (resumes.length === 0)` qui a rendu l'échec visible. **Une assertion sur le contenu
 d'une collection doit d'abord exiger que la collection ne soit pas vide.**
+
+## L-030 — Les données factices n'ont pas de passé ; la vraie base, si (2026-09-14)
+
+L'écran Jour était parfait sur la recette hors ligne et doublait chaque ligne quotidienne
+(« Biberons » deux fois, 0/14) sur la recette connectée. Cause : `duJour()` incluait le groupe
+« retard » (l'occurrence d'hier non faite, que `perimees()` garde un jour), et les données factices
+n'ont jamais d'hier non fait. Avec une bande des 7 jours, l'occurrence d'hier a son onglet : un jour
+ne montre que SES occurrences. **Quand un écran dépend du temps, la recette connectée est la seule
+qui voit le passé accumulé** ; la recette hors ligne prouve le rendu, pas l'état réel.
+
+## L-031 — Un sous-agent qui lance sa recette en arrière-plan ne rend jamais son rapport (2026-09-14)
+
+Trois agents Sonnet sur quatre ont lancé `recette_ecrans.mjs` avec `run_in_background`, puis se
+sont arrêtés « en attendant la notification » — qui ne leur arrive pas. Chaque fois il a fallu les
+relancer par message avec « exécute en avant-plan, timeout 300000 ». Le lot Courses a même rendu un
+rapport partiel (feuille + magasin faits, écran principal intact) qu'une planche a démasqué. **Dans
+un brief de sous-agent : interdire explicitement l'arrière-plan et exiger que le rapport final
+liste les captures regardées ; puis regarder soi-même la planche, jamais se fier au « fidèle ».**

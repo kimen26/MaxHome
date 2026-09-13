@@ -9,7 +9,7 @@
 // sérialise par tâche (clé = id du récurrent), comme le fait déjà l'écran Semaine.
 
 import { $, txt } from "../socle/ui-base.js";
-import { creerFileEcritures, ligneReglage } from "../socle/blocs.js";
+import { creerFileEcritures } from "../socle/blocs.js";
 import { boutonCycle, brancherCycles, suivante } from "../socle/blocs-cycle.js";
 import { creerReglages } from "../socle/blocs-reglages.js";
 import { champ, zone, select, caseACocher, listeChoix, membresOptions, lire } from "../socle/blocs-form.js";
@@ -51,15 +51,16 @@ export function creerUiTachesRec(api, etat, cb) {
   }
   function renduFois(n) { return String(n); }
 
-  /** Une ligne du tableau : titre + deux cycles texte, puis Parts / Oblig. / À 2 / Fois.
-   *  Modifier les champs longs et retirer la tâche se fait depuis la liste plus bas (même
-   *  ligne « Modifier / Retirer » que tout écran de réglages, D-024 — pas de deuxième geste
-   *  réinventé ici pour la même action). */
+  /** Une ligne du tableau : titre (bouton, tap = ouvre la feuille de modification existante,
+   *  D-036 décision 5) + deux/trois cycles texte, puis Parts / Oblig. / À 2 / Fois. Modifier
+   *  les champs longs (catégorie, consigne, fréquence) et retirer la tâche se fait dans cette
+   *  même feuille (bouton « Retirer » en pied, `retirerDansFeuille`) — pas de deuxième liste
+   *  ni de deuxième geste réinventés pour la même action (D-024). */
   function ligneTableau(r) {
     const foisFige = r.frequence === "mensuel";
     return `<div class="ligne-reglage-parts" data-id="${r.id}">
       <div class="rp-titre">
-        <span class="rp-nom">${txt(r.titre)}</span>
+        <button type="button" class="rp-nom" data-ouvrir-form="${r.id}">${txt(r.titre)}</button>
         <span class="rp-mini">
           ${boutonCycle({ cle: `minutes|${r.id}`, valeurs: CYCLE_MINUTES, valeur: r.minutes ?? 0, rendu: renduMinutes, classe: "rp-bouton-texte", taille: "mini" })}
           ${boutonCycle({ cle: `ecart|${r.id}`, valeurs: [null, ...membres()], valeur: r.ecart_prenom ?? null, rendu: (v) => renduEcart(r, v), classe: "rp-bouton-texte rp-ecart", taille: "mini" })}
@@ -68,60 +69,53 @@ export function creerUiTachesRec(api, etat, cb) {
             : ""}
         </span>
       </div>
-      ${boutonCycle({ cle: `parts|${r.id}`, valeurs: ECHELLE_QUART, valeur: r.parts_quart, rendu: renduParts, taille: "reglage" })}
-      ${boutonCycle({ cle: `oblig|${r.id}`, valeurs: [false, true], valeur: r.obligatoire, rendu: renduOblig, taille: "reglage" })}
-      ${boutonCycle({ cle: `deux|${r.id}`, valeurs: [false, true], valeur: r.partageable, rendu: renduADeux, taille: "reglage" })}
+      ${boutonCycle({ cle: `parts|${r.id}`, valeurs: ECHELLE_QUART, valeur: r.parts_quart, rendu: renduParts, taille: "reglage", classe: "cible44" })}
+      ${boutonCycle({ cle: `oblig|${r.id}`, valeurs: [false, true], valeur: r.obligatoire, rendu: renduOblig, taille: "reglage", classe: "cible44" })}
+      ${boutonCycle({ cle: `deux|${r.id}`, valeurs: [false, true], valeur: r.partageable, rendu: renduADeux, taille: "reglage", classe: "cible44" })}
       ${foisFige
-        ? `<span class="rp-fois-fige" aria-label="1 fois, fixe pour une tâche mensuelle">1×</span>`
-        : boutonCycle({ cle: `fois|${r.id}`, valeurs: CYCLE_FOIS, valeur: r.fois ?? 1, rendu: renduFois, taille: "reglage" })}
+        ? `<span class="rp-fois-fige cible44" aria-label="1 fois, fixe pour une tâche mensuelle">1×</span>`
+        : boutonCycle({ cle: `fois|${r.id}`, valeurs: CYCLE_FOIS, valeur: r.fois ?? 1, rendu: renduFois, taille: "reglage", classe: "cible44" })}
     </div>`;
   }
 
   function tableauCadence(cle, nom, enTeteFois) {
     const recs = actives().filter((r) => r.frequence === cle);
     if (!recs.length) return "";
-    return `<section class="bloc-cadence">
-      <div class="entete-reglage-parts">
+    return `<section class="carte bloc-cadence">
+      <div class="carte-tete entete-reglage-parts">
         <span>${txt(nom)}</span><span>Parts</span><span>Oblig.</span><span>À 2</span><span>${txt(enTeteFois)}</span>
       </div>
       ${recs.map(ligneTableau).join("")}
     </section>`;
   }
 
-  /** Carte d'explication (§5 du handoff) : reprise telle quelle, c'est la pédagogie du système. */
-  const carteExplication = () => `<section class="carte carte-explication-parts">
+  /** Carte d'explication (§5 du handoff) : reprise telle quelle, c'est la pédagogie du système
+   *  — texte, jamais des boutons (`.carte-explication` du socle). Le handoff cite le prénom de
+   *  l'enfant ; le dépôt écrit « le petit » (invariant 1, aucune donnée personnelle en git). */
+  const carteExplication = () => `<section class="carte-explication">
     <h3>On compte en parts de la maison, pas en points de match</h3>
-    <p class="mono explication-echelle">${ECHELLE_QUART.map(partsTexte).join(" · ")}</p>
-    <ul class="explication-lignes">
-      <li><span class="mono">C 3 · Y 2</span><span>l’écart : la même tâche coûte un cran de plus à l’un des deux</span></li>
-      <li><span class="cycle-actif-rouge rp-puce">Oblig.</span><span>pas négociable, ne rapporte pas plus, compté à part dans la semaine</span></li>
-      <li><span class="cycle-actif-olive rp-puce">÷2</span><span>fait à deux = parts partagées</span></li>
-      <li><span class="mono">Sem. / Mois</span><span>la dernière colonne = combien de fois sur la période</span></li>
-    </ul>
+    <p>Échelle : <strong class="mono">${ECHELLE_QUART.map(partsTexte).join(" · ")}</strong>.
+      Le plus petit, c'est préparer le lait du soir (0,5) ; le plus gros, nettoyer la salle de
+      bain (8). Chaque cran contient déjà le temps <em>et</em> le relou, donc cinq bricoles ne
+      valent pas une grosse corvée. Les minutes sous le titre ne comptent pas, c'est juste un repère.</p>
+    <p><span class="accent-bleu">C 3 · Y 2</span> — l'écart, quand la même tâche coûte un cran
+      de plus à l'un des deux (amener le petit). Tap pour changer de côté.</p>
+    <p><span class="accent-rouge">Oblig.</span> — pas négociable : le petit doit être habillé,
+      lavé, nourri. Ça ne rapporte pas plus ; ça se compte à part dans la semaine, là où on voit
+      qui porte l'incontournable.</p>
+    <p><span class="accent-olive">÷2</span> — faisable à deux. Le bain fait ensemble reste un
+      bain : les parts se partagent (2 → 1 + 1), elles ne doublent pas.</p>
+    <p><strong>Sem. / Mois</strong> — la dernière colonne : combien de fois sur la période.
+      Lessive 3× par semaine, salle de bain 1× par mois.</p>
   </section>`;
 
   function rendreTableau() {
     $("#tableau-taches-parts").innerHTML = carteExplication() + CADENCES.map(([cle, nom, entete]) => tableauCadence(cle, nom, entete)).join("")
       || '<p class="vide">Aucune tâche récurrente.</p>';
     brancherCycles($("#tableau-taches-parts"), surCycle);
-  }
-
-  /** Liste « Modifier / Retirer », sous le tableau : champs longs (catégorie, consigne,
-   *  fréquence, attribution) et retrait, groupés par catégorie comme l'ancien écran. Le
-   *  tableau au-dessus porte les réglages rapides ; cette liste porte le reste, sans
-   *  dupliquer le cycle CRUD de blocs-reglages.js (D-024). */
-  function htmlListeModifier(liste) {
-    if (!liste.length) return "";
-    const parCat = {};
-    for (const r of liste) (parCat[r.categorie] ??= []).push(r);
-    return `<h2>Catégorie, consigne, attribution</h2>` + Object.entries(parCat).map(([cat, items]) => `<section class="groupe">
-      <div class="groupe-tete"><span>${txt(cat)}</span><span>${items.length}</span></div>
-      ${items.map((r) => ligneReglage({
-        id: r.id, titre: r.titre,
-        sous: `${FREQUENCES[r.frequence]}${r.fois > 1 ? ` · ${r.fois} fois` : ""}`,
-        consigne: r.consigne, droite: `<span class="pts">${parts(r.parts_quart)}</span>`, pastille: r.attribue_a,
-      })).join("")}
-    </section>`).join("");
+    for (const b of $("#tableau-taches-parts").querySelectorAll("[data-ouvrir-form]")) {
+      b.addEventListener("click", () => reglages.formulaire(actives().find((r) => r.id === Number(b.dataset.ouvrirForm)) ?? null));
+    }
   }
 
   /** Applique le geste d'un cycle : écriture optimiste + rollback, sérialisée par tâche (D-026). */
@@ -159,10 +153,13 @@ export function creerUiTachesRec(api, etat, cb) {
   }
 
   // ---------- formulaire en feuille : création, champs longs, et Modifier / Retirer ----------
+  // Pas de liste séparée (D-036 décision 5) : le tableau au-dessus ouvre `formulaire(el)` au tap
+  // sur le titre d'une ligne ; le bouton « + Nouvelle tâche récurrente » reste la seule entrée
+  // de création, en tirets sous les trois cartes (`#form-tache-rec`, avant la légende).
   const reglages = creerReglages({
-    liste: "#liste-taches-rec", bouton: "#form-tache-rec", libelleNouveau: "+ Nouvelle tâche récurrente",
+    bouton: "#form-tache-rec", libelleNouveau: "+ Nouvelle tâche récurrente",
     elements: actives,
-    htmlListe: htmlListeModifier,
+    retirerDansFeuille: true,
     titreForm: (r) => (r ? "Modifier la tâche" : "Nouvelle tâche récurrente"),
     htmlForm: (r) => `
       ${champ("titre", "Titre", { valeur: r?.titre, requis: true })}

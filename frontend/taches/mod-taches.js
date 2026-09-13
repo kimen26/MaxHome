@@ -7,12 +7,15 @@ import { creerAjoutTache } from "./ui-taches-ajout.js";
 import { jourIso, decalerJours, balance, groupe } from "./taches.js";
 import { synchroniserOccurrences } from "../socle/occurrences.js";
 
-const JOURS_HISTORIQUE = 35; // couvre la balance sur 30 jours
+// 100 jours (brief refonte-fidélité, §"ce que le modèle ne portait pas") : couvre la balance
+// (30 j) ET la recherche du dernier passage d'une mensuelle (dernierPassage, taches.js), qui
+// n'a sinon aucun historique à regarder au-delà d'un mois.
+const JOURS_HISTORIQUE = 100;
 
 export default {
   cle: "taches", nom: "Tâches", defaut: "jour", avecMois: false,
-  onglets: [["jour", "Jour"], ["semaine", "Semaine"], ["taches-rec", "Réglages"]],
-  plus: [],
+  onglets: [["jour", "Jour"], ["semaine", "Semaine"]],
+  reglages: [["taches-rec", "Parts"]],
   etatInitial: { tachesRec: [], taches: [] },
   referentiels: (api) => ({ tachesRec: api.tachesRec() }),
 

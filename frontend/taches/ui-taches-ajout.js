@@ -53,7 +53,7 @@ export function creerAjoutTache(api, etat, cb, { onEcrit } = {}) {
       </div>
       <input type="text" id="ajout-titre" class="champ" placeholder="ex. Monter l'étagère de la chambre" value="${txt(titre)}">
       <div class="puces-suggestions">${suggestions(cad).map((s) =>
-        `<button type="button" class="puce-suggestion${titre === s ? " actif" : ""}" data-suggestion="${txt(s)}">${txt(s)}</button>`).join("")}</div>
+        `<button type="button" class="puce-suggestion cible44${titre === s ? " actif" : ""}" data-suggestion="${txt(s)}">${txt(s)}</button>`).join("")}</div>
       <div class="champ-groupe">
         <span class="etiquette-champ">Quand</span>
         <div class="ligne-boutons-4">${RYTHMES.map(boutonRythme).join("")}</div>
@@ -143,7 +143,10 @@ export function creerAjoutTache(api, etat, cb, { onEcrit } = {}) {
   /** Ouvre la feuille. `preset` permet au bouton « + Ajouter aux travaux » du Todo (ui-taches.js)
    *  de pré-régler « En attente » sans dupliquer ce formulaire (D-024). */
   function ouvrir(preset = {}) {
-    etatCourant = { titre: "", cad: "jour", qui: null, pts: 4, oblig: false, partageable: false, ...preset };
+    // « Fait par » part sur la personne connectée (maquette : la feuille s'ouvre sur
+    // « ✓ Fait · 1 part pour Claudia ») ; à défaut de session, le premier membre.
+    const moi = etat.prenom ?? membres()[0] ?? null;
+    etatCourant = { titre: "", cad: "jour", qui: moi, pts: 4, oblig: false, partageable: false, ...preset };
     ouvrirFeuille("");
     render(etatCourant);
   }

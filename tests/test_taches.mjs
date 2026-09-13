@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { echeance, occurrencesManquantes, groupe, trier, balance, jourIso, decalerJours, perimees,
-  ECHELLE_QUART, partsTexte, parts, partsDe, creditDe } from "../frontend/taches/taches.js";
+  ECHELLE_QUART, partsTexte, parts, partsDe, creditDe, libelleRelatif, dernierPassage,
+  avancementPeriode, libelleAjoutTodo } from "../frontend/taches/taches.js";
 import { suivante } from "../frontend/socle/blocs-cycle.js";
 
 // Échéances : 2026-09-06 est un dimanche.
@@ -141,5 +142,45 @@ assert.equal(suivante(ECART, null), "Claudia", "null est une valeur légitime du
 assert.equal(suivante(ECART, "Claudia"), "Yann");
 assert.equal(suivante(ECART, "Yann"), null, "boucle jusqu'à null");
 assert.equal(suivante(ECHELLE, 99), 0.5, "valeur absente de la liste -> première valeur");
+
+// libelleRelatif : préfixe du sous-titre du jour, selon l'écart avec aujourd'hui (bug 1).
+assert.equal(libelleRelatif("2026-09-11", "2026-09-11"), "aujourd’hui · ");
+assert.equal(libelleRelatif("2026-09-10", "2026-09-11"), "hier · ");
+assert.equal(libelleRelatif("2026-09-07", "2026-09-11"), "il y a 4 j · ");
+assert.equal(libelleRelatif("2026-09-12", "2026-09-11"), "demain · ");
+assert.equal(libelleRelatif("2026-09-15", "2026-09-11"), "dans 4 j · ");
+
+// dernierPassage : dernière occurrence FAITE d'un récurrent dans l'historique donné.
+const histo = [
+  { recurrent_id: 18, fait_le: null, echeance: "2026-08-31" },
+  { recurrent_id: 18, fait_le: "2026-08-12T10:00:00Z", echeance: "2026-08-31" },
+  { recurrent_id: 18, fait_le: "2026-07-15T10:00:00Z", echeance: "2026-07-31" },
+  { recurrent_id: 19, fait_le: null, echeance: "2026-08-31" },
+];
+assert.deepEqual(dernierPassage(histo, 18), { jour: "2026-08-12", texte: "12/08" }, "la plus récente des deux");
+assert.equal(dernierPassage(histo, 19), null, "aucune occurrence faite -> null, jamais une date inventée");
+assert.equal(dernierPassage(histo, 99), null, "récurrent inconnu -> null");
+
+// avancementPeriode : colonne de droite d'une ligne Semaine/Mois (bug 2).
+assert.deepEqual(avancementPeriode({ faites: 1, prevues: 3, jourDerniereCoche: null, jourSel: "2026-09-11", frequence: "hebdo" }),
+  { texte: "1/3", classe: "ambre" }, "en cours -> n/N ambre");
+assert.deepEqual(avancementPeriode({ faites: 1, prevues: 1, jourDerniereCoche: "2026-09-11", jourSel: "2026-09-11", frequence: "hebdo" }),
+  { texte: "auj.", classe: "vert" }, "complet le jour sélectionné -> auj. vert");
+assert.deepEqual(avancementPeriode({ faites: 1, prevues: 1, jourDerniereCoche: "2026-09-10", jourSel: "2026-09-11", frequence: "hebdo" }),
+  { texte: "jeu.", classe: "vert" }, "complet un autre jour -> abrégé du jour de semaine, vert");
+assert.deepEqual(avancementPeriode({ faites: 0, prevues: 1, jourDerniereCoche: null, jourSel: "2026-09-11", frequence: "hebdo" }),
+  { texte: "—", classe: "" }, "hebdo non faite sans historique -> tiret, jamais une date inventée");
+assert.deepEqual(avancementPeriode({ faites: 0, prevues: 1, jourDerniereCoche: null, jourSel: "2026-09-11", frequence: "mensuel", passe: { texte: "12/08" } }),
+  { texte: "12/08", classe: "" }, "mensuelle non faite -> dernier passage connu");
+assert.deepEqual(avancementPeriode({ faites: 0, prevues: 1, jourDerniereCoche: null, jourSel: "2026-09-11", frequence: "mensuel", passe: null }),
+  { texte: "+3 mois", classe: "" }, "mensuelle non faite, aucun historique -> +3 mois, jamais « jamais »");
+
+// libelleAjoutTodo : méta « ajouté … » de la feuille Todo (bug 6, cree_le/014_cree_le.sql).
+const maintenant = new Date(2026, 8, 13, 18, 0, 0);
+assert.equal(libelleAjoutTodo(new Date(2026, 8, 13, 10, 0).toISOString(), 45, maintenant), "ajouté aujourd’hui · 45 min");
+assert.equal(libelleAjoutTodo(new Date(2026, 8, 12, 20, 0).toISOString(), 10, maintenant), "ajouté hier · 10 min");
+assert.equal(libelleAjoutTodo(new Date(2026, 8, 1, 8, 0).toISOString(), 90, maintenant), "ajouté il y a 12 j · 90 min");
+assert.equal(libelleAjoutTodo(new Date(2026, 8, 1, 8, 0).toISOString(), null, maintenant), "ajouté il y a 12 j",
+  "sans minutes indicatives -> pas de suffixe");
 
 console.log("test_taches OK");

@@ -3,7 +3,7 @@
 // D-024) ; une cellule sait juste calculer sa propre valeur suivante à partir de l'occurrence
 // qu'elle représente. Tap sur la lettre du jour = ouvre l'écran Jour sur ce jour-là.
 
-import { $, txt, montrerEcran } from "../socle/ui-base.js";
+import { $, txt } from "../socle/ui-base.js";
 import { creerFileEcritures } from "../socle/blocs.js";
 import { boutonCycle, brancherCycles, suivante } from "../socle/blocs-cycle.js";
 import { partsTexte, partsDe, balance, jourIso, depuisIso, decalerJours, echeance } from "./taches.js";
@@ -96,30 +96,6 @@ export function creerUiTachesSemaine(api, etat, cb, ui, ouvrirAjout) {
     </div>`;
   }
 
-  /** Détail par catégorie, sur la semaine affichée : une ligne = une catégorie, barre
-   *  partagée Claudia/Yann — reprend l'ex-écran Balance (D-023), sans sélecteur de période
-   *  puisque la semaine est déjà choisie en haut de l'écran. `b.parCategorie` vient de
-   *  `balance()` (taches.js), jamais recalculé ici. */
-  function detailCategories(b, p1, p2) {
-    const couleur = (p) => (p === p1 ? "var(--claudia)" : "var(--bleu)");
-    const somme = (v) => Object.values(v).reduce((s, n) => s + n, 0);
-    const cats = Object.entries(b.parCategorie).sort((x, y) => somme(y[1]) - somme(x[1]));
-    if (!cats.length) return `<section class="carte"><h3>Par catégorie</h3><p class="vide">Rien à montrer.</p></section>`;
-    return `<section class="carte">
-      <h3>Par catégorie</h3>
-      <div class="pile-cats">${cats.map(([cat, v]) => `<div class="cat-ligne">
-        <div class="cat-tete"><span>${txt(cat)}</span>
-          <span class="sous">${txt(p1)} ${partsTexte(v[p1] ?? 0)} · ${txt(p2)} ${partsTexte(v[p2] ?? 0)}</span></div>
-        <div class="barre-h fine">
-          <span style="width:${((v[p1] ?? 0) / somme(v)) * 100}%;background:${couleur(p1)}"></span>
-          <span style="width:${((v[p2] ?? 0) / somme(v)) * 100}%;background:${couleur(p2)}"></span>
-        </div>
-      </div>`).join("")}</div>
-      <p class="sous"><span class="puce-legende" style="background:${couleur(p1)};margin-right:4px"></span>${txt(p1)}
-        <span class="puce-legende" style="background:${couleur(p2)};margin:0 4px 0 10px"></span>${txt(p2)}</p>
-    </section>`;
-  }
-
   function rendre() {
     const jourRef = ui.jourSelectionne();
     const lundi = decalerJours(jourRef, -((depuisIso(jourRef).getDay() + 6) % 7));
@@ -160,10 +136,6 @@ export function creerUiTachesSemaine(api, etat, cb, ui, ouvrirAjout) {
       html += bandeauCadence(nom, recs, compte) + recs.map((r) => ligneGrille(r, jours, auj)).join("");
     }
     $("#grille-semaine").innerHTML = html;
-
-    // ---------- détail par catégorie (ex-écran Balance, D-023 : la vue qui dit « Claudia
-    // fait toute la cuisine » — sans onglet dédié, sur la semaine déjà choisie ci-dessus). ----------
-    $("#detail-categories-semaine").innerHTML = detailCategories(b, p1, p2);
 
     for (const b2 of $("#grille-semaine").querySelectorAll("[data-ouvrir-jour]")) {
       b2.addEventListener("click", () => ui.allerAuJour(b2.dataset.ouvrirJour));
@@ -221,10 +193,8 @@ export function creerUiTachesSemaine(api, etat, cb, ui, ouvrirAjout) {
     return { fait_le: t.fait_le ?? dateDuJour(j), qui: suivant, qui2: null, parts_quart: partsDe(r, suivant) };
   }
 
-  $("#segment-vue-taches-semaine")?.addEventListener("click", (e) => {
-    const b = e.target.closest("[data-vue]");
-    if (b) montrerEcran(b.dataset.vue);
-  });
+  // Le segmenté Jour|Semaine est maintenant rendu par le socle (segmentEcrans, data-segment) :
+  // la navigation par délégation générique de ui-base.js s'en charge, rien à brancher ici.
   $("#btn-ajouter-tache-semaine")?.addEventListener("click", () => ouvrirAjout?.());
 
   return { rendre };

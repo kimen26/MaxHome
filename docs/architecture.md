@@ -108,14 +108,24 @@ ne doit pas réécrire à la main.
 `app.js` ne connaît aucun module par son nom : il boucle sur `modules.js::LISTE`, un tableau
 de descripteurs qui partagent tous la même forme. Un module s'exporte comme suit :
 
+**Navigation (D-036 §3, refonte de fidélité 2026-09)** : la barre basse (mobile) et la barre
+haute (PC) sont GLOBALES, un bouton par module (son écran `defaut`) plus un bouton
+« Réglages » — le menu « Plus » a disparu. **Réglages** est un module synthétique assemblé
+par le socle (`ui-base.js::segmentEcrans`) à partir du champ `reglages` de chaque descripteur,
+dans l'ordre de `modules.js::LISTE` : son en-tête est un segmenté `.segment.large` seul (pas de
+titre, la barre basse dit déjà « Réglages »), et son pied (mobile) porte Accueil MaxHome et
+Déconnexion. Un écran de réglages appartient à son module d'origine pour le rendu
+(`app.js::rendreEcran` route toujours par `moduleDe`), mais à l'entrée « Réglages » pour la
+navigation (`estReglages(ecran)`).
+
 | Champ | Type | Rôle |
 |---|---|---|
 | `cle` | string | identifiant interne du module (`"budget"`, `"taches"`, `"courses"`) |
 | `nom` | string | libellé affiché (carte d'accueil, en-tête d'onglets) |
 | `defaut` | string | écran ouvert quand on entre dans le module depuis l'accueil |
 | `avecMois` | boolean | le module utilise le sélecteur de mois partagé (Budget seul, pour l'instant) |
-| `onglets` | `[cle_ecran, libellé][]` | onglets visibles en permanence (barre PC, barre mobile) |
-| `plus` | `[cle_ecran, libellé][]` | écrans accessibles via le menu « Plus » (mobile) ou le sous-menu (PC) |
+| `onglets` | `[cle_ecran, libellé][]` | segmenté d'en-tête du module (Jour\|Semaine, Mois\|Stats\|Année…) |
+| `reglages` | `[cle_ecran, libellé][]` | écrans de réglages du module, réunis par le socle dans le module synthétique **Réglages** (D-036 §3) |
 | `etatInitial` | objet | portion de l'état global que ce module possède ; fusionnée dans `etat` au démarrage |
 | `referentiels(api)` | fonction | `{ cle: Promise }` — données de référence à charger une fois, avant `creer()` |
 | `creer(api, etat, cb)` | fonction | fabrique l'instance du module ; `cb` porte `{ echec, rafraichir }` |
@@ -135,7 +145,7 @@ de descripteurs qui partagent tous la même forme. Un module s'exporte comme sui
    ses écrans (`ui-*.js`), assemblés à partir des blocs de `frontend/socle/` plutôt que d'un
    HTML équivalent réécrit à la main.
 2. Ajouter dans `frontend/index.html` une `<section id="ecran-...">` par écran déclaré dans
-   `onglets` et `plus`.
+   `onglets` et `reglages`.
 3. Ajouter une ligne dans `frontend/modules.js` (import + entrée dans `LISTE`).
 4. Créer les tables Postgres du module et leurs politiques RLS (`for all using (est_membre())
    with check (est_membre())`, comme toutes les tables existantes) dans un nouveau fichier

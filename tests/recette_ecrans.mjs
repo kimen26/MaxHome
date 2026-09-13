@@ -16,17 +16,19 @@ const LARGEURS = [320, 360, 1200]; // non-régression, conception, desktop (règ
 
 // Les feuilles modales ne s'ouvrent que par un geste : on les visite explicitement, sinon
 // elles échappent à toute capture et la recette valide des écrans qu'elle n'a jamais vus.
-// UNE feuille par largeur, la dernière visitée : refermer une feuille de l'extérieur s'est
-// révélé peu fiable (clic sur le voile avalé, Échap sans effet, rechargement qui emporte le
-// bouchon Supabase injecté par addInitScript) — voir L-026. Plutôt qu'un enchaînement fragile,
-// on capture la feuille la plus riche du §8 et on s'arrête là ; la feuille Todo se vérifie à
-// l'œil quand on y touche.
+// Plusieurs feuilles par largeur : chacune est refermée par un clic DOM direct sur le voile
+// (`#feuille-fond.click()` en page.evaluate), pas par un geste Playwright — le geste était
+// avalé par la transition de sortie (L-026). On attend ensuite la preuve que la feuille est
+// cachée avant d'ouvrir la suivante (L-018).
 const FEUILLES = [
   { ecran: "jour", moduleDefaut: "jour", bouton: "#btn-ajouter-tache", nom: "feuille-ajout-tache" },
+  { ecran: "jour", moduleDefaut: "jour", bouton: "#btn-todo", nom: "feuille-todo" },
+  { ecran: "courses", moduleDefaut: "courses", bouton: "#btn-tour", nom: "feuille-tour" },
+  { ecran: "mois", moduleDefaut: "mois", bouton: "#fab-ajouter-mois", nom: "feuille-ajout-mois" },
 ];
 
 // ---------- 1. écrans à visiter, lus depuis les descripteurs (pas de liste en dur) ----------
-/** Extrait cle/onglets/plus d'un descripteur mod-*.js sans l'exécuter (il touche le DOM au
+/** Extrait cle/onglets/reglages d'un descripteur mod-*.js sans l'exécuter (il touche le DOM au
  *  chargement dans certains fichiers UI qu'il importe) : lecture texte + JSON.parse ciblé. */
 function lireDescripteur(fichier) {
   const src = fs.readFileSync(fichier, "utf8");
@@ -34,7 +36,7 @@ function lireDescripteur(fichier) {
   const nom = src.match(/nom:\s*"([^"]+)"/)?.[1];
   const defaut = src.match(/defaut:\s*"([^"]+)"/)?.[1];
   const tableau = (motCle) => {
-    // Cible "onglets: [ ... ]," ou "plus: [ ... ]," — un tableau de paires ["cle","libellé"],
+    // Cible "onglets: [ ... ]," ou "reglages: [ ... ]," — un tableau de paires ["cle","libellé"],
     // toujours écrit sur une seule ligne dans les mod-*.js actuels. On repère juste le début
     // ("motCle: [") puis on compte les crochets pour trouver la fermeture correspondante :
     // plus robuste qu'une regex gourmande/non gourmande sur du JSON imbriqué.
@@ -50,17 +52,28 @@ function lireDescripteur(fichier) {
     // Les entrées utilisent déjà des guillemets doubles : c'est du JSON valide tel quel.
     return JSON.parse(src.slice(ouverture, fin + 1));
   };
-  return { cle, nom, defaut, onglets: tableau("onglets"), plus: tableau("plus") };
+  return { cle, nom, defaut, onglets: tableau("onglets"), reglages: tableau("reglages") };
 }
 
 function listerEcrans() {
   const registre = fs.readFileSync(path.join(RACINE, "modules.js"), "utf8");
   const chemins = [...registre.matchAll(/import\s+\w+\s+from\s+"(\.\/[^"]+)"/g)].map((m) => m[1]);
+  const descripteurs = chemins.map((rel) => lireDescripteur(path.join(RACINE, rel.replace(/^\.\//, ""))));
+  // Les écrans « charges » et « recurrents » du Budget ne sont plus déclarés (fusion en cours,
+  // D-036 §4) : non listés par les descripteurs, ils ne sont donc plus visités ici — acceptable
+  // en transition (brief refonte-fidélité).
+  // Premier écran de Réglages, tous modules confondus (D-036 §3) : c'est LUI que la barre basse
+  // ouvre pour tout écran `reglages`, jamais le `defaut` du module qui le possède — Réglages est
+  // un pseudo-module synthétique assemblé par le socle, pas un onglet de son module d'origine.
+  const reglagesDefaut = descripteurs.flatMap((d) => d.reglages)[0]?.[0] ?? null;
   const ecrans = [];
-  for (const rel of chemins) {
-    const fichier = path.join(RACINE, rel.replace(/^\.\//, ""));
-    const d = lireDescripteur(fichier);
-    for (const [e] of [...d.onglets, ...d.plus]) ecrans.push({ module: d.cle, ecran: e, moduleDefaut: d.defaut });
+  for (const d of descripteurs) {
+    // Un module sans segmenté d'en-tête (`onglets: []`, ex. Courses D-036 §3) n'a que son écran
+    // `defaut`, ouvert directement par la barre basse : sans lui l'écran ne serait JAMAIS visité
+    // (ni onglet ni réglage ne le nomme), et la recette validerait un écran qu'elle n'a pas vu.
+    if (!d.onglets.some(([e]) => e === d.defaut)) ecrans.push({ module: d.cle, ecran: d.defaut, moduleDefaut: d.defaut });
+    for (const [e] of d.onglets) ecrans.push({ module: d.cle, ecran: e, moduleDefaut: d.defaut });
+    for (const [e] of d.reglages) ecrans.push({ module: d.cle, ecran: e, moduleDefaut: reglagesDefaut });
   }
   return ecrans;
 }
@@ -278,38 +291,31 @@ const BR = String.fromCharCode(10);
 const ecransCasses = [];
 let nbCaptures = 0;
 
-/** Navigue vers un écran : onglet direct s'il est visible, sinon par le menu « Plus » (mobile)
- *  ou par la carte du module puis son onglet (PC, où « Plus » — #onglets — n'existe pas :
- *  #onglets {display:none} au-dessus de 1024 px, cf. style.css). Repris de recette_connectee.mjs
- *  pour le patron général, adapté ici pour rester générique sur N'IMPORTE quel écran plutôt que
- *  sur une liste écrite à la main, et pour échouer proprement plutôt que planter. */
+/** Navigue vers un écran. La barre basse GLOBALE (#onglets, D-036 §3) porte un bouton par
+ *  module (son écran `defaut`) et un bouton « Réglages » : plus de menu « Plus » à ouvrir, tout
+ *  écran est atteignable soit directement depuis cette barre, soit via le segmenté d'en-tête
+ *  du module (`onglets`) ou de Réglages (`reglages`), rendus par `main [data-segment]` — tous
+ *  deux de simples `[data-ecran]` sur lesquels la délégation générique de ui-base.js navigue.
+ *  Repris de recette_connectee.mjs pour le patron général, adapté pour rester générique. */
 async function aller(page, ecran, moduleDefaut) {
-  // Déjà sur l'écran demandé : ne rien faire. Sans ce court-circuit, deux feuilles visitées à
-  // la suite sur le même écran repassent par le menu « Plus », qui réutilise le conteneur de
-  // feuille qu'on vient de refermer — et le clic n'aboutit jamais.
+  // Déjà sur l'écran demandé : ne rien faire.
   if (await page.isVisible(`#ecran-${ecran}:not([hidden])`)) return;
   const surPC = await page.isVisible("#barre-pc");
   const nav = surPC ? "#barre-pc" : "#onglets";
   if (await page.isVisible(`${nav} button[data-ecran=${ecran}]`)) {
     await page.click(`${nav} button[data-ecran=${ecran}]`, { timeout: 5000 });
-  } else if (surPC) {
-    // Sur PC, la barre de module est vide tant qu'aucun module n'est actif (rendreOnglets,
-    // ui-base.js), et la carte du module (#modules) n'existe que sur l'écran d'accueil : on y
-    // repasse par #logo avant d'entrer par la carte (son écran par défaut), puis — si la cible
-    // n'est pas cet écran par défaut — par l'onglet, maintenant visible.
-    if (!(await page.isVisible("#ecran-accueil:not([hidden])"))) {
-      await page.click("#logo", { timeout: 5000 });
-      await page.waitForSelector("#ecran-accueil:not([hidden]) .module-carte", { timeout: 5000 });
-    }
-    await page.click(`#modules [data-ecran=${moduleDefaut}]`, { timeout: 5000 });
-    if (ecran !== moduleDefaut) {
-      await page.waitForSelector(`#barre-pc button[data-ecran=${ecran}]`, { timeout: 5000 });
-      await page.click(`#barre-pc button[data-ecran=${ecran}]`, { timeout: 5000 });
-    }
   } else {
-    await page.click("#onglets button[data-ecran=plus]", { timeout: 5000 });
-    await page.waitForSelector(`#feuille-corps [data-aller=${ecran}]`, { timeout: 5000 });
-    await page.click(`#feuille-corps [data-aller=${ecran}]`, { timeout: 5000 });
+    // L'écran cible n'est ni un module par défaut ni « Réglages » lui-même : on entre d'abord
+    // dans son module (ou dans Réglages) via la barre, puis on tape son segmenté d'en-tête —
+    // rendu par [data-segment] une fois l'écran par défaut affiché (ui-base.js::montrerEcran).
+    await page.click(`${nav} button[data-ecran=${moduleDefaut}]`, { timeout: 5000 });
+    await page.waitForSelector(`#ecran-${moduleDefaut}:not([hidden])`, { timeout: 8000 });
+    // Scopé à l'écran affiché : chaque `.ecran` reste dans le DOM une fois caché (`hidden`),
+    // donc un sélecteur non scopé peut matcher le segmenté d'un AUTRE écran (même data-ecran
+    // au même endroit, ex. Réglages) et cliquer dans le vide.
+    const cible = `#ecran-${moduleDefaut}:not([hidden]) [data-ecran=${ecran}]`;
+    await page.waitForSelector(cible, { timeout: 5000 });
+    await page.click(cible, { timeout: 5000 });
   }
   await page.waitForSelector(`#ecran-${ecran}:not([hidden])`, { timeout: 8000 });
   await page.waitForTimeout(200); // laisse le rendu (fetch factice résolu en microtâche) se poser
@@ -370,6 +376,8 @@ try {
         // Refermer ET attendre que la feuille soit vraiment partie : le voile reste cliquable
         // pendant la transition de sortie et intercepterait le geste suivant (L-018 : on attend
         // une preuve, pas un délai).
+        await page.evaluate(() => document.getElementById("feuille-fond").click());
+        await page.waitForSelector("#feuille", { state: "hidden", timeout: 5000 });
       } catch (e) {
         ecransCasses.push(`${nom} @ ${largeur}px : ${e.message.split("\n")[0]}`);
         try { await page.click("#logo"); await page.waitForSelector("#ecran-accueil:not([hidden])", { timeout: 3000 }); }

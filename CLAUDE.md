@@ -59,7 +59,7 @@ Plan → TodoWrite → Exécution → Vérification → Commit → memory/ grav�
 | `node tests/test_calc.mjs` | tout changement du calcul budgétaire |
 | `node tests/test_taches.mjs` | tout changement des tâches (échéances, parts, balance) |
 | `python -m pytest -q tests/bot/` | tout changement du bot |
-| `node tests/recette_ecrans.mjs` puis **OUVRIR** data/captures/ecrans/*.png — et, s'il existe une maquette, la mettre À CÔTÉ de la capture (L-028) | tout changement UI |
+| `node tests/recette_ecrans.mjs` puis `node tests/planche_maquette.mjs` et **OUVRIR** data/captures/planche/*.png (app à gauche, maquette à droite — L-028) | tout changement UI |
 | `node tests/test_courses.mjs` | tout changement de la tournée / des repas |
 | `node tests/comparer_captures.mjs --attendu <écrans>` (référence : data/captures/avant/) | tout refactor censé ne rien changer |
 | `node tests/recette_token.mjs` (jeton refusé puis rafraîchi) | tout changement de `surChangement` / `demarrer()` / gestion d'erreur |

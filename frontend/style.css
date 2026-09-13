@@ -1,30 +1,33 @@
-/* MaxHome — socle. Tokens issus du handoff design (inbox/design_handoff_maxbudget_refonte).
-   Pas d'ombre dans l'app : des bordures. Mobile d'abord, bascule PC à 1024 px. */
+/* MaxHome — socle : tokens, shell (barre basse/PC, en-tête sticky, FAB), navigation, feuille,
+   toast, bandeau d'erreur, connexion. Les gabarits partagés (carte, ligne, segment, champs,
+   boutons, cycles) vivent dans socle.css — deux fichiers pour rester sous 400 lignes chacun
+   (D-036 §CSS par module). Fidélité à la maquette (D-036 : décision 1) : les valeurs ci-dessous
+   sont celles du handoff, au pixel près. Pas d'ombre dans l'app, sauf le FAB. */
 
 :root {
   --bleu:#1f4e79; --bleu-fonce:#1a4266; --bleu-clair:#e8eff6;
-  --barre-1:#8fb3d9; --barre-2:#4a7fb0; --barre-3:#c5d5e6;
-  --fond:#faf8f3; --fond-bandeau:#f2efe8;
-  --bordure:#d9dee5; --separateur:#eef1f4; --separateur-2:#e6eaef;
+  --fond:#f5f7fa; --fond-bandeau:#eef1f4;
+  --bordure:#d9dee5; --separateur:#f2f4f7; --separateur-2:#e6eaef;
   --texte:#1a1f26; --texte-2:#5b6572; --placeholder:#9aa4b0;
-  --rouge:#b00020; --rouge-fond:#fbeaec; --vert:#1b7f3b; --vert-clair:#e9f5ec;
+  --rouge:#b00020; --rouge-fond:#fbeaec; --vert:#1b7f3b; --vert-clair:#f2f8f4; --vert-bordure:#cfe3d6;
   /* Couleurs des personnes et du « fait à deux » (handoff Tâches) : Claudia ambre, Yann bleu,
      à deux olive. Une personne garde sa couleur partout — jamais un rôle porté par la couleur
      seule, toujours doublé de sa lettre ou de son prénom. */
   --claudia:#b8860b; --a-deux:#6b6f4f; --a-deux-texte:#4f5338; --a-deux-fond:#eceedf;
-  --ambre-texte:#8a6d3b; --ambre-fond:#fff3cd; --ambre-ligne:#fffbea;
+  --ambre-texte:#8a6d3b; --ambre-fond:#f6efdf; --ambre-ligne:#fffdf5;
   --ambre-champ:#fffae6; --ambre-bordure:#e0b84a; --tirets:#b8c2cc;
   --fab-hauteur:44px; --fab-ecart:12px;
   /* Bordure d'une case à cocher vide : >= 3:1 sur blanc, une bordure porte ici du sens. */
   --bordure-case:#9aa6b4;
   --police:'IBM Plex Sans', system-ui, -apple-system, sans-serif;
   --mono:'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
-  --barre-basse: calc(64px + env(safe-area-inset-bottom, 0px));
+  /* Barre basse maquette : 11px de libellé + trait + padding 4/9 ≈ 52px, plus l'encoche. */
+  --barre-basse: calc(52px + env(safe-area-inset-bottom, 0px));
 }
 
 * { box-sizing:border-box; }
 [hidden] { display:none !important; }
-body { margin:0; background:var(--fond); color:var(--texte); font-family:var(--police); font-size:15px; -webkit-font-smoothing:antialiased; }
+body { margin:0; background:var(--fond); color:var(--texte); font-family:var(--police); font-size:13px; -webkit-font-smoothing:antialiased; }
 h1,h2,h3 { margin:0; font-weight:600; }
 input, button, select, textarea { font:inherit; color:inherit; }
 input::placeholder, textarea::placeholder { color:var(--placeholder); }
@@ -35,29 +38,38 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .vide { color:var(--texte-2); font-style:italic; }
 .erreur { color:var(--rouge); }
 
-/* ---------- navigation mobile : onglets en bas ---------- */
+/* ---------- navigation mobile : barre basse GLOBALE à 4 entrées (D-036 §3) ---------- */
+/* Tâches · Budget · Courses · Réglages, toujours dans cet ordre — plus un menu « Plus » à
+   ouvrir : chaque module garde ses propres écrans dans le segmenté de son en-tête. */
 #onglets {
   position:fixed; left:0; right:0; bottom:0; z-index:20;
-  display:flex; height:var(--barre-basse); padding-bottom:env(safe-area-inset-bottom, 0px);
+  display:grid; grid-template-columns:repeat(4, 1fr); height:var(--barre-basse);
+  padding:4px 0 9px; padding-bottom:calc(9px + env(safe-area-inset-bottom, 0px));
   background:#fff; border-top:1px solid var(--bordure);
 }
 #onglets button {
-  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
   background:none; border:0; cursor:pointer; font-size:11px; color:var(--texte-2); padding:0;
 }
-#onglets button::before { content:""; width:26px; height:4px; border-radius:2px; background:transparent; }
+#onglets button::before { content:""; width:22px; height:3px; border-radius:2px; background:transparent; }
 #onglets button.actif { color:var(--bleu); font-weight:600; }
 #onglets button.actif::before { background:var(--bleu); }
 
 /* ---------- navigation PC : barre haute ---------- */
 #barre-pc { display:none; }
 
-/* ---------- en-tête d'écran (mobile) ---------- */
-.tete-ecran { background:#fff; border-bottom:1px solid var(--bordure); padding:12px 16px 8px; }
-.tete-ecran h1 { font-size:22px; }
-.tete-ecran .sous { font-size:13px; color:var(--texte-2); margin:4px 0 0; }
+/* ---------- en-tête d'écran : sticky, gabarit commun à tous les écrans ---------- */
+.tete-ecran {
+  background:#fff; border-bottom:1px solid var(--bordure); padding:8px 12px;
+  display:flex; flex-direction:column; gap:7px; position:sticky; top:0; z-index:10;
+}
+.tete-ligne { display:flex; align-items:center; gap:7px; }
+.tete-titre { font-size:15px; font-weight:600; color:var(--bleu); margin:0; }
+.tete-ecran h1 { font-size:15px; font-weight:600; }
+.tete-ecran .sous { font-size:12px; color:var(--texte-2); margin:0; }
 
-/* ---------- sélecteur de mois : puces ---------- */
+/* ---------- sélecteur de mois : puces (PC, #puces-pc) ---------- */
+/* La bande plate du mobile (#puces-mobile) est un gabarit du socle : voir .bande-mois plus bas. */
 .puces-mois { display:flex; gap:6px; overflow-x:auto; padding:10px 0 2px; scrollbar-width:none; }
 .puces-mois::-webkit-scrollbar { display:none; }
 .puces-mois button {
@@ -66,52 +78,38 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 }
 .puces-mois button.actif { background:var(--bleu); border-color:var(--bleu); color:#fff; font-weight:600; }
 
+/* Bande de mois plate (mobile, maquette budget.png) : 5 boutons flex:1, actif bleu plein,
+   futur en gris clair — remplace l'ancienne puce arrondie sur #puces-mobile. */
+#puces-mobile.puces-mois {
+  display:flex; gap:6px; padding:0; overflow:visible;
+}
+#puces-mobile.puces-mois button {
+  flex:1; min-height:30px; border-width:1.5px; border-radius:8px; font-size:12px; padding:0 4px; white-space:nowrap;
+}
+#puces-mobile.puces-mois button:not(.actif) { color:var(--placeholder); }
+
 /* ---------- écrans ---------- */
-main { padding:0 16px calc(var(--barre-basse) + 24px); }
-.ecran { padding-top:16px; }
-.ecran > h2 { font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--texte-2); margin:20px 0 8px; }
+main { padding:8px 12px calc(var(--barre-basse) + 84px); }
+.ecran { padding-top:0; }
 
-/* ---------- cartes, listes ---------- */
-.carte { background:#fff; border:1px solid var(--bordure); border-radius:12px; padding:14px; }
-.carte + .carte { margin-top:10px; }
-
-/* ---------- boutons ---------- */
-.btn { border:1px solid var(--bordure); background:#fff; color:var(--texte); border-radius:8px; padding:0 14px; min-height:44px; cursor:pointer; }
-.btn-bleu { background:var(--bleu); border-color:var(--bleu); color:#fff; font-weight:600; }
-.btn-bleu:hover { background:var(--bleu-fonce); border-color:var(--bleu-fonce); }
-.btn-vert { background:var(--vert); border-color:var(--vert); color:#fff; font-weight:600; width:100%; min-height:50px; border-radius:10px; }
-.btn-tirets { border:1px dashed var(--tirets); background:transparent; color:var(--texte-2); width:100%; border-radius:10px; }
-.btn-lien { background:none; border:0; color:var(--bleu); text-decoration:underline; cursor:pointer; padding:8px 0; min-height:36px; }
-
-/* ---------- barre de progression ---------- */
-.progression { height:6px; border-radius:3px; background:var(--separateur-2); overflow:hidden; margin-top:10px; }
-.progression > div { height:100%; background:var(--vert); transition:width .2s ease-out; }
-
-/* ---------- champs ---------- */
-.champ { border:1px solid var(--bordure); border-radius:8px; padding:0 10px; min-height:44px; background:#fff; width:100%; }
-.champ-montant { font-family:var(--mono); font-variant-numeric:tabular-nums; text-align:right; font-size:15px; color:var(--rouge); min-height:44px; width:110px; }
-.champ-montant.pos { color:var(--vert); }
-.champ-montant.oubli { border-color:var(--ambre-bordure); background:var(--ambre-champ); }
-
-/* ---------- segment (règle) ---------- */
-.segment { display:inline-flex; border:1px solid var(--bordure); border-radius:7px; overflow:hidden; background:#fff; }
-.segment button { border:0; background:none; color:var(--texte-2); font-size:11px; font-weight:600; padding:5px 9px; cursor:pointer; min-height:28px; }
-.segment button.actif { background:var(--bleu); color:#fff; }
-
-/* ---------- pastilles et repères ---------- */
-.pastille { display:inline-block; background:var(--fond-bandeau); color:var(--texte-2); border-radius:6px; font-size:11px; padding:2px 7px; }
-.repere { font-size:12px; color:var(--texte-2); }
-.repere.habituel { color:var(--ambre-texte); }
+/* ---------- FAB « + Ajouter » ---------- */
+.fab-ajouter {
+  position:fixed; right:12px; bottom:calc(var(--barre-basse) + var(--fab-ecart)); z-index:19;
+  height:var(--fab-hauteur); padding:0 15px 0 12px; border:0; border-radius:13px; background:var(--bleu); color:#fff;
+  font-size:14px; font-weight:600; display:flex; align-items:center; gap:6px; cursor:pointer;
+  box-shadow:0 4px 14px rgba(31,78,121,.35);
+}
+.fab-ajouter span { font-size:20px; line-height:1; font-weight:400; }
 
 /* ---------- feuille mobile ---------- */
 .feuille-fond { position:fixed; inset:0; background:rgba(26,31,38,.45); z-index:30; }
 .feuille {
   position:fixed; left:0; right:0; bottom:0; z-index:31; max-height:88vh; overflow:auto;
-  background:#fff; border-radius:20px 20px 0 0; padding:8px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  background:#fff; border-radius:18px 18px 0 0; padding:15px 13px calc(18px + env(safe-area-inset-bottom, 0px));
   transform:translateY(0); transition:transform .2s ease-out;
 }
 .feuille.entrante { transform:translateY(100%); }
-.feuille .poignee { width:40px; height:4px; border-radius:2px; background:var(--bordure); margin:4px auto 12px; }
+.feuille-titre { font-size:17px; margin-bottom:4px; }
 
 /* ---------- toast ---------- */
 #toast {
@@ -131,6 +129,10 @@ main { padding:0 16px calc(var(--barre-basse) + 24px); }
    fond clair, contraste 7:1 (var(--ambre-texte) sur var(--ambre-fond)). */
 #bandeau-erreur.patience { background:var(--ambre-fond); color:var(--ambre-texte); }
 
+/* ---------- pied des écrans Réglages (mobile, D-036 §3) ---------- */
+.pied-reglages { display:flex; gap:8px; padding:16px 0 8px; }
+.pied-reglages .btn { flex:1; }
+
 /* ---------- connexion ---------- */
 #login { display:flex; align-items:center; justify-content:center; min-height:100vh; padding:16px; }
 #login .carte { width:100%; max-width:360px; padding:28px 24px; }
@@ -139,12 +141,6 @@ main { padding:0 16px calc(var(--barre-basse) + 24px); }
 #login input { width:100%; min-height:48px; border-radius:10px; border:1px solid var(--bordure); padding:0 12px; margin-top:6px; }
 #login .btn-bleu { width:100%; min-height:50px; border-radius:10px; margin-top:20px; }
 #login .note { font-size:12px; color:var(--texte-2); text-align:center; margin:16px 0 0; }
-
-/* ---------- tableaux (vue annuelle, récurrents PC) ---------- */
-table { width:100%; border-collapse:collapse; background:#fff; }
-th, td { padding:8px 10px; border-bottom:1px solid var(--separateur); text-align:left; font-size:14px; }
-th { font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--texte-2); font-weight:600; }
-td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
 
 /* ================= PC ≥ 1024 px ================= */
 @media (min-width:1024px) {
@@ -155,6 +151,7 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
     background:#fff; border-bottom:1px solid var(--bordure); position:sticky; top:0; z-index:20;
   }
   #barre-pc .logo { font-size:17px; font-weight:600; color:var(--bleu); margin-right:12px; white-space:nowrap; }
+  .modules-pc { display:flex; gap:4px; flex-wrap:nowrap; padding-right:8px; border-right:1px solid var(--bordure); margin-right:4px; }
   #onglets-pc { display:flex; gap:4px; flex-wrap:nowrap; }
   #barre-pc button.onglet {
     border:0; background:none; color:var(--texte-2); border-radius:8px; padding:8px 11px; font-size:14px; cursor:pointer; min-height:40px; white-space:nowrap;
@@ -162,766 +159,16 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
   #barre-pc button.onglet.actif { background:var(--bleu-clair); color:var(--bleu); font-weight:600; }
   #barre-pc .droite { margin-left:auto; display:flex; align-items:center; gap:8px; }
   main { padding:0 32px 40px; max-width:1280px; margin:0 auto; }
-  .tete-ecran { background:none; border:0; padding:24px 0 0; display:flex; align-items:flex-start; justify-content:space-between; gap:24px; }
-  .tete-ecran h1 { font-size:24px; }
+  .tete-ecran { background:none; border:0; padding:24px 0 0; position:static; }
+  .tete-titre { font-size:20px; }
   #toast { left:auto; right:32px; bottom:24px; max-width:320px; }
   .deux-colonnes { display:grid; grid-template-columns:minmax(0,1fr) 420px; gap:28px; align-items:start; }
   .deux-colonnes.etroit { grid-template-columns:minmax(0,1fr) 380px; }
   .cliquable:hover { background:var(--fond); }
+  .fab-ajouter { bottom:24px; right:24px; }
 }
 
 /* entre 600 et 1024 : layout mobile centré */
 @media (min-width:600px) and (max-width:1023px) {
   main, .tete-ecran { max-width:640px; margin-left:auto; margin-right:auto; }
 }
-
-/* ================= Écran « Ce mois » ================= */
-.chiffres { display:flex; gap:20px; flex-wrap:wrap; }
-.chiffre { display:flex; flex-direction:column; gap:2px; }
-.chiffre .etiquette { font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--texte-2); }
-.chiffre .valeur { font-size:15px; font-weight:600; }
-
-.carte-liste { background:#fff; border:1px solid var(--bordure); border-radius:14px; overflow:hidden; }
-.mvt {
-  display:grid; grid-template-columns:28px minmax(0,1fr) auto; gap:12px; align-items:start;
-  padding:14px 16px; border-bottom:1px solid var(--separateur); cursor:pointer;
-}
-.mvt:last-child { border-bottom:0; }
-.mvt.alerte { background:var(--ambre-ligne); }
-.mvt.fait { align-items:center; padding:12px 16px; opacity:.75; }
-.mvt .case {
-  width:26px; height:26px; border:2px solid var(--tirets); border-radius:8px; background:#fff;
-  margin-top:1px; display:flex; align-items:center; justify-content:center; cursor:pointer; flex:0 0 auto;
-}
-.mvt .case.prioritaire { border-color:var(--bleu); }
-.mvt .case.cochee { background:var(--vert); border-color:var(--vert); color:#fff; font-size:14px; font-weight:700; margin-top:0; }
-.mvt-corps { min-width:0; display:flex; flex-direction:column; gap:3px; }
-.mvt-titre { font-size:15px; font-weight:600; }
-.mvt.fait .mvt-titre { font-weight:400; }
-.mvt-trajet { font-size:13px; color:var(--texte-2); }
-.mvt.fait .mvt-trajet { font-size:12px; }
-.mvt-note { font-size:12px; color:var(--ambre-texte); line-height:1.4; }
-.mvt-droite { text-align:right; display:flex; flex-direction:column; gap:4px; align-items:flex-end; }
-.mvt-montant { font-size:16px; font-weight:600; white-space:nowrap; }
-.mvt-montant.pale { font-size:15px; font-weight:400; color:var(--texte-2); }
-#btn-mvt-ponctuel { margin-top:10px; }
-
-/* ---------- détail d'un mouvement ---------- */
-.detail { display:flex; flex-direction:column; gap:18px; }
-.detail-tete { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
-.detail-tete h2 { font-size:20px; }
-.detail .sous { font-size:13px; color:var(--texte-2); }
-.detail-montant { background:var(--fond); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:10px; }
-.detail-montant .grand { font-size:34px; font-weight:600; letter-spacing:-.02em; line-height:1; }
-.detail-trajet { display:grid; grid-template-columns:1fr auto 1fr; gap:10px; align-items:center; }
-.case-compte { border:1px solid var(--bordure); border-radius:10px; padding:10px 12px; display:flex; flex-direction:column; gap:2px; min-width:0; }
-.case-compte .nom { font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.detail-trajet .fleche { color:var(--bleu); font-size:18px; }
-.etiquette { font-size:11px; font-weight:600; color:var(--texte-2); text-transform:uppercase; letter-spacing:.05em; }
-.detail-consigne { display:flex; flex-direction:column; gap:6px; }
-.detail-consigne textarea { padding:12px 14px; line-height:1.45; resize:vertical; min-height:70px; }
-.detail-permanent { display:flex; justify-content:space-between; align-items:center; gap:12px; border:1px solid var(--bordure); border-radius:10px; padding:12px 14px; font-size:14px; }
-.detail-actions { display:flex; gap:10px; }
-.detail-actions [data-copier] { width:52px; height:52px; min-height:52px; border-radius:12px; padding:0; color:var(--bleu); font-size:18px; }
-.detail-actions .btn:not(.grandir):not([data-copier]) { min-height:52px; border-radius:12px; }
-.detail-actions .grandir { flex:1; width:auto; height:52px; min-height:52px; border-radius:12px; font-size:16px; }
-.btn-lien.centre { display:block; width:100%; text-align:center; text-decoration:none; color:var(--texte-2); font-size:13px; }
-
-/* ---------- formulaires en pile (feuilles) ---------- */
-.pile { display:flex; flex-direction:column; gap:12px; }
-.pile h2 { font-size:18px; }
-.pile label { display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--texte-2); }
-.pile .champ-montant { width:100%; text-align:left; }
-.pile .grandir { width:100%; }
-
-@media (min-width:1024px) {
-  .detail-montant .grand { font-size:32px; }
-  .detail-actions [data-copier] { width:48px; height:48px; min-height:48px; border-radius:10px; }
-  .detail-actions .btn:not(.grandir):not([data-copier]) { min-height:48px; border-radius:10px; }
-  .detail-actions .grandir { height:48px; min-height:48px; border-radius:10px; font-size:15px; }
-  .carte-liste { border-radius:12px; }
-}
-
-/* ================= Écran « Charges » ================= */
-.revenus { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
-.revenu { display:flex; flex-direction:column; gap:6px; }
-.revenu .champ-montant { width:100%; min-height:40px; }
-
-.groupe { background:#fff; border:1px solid var(--bordure); border-radius:12px; overflow:hidden; margin-bottom:10px; }
-.groupe-tete {
-  display:flex; justify-content:space-between; align-items:center; gap:12px;
-  background:var(--fond-bandeau); color:var(--bleu); font-size:12px; font-weight:600;
-  letter-spacing:.05em; text-transform:uppercase; padding:8px 14px;
-}
-.groupe-tete .mono { font-size:13px; }
-.ligne-charge {
-  display:flex; align-items:center; gap:12px; padding:8px 14px; min-height:56px;
-  border-bottom:1px solid var(--separateur);
-}
-.ligne-charge:last-child { border-bottom:0; }
-.lc-corps { flex:1; min-width:0; display:flex; flex-direction:column; gap:5px; }
-.lc-libelle { background:none; border:0; padding:0; text-align:left; font-size:15px; color:var(--texte); cursor:pointer; }
-.lc-libelle:hover { color:var(--bleu); }
-.lc-meta { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.ligne-charge .champ-montant { flex:0 0 auto; }
-
-/* réglages d'une charge */
-.reglages .grand-montant { width:100%; text-align:left; font-size:18px; min-height:48px; }
-.reglages .case-a-cocher { flex-direction:row; align-items:center; gap:8px; margin-top:10px; color:var(--texte); font-size:14px; }
-.reglages .case-a-cocher input { width:20px; height:20px; }
-.segment.large { display:flex; width:100%; }
-.segment.large button { flex:1; font-size:12px; min-height:38px; }
-.regle-mois p { margin:6px 0 0; font-size:14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-
-@media (max-width:420px) {
-  .revenus { grid-template-columns:1fr; }
-  .ligne-charge .champ-montant { width:96px; }
-}
-
-/* ================= Récurrents et comptes ================= */
-.rec { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px 12px; padding:14px 16px; border-bottom:1px solid var(--separateur); }
-.rec:last-child { border-bottom:0; }
-.rec.inactif { opacity:.5; }
-.rec-corps { min-width:0; display:flex; flex-direction:column; gap:3px; }
-.rec-titre { font-size:15px; font-weight:600; }
-.rec-trajet { font-size:13px; color:var(--texte-2); }
-.rec-consigne { font-size:12px; color:var(--texte-2); line-height:1.4; }
-.rec-droite { text-align:right; display:flex; flex-direction:column; gap:4px; align-items:flex-end; font-size:14px; }
-.rec-actions { grid-column:1 / -1; display:flex; gap:16px; }
-.rec-actions .btn-lien { font-size:13px; }
-
-.compte.commun { border-color:var(--bleu); }
-.compte-tete { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
-.compte-nom { font-size:16px; font-weight:600; display:block; }
-.compte .sous { font-size:13px; color:var(--texte-2); }
-.compte-iban { margin:8px 0 0; font-size:13px; color:var(--texte-2); }
-.compte-note { margin:8px 0 0; font-size:13px; color:var(--ambre-texte); line-height:1.4; }
-.pastille.bleue { background:var(--bleu-clair); color:var(--bleu); font-weight:600; }
-.case-a-cocher { flex-direction:row; align-items:center; gap:8px; color:var(--texte); font-size:14px; }
-.case-a-cocher input { width:20px; height:20px; }
-
-/* ================= Stats ================= */
-#periode { margin:14px 0; }
-#periode button { font-size:13px; min-height:36px; padding:0 14px; }
-.stats-grille { display:flex; flex-direction:column; gap:12px; }
-.stats-grille h3 { font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--texte-2); margin-bottom:12px; }
-.stats-grille .sous { font-size:13px; color:var(--texte-2); margin:10px 0 0; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-.barres { display:flex; align-items:flex-end; gap:8px; height:140px; }
-.colonne { flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:4px; height:100%; border-radius:6px; }
-/* Rail discret sous les barres pleines, pour situer un mois sans données. */
-.colonne.rail { background:linear-gradient(var(--separateur), var(--separateur)) center bottom 16px / 60% calc(100% - 32px) no-repeat; }
-.paire { flex:1; display:flex; align-items:flex-end; gap:2px; width:100%; justify-content:center; }
-.barre { display:block; width:12px; min-height:2px; border-radius:3px 3px 0 0; }
-.barre.pleine { width:60%; }
-.valeur-barre { font-size:11px; color:var(--texte-2); }
-.legende-mois { font-size:11px; color:var(--texte-2); }
-.puce-legende { display:inline-block; width:10px; height:10px; border-radius:3px; }
-
-.camembert { width:170px; height:170px; border-radius:50%; margin:0 auto; display:flex; align-items:center; justify-content:center; }
-.camembert .trou { width:104px; height:104px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; }
-.legende-cat { list-style:none; margin:14px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
-.legende-cat li { display:flex; align-items:center; gap:8px; font-size:13px; }
-.legende-cat li .mono { margin-left:auto; color:var(--texte-2); }
-
-/* ================= Vue annuelle ================= */
-.defilant { overflow-x:auto; border:1px solid var(--bordure); border-radius:12px; background:#fff; }
-.defilant table { min-width:900px; }
-.defilant th:first-child { position:sticky; left:0; background:#fff; z-index:1; white-space:nowrap; }
-.defilant td.courant, .defilant th.courant { background:var(--bleu-clair); }
-.defilant tr.fort th, .defilant tr.fort td { font-weight:600; }
-
-@media (min-width:1024px) {
-  .stats-grille { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); align-items:stretch; }
-  .rec { grid-template-columns:minmax(0,1fr) auto auto; align-items:center; }
-  .rec-actions { grid-column:auto; }
-}
-
-/* Titres de section : 12 px majuscules gris (maquettes 3a/4a). */
-.titre-section { font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--texte-2); margin:20px 0 8px; }
-.chiffre .valeur.accent { color:var(--bleu); }
-
-/* Le « Fermer » d'une feuille est un bouton discret, pas un lien souligné. */
-.detail-tete .btn-lien { color:var(--texte-2); text-decoration:none; font-size:14px; }
-
-/* Ligne dont le détail est ouvert dans la colonne de droite (PC). */
-.mvt.choisi { background:var(--bleu-clair); }
-
-/* La colonne latérale ne prend de la place que lorsqu'elle porte un panneau. */
-@media (min-width:1024px) {
-  .deux-colonnes:has(> aside[hidden]) { grid-template-columns:minmax(0,1fr); }
-  .revenus { grid-template-columns:repeat(auto-fit, minmax(220px, 320px)); }
-}
-
-/* Dans un formulaire en pile, l'étiquette est grise mais la valeur saisie reste lisible. */
-.pile .champ, .pile select.champ, .pile textarea.champ { color:var(--texte); }
-.pile .champ-montant { color:var(--rouge); }
-
-/* ================= MaxHome : accueil et modules ================= */
-#logo { border:0; background:none; cursor:pointer; padding:0; }
-.module-pc { font-size:13px; color:var(--texte-2); padding-right:8px; border-right:1px solid var(--bordure); margin-right:4px; }
-.module-pc:empty { display:none; }
-.modules { display:grid; grid-template-columns:1fr; gap:12px; margin-top:16px; }
-.module-carte { display:flex; flex-direction:column; align-items:flex-start; gap:6px; text-align:left; cursor:pointer; padding:18px 16px; min-height:88px; }
-.module-carte:hover { border-color:var(--bleu); }
-.module-nom { font-size:18px; font-weight:600; color:var(--bleu); }
-.module-resume { font-size:13px; color:var(--texte-2); line-height:1.4; }
-@media (min-width:600px) { .modules { grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); } }
-
-/* ================= Tâches ================= */
-.pts { display:inline-block; font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:13px; font-weight:600; color:var(--bleu); background:var(--bleu-clair); border-radius:6px; padding:3px 8px; white-space:nowrap; }
-.mvt.rapide .case.rapide { border-style:dashed; color:var(--texte-2); font-weight:600; font-size:16px; }
-.mvt.rapide:hover .case.rapide { border-color:var(--bleu); color:var(--bleu); }
-.choix-qui { display:flex; gap:8px; flex-wrap:wrap; }
-.pastille.grande { border:1px solid var(--bordure); background:#fff; font-size:14px; padding:8px 14px; min-height:40px; cursor:pointer; border-radius:8px; }
-.pastille.grande.bleue { background:var(--bleu-clair); border-color:var(--bleu); color:var(--bleu); font-weight:600; }
-.texte-consigne { margin:0; font-size:14px; line-height:1.45; }
-.detail-actions { flex-wrap:wrap; }
-.balance-grand { display:flex; justify-content:space-around; gap:16px; margin:6px 0 14px; }
-.balance-personne { display:flex; flex-direction:column; align-items:center; gap:2px; }
-.balance-personne .grand { font-size:34px; font-weight:600; letter-spacing:-.02em; line-height:1; }
-.balance-personne .nom { font-size:14px; font-weight:600; margin-top:6px; }
-.balance-personne .sous { font-size:12px; color:var(--texte-2); }
-.barre-h { display:flex; height:14px; border-radius:7px; overflow:hidden; background:var(--separateur-2); }
-.barre-h.fine { height:8px; border-radius:4px; }
-.barre-h span { display:block; height:100%; transition:width .2s ease-out; }
-.pile-cats { display:flex; flex-direction:column; gap:12px; }
-.cat-tete { display:flex; justify-content:space-between; align-items:baseline; gap:12px; font-size:14px; margin-bottom:5px; }
-.cat-tete .sous { margin:0; font-size:12px; }
-#periode-balance { margin:14px 0; }
-#periode-balance button { font-size:13px; min-height:36px; padding:0 14px; }
-#btn-tache-ponctuelle { margin-top:10px; }
-@media (min-width:1024px) { .stats-grille:has(> .carte:nth-child(2):last-child) { grid-template-columns:repeat(2, minmax(0,1fr)); } }
-
-/* ================= Courses ================= */
-/* En-tête compact spécifique à Courses (maquette §4) : titre + bouton « On fait le tour »
-   sur une même ligne, poussé à droite. Classe additionnelle sur .tete-ecran : le générique
-   (gros h1) reste inchangé pour les autres écrans (Budget, Tâches, Comptes...). */
-.tete-courses-ligne { display:flex; align-items:center; gap:7px; }
-.tete-courses h1 { font-size:15px; font-weight:600; line-height:1.15; }
-.tete-courses .sous { margin-top:4px; }
-/* Bouton visuellement compact (28px, comme la maquette) mais zone tactile élargie à 44px :
-   la cible tactile du projet (rules/mobile-parents.md) prime sur les 28px de la maquette. */
-.btn-tour {
-  margin-left:auto; flex:0 0 auto; position:relative; height:28px; padding:0 11px; border:0;
-  border-radius:8px; background:var(--bleu); color:#fff; font-size:13px; font-weight:600; cursor:pointer;
-}
-.btn-tour::before {
-  content:""; position:absolute; inset:50% auto auto 50%; transform:translate(-50%,-50%);
-  width:100%; height:44px; min-width:44px;
-}
-
-/* Ligne d'ajout compacte (README §4) : Article flex, Qté 52px, groupe 96px, bouton + carré. */
-.ajout-rapide { display:flex; gap:6px; margin:10px 0; align-items:stretch; }
-.ajout-rapide .champ { flex:1 1 auto; min-width:0; height:36px; font-size:13px; padding:0 10px; }
-.ajout-rapide .champ.court { flex:0 0 52px; width:52px; text-align:center; padding:0 4px; }
-.ajout-rapide select.champ { flex:0 0 96px; width:96px; padding:0 4px; }
-.ajout-rapide button[type="submit"] {
-  flex:0 0 auto; width:36px; min-height:36px; min-width:44px; padding:0; font-size:18px; line-height:1;
-  border-radius:8px;
-}
-/* Panier : carte avec en-tête vert (comme une tête de carte de tâches complète), le bouton
-   « Vider » est DANS l'en-tête, à droite du titre — pas un bouton pleine largeur en pied. */
-#panier { background:#fff; border:1px solid var(--bordure); border-radius:11px; overflow:hidden; margin-top:7px; }
-.panier-tete {
-  display:flex; justify-content:space-between; align-items:center; gap:8px; padding:3px 10px;
-  border-bottom:1px solid var(--separateur); background:#f2f8f4;
-}
-.panier-tete .titre-section { margin:0; }
-#btn-vider-panier {
-  height:28px; min-height:28px; padding:0 8px; border:1px solid var(--bordure); border-radius:6px;
-  background:#fff; font-size:11px; font-weight:600; color:var(--bleu); cursor:pointer; position:relative;
-}
-/* Zone tactile réelle élargie à 44px sans agrandir le bouton visuel (mobile-parents.md). */
-#btn-vider-panier::before {
-  content:""; position:absolute; inset:50% auto auto 50%; transform:translate(-50%,-50%);
-  width:100%; height:44px; min-width:44px;
-}
-
-/* Groupes du magasin en deux colonnes, comme les cartes Matin/Soir des Tâches (README §4).
-   Deux colonnes dès 360 px : le seuil à 600 px laissait une seule colonne sur tout téléphone,
-   donc la maquette n'était jamais atteinte là où elle compte. */
-.grille-groupes { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:10px; align-items:start; }
-.grille-groupes > * { min-width:0; }
-.groupe-magasin .titre-section { margin:0 0 6px; }
-.grille-groupes .titre-section { margin-top:0; }
-/* En-têtes de carte bleus 10px 700 (groupes, repas, panier, classiques) — la maquette réserve
-   le gris de .titre-section aux autres écrans (Budget : « À faire », « Fait »). */
-#ecran-courses .titre-section {
-  font-size:10px; font-weight:700; color:var(--bleu); letter-spacing:.05em; margin:0 0 6px;
-}
-
-/* Cartes denses façon maquette (tête 3/9, ligne 13px) pour les groupes du magasin ET le
-   panier, sans toucher le .mvt générique (mouvements du Budget, tâches). Le zoom mobile :
-   min-height visuel 29px comme la maquette, mais un padding vertical qui porte la zone
-   cliquable réelle à 44px (rules/mobile-parents.md prime sur la densité de la maquette). */
-#groupes-courses .carte-liste, #courses-panier .carte-liste {
-  border-radius:11px;
-}
-#groupes-courses .mvt, #courses-panier .mvt {
-  grid-template-columns:17px minmax(0,1fr) auto; gap:6px; padding:11px 8px; min-height:44px;
-}
-#groupes-courses .mvt .case, #courses-panier .mvt .case {
-  width:17px; height:17px; min-width:17px; border-radius:5px; border-width:1.5px; margin-top:0;
-}
-#groupes-courses .mvt-titre, #courses-panier .mvt-titre {
-  font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-#groupes-courses .mvt-trajet, #courses-panier .mvt-trajet { font-size:11px; }
-#courses-panier .mvt.fait { padding:11px 8px; min-height:44px; }
-
-/* ---------- Repas de la semaine ---------- */
-/* Carte pleine largeur avec tête bleue (comme les groupes), et titre + note à la bot Telegram
-   sur la même ligne, tête à tête comme la maquette (README §4). */
-#carte-repas { border-radius:11px; padding:0; }
-.repas-tete {
-  display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;
-  padding:4px 10px; margin:0; border-bottom:1px solid var(--separateur);
-}
-.repas-tete .sous { font-size:11px; color:var(--texte-2); }
-#liste-repas { padding:0 10px; }
-#liste-repas { display:flex; flex-direction:column; }
-.repas-ligne {
-  display:flex; align-items:center; justify-content:space-between; gap:12px;
-  padding:9px 0; border-bottom:1px solid var(--separateur);
-}
-.repas-ligne:last-child { border-bottom:0; }
-.repas-corps { min-width:0; display:flex; flex-direction:column; gap:2px; }
-.repas-titre { font-size:13px; font-weight:600; }
-.repas-detail { font-size:11px; color:var(--texte-2); line-height:1.4; }
-.repas-action {
-  flex:0 0 auto; border:1px solid var(--bleu); background:#fff; color:var(--bleu);
-  font-size:11px; font-weight:600; border-radius:8px; padding:0 12px; min-height:36px; cursor:pointer;
-}
-.repas-action.dans-liste { background:var(--vert-clair); border-color:#cfe3d6; color:var(--vert); cursor:default; }
-
-/* ---------- Classiques : puces radius 999, triées par fréquence ---------- */
-.puces-classiques { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 4px; }
-.classique {
-  display:inline-flex; align-items:center; gap:6px; border:1px solid var(--bordure); background:#fff;
-  color:var(--texte); font-size:13px; border-radius:999px; padding:0 14px; min-height:30px; cursor:pointer;
-}
-.classique .mono { font-size:10px; color:var(--texte-2); }
-.classique.present { background:var(--fond-bandeau); color:var(--placeholder); cursor:default; }
-.classique.present .mono { color:var(--placeholder); }
-
-/* ---------- Réglages · Magasin ---------- */
-/* Une seule carte, une liste ordonnée (maquette : pas de deux-colonnes ici, contrairement
-   aux groupes de l'écran Courses — l'ordre de haut en bas EST l'information). */
-#liste-magasin { background:#fff; border:1px solid var(--bordure); border-radius:11px; overflow:hidden; margin-top:10px; }
-.mag-ligne {
-  display:flex; align-items:center; gap:8px; min-height:44px; padding:6px 8px 6px 10px;
-  border-bottom:1px solid var(--separateur-2);
-}
-.mag-ligne:last-child { border-bottom:0; }
-.mag-rang { width:13px; flex:0 0 auto; font-size:11px; color:var(--placeholder); }
-.mag-nom { flex:1; min-width:0; font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.mag-attente { flex:0 0 auto; font-size:10px; color:var(--texte-2); }
-.mag-fleches { display:flex; gap:6px; flex:0 0 auto; }
-.btn-fleche {
-  width:28px; height:28px; min-width:28px; min-height:28px; border:1px solid var(--bordure);
-  background:#fff; border-radius:7px; font-size:14px; line-height:1; cursor:pointer; color:var(--texte);
-}
-.btn-fleche:disabled { opacity:.3; cursor:default; }
-
-/* ---------- Feuille « On fait le tour » : classiques (une question), puis menus (3 cartes),
-   puis bilan (README §4). ---------- */
-.tournee-etape { padding:4px 0; }
-.tournee-tete { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
-.tournee-tete h2 { font-size:17px; font-weight:600; }
-.tournee-tete .sous { font-size:12px; margin:0; }
-.tournee-etape .sous { font-size:12px; color:var(--texte-2); margin:0 0 6px; }
-.tournee-question-bloc {
-  background:var(--fond); border:1px solid var(--bordure); border-radius:12px; padding:14px;
-  display:flex; flex-direction:column; gap:3px;
-}
-.tournee-question { font-size:20px; font-weight:600; }
-.tournee-menus { display:flex; flex-direction:column; gap:8px; }
-.tournee-carte-menu {
-  border:1px solid var(--bordure); border-radius:12px; background:#fff; padding:10px 12px; text-align:left;
-  display:flex; flex-direction:column; gap:3px; cursor:pointer; min-height:44px;
-}
-.tournee-menu-ligne1 { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
-.tournee-menu-nom { font-size:15px; font-weight:600; }
-.tournee-bilan {
-  background:#f2f8f4; border:1px solid #cfe3d6; border-radius:12px; padding:14px;
-  display:flex; flex-direction:column; gap:3px;
-}
-.tournee-bilan-titre { font-size:16px; font-weight:600; }
-
-/* ---------- menu « Plus » (mobile) ---------- */
-.feuille-titre { font-size:18px; margin-bottom:4px; }
-#feuille-corps .titre-section { margin:14px 0 6px; }
-.btn-menu { width:100%; margin-bottom:8px; text-align:left; }
-.btn-menu.danger { color:var(--rouge); margin-top:14px; }
-
-/* ---------- confirmation en feuille ---------- */
-.texte-confirmation { margin:4px 0 10px; font-size:15px; line-height:1.5; }
-.btn-rouge { background:var(--rouge); border-color:var(--rouge); color:#fff; font-weight:600; }
-.confirmation .detail-actions .btn { min-height:48px; border-radius:10px; }
-
-/* ---------- boutons-cycles ---------- */
-/* Bouton-cycle (blocs-cycle.js) : tap = valeur suivante. Sept usages du handoff (parts,
-   obligatoire, à deux, fois par période, minutes, écart, coche tri-état) partagent ce style ;
-   `rendu()` choisit la classe de valeur (cycle-blanc/clair/plein/actif/inactif) selon le cran.
-   Jamais de hauteur fixe sur le libellé : min-height, le texte peut grandir (zoom Android). */
-.cycle {
-  display:inline-flex; align-items:center; justify-content:center;
-  font-family:var(--mono); font-variant-numeric:tabular-nums; font-weight:700;
-  border:1.5px solid var(--bordure); border-radius:7px; background:#fff; color:var(--texte);
-  cursor:pointer; padding:2px 6px; line-height:1.2;
-}
-/* Cibles de réglage (tableau Parts) : 30 px, usage rare, à deux mains (handoff §5). */
-.cycle-reglage { min-width:30px; min-height:30px; font-size:13px; }
-/* Cibles de la grille Semaine : 44 px, cible tactile courante (rules/mobile-parents.md). */
-.cycle-jour { min-width:44px; min-height:44px; font-size:14px; }
-/* Taille « compacte » : AUCUNE contrainte de gabarit ici — l'appelant fixe la sienne (l'écran Jour
-   veut 18 px visuels avec une cible tapable étendue par ::before). Deux règles qui se disputent la
-   taille du même bouton, c'est une ligne deux fois trop haute (L-028). */
-.cycle-compacte { font-size:10px; }
-
-/* Échelle des parts : blanc (< 2), bleu clair (2-3), bleu plein (>= 5) — jamais la couleur seule,
-   le libellé mono porte toujours la valeur, et l'aria-label dit l'état en toutes lettres. */
-.cycle-clair { background:var(--bleu-clair); border-color:var(--bleu); color:var(--bleu); }
-.cycle-plein { background:var(--bleu); border-color:var(--bleu); color:#fff; }
-
-/* États booléens (obligatoire, à deux) : actif = couleur pleine + libellé, inactif = tiret gris. */
-.cycle-actif-rouge { background:var(--rouge-fond); border-color:var(--rouge); color:var(--rouge); }
-.cycle-actif-olive { background:var(--a-deux-fond); border-color:var(--a-deux); color:var(--a-deux-texte); }
-.cycle-inactif { color:var(--texte-2); }
-
-/* ================= Tâches · Jour et Semaine (handoff design_handoff_maxhome_taches) =================
-   Couleurs des personnes : jamais la seule couleur qui porte l'information — la lettre (C/Y/CY)
-   est toujours là aussi. `case-cycle-p1` = première personne du foyer (ambre, comme Claudia dans
-   le handoff), `case-cycle-p2` = la seconde (bleu, comme Yann) : générique, pas de prénom en dur. */
-/* En-tête fixe (handoff « Structure de l'écran ») : sur mobile, le segment Jour|Semaine, le
-   bouton Todo et la bande des 7 jours restent visibles pendant que le contenu défile en
-   dessous. `main` scrolle avec la fenêtre (ui-base.js ne gère pas de conteneur interne), donc
-   `position:sticky` suffit : rien au-dessus n'a son propre scroll. Sur PC, la mise en page
-   deux-colonnes existante prend le dessus (règle plus bas) : pas de bande des 7 jours à fixer,
-   l'écran est plus large que haut. */
-.ecran-taches { padding-top:0; display:flex; flex-direction:column; }
-.tete-taches {
-  position:sticky; top:0; z-index:5; background:#fff; border-bottom:1px solid var(--bordure);
-  margin:0 -16px; padding:8px 16px; display:flex; flex-direction:column; gap:7px;
-}
-.tete-taches .ligne-segment-todo { display:flex; align-items:center; gap:8px; }
-.btn-todo {
-  margin-left:auto; display:flex; align-items:center; gap:5px; min-height:44px; padding:0 12px;
-  border:1px solid var(--bordure); border-radius:8px; background:#fff; color:var(--bleu);
-  font-size:13px; font-weight:600; cursor:pointer;
-}
-.badge-todo {
-  min-width:17px; height:17px; border-radius:9px; background:var(--ambre-texte); color:#fff;
-  font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 4px;
-}
-
-/* Contenu scrollable sous l'en-tête fixe : seule zone qui défile (handoff « padding de contenu
-   8px 12px 92px » — le 92px de bas devient le padding-bottom déjà porté par main + de la marge
-   pour le FAB, jamais recalculé en dur ici). */
-/* `padding-bottom` : le FAB est `position:fixed`, donc hors flux — sans cette réserve il
-   recouvre la légende et la barre « Fait ». Hauteur du FAB (44) + son écart au bas (12) + air. */
-/* `padding-bottom` : le FAB est `position:fixed`, donc hors flux — sans réserve il recouvre le
-   bas du contenu (mesuré : 94x44 px sur la carte « Par catégorie », recette_ecrans.mjs).
-   Dérivé, jamais deviné : hauteur du FAB + son écart au bas + de l'air. `main` porte déjà la
-   réserve pour la barre d'onglets, d'où l'absence de --barre-basse ici. */
-.contenu-taches {
-  display:flex; flex-direction:column; gap:8px; padding-top:8px;
-  padding-bottom:calc(var(--fab-hauteur) + var(--fab-ecart) + 16px);
-}
-
-/* FAB « + Ajouter » (handoff « Structure de l'écran », visible sur Tâches) : ancré à la
-   fenêtre comme #onglets (même patron), au-dessus de la barre de navigation du bas.
-   Sa hauteur et son écart sont des variables : la réserve de `.contenu-taches` s'en déduit,
-   elle ne peut donc pas se désynchroniser quand on retouche le bouton. */
-.fab-ajouter {
-  position:fixed; right:16px; bottom:calc(var(--barre-basse) + var(--fab-ecart)); z-index:19;
-  height:var(--fab-hauteur); padding:0 15px 0 12px; border:0; border-radius:13px; background:var(--bleu); color:#fff;
-  font-size:14px; font-weight:600; display:flex; align-items:center; gap:6px; cursor:pointer;
-  box-shadow:0 4px 14px rgba(31,78,121,.35);
-}
-.fab-ajouter span { font-size:20px; line-height:1; font-weight:400; }
-@media (min-width:1024px) {
-  /* PC : la nav du bas disparaît (#onglets{display:none}), le FAB revient près du bas d'écran. */
-  .fab-ajouter { bottom:24px; right:24px; }
-}
-
-/* ---------- bande des 7 jours ---------- */
-.bande-jours { display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:3px; }
-.jour-bande {
-  min-height:44px; border:1.5px solid var(--bordure); border-radius:8px; background:#fff; color:var(--texte);
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:4px 0; cursor:pointer;
-}
-.jour-lettre { font-size:9px; font-weight:500; letter-spacing:.03em; text-transform:uppercase; }
-.jour-num { font-size:14px; font-weight:700; line-height:1; }
-.jour-barre { display:flex; width:20px; height:3px; border-radius:2px; overflow:hidden; background:var(--bleu); flex:none; }
-.jour-barre span { display:block; height:100%; background:var(--claudia); }
-.jour-bande.jour-choisi { background:var(--bleu); border-color:var(--bleu); color:#fff; }
-.jour-bande.jour-choisi .jour-barre { background:rgba(255,255,255,.4); }
-.jour-bande.jour-auj { border-color:var(--bleu); }
-.jour-bande.jour-futur { color:var(--placeholder); opacity:.7; }
-
-/* ---------- ligne de titre + chiffres du jour ---------- */
-.ligne-titre-jour { display:flex; align-items:center; gap:8px; }
-.titre-jour-bloc { min-width:0; flex:1; }
-.titre-jour-bloc h1 { margin:0; font-size:15px; font-weight:600; line-height:1.15; }
-.titre-jour-bloc .sous {
-  font-size:12px; color:var(--texte-2); margin:2px 0 0;
-  /* La liste des obligatoires restants peut compter dix titres : sans limite elle pousse les
-     cartes hors de l'écran. Une ligne, ellipsis — le détail se lit dans les cartes, qui sont
-     la source de vérité. `min-width:0` sur le parent (flex) rend la troncature effective. */
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-.chiffres-jour { display:flex; align-items:center; gap:6px; flex:none; }
-.chiffres-jour .mono { font-size:11px; font-weight:600; white-space:nowrap; }
-.chiffres-jour .repere-p1 { color:var(--ambre-texte); }
-.chiffres-jour .repere-p2 { color:var(--bleu); }
-.barre-partagee { width:48px; height:5px; border-radius:3px; background:var(--bleu); overflow:hidden; display:flex; flex:none; }
-.barre-partagee span { display:block; height:100%; background:var(--claudia); }
-.barre-partagee.barre-fine { width:auto; flex:1; height:6px; }
-
-/* ---------- cartes de tâches (Aujourd'hui, Semaine, Mois) ---------- */
-.grille-cartes { display:grid; grid-template-columns:1fr 1fr; gap:7px; align-items:start; }
-.carte-taches { background:#fff; border:1px solid var(--bordure); border-radius:11px; overflow:hidden; min-width:0; }
-.carte-taches-tete {
-  display:flex; justify-content:space-between; align-items:center; gap:8px; padding:3px 8px;
-  border-bottom:1px solid var(--separateur);
-}
-.carte-taches-tete span:first-child {
-  font-size:10px; font-weight:700; color:var(--bleu); text-transform:uppercase; letter-spacing:.05em;
-}
-.carte-taches-tete.tete-complete { background:var(--vert-clair); }
-.carte-taches-tete .compte-ambre { color:var(--ambre-texte); font-size:10px; font-weight:600; }
-.carte-taches-tete .compte-vert { color:var(--vert); font-size:10px; font-weight:600; }
-.vide-carte { margin:0; padding:8px 9px; font-size:12px; color:var(--texte-2); font-style:italic; }
-
-/* Ligne compacte (maquette) : ~26 px. La cible tactile de 48 px n'est PAS portée par la hauteur
-   de la ligne — elle le serait au prix d'un écran qui ne montre plus que six tâches — mais par le
-   ::before de la case de coche, qui déborde en hauteur sans pousser ses voisins (plus bas).
-   `position:relative` contient ce ::before. */
-.ligne-tache {
-  display:flex; align-items:center; gap:6px; min-height:26px; padding:3px 8px; position:relative;
-  border-bottom:1px solid var(--separateur); background:#fff;
-}
-.ligne-tache:last-child { border-bottom:0; }
-/* Le fond ambre signale un RETARD (sens qu'il porte déjà dans Budget, cf. `.mvt.alerte`), il
-   n'est pas l'état normal d'une tâche à faire — sinon tout l'écran est jaune et le signal ne
-   signale plus rien. */
-.ligne-tache.ligne-retard { background:var(--ambre-ligne); }
-.point-oblig { width:5px; height:5px; border-radius:3px; flex:none; }
-.point-oblig.oblig-due { background:var(--rouge); }
-.point-oblig.oblig-faite { background:var(--tirets); }
-.point-oblig.oblig-non { background:transparent; }
-/* `white-space:nowrap` est ce qui rend `text-overflow:ellipsis` opérant : sans lui le titre
-   revient à la ligne et double la hauteur de chaque ligne (L-028). Le titre entier reste lisible
-   dans le détail, ouvert au tap sur la ligne. */
-.titre-tache { flex:1; min-width:0; font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.titre-tache.fait { font-weight:400; text-decoration:line-through; color:var(--texte-2); }
-.titre-tache.en-cours { color:var(--ambre-texte); }
-.parts-ligne { font-size:10px; color:var(--texte-2); flex:none; }
-.parts-ligne.vert { color:var(--vert); font-weight:600; }
-.parts-ligne.ambre { color:var(--ambre-texte); font-weight:600; }
-
-/* Case de coche tri-état : la couleur ne suffit jamais, la lettre (C/Y/CY) porte l'information.
-   Visuellement 17-24 px (fidèle à la maquette), mais c'est le geste le plus fréquent de l'écran
-   Jour — pas un réglage rare (rules/mobile-parents.md, cible 48x48) : un ::before invisible
-   étend la zone tapable sans changer l'apparence ni pousser les voisins (position:relative sur
-   .ligne-tache, .cellule-semaine pour le contenir). */
-.case-tache.cycle { position:relative; width:auto; min-width:18px; min-height:18px; padding:0; border-radius:4px; font-size:9px; border-width:1.5px; }
-.case-tache.cycle::before {
-  content:""; position:absolute; inset:-15px -10px; /* 48px de haut x 38 de large : cible pleine, invisible */
-}
-.case-cycle-vide { background:#fff; border-color:var(--bordure-case); }
-.case-cycle-p1 { background:var(--claudia); border-color:var(--claudia); color:#fff; }
-.case-cycle-p2 { background:var(--bleu); border-color:var(--bleu); color:#fff; }
-.case-cycle-deux { background:var(--a-deux); border-color:var(--a-deux); color:#fff; }
-
-/* ---------- barre « Fait · N » repliable ---------- */
-.barre-fait-bouton {
-  display:flex; align-items:center; gap:7px; width:100%; min-height:44px; background:#fff;
-  border:1px solid var(--bordure); border-radius:11px; padding:5px 10px; text-align:left; cursor:pointer;
-}
-.fait-label { font-size:12px; font-weight:600; color:var(--texte-2); flex:none; }
-.fait-pastilles { flex:1; display:flex; gap:3px; overflow:hidden; }
-.pastille-fait { width:20px; height:20px; flex:none; border-radius:5px; font-size:9px; font-weight:700; display:flex; align-items:center; justify-content:center; color:#fff; }
-.fait-voir { font-size:12px; color:var(--bleu); font-weight:600; flex:none; }
-.legende-taches { margin:0 2px; padding-right:16px; font-size:12px; color:var(--texte-2); line-height:1.4; }
-
-/* ---------- KPI Obligatoire (écran Semaine) ---------- */
-.carte-kpi-oblig { background:#fff; border:1px solid var(--bordure); border-radius:11px; padding:9px 10px; display:flex; flex-direction:column; gap:6px; }
-.kpi-oblig-ligne1 { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
-.kpi-oblig-etiquette { font-size:10px; font-weight:700; color:var(--rouge); text-transform:uppercase; letter-spacing:.05em; flex:none; }
-.kpi-oblig-phrase { font-size:12px; color:var(--texte-2); }
-.kpi-oblig-ligne2 { display:flex; align-items:center; gap:7px; }
-.kpi-oblig-ligne2 .repere-p1 { color:var(--ambre-texte); }
-.kpi-oblig-ligne2 .repere-p2 { color:var(--bleu); }
-
-/* ---------- grille tâches × jours (écran Semaine) ----------
-   7 colonnes de 25 px + le nom de la tâche : à 320 px de large, la grille (bordures/padding de
-   la carte comprises) tient dans ~305 px utiles — vérifié à la capture, cf. rapport de recette. */
-.grille-semaine-carte { background:#fff; border:1px solid var(--bordure); border-radius:11px; overflow:hidden; }
-.ligne-grille-semaine {
-  display:grid; grid-template-columns:minmax(0,1fr) repeat(7, 25px); gap:0 2px;
-  align-items:center; padding:1px 8px; border-bottom:1px solid var(--separateur);
-}
-.ligne-grille-semaine:last-child { border-bottom:0; }
-.ligne-entete-semaine { padding:4px 8px; border-bottom:1px solid var(--bordure); }
-.titre-grille-entete { font-size:10px; font-weight:700; color:var(--texte-2); text-transform:uppercase; letter-spacing:.05em; }
-.titre-grille { font-size:12px; color:var(--texte); padding-right:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.titre-grille.titre-ambre { color:var(--ambre-texte); }
-.lettre-jour-semaine {
-  height:24px; min-width:24px; border:0; border-radius:4px; background:transparent; color:var(--texte-2);
-  font-size:10px; font-weight:700; padding:0; cursor:pointer;
-}
-.lettre-jour-semaine.lettre-jour-auj { background:var(--bleu); color:#fff; }
-/* 25x22 px, sous 48x48 : la grille (7 jours + titre en 320 px, gap 2px) ne peut pas grandir en
-   largeur sans rendre deux jours voisins ambigus au tap (rules/mobile-parents.md l'emporterait
-   sinon, mais casserait la fonction). On grandit la cible verticalement, où les lignes n'ont pas
-   de voisin adjacent au pixel près : ::before ajoute ~13 px en haut et en bas (largeur inchangée,
-   pas de chevauchement latéral). Compromis documenté, pas un renoncement silencieux. */
-.cellule-semaine.cycle { position:relative; width:25px; min-width:25px; height:22px; min-height:22px; border-radius:5px; font-size:10px; padding:0; }
-.cellule-semaine.cycle::before { content:""; position:absolute; inset:-13px 0; }
-.cellule-semaine.cycle.cellule-vide { background:var(--fond-bandeau); border-color:var(--separateur-2); }
-.cellule-semaine.cellule-future { opacity:.45; }
-.bandeau-cadence {
-  display:flex; justify-content:space-between; padding:2px 8px; background:var(--fond-bandeau);
-  border-bottom:1px solid var(--separateur-2); font-size:10px; font-weight:700; color:var(--bleu);
-  text-transform:uppercase; letter-spacing:.06em;
-}
-.bandeau-cadence .mono { color:var(--texte-2); font-weight:600; text-transform:none; letter-spacing:0; }
-
-/* Le détail (feuille/aside) réutilise .detail-actions ; le choix « Fait par » y a besoin de la
-   même mise en page que Budget (déjà stylée). Rien à ajouter ici. */
-
-/* ---------- Réglages · Parts (tableau par cadence) ----------
-   5 colonnes minmax(0,1fr) 42px 38px 32px 36px (handoff §5) : c'est le point de rupture à
-   320 px identifié au brief — vérifié à la capture (recette_ecrans.mjs mesure le débordement
-   réel, pas seulement à l'œil, L-016). Les cycles de réglage font 30 px (cf. .cycle-reglage,
-   usage rare à deux mains, handoff assumé) ; jamais moins, même serré à 320 px. */
-.carte-explication-parts { margin-bottom:8px; }
-.carte-explication-parts h3 { margin:0 0 6px; font-size:14px; font-weight:700; color:var(--bleu); line-height:1.3; }
-.explication-echelle { margin:0 0 8px; font-size:13px; color:var(--texte); }
-.explication-lignes { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
-.explication-lignes li { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--texte-2); line-height:1.4; }
-.explication-lignes li > :first-child { flex:none; }
-.rp-puce { display:inline-flex; align-items:center; justify-content:center; min-width:30px; min-height:22px; padding:1px 6px;
-  border-radius:6px; border:1.5px solid; font-family:var(--mono); font-weight:700; font-size:11px; }
-
-.bloc-cadence { background:#fff; border:1px solid var(--bordure); border-radius:11px; overflow:hidden; margin-bottom:8px; }
-.entete-reglage-parts, .ligne-reglage-parts {
-  display:grid; grid-template-columns:minmax(0,1fr) 42px 38px 32px 36px; gap:4px;
-  align-items:center; padding:5px 8px;
-}
-.entete-reglage-parts {
-  background:var(--fond-bandeau); border-bottom:1px solid var(--bordure);
-  font-size:9px; font-weight:700; color:var(--bleu); text-transform:uppercase; letter-spacing:.04em;
-}
-.entete-reglage-parts span { text-align:center; }
-.entete-reglage-parts span:first-child { text-align:left; }
-.ligne-reglage-parts { border-bottom:1px solid var(--separateur); }
-.ligne-reglage-parts:last-child { border-bottom:0; }
-.ligne-reglage-parts > .cycle,
-.ligne-reglage-parts > .rp-fois-fige { justify-self:center; }
-
-/* Colonne 1 : titre + deux petits boutons texte (minutes, écart) — jamais de hauteur fixe,
-   le libellé de l'écart peut grandir (zoom Android, rules/mobile-parents.md). */
-.rp-titre { min-width:0; display:flex; flex-direction:column; gap:2px; padding-right:4px; }
-.rp-nom { font-size:13px; font-weight:600; color:var(--texte); overflow-wrap:break-word; }
-.rp-mini { display:flex; flex-wrap:wrap; gap:2px 10px; }
-/* Plancher absolu 24x24 (rules/mobile-parents.md) : bouton texte, pas un cycle de réglage
-   30 px comme les autres colonnes — la maquette les veut visuellement légers (10 px). */
-.rp-bouton-texte.cycle {
-  border:0; background:none; padding:2px 0; min-width:0; min-height:28px; font-family:inherit;
-  font-variant-numeric:normal; font-weight:400; font-size:10px; color:var(--texte-2); justify-content:flex-start;
-}
-.rp-bouton-texte.rp-ecart { color:var(--bleu); }
-
-/* Fois figé (mensuel) : même gabarit que le bouton-cycle, pour garder la grille alignée. */
-.rp-fois-fige {
-  display:inline-flex; align-items:center; justify-content:center; min-width:30px; min-height:30px;
-  font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:13px; font-weight:700; color:var(--texte-2);
-}
-
-@media (min-width:1024px) {
-  .grille-cartes { grid-template-columns:1fr 1fr; }
-}
-
-/* < 360 px (non-régression 320 px, rules/mobile-parents.md) : la grille Semaine et les deux
-   colonnes de cartes sont le point de rupture identifié au brief — on serre les espacements
-   plutôt que de casser la mise en page, jamais de scroll horizontal sur la page. */
-@media (max-width:359px) {
-  .grille-cartes { gap:5px; }
-  .ligne-tache { padding:2px 5px; gap:4px; }
-  .titre-tache { font-size:12px; }
-  .ligne-grille-semaine { padding:1px 4px; gap:0 1px; }
-  .cellule-semaine.cycle { width:22px; min-width:22px; }
-  /* Tableau Réglages · Parts, 5 colonnes : on serre gap et padding, jamais les cibles à moins
-     de 30 px (handoff §5, usage rare à deux mains — cf. .cycle-reglage). */
-  .entete-reglage-parts, .ligne-reglage-parts { grid-template-columns:minmax(0,1fr) 38px 34px 30px 32px; gap:2px; padding:5px 4px; }
-  .rp-mini { gap:1px 6px; }
-}
-
-/* ================= Feuilles « Travaux en attente » et « Ajouter une tâche » (handoff §8) ================= */
-/* En-tête de feuille titre + sous-titre sur une ligne (comme .tete-ecran, réutilisé pour deux
-   feuilles) : jamais de hauteur fixe, un sous-titre long doit pouvoir passer à la ligne. */
-.entete-feuille-todo { display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; }
-.entete-feuille-todo .sous { font-size:12px; color:var(--texte-2); }
-
-/* ---------- Travaux en attente : liste sans date, case 19 px, titre 14 px, méta 11 px ---------- */
-.liste-todo { border:1px solid var(--bordure); border-radius:11px; overflow:auto; max-height:50vh; }
-.ligne-todo {
-  display:flex; align-items:center; gap:9px; min-height:48px; padding:4px 10px;
-  border-bottom:1px solid var(--separateur); cursor:pointer;
-}
-.ligne-todo:last-child { border-bottom:0; }
-/* Case 19 px : plancher accepté par mobile-parents.md (≥8 px d'espacement autour, ligne de
-   48 px de haut qui porte la vraie cible tactile — c'est la ligne entière qui bascule, pas
-   seulement la case, cf. brancherDetail plus bas dans ui-taches.js). */
-.case-todo {
-  width:19px; height:19px; flex:none; border-radius:6px; box-sizing:border-box;
-  border:1.5px solid var(--tirets); background:#fff; color:#fff;
-  display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;
-}
-.case-todo-faite { background:var(--vert); border-color:var(--vert); }
-.todo-corps { flex:1; min-width:0; display:flex; flex-direction:column; }
-.todo-titre { font-size:14px; font-weight:600; color:var(--texte); }
-.todo-titre.fait { font-weight:400; text-decoration:line-through; color:var(--texte-2); }
-.todo-meta { font-size:11px; color:var(--texte-2); }
-.todo-parts { font-size:11px; color:var(--texte-2); flex:none; }
-
-/* ---------- Ajouter une tâche : champs empilés, boutons de choix direct (pas des cycles : un
-   seul état actif à la fois, pas de "tap = valeur suivante" — cf. rapport de l'agent). ---------- */
-.champ-groupe { display:flex; flex-direction:column; gap:4px; }
-.etiquette-champ { font-size:10px; font-weight:700; color:var(--texte-2); text-transform:uppercase; letter-spacing:.06em; }
-.puces-suggestions { display:flex; flex-wrap:wrap; gap:5px; }
-.puce-suggestion {
-  border:1px solid var(--bordure); background:#fff; color:var(--texte); font-size:13px; font-weight:500;
-  border-radius:999px; padding:0 12px; min-height:36px; cursor:pointer;
-}
-.puce-suggestion.actif { background:var(--bleu-clair); border-color:var(--bleu); color:var(--bleu); }
-
-/* Quand / Fait par / drapeaux : boutons pleine largeur en ligne, cible 48 px (règle mobile du
-   projet — le handoff dessine 32 px, mais rules/mobile-parents.md est non négociable ici). */
-.ligne-boutons-4, .ligne-boutons-3, .ligne-boutons-2 { display:flex; gap:5px; }
-.btn-choix {
-  flex:1; min-height:48px; border:1px solid var(--bordure); border-radius:8px; background:#fff;
-  color:var(--texte); font-size:13px; font-weight:600; padding:2px 4px; cursor:pointer; line-height:1.2;
-}
-.btn-choix.actif { background:var(--bleu-clair); border-color:var(--bleu); color:var(--bleu); }
-
-/* Parts : 6 boutons — l'échelle tient sur une ligne à 360 px avec un gap serré ; 44 px de haut
-   reste au-dessus du plancher 24 px de mobile-parents.md tout en approchant les 48 px cible. */
-.ligne-parts { display:flex; gap:3px; }
-.btn-part {
-  flex:1; min-height:44px; border:1px solid var(--bordure); border-radius:8px; background:#fff;
-  color:var(--texte); font-family:var(--mono); font-variant-numeric:tabular-nums; font-weight:700;
-  font-size:13px; padding:2px 2px; cursor:pointer;
-}
-.btn-part.actif { background:var(--bleu); border-color:var(--bleu); color:#fff; }
-
-/* < 360 px : les 4 boutons Quand et les 6 boutons Parts sont les plus serrés — on réduit la
-   police avant de laisser déborder (recette obligatoire à 320 px, rules/mobile-parents.md). */
-@media (max-width:359px) {
-  .btn-choix { font-size:12px; padding:2px 2px; }
-  .btn-part { font-size:12px; }
-}
-

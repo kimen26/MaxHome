@@ -3,7 +3,7 @@
 // la séquence de la feuille « On fait le tour » vit dans tournee.js (pure, partagée avec le bot).
 
 import { $, $$, txt, toast, confirmer, ouvrirFeuille, fermerFeuille } from "../socle/ui-base.js";
-import { ligneCoche, carteListe, titreSection, brancherCoches, creerFileEcritures } from "../socle/blocs.js";
+import { ligneCoche, brancherCoches, creerFileEcritures } from "../socle/blocs.js";
 import { classiquesAbsents, repasProposes, sequenceTournee } from "./tournee.js";
 
 export function creerUiCourses(api, etat, cb) {
@@ -12,11 +12,19 @@ export function creerUiCourses(api, etat, cb) {
   const ordreRayon = (nom) => etat.rayons.find((r) => r.nom === nom)?.ordre ?? 999;
   const rayonsTries = () => [...etat.rayons].sort((a, b) => a.ordre - b.ordre);
   const enFile = creerFileEcritures();
+  // Lettre + classe de couleur d'une personne : générique sur l'ordre de etat.membres, jamais
+  // un prénom en dur (case-cycle-p1 = première personne du foyer, p2 = la seconde — même
+  // convention que les cases de tâches, taches.css).
+  const initiale = (prenom) => prenom ? prenom[0].toUpperCase() : "";
+  const classeQui = (prenom) => {
+    const i = etat.membres.findIndex((m) => m.prenom === prenom);
+    return i === 0 ? "case-cycle-p1" : i === 1 ? "case-cycle-p2" : "";
+  };
 
+  // Ligne d'article compacte (D-036 §4) : case vide, libellé seul, quantité mono à droite —
+  // jamais concaténée au libellé, jamais de sous-ligne « Ajouté par ».
   const ligne = (a) => ligneCoche({
-    id: a.id, titre: a.quantite ? `${a.libelle} · ${a.quantite}` : a.libelle,
-    sous: a.coche_le ? `Pris par ${a.coche_par ?? "?"}` : (a.ajoute_par ? `Ajouté par ${a.ajoute_par}` : ""),
-    cochee: !!a.coche_le, droite: "",
+    id: a.id, titre: a.libelle, droite: txt(a.quantite ?? ""), cochee: false, compacte: true,
   });
 
   // ---------- groupes du magasin, deux colonnes ----------
@@ -27,8 +35,11 @@ export function creerUiCourses(api, etat, cb) {
     // L'ordre suit courses_rayons (le parcours réel), pas l'alphabet ; un groupe vide ne s'affiche pas.
     const rayons = rayonsTries().map((r) => r.nom).filter((nom) => parRayon[nom]?.length);
     $("#groupes-courses").innerHTML = rayons.length
-      ? rayons.map((r) => `<div class="groupe-magasin">${titreSection(r)}${carteListe(parRayon[r].map(ligne), "")}</div>`).join("")
-      : `${titreSection("À prendre")}<p class="vide">Rien sur la liste.</p>`;
+      ? rayons.map((r) => `<div class="carte">
+          <div class="carte-tete"><span>${txt(r)}</span><span class="mono">${parRayon[r].length}</span></div>
+          ${parRayon[r].map(ligne).join("")}
+        </div>`).join("")
+      : `<p class="vide">Rien sur la liste.</p>`;
   }
 
   // ---------- repas de la semaine ----------
@@ -73,10 +84,18 @@ export function creerUiCourses(api, etat, cb) {
   }
 
   // ---------- panier et classiques ----------
+  // Case = lettre de la personne qui a pris l'article (jamais la couleur seule), « pris par
+  // X » à droite en texte — la maquette n'y met pas la quantité (D-036 §4).
+  const lignePanier = (a) => ligneCoche({
+    id: a.id, titre: a.libelle, droite: a.coche_par ? `pris par ${txt(a.coche_par)}` : "",
+    cochee: true, compacte: true, caseTexte: initiale(a.coche_par), caseClasse: classeQui(a.coche_par),
+    droiteMono: false,
+  });
+
   function rendrePanier() {
     const faits = prises();
     $("#panier").hidden = !faits.length;
-    $("#courses-panier").innerHTML = carteListe(faits.map(ligne), "");
+    $("#courses-panier").innerHTML = faits.map(lignePanier).join("");
   }
 
   function pucesClassiques() {
@@ -184,6 +203,11 @@ export function creerUiCourses(api, etat, cb) {
     });
     const classiquesRestants = [...seq.classiques];
     let ajoutes = 0;
+    // Note de pied identique sur les trois étapes (maquette : le bot pose les mêmes
+    // questions le soir dans Telegram, en « oui / non »). Déclarée AVANT le premier
+    // affichage : une `const` lue avant sa ligne lève une ReferenceError.
+    const noteBot = `<p class="tournee-note">Les mêmes questions passent dans Telegram le soir : réponds
+      « oui / non » au bot, la liste se remplit pareil.</p>`;
     afficherClassiques();
 
     function enTete(progres) {
@@ -199,11 +223,12 @@ export function creerUiCourses(api, etat, cb) {
           <span class="tournee-question">${txt(c.libelle)} ?</span>
           <span class="sous">${txt(c.rayon)} · pris ${c.fois} fois${c.quantite ? ` · d’habitude ${txt(c.quantite)}` : ""}</span>
         </div>
-        <div class="detail-actions">
-          <button type="button" class="btn grandir" id="tournee-non">Non, on a</button>
-          <button type="button" class="btn btn-vert grandir" id="tournee-oui">Oui, ajoute</button>
+        <div class="tournee-choix">
+          <button type="button" class="tournee-non" id="tournee-non">Non, on a</button>
+          <button type="button" class="tournee-oui" id="tournee-oui">Oui, ajoute</button>
         </div>
-        <button type="button" class="btn-lien centre" id="tournee-passer-menus">Passer aux menus →</button>
+        <button type="button" class="tournee-passer" id="tournee-passer-menus">Passer aux menus →</button>
+        ${noteBot}
       </div>`);
       $("#tournee-oui").addEventListener("click", async () => {
         try { await remonterClassique(c.libelle); ajoutes += 1; }
@@ -221,7 +246,8 @@ export function creerUiCourses(api, etat, cb) {
         ${enTete("Menus")}
         <span class="sous">Trois idées pour la semaine. Le menu choisi envoie ses ingrédients dans les bons rayons.</span>
         <div class="tournee-menus">${seq.repas.map(htmlCarteMenu).join("")}</div>
-        <button type="button" class="btn btn-bleu grandir" id="tournee-terminer">Terminer le tour</button>
+        <button type="button" class="tournee-terminer" id="tournee-terminer">Terminer le tour</button>
+        ${noteBot}
       </div>`);
       for (const b of $$("[data-choisir-menu]")) {
         b.addEventListener("click", async () => {
@@ -250,7 +276,8 @@ export function creerUiCourses(api, etat, cb) {
           <span class="tournee-bilan-titre">Tour fini</span>
           <span class="sous">${ajoutes} article${ajoutes > 1 ? "s" : ""} ajouté${ajoutes > 1 ? "s" : ""} à la liste.</span>
         </div>
-        <button type="button" class="btn btn-bleu grandir" id="tournee-fermer">Fermer</button>
+        <button type="button" class="tournee-terminer" id="tournee-fermer">Voir la liste</button>
+        ${noteBot}
       </div>`);
       $("#tournee-fermer").addEventListener("click", fermerFeuille);
     }

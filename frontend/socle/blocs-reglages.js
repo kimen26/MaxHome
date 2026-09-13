@@ -22,14 +22,21 @@ import { brancherReglages } from "./blocs.js";
  * @param confirmerRetrait (el) => texte de confirmation
  * @param messageRetrait  "Mouvement retiré."
  * @param echec          (e) => void
+ * @param retirerDansFeuille true : pas de liste Modifier/Retirer séparée — la feuille de
+ *   modification porte elle-même un bouton « Retirer » en pied (D-036 décision 5 : le tap
+ *   sur le titre d'une ligne d'un tableau externe, ex. Réglages · Parts, ouvre directement
+ *   `formulaire(el)`). `htmlListe`/`liste` restent utilisés tels quels si fournis (ex. pour
+ *   un conteneur vide de compat), sinon `liste` peut pointer un conteneur qui reste vide.
  */
 export function creerReglages({ liste, bouton, libelleNouveau, elements, htmlListe, titreForm, htmlForm,
-  apresOuverture, champs, api, apresEcriture, confirmerRetrait, messageRetrait, echec }) {
+  apresOuverture, champs, api, apresEcriture, confirmerRetrait, messageRetrait, echec, retirerDansFeuille = false }) {
   function rendre() {
-    $(liste).innerHTML = htmlListe(elements());
+    if (htmlListe) {
+      $(liste).innerHTML = htmlListe(elements());
+      brancherReglages($(liste), (id) => formulaire(elements().find((e) => e.id === id) ?? null), retirer);
+    }
     $(bouton).innerHTML = `<button class="btn btn-tirets" data-nouveau>${txt(libelleNouveau)}</button>`;
     $(bouton).querySelector("[data-nouveau]").addEventListener("click", () => formulaire(null));
-    brancherReglages($(liste), (id) => formulaire(elements().find((e) => e.id === id) ?? null), retirer);
   }
 
   function formulaire(el) {
@@ -37,8 +44,12 @@ export function creerReglages({ liste, bouton, libelleNouveau, elements, htmlLis
       <h2>${txt(titreForm(el))}</h2>
       ${htmlForm(el)}
       <button type="submit" class="btn btn-bleu grandir">${el ? "Enregistrer" : "Ajouter"}</button>
+      ${retirerDansFeuille && el ? `<button type="button" class="btn-lien" data-retirer-feuille>Retirer</button>` : ""}
     </form>`);
     const form = $("#feuille-corps [data-reglages-form]");
+    if (retirerDansFeuille && el) {
+      form.querySelector("[data-retirer-feuille]").addEventListener("click", () => retirer(el.id));
+    }
     apresOuverture?.(form, el);
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();

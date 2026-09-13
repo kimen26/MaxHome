@@ -55,15 +55,27 @@ const feuilleStable = (page) => page.waitForFunction(() => {
   return f && !f.hidden && !f.classList.contains("entrante") && (t === "none" || t === "matrix(1, 0, 0, 1, 0, 0)");
 }, null, { timeout: 5000 }).then(() => page.waitForTimeout(150));
 
-/** Navigue vers un écran : onglet direct s'il est visible, sinon par le menu « Plus ». */
-async function aller(page, ecran, attendu) {
+/** Navigue vers un écran. Le menu « Plus » a disparu (D-036 §3) : la barre basse/PC GLOBALE
+ *  porte un bouton par module (son écran `defaut`) et un bouton « Réglages », et chaque écran
+ *  garde ses sous-écrans (`onglets` ou `reglages`) dans le segmenté de son en-tête — un simple
+ *  `[data-ecran]`, sur lequel la délégation générique de ui-base.js navigue déjà. Quand l'écran
+ *  cible n'est atteignable ni directement ni par le segmenté déjà affiché, `moduleDefaut` dit
+ *  quel bouton de la barre ouvre d'abord son module (ou Réglages). */
+async function aller(page, ecran, attendu, moduleDefaut) {
   const nav = await page.isVisible("#barre-pc") ? "#barre-pc" : "#onglets";
   if (await page.isVisible(`${nav} button[data-ecran=${ecran}]`)) {
     await page.click(`${nav} button[data-ecran=${ecran}]`);
-  } else {
-    await page.click("#onglets button[data-ecran=plus]");
-    await page.waitForSelector(`#feuille-corps [data-aller=${ecran}]`);
-    await page.click(`#feuille-corps [data-aller=${ecran}]`);
+  } else if (moduleDefaut) {
+    await page.click(`${nav} button[data-ecran=${moduleDefaut}]`);
+    await page.waitForSelector(`#ecran-${moduleDefaut}:not([hidden])`);
+    // Scopé à l'écran affiché : chaque section cachée garde son segmenté dans le DOM, et la
+    // barre PC porte le même data-ecran — un sélecteur global matche plusieurs boutons.
+    const cible = `#ecran-${moduleDefaut}:not([hidden]) [data-ecran=${ecran}]`;
+    await page.waitForSelector(cible);
+    await page.click(cible);
+  } else if (await page.isVisible(`main .ecran:not([hidden]) [data-ecran=${ecran}]`)) {
+    // Déjà dans le bon module : le segmenté d'en-tête suffit.
+    await page.click(`main .ecran:not([hidden]) [data-ecran=${ecran}]`);
   }
   await page.waitForSelector(attendu, { timeout: 15000 });
 }
@@ -103,30 +115,39 @@ try {
     console.log("Aucun mouvement à faire ce mois — coche non testée");
   }
 
-  // ---------- charges ----------
-  await aller(page, "charges", "#ecran-charges:not([hidden]) .groupe");
-  const sections = await page.$$eval("#categories .groupe-tete span:first-child", (e) => e.map((x) => x.textContent.trim()));
+  // ---------- charges (fusionnées dans l'écran Mois, D-036 §4) ----------
+  // L'ancien écran « Charges » n'existe plus : les catégories vivent en deux colonnes dans
+  // l'écran Mois lui-même (#mois-categories, ui-mois-charges.js), déjà affiché ci-dessus.
+  await page.waitForSelector("#mois-categories .carte-charges", { timeout: 20000 });
+  const sections = await page.$$eval("#mois-categories .carte-tete span:first-child", (e) => e.map((x) => x.textContent.trim()));
   console.log("Catégories :", sections.join(" | "));
-  if (!sections.includes("Logement")) throw new Error("catégorie Logement absente");
-  await page.screenshot({ path: path.join(SORTIE, "charges-mobile.png"), fullPage: true });
+  if (!sections.map((s) => s.toUpperCase()).includes("LOGEMENT")) throw new Error("catégorie Logement absente");
 
-  const seg = page.locator("#categories .segment").first();
+  // Réglages · Charges : la référence par charge, et le cycle de règle par défaut. Le bouton
+  // « Réglages » de la barre basse ouvre toujours le premier écran de réglages, tous modules
+  // confondus (Parts, module Tâches) : on y entre par lui, puis par le segmenté synthétique.
+  await aller(page, "charges-ref", "#charges-ref-corps .carte-charges-ref", "taches-rec");
+  await page.screenshot({ path: path.join(SORTIE, "charges-ref-mobile.png"), fullPage: true });
+  const seg = page.locator("#charges-ref-corps .charges-ref-regle").first();
   const avant = await seg.locator("button.actif").getAttribute("data-regle");
   const autre = avant === "egales" ? "proport" : "egales";
   await seg.locator(`button[data-regle=${autre}]`).click();
-  await page.waitForFunction((a) => document.querySelector("#categories .segment button.actif")?.dataset.regle === a, autre, { timeout: 10000 });
-  await page.locator("#categories .segment").first().locator(`button[data-regle=${avant}]`).click();
-  await page.waitForFunction((a) => document.querySelector("#categories .segment button.actif")?.dataset.regle === a, avant, { timeout: 10000 });
-  console.log(`Règle du mois : ${avant} → ${autre} → ${avant} OK`);
+  await page.waitForFunction((a) => document.querySelector("#charges-ref-corps .charges-ref-regle button.actif")?.dataset.regle === a, autre, { timeout: 10000 });
+  await seg.locator(`button[data-regle=${avant}]`).click();
+  await page.waitForFunction((a) => document.querySelector("#charges-ref-corps .charges-ref-regle button.actif")?.dataset.regle === a, avant, { timeout: 10000 });
+  console.log(`Règle par défaut : ${avant} → ${autre} → ${avant} OK`);
 
+  // Retour sur Mois (défaut du module) avant de rejoindre Stats par son segmenté d'en-tête.
+  await page.click(`${await page.isVisible("#barre-pc") ? "#barre-pc" : "#onglets"} button[data-ecran=mois]`);
+  await page.waitForSelector("#ecran-mois:not([hidden])");
   await aller(page, "stats", "#stats-corps .carte");
   await page.waitForFunction(() => document.querySelectorAll("#stats-corps .colonne").length >= 6);
   await page.screenshot({ path: path.join(SORTIE, "stats-mobile.png"), fullPage: true });
 
-  // ---------- tâches (mobile) : via Plus > Module Tâches ----------
+  // ---------- tâches (mobile) : la barre basse GLOBALE porte directement Tâches ----------
   // L'écran Jour a trois cadences (Aujourd'hui / Semaine / Mois) : on vise la carte
   // Aujourd'hui, seule garantie non vide tant qu'il reste des tâches quotidiennes actives.
-  await aller(page, "jour", "#ecran-jour:not([hidden]) #cartes-moment .ligne-tache");
+  await aller(page, "jour", "#ecran-jour:not([hidden]) #cartes-moment .ligne-tache", "jour");
   console.log("Aujourd’hui :", (await page.textContent("#sous-jour")).trim());
   await page.screenshot({ path: path.join(SORTIE, "jour-mobile.png"), fullPage: true });
 
@@ -175,8 +196,8 @@ try {
 
   // ---------- courses (mobile) : ajout, coche, vidage — la liste revient à son état d'origine ----------
   // On attend la LISTE rendue, pas le formulaire (statique) : sinon on compte avant les données.
-  await aller(page, "courses", "#ecran-courses:not([hidden]) #groupes-courses .mvt, #ecran-courses:not([hidden]) #groupes-courses .vide");
-  const avantCourses = await page.$$eval("#groupes-courses .mvt", (e) => e.length);
+  await aller(page, "courses", "#ecran-courses:not([hidden]) #groupes-courses .ligne-compacte, #ecran-courses:not([hidden]) #groupes-courses .vide", "courses");
+  const avantCourses = await page.$$eval("#groupes-courses .ligne-compacte", (e) => e.length);
   await page.fill("#course-libelle", "Article de recette");
   await page.fill("#course-quantite", "2");
   // Les rayons du magasin ont été réorganisés (nouvel écran Réglages · Magasin) : le rayon
@@ -185,32 +206,36 @@ try {
   const RAYON_TEST = "Épicerie, alcool, lait";
   await page.selectOption("#course-rayon", RAYON_TEST);
   await page.click("#form-course button[type=submit]");
-  await page.waitForFunction((n) => document.querySelectorAll("#groupes-courses .mvt").length === n + 1,
+  await page.waitForFunction((n) => document.querySelectorAll("#groupes-courses .ligne-compacte").length === n + 1,
     avantCourses, { timeout: 10000 });
-  const rayons = await page.$$eval("#groupes-courses .titre-section", (e) => e.map((x) => x.textContent.trim()));
+  const rayons = await page.$$eval("#groupes-courses .carte-tete > span:first-child", (e) => e.map((x) => x.textContent.trim()));
   if (!rayons.includes(RAYON_TEST)) throw new Error(`article rangé hors de son rayon : ${rayons.join(", ")}`);
   console.log(`Courses : article ajouté dans le rayon ${RAYON_TEST}`);
   await page.screenshot({ path: path.join(SORTIE, "courses-mobile.png"), fullPage: true });
-  await page.locator("#groupes-courses .mvt .case").last().click();
-  await page.waitForFunction(() => document.querySelectorAll("#courses-panier .mvt").length > 0, null, { timeout: 10000 });
+  await page.locator("#groupes-courses .ligne-compacte [data-cocher]").last().click();
+  await page.waitForFunction(() => document.querySelectorAll("#courses-panier .ligne-compacte").length > 0, null, { timeout: 10000 });
   await page.click("#btn-vider-panier");
   await page.waitForSelector("#feuille:not([hidden]) [data-ok]");
   await page.click("#feuille [data-ok]");
-  await page.waitForFunction((n) => document.querySelectorAll("#groupes-courses .mvt").length === n,
+  await page.waitForFunction((n) => document.querySelectorAll("#groupes-courses .ligne-compacte").length === n,
     avantCourses, { timeout: 10000 });
   console.log("Courses : coché puis panier vidé, liste revenue à son état d'origine");
 
   // L'écran Balance a disparu (refonte du jour même) : son détail par catégorie vit
-  // maintenant au bas de l'écran Semaine, à côté de la grille et du KPI Obligatoire.
-  await aller(page, "semaine", "#ecran-semaine:not([hidden]) #grille-semaine .ligne-grille-semaine");
+  // maintenant au bas de l'écran Semaine, à côté de la grille et du KPI Obligatoire. « Semaine »
+  // est un onglet du segmenté d'en-tête de Tâches (Jour | Semaine) : on y est déjà, moduleDefaut
+  // "jour" rouvrirait le module inutilement si jamais on n'y était pas.
+  await aller(page, "semaine", "#ecran-semaine:not([hidden]) #grille-semaine .ligne-grille-semaine", "jour");
   await page.waitForSelector("#kpi-obligatoire .kpi-oblig-phrase:not(:empty)");
   console.log("Semaine :", (await page.textContent("#kpi-obligatoire .kpi-oblig-ligne1")).replace(/\s+/g, " ").trim());
   await page.screenshot({ path: path.join(SORTIE, "semaine-mobile.png"), fullPage: true });
-  await aller(page, "taches-rec", "#liste-taches-rec .groupe");
+  // « Parts » (ex-taches-rec) est maintenant un écran de Réglages, ouvert par le bouton
+  // « Réglages » de la barre basse (D-036 §3) : premier écran du segmenté synthétique.
+  await aller(page, "taches-rec", "#tableau-taches-parts .bloc-cadence", "taches-rec");
   await page.screenshot({ path: path.join(SORTIE, "taches-rec-mobile.png"), fullPage: true });
 
-  // ---------- courses · réglages magasin (mobile) : nouvel écran, la liste de groupes ----------
-  await aller(page, "magasin", "#ecran-magasin:not([hidden]) #liste-magasin .mag-ligne");
+  // ---------- courses · réglages magasin (mobile) : segmenté Réglages (Parts | Charges | Comptes | Magasin) ----------
+  await aller(page, "magasin", "#ecran-magasin:not([hidden]) #liste-magasin .mag-ligne", "taches-rec");
   await page.screenshot({ path: path.join(SORTIE, "magasin-mobile.png"), fullPage: true });
   console.log("Magasin : liste des groupes affichée");
   await page.close();
@@ -222,39 +247,44 @@ try {
   await connecter(pc);
   await pc.screenshot({ path: path.join(SORTIE, "accueil-pc.png"), fullPage: true });
   await pc.click("#modules [data-ecran=mois]");
-  await pc.waitForSelector("#ecran-mois:not([hidden]) #chiffres-mois .chiffre");
+  await pc.waitForSelector("#ecran-mois:not([hidden]) #chiffres-mois .chiffre-carte");
   await pc.screenshot({ path: path.join(SORTIE, "mois-pc.png"), fullPage: true });
 
-  const tc = await pc.evaluate(() => [...document.querySelectorAll("#chiffres-mois .chiffre")]
-    .find((c) => c.textContent.includes("Total commun"))?.querySelector(".valeur")?.textContent ?? "");
+  const tc = await pc.evaluate(() => [...document.querySelectorAll("#chiffres-mois .chiffre-carte")]
+    .find((c) => c.textContent.includes("Total commun"))?.querySelector(".chiffre-valeur")?.textContent ?? "");
   if (Math.abs(nombre(tc) - -5844.78) > 0.01) throw new Error(`total commun février 2026 inattendu : ${tc}`);
   console.log("Total commun février 2026 :", tc.trim(), "— conforme à l'Excel");
 
-  for (const [ecran, selecteur] of [["charges", "#ecran-charges:not([hidden]) .groupe"], ["stats", "#stats-corps .carte"],
-    ["recurrents", "#liste-recurrents"], ["comptes", "#liste-comptes"], ["annuel", "#tableau-annuel table"]]) {
-    await aller(pc, ecran, selecteur);
+  // « charges-ref » et « comptes » (comptes + récurrents fusionnés, D-036 §4) sont des écrans
+  // de Réglages : atteignables par leur segmenté synthétique une fois dans Réglages.
+  for (const [ecran, selecteur, moduleDefaut] of [["stats", "#stats-corps .carte", "mois"],
+    ["charges-ref", "#charges-ref-corps .carte-charges-ref", "taches-rec"],
+    ["comptes", "#liste-comptes", "taches-rec"],
+    ["annuel", "#tableau-annuel table", "mois"]]) {
+    await aller(pc, ecran, selecteur, moduleDefaut);
     await pc.screenshot({ path: path.join(SORTIE, `${ecran}-pc.png`), fullPage: true });
   }
-  console.log("Six écrans Budget rendus (PC)");
+  console.log("Cinq écrans Budget rendus (PC)");
 
   await pc.click("#logo");
   await pc.waitForSelector("#ecran-accueil:not([hidden])");
   await pc.click("#modules [data-ecran=jour]");
   await pc.waitForSelector("#ecran-jour:not([hidden]) #detail-tache-pc:not([hidden]) .detail", { timeout: 15000 });
   await pc.screenshot({ path: path.join(SORTIE, "jour-pc.png"), fullPage: true });
-  for (const [ecran, selecteur] of [["semaine", "#ecran-semaine:not([hidden]) #grille-semaine .ligne-grille-semaine"],
-    ["taches-rec", "#liste-taches-rec .groupe"]]) {
-    await aller(pc, ecran, selecteur);
+  for (const [ecran, selecteur, moduleDefaut] of [
+    ["semaine", "#ecran-semaine:not([hidden]) #grille-semaine .ligne-grille-semaine", "jour"],
+    ["taches-rec", "#tableau-taches-parts .bloc-cadence", "taches-rec"]]) {
+    await aller(pc, ecran, selecteur, moduleDefaut);
     await pc.screenshot({ path: path.join(SORTIE, `${ecran}-pc.png`), fullPage: true });
   }
   console.log("Trois écrans Tâches rendus (PC)");
   await pc.click("#logo");
   await pc.waitForSelector("#ecran-accueil:not([hidden])");
   await pc.click("#modules [data-ecran=courses]");
-  await pc.waitForSelector("#ecran-courses:not([hidden]) #groupes-courses .mvt, #ecran-courses:not([hidden]) #groupes-courses .vide");
+  await pc.waitForSelector("#ecran-courses:not([hidden]) #groupes-courses .ligne-compacte, #ecran-courses:not([hidden]) #groupes-courses .vide");
   await pc.screenshot({ path: path.join(SORTIE, "courses-pc.png"), fullPage: true });
   console.log("Écran Courses rendu (PC)");
-  await aller(pc, "magasin", "#ecran-magasin:not([hidden]) #liste-magasin .mag-ligne");
+  await aller(pc, "magasin", "#ecran-magasin:not([hidden]) #liste-magasin .mag-ligne", "taches-rec");
   await pc.screenshot({ path: path.join(SORTIE, "magasin-pc.png"), fullPage: true });
   console.log("Écran Magasin rendu (PC)");
   await pc.close();

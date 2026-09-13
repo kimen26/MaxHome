@@ -164,3 +164,28 @@ _Brief : docs/briefs/maxhome-parts.md (handoff inbox/design_handoff_maxhome_tach
   de remplaçant : à supprimer si Yann le juge inutile.
 - Titres raccourcis en base par 013_titres_courts.sql (« Petit déjeuner de … » → « Petit déj … »).
   Si un libellé gêne, il se change dans Réglages · Parts, pas dans une migration.
+
+## Lane H — Fidélité à la maquette (audit inbox/Audit Refonte, 2026-09-13 → 14)
+_Brief : docs/briefs/refonte-fidelite.md (D-036). Quatre lots Sonnet en parallèle, un CSS par module._
+- [x] Lot 0 : shell (barre basse globale à 4 entrées, segmenté d'en-tête, module Réglages
+      synthétique, plus de « Plus »), tokens de la maquette, `style.css` + `socle.css` + un CSS
+      par module, `sw-precache`, `recette_ecrans` lit `onglets` + `reglages`.
+- [x] Lot 1 : Tâches Jour/Semaine/feuilles — sous-titre relatif, avancement `n/N` et dernier
+      passage, pastilles-lettres, bande 36 px, cellules 25×22, « Par catégorie » retiré, feuille
+      d'ajout présélectionne la personne connectée, méta Todo « ajouté il y a N j » (migration 014
+      `taches_recurrentes.cree_le`, APPLIQUÉE, idempotente).
+- [x] Lot 2 : Courses (ligne d'ajout dans l'en-tête, groupes en cartes compactes, quantité mono à
+      droite, repas en texte-action + note bot, panier avec lettre, classiques en carte) et
+      Réglages · Magasin (carte d'explication, nombre seul, légende).
+- [x] Lot 3 : Budget compact (un écran Mois), Réglages · Charges (référence, règle, ≠ pour
+      aligner), Réglages · Comptes (comptes + récurrents), régularisations réintégrées.
+- [x] Lot 4 : Réglages · Parts (carte d'explication en texte, tableau par cadence, tap sur le
+      titre → feuille avec Retirer, liste héritée retirée).
+- [x] Porte : `tests/planche_maquette.mjs` (app ↔ maquette côte à côte, 11 planches) ;
+      `tests/outils/capture_maquette.mjs` (références depuis la maquette, réseau requis).
+- [x] Portes vertes : test_taches, test_calc, test_courses, 128 tests bot, recette écrans (45
+      captures), recette connectée (février 2026 = −5 844,78 €, RLS 9 tables).
+- [ ] Yann et Claudia : regarder sur le téléphone. Points ouverts : les tâches quotidiennes non
+      faites la veille ne s'affichent plus sur le jour courant (elles restent sur l'onglet de la
+      veille) ; « habit. » (jour habituel d'une hebdo) n'existe pas en base.
+- [ ] Nettoyer `docs/briefs/refonte-fidelite.md` → `docs/archives/` quand Yann aura validé.

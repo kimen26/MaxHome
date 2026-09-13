@@ -5,10 +5,10 @@ import { creerUiMagasin } from "./ui-magasin.js";
 
 export default {
   cle: "courses", nom: "Courses", defaut: "courses", avecMois: false,
-  onglets: [["courses", "Liste"]],
-  // « Plus » reste la seule porte de sortie d'un module à un onglet (L-015) : Magasin doit
-  // y figurer pour rester atteignable depuis Courses comme depuis n'importe quel autre écran.
-  plus: [["magasin", "Réglages · Magasin"]],
+  // Aucun onglet segmenté : l'en-tête porte directement le titre « Courses » et le bouton
+  // « On fait le tour » (D-036 §3, un seul écran de contenu pour ce module).
+  onglets: [],
+  reglages: [["magasin", "Magasin"]],
   etatInitial: { rayons: [], courses: [], repas: [], repasIngredients: [], classiques: [] },
   referentiels: (api) => ({ rayons: api.rayons() }),
 

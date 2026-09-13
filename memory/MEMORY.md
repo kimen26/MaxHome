@@ -161,3 +161,17 @@ _État courant. Réécrit en fin de session, jamais un journal._
   Reste à faire côté humain : installer l'app sur les deux téléphones, et trancher les deux
   points ouverts de `TODO.md` (le moment des tâches faites deux fois par jour, le bloc « Par
   catégorie » de la vue Semaine absent de la maquette).
+
+- 2026-09-14 : **refonte fidélité livrée** (lane H, D-036, brief `docs/briefs/refonte-fidelite.md`,
+  audit `inbox/Audit Refonte/` jamais commité). Shell : barre basse globale Tâches · Budget ·
+  Courses · Réglages, segmenté d'en-tête par module, Réglages = Parts | Charges | Comptes | Magasin
+  assemblé depuis le champ `reglages` des descripteurs (`plus` n'existe plus). CSS éclaté :
+  `style.css` + `socle/socle.css` + `budget.css` / `taches.css` / `courses.css`. Budget tient sur UN
+  écran Mois ; `ui-charges.js` a disparu (→ `ui-mois-charges.js`, `ui-charges-ref.js`,
+  `ui-regularisations.js`). Tâches : `ui-taches-cartes.js` extrait, `JOURS_HISTORIQUE` = 100.
+  Migration 014 (`taches_recurrentes.cree_le`) appliquée et rejouée. Tout vert : tests unitaires,
+  128 tests bot, recette écrans (45 captures), recette connectée sur la vraie base, 11 planches
+  app ↔ maquette regardées (`tests/planche_maquette.mjs`). Deux bugs réels trouvés hors des
+  agents : `noteBot` lu avant sa déclaration (TDZ, feuille du tour), et le doublon des quotidiennes
+  d'hier sur l'écran Jour (L-030). Sous-agents Sonnet : trois sur quatre ont bloqué sur un
+  arrière-plan (L-031). Reste : validation par Yann et Claudia sur le téléphone.

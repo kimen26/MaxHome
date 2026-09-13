@@ -2,7 +2,7 @@
 
 import { calculer } from "./calc.js";
 import { creerUiMouvements, STRATEGIE_MOUVEMENTS } from "./ui-mouvements.js";
-import { creerUiCharges } from "./ui-charges.js";
+import { creerUiChargesRef } from "./ui-charges-ref.js";
 import { creerUiRecurrents } from "./ui-recurrents.js";
 import { creerUiComptes } from "./ui-comptes.js";
 import { creerUiStats } from "./ui-stats.js";
@@ -11,8 +11,8 @@ import { synchroniserOccurrences } from "../socle/occurrences.js";
 
 export default {
   cle: "budget", nom: "Budget", defaut: "mois", avecMois: true,
-  onglets: [["mois", "Ce mois"], ["charges", "Charges"], ["stats", "Stats"]],
-  plus: [["recurrents", "Mouvements récurrents"], ["comptes", "Comptes"], ["annuel", "Vue annuelle"]],
+  onglets: [["mois", "Mois"], ["stats", "Stats"], ["annuel", "Année"]],
+  reglages: [["charges-ref", "Charges"], ["comptes", "Comptes"]],
   etatInitial: {
     charges: [], comptes: [], recurrents: [],
     lignes: {}, revenus: {}, ajustements: [], mouvements: [],
@@ -27,17 +27,22 @@ export default {
     };
     const cbBudget = { ...cb, recalculer };
     const mouvements = creerUiMouvements(api, etat, cbBudget);
-    const charges = creerUiCharges(api, etat, cbBudget);
+    const cbChargesRef = { ...cbBudget, ouvrirReglagesCharge: mouvements.ouvrirReglagesCharge };
+    const chargesRef = creerUiChargesRef(api, etat, cbChargesRef);
     const recurrents = creerUiRecurrents(api, etat, cbBudget);
     const comptes = creerUiComptes(api, etat, cbBudget);
     const stats = creerUiStats(api, etat, cbBudget);
 
+    // Réglages · Comptes (D-036 §4) : deux cartes sur un écran — comptes puis récurrents.
+    const rendreComptesEtRecurrents = () => { comptes.rendre(); recurrents.rendre(); };
+
     return {
       ecrans: {
-        mois: mouvements.rendre, charges: charges.rendre, stats: stats.rendre,
-        recurrents: recurrents.rendre, comptes: comptes.rendre, annuel: stats.rendreAnnuel,
+        mois: mouvements.rendre, stats: stats.rendre,
+        comptes: rendreComptesEtRecurrents, annuel: stats.rendreAnnuel,
+        "charges-ref": chargesRef.rendre,
       },
-      avantChargement() { mouvements.fermerDetail(); charges.fermerReglages(); },
+      avantChargement() { mouvements.fermerDetail(); mouvements.fermerReglagesCharges(); },
       async charger() {
         const [aPrec, mPrec] = decaler(etat.annee, etat.mois, -1);
         const [courant, precedent, derniers] = await Promise.all([

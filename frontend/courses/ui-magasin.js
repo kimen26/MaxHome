@@ -11,7 +11,7 @@ export function creerUiMagasin(api, etat, cb) {
     return `<div class="mag-ligne">
       <span class="mag-rang mono">${rang}</span>
       <span class="mag-nom">${txt(rayon.nom)}</span>
-      <span class="mag-attente mono">${n} en attente</span>
+      <span class="mag-attente mono">${n}</span>
       <div class="mag-fleches">
         <button type="button" class="btn-fleche" data-monter="${txt(rayon.nom)}"
           ${rang === 1 ? "disabled" : ""} aria-label="Monter ${txt(rayon.nom)}">↑</button>

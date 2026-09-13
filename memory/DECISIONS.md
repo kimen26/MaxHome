@@ -371,3 +371,41 @@ Vérification : `tests/recette_token.mjs` rejoue la séquence réelle (token ref
 puis `TOKEN_REFRESHED`) et mesure sur le DOM — message unique, pas de bouton, pas de jargon, puis
 bandeau parti et cartes réellement peuplées. Les deux captures ont été ouvertes, pas seulement le
 log (L-009, L-028).
+
+## D-036 — Fidélité à la maquette : les blocs s'adaptent, le shell change, les cibles passent par ::before (2026-09-13)
+
+Contexte : `inbox/Audit Refonte/…/AUDIT-ecarts.md` a montré pourquoi la refonte Tâches/Courses du
+2026-09-12 ne ressemblait pas à la maquette : les gabarits Budget avaient été réutilisés « parce
+qu'ils existaient » (invariant 6 lu comme une interdiction de redessiner), les tokens du handoff
+n'avaient jamais été fusionnés, la navigation par module (D-025) ne pouvait pas porter la barre
+basse à quatre entrées, et la règle 44 px avait grossi le visuel au lieu de la zone tapable.
+Yann : « je veux retrouver le visuel… menu clair et central. C'est la cible ! ». Cinq arbitrages,
+détaillés dans `docs/briefs/refonte-fidelite.md` :
+
+1. **Fidélité > invariant 6** sur les écrans couverts par la maquette : les blocs du socle
+   gagnent des variantes compactes (`.carte-tete`, `.ligne`, `ligneCoche({ compacte })`), ils ne
+   sont pas contournés. Un écran ne garde pas un gabarit hérité au motif qu'il existe.
+2. **Cibles tactiles** : taille VISUELLE de la maquette, zone tapable ≥ 44 px par le `::before`
+   de `.cible44`. Exception documentée à rules/mobile-parents.md (48 px) : ici les utilisateurs
+   sont Claudia et Yann, et Yann a demandé la densité de la maquette. Les mini-cycles du tableau
+   Parts (minutes, écart, moment) restent sans zone élargie : deux `::before` de 44 px à 2 px
+   d'écart se recouvrent et le tap tombe sur le mauvais (constaté par Playwright).
+3. **Shell** : barre basse GLOBALE Tâches · Budget · Courses · Réglages ; segmenté d'en-tête par
+   module ; « Réglages » est un module synthétique assemblé par le socle depuis le champ
+   `reglages` des descripteurs (Parts | Charges | Comptes | Magasin). Le menu « Plus » disparaît ;
+   D-025 tient toujours (app.js ne cite aucun module), seul le contrat du descripteur change.
+4. **Budget compact** : un écran Mois (salaires, trois chiffres, À faire/Fait, charges en deux
+   colonnes, « Ce mois seulement », FAB → « Ligne de ce mois »). L'ancien écran Charges fusionne
+   dedans ; la référence par charge devient Réglages · Charges ; Récurrents + Comptes deviennent
+   Réglages · Comptes. « Ce mois seulement » = charges `ponctuel` (elles entrent dans le commun)
+   ET régularisations entre nous (table `ajustements`, transfert perso → perso qui corrige les
+   restes) : les deux ne valent que ce mois-ci, elles vivent dans la même carte.
+5. **Blocs hérités retirés** : « Par catégorie » sous la grille Semaine, liste Catégorie/consigne
+   sous le tableau Parts. Modifier/Retirer une récurrente : tap sur son titre dans le tableau.
+
+Et une règle de méthode qui en découle : **un CSS par module** (`budget.css`, `taches.css`,
+`courses.css`) + `style.css`/`socle.css` pour le socle, pour que plusieurs agents travaillent en
+parallèle sans se marcher dessus — c'est ce qui a permis de livrer les quatre lots le même jour.
+
+Vérification : `tests/planche_maquette.mjs` met chaque capture à côté de son image de référence
+(`tests/outils/capture_maquette.mjs` rend la maquette dans Playwright) ; onze planches regardées.

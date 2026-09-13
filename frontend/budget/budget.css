@@ -1,0 +1,229 @@
+/* MaxHome — Budget : Mois (fusion Ce mois + Charges), Réglages · Charges, Réglages · Comptes
+   (comptes + récurrents), Stats, Vue annuelle. Tokens et gabarits communs (carte, ligne,
+   segment...) restent dans style.css / socle.css : ce fichier ne porte que ce qui est propre
+   au Budget (D-036 §CSS par module ; budget.png = référence visuelle, décision 4). */
+
+/* ================= Écran « Mois » : en-tête et titre ================= */
+/* Titre + segmenté sur la même ligne, poussés aux deux bouts ; « Commun · … » en dessous,
+   sur sa propre ligne (jamais « Comptes à définir » : rendu vide si aucun compte commun). */
+#ecran-mois .tete-ligne { justify-content:space-between; }
+#commun-mois { font-size:12px; color:var(--texte-2); }
+#commun-mois:empty { display:none; }
+.ligne-titre-mois { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin:10px 0 8px; }
+.titre-mois-h2 { font-size:15px; font-weight:600; margin:0; }
+.total-charges-mois { font-size:16px; white-space:nowrap; }
+
+/* ---------- carte Salaires ---------- */
+.carte-salaires { display:flex; align-items:center; gap:10px; padding:8px 10px; flex-wrap:wrap; margin-bottom:7px; }
+.salaires-etiquette { font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--bleu); flex:none; }
+.salaires-corps { display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex:1; }
+.salaire-champ { display:flex; align-items:center; gap:4px; }
+.salaire-lettre { font-size:12px; font-weight:700; color:var(--texte-2); }
+.salaire-champ .champ-montant { width:96px; min-width:90px; max-width:110px; font-size:15px; min-height:32px; }
+.salaire-cle { font-size:14px; margin-left:auto; }
+
+/* ---------- trois chiffres (Total commun, Reste Yann, Reste Claudia) ---------- */
+.trois-chiffres { display:grid; grid-template-columns:1fr 1fr 1fr; gap:7px; margin-bottom:7px; }
+.chiffre-carte { display:flex; flex-direction:column; gap:2px; padding:8px 9px; }
+.chiffre-etiquette { font-size:9px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--texte-2); }
+.chiffre-valeur { font-size:15px; font-weight:600; }
+.chiffre-valeur.accent-vert { color:var(--vert); }
+
+/* ---------- À faire / Fait, ligne mvt (inchangé sur le fond, densifié) ---------- */
+.carte-liste { background:#fff; border:1px solid var(--bordure); border-radius:14px; overflow:hidden; }
+.mvt {
+  display:grid; grid-template-columns:22px minmax(0,1fr) auto; gap:10px; align-items:start;
+  padding:8px 12px; border-bottom:1px solid var(--separateur); cursor:pointer;
+}
+.mvt:last-child { border-bottom:0; }
+.mvt.alerte { background:var(--ambre-ligne); }
+.mvt.fait { align-items:center; padding:6px 12px; }
+.mvt .case {
+  width:17px; height:17px; border:1.5px solid var(--bordure-case); border-radius:5px; background:#fff;
+  margin-top:2px; display:flex; align-items:center; justify-content:center; cursor:pointer; flex:0 0 auto;
+}
+.mvt .case.prioritaire { border-color:var(--bleu); }
+.mvt .case.cochee { background:var(--vert); border-color:var(--vert); color:#fff; font-size:11px; font-weight:700; margin-top:0; }
+.mvt-corps { min-width:0; display:flex; flex-direction:column; gap:2px; }
+.mvt-titre { font-size:13px; font-weight:600; }
+.mvt.fait .mvt-titre { font-weight:400; color:var(--texte-2); }
+.mvt-trajet { font-size:11px; color:var(--texte-2); }
+.mvt.fait .mvt-trajet { font-size:11px; }
+.mvt-note { font-size:11px; color:var(--ambre-texte); line-height:1.35; }
+.mvt-droite { text-align:right; display:flex; flex-direction:column; gap:2px; align-items:flex-end; }
+.mvt-montant { font-size:15px; font-weight:600; white-space:nowrap; }
+.mvt-montant.pale { font-size:13px; font-weight:400; color:var(--texte-2); }
+.lien-discret {
+  display:block; background:none; border:0; color:var(--texte-2); font-size:12px; text-decoration:underline;
+  padding:6px 2px; margin:2px 0 7px; cursor:pointer;
+}
+
+/* ---------- détail d'un mouvement ---------- */
+.detail { display:flex; flex-direction:column; gap:18px; }
+.detail-tete { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.detail-tete h2 { font-size:20px; }
+.detail .sous { font-size:13px; color:var(--texte-2); }
+.detail-montant { background:var(--fond); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:10px; }
+.detail-montant .grand { font-size:34px; font-weight:600; letter-spacing:-.02em; line-height:1; }
+.detail-trajet { display:grid; grid-template-columns:1fr auto 1fr; gap:10px; align-items:center; }
+.case-compte { border:1px solid var(--bordure); border-radius:10px; padding:10px 12px; display:flex; flex-direction:column; gap:2px; min-width:0; }
+.case-compte .nom { font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.detail-trajet .fleche { color:var(--bleu); font-size:18px; }
+.etiquette { font-size:11px; font-weight:600; color:var(--texte-2); text-transform:uppercase; letter-spacing:.05em; }
+.detail-consigne { display:flex; flex-direction:column; gap:6px; }
+.detail-consigne textarea { padding:12px 14px; line-height:1.45; resize:vertical; min-height:70px; }
+.detail-permanent { display:flex; justify-content:space-between; align-items:center; gap:12px; border:1px solid var(--bordure); border-radius:10px; padding:12px 14px; font-size:14px; }
+.detail-actions { display:flex; gap:10px; }
+.detail-actions [data-copier] { width:52px; height:52px; min-height:52px; border-radius:12px; padding:0; color:var(--bleu); font-size:18px; }
+.detail-actions .btn:not(.grandir):not([data-copier]) { min-height:52px; border-radius:12px; }
+.detail-actions .grandir { flex:1; width:auto; height:52px; min-height:52px; border-radius:12px; font-size:16px; }
+.btn-lien.centre { display:block; width:100%; text-align:center; text-decoration:none; color:var(--texte-2); font-size:13px; }
+
+/* ---------- formulaires en pile (feuilles) ---------- */
+.pile { display:flex; flex-direction:column; gap:12px; }
+.pile h2 { font-size:18px; }
+.pile label { display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--texte-2); }
+.pile .champ-montant { width:100%; text-align:left; }
+.pile .grandir { width:100%; }
+
+@media (min-width:1024px) {
+  .detail-montant .grand { font-size:32px; }
+  .detail-actions [data-copier] { width:48px; height:48px; min-height:48px; border-radius:10px; }
+  .detail-actions .btn:not(.grandir):not([data-copier]) { min-height:48px; border-radius:10px; }
+  .detail-actions .grandir { height:48px; min-height:48px; border-radius:10px; font-size:15px; }
+  .carte-liste { border-radius:12px; }
+}
+
+
+/* ================= Charges par catégorie, écran « Mois » (deux colonnes) ================= */
+.carte-charges { margin-bottom:0; }
+.mois-charge { gap:6px; }
+.mois-charge .lc-libelle {
+  flex:1; min-width:0; background:none; border:0; padding:0; text-align:left;
+  font-size:13px; color:var(--texte); cursor:pointer; line-height:1.2;
+  white-space:normal; overflow:visible; text-overflow:clip; /* prime sur .ligne .titre du socle : deux lignes plutôt que « Crédit I… » */
+}
+.mois-charge .lc-libelle:hover { color:var(--bleu); }
+.mois-charge.a-faire .lc-libelle { color:var(--ambre-texte); }
+.mois-charge .point-ambre { width:6px; height:6px; border-radius:50%; background:var(--ambre-bordure); flex:none; }
+.mois-charge .champ-montant { flex:0 0 auto; width:76px; min-height:28px; font-size:12px; padding:0 4px; } /* « -1 450,30 » doit tenir */
+.mois-charge.a-faire .champ-montant { color:var(--ambre-texte); border-color:var(--ambre-bordure); background:var(--ambre-champ); }
+
+@media (max-width:400px) {
+  .mois-charge .champ-montant { width:68px; font-size:11px; }
+  .mois-charge .lc-libelle { font-size:12px; }
+}
+
+/* réglages d'une charge (feuille ouverte au tap du libellé) */
+.reglages .grand-montant { width:100%; text-align:left; font-size:18px; min-height:48px; }
+.reglages .case-a-cocher { flex-direction:row; align-items:center; gap:8px; margin-top:10px; color:var(--texte); font-size:14px; }
+.reglages .case-a-cocher input { width:20px; height:20px; }
+.segment.large { display:flex; width:100%; }
+.segment.large button { flex:1; font-size:12px; min-height:38px; }
+.regle-mois p { margin:6px 0 0; font-size:14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+
+
+/* ================= « Ce mois seulement » (charges ponctuelles) ================= */
+#ajustements .ligne .titre { background:none; border:0; padding:0; text-align:left; cursor:pointer; color:var(--texte); }
+#ajustements .ligne .titre:hover { color:var(--bleu); }
+
+/* ================= Feuille « Ligne de ce mois » (FAB de l'écran Mois) ================= */
+/* .puces-suggestions / .puce-suggestion : socle.css */
+.ligne-mois-repartition { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; }
+.ligne-mois-repartition > * { flex:1; min-width:120px; }
+.ligne-mois-repartition .segment.large button.actif { background:var(--bleu); color:#fff; }
+
+/* ================= Écran « Réglages · Charges » ================= */
+.carte-charges-ref { margin-bottom:7px; }
+.charges-ref-entete { align-items:center; }
+.charges-ref-colonnes { display:grid; grid-template-columns:72px 66px 44px; gap:4px; font-size:9px; text-align:right; }
+.ligne-charges-ref {
+  display:grid; grid-template-columns:minmax(0,1fr) 72px 66px 44px; gap:4px; align-items:center;
+  min-height:36px; padding:4px 8px; border-bottom:1px solid var(--separateur);
+}
+.ligne-charges-ref:last-child { border-bottom:0; }
+.ligne-charges-ref .lc-libelle {
+  background:none; border:0; padding:0; text-align:left; font-size:13px; color:var(--texte); cursor:pointer;
+  line-height:1.2; /* un libellé long passe sur deux lignes : jamais tronqué (« Crédit im… ») */
+}
+.ligne-charges-ref .lc-libelle:hover { color:var(--bleu); }
+.ligne-charges-ref .champ-montant { min-height:28px; font-size:12px; width:100%; }
+.ligne-charges-ref .champ-montant.desactive {
+  display:flex; align-items:center; justify-content:flex-end; color:var(--texte-2); font-style:italic; font-size:11px;
+}
+.charges-ref-regle { padding:1px; }
+.charges-ref-regle button { flex:1; font-size:11px; min-height:26px; padding:0 4px; }
+.ce-mois { display:flex; align-items:center; justify-content:center; height:28px; border-radius:6px; font-family:var(--mono); font-size:13px; }
+.ce-mois-egal { color:var(--texte-2); }
+.ce-mois-differe { background:var(--ambre-fond); color:var(--ambre-texte); border:1px solid var(--ambre-bordure); cursor:pointer; }
+
+/* ================= Récurrents et comptes ================= */
+.rec { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px 12px; padding:14px 16px; border-bottom:1px solid var(--separateur); }
+.rec:last-child { border-bottom:0; }
+.rec.inactif { opacity:.5; }
+.rec-corps { min-width:0; display:flex; flex-direction:column; gap:3px; }
+.rec-titre { font-size:15px; font-weight:600; }
+.rec-trajet { font-size:13px; color:var(--texte-2); }
+.rec-consigne { font-size:12px; color:var(--texte-2); line-height:1.4; }
+.rec-droite { text-align:right; display:flex; flex-direction:column; gap:4px; align-items:flex-end; font-size:14px; }
+.rec-actions { grid-column:1 / -1; display:flex; gap:16px; }
+.rec-actions .btn-lien { font-size:13px; }
+
+.compte.commun { border-color:var(--bleu); }
+.compte-tete { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.compte-nom { font-size:16px; font-weight:600; display:block; }
+.compte .sous { font-size:13px; color:var(--texte-2); }
+.compte-iban { margin:8px 0 0; font-size:13px; color:var(--texte-2); }
+.compte-note { margin:8px 0 0; font-size:13px; color:var(--ambre-texte); line-height:1.4; }
+.pastille.bleue { background:var(--bleu-clair); color:var(--bleu); font-weight:600; }
+.case-a-cocher { flex-direction:row; align-items:center; gap:8px; color:var(--texte); font-size:14px; }
+.case-a-cocher input { width:20px; height:20px; }
+
+/* ================= Stats ================= */
+#periode { margin:14px 0; }
+#periode button { font-size:13px; min-height:36px; padding:0 14px; }
+.stats-grille { display:flex; flex-direction:column; gap:12px; }
+.stats-grille h3 { font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--texte-2); margin-bottom:12px; }
+.stats-grille .sous { font-size:13px; color:var(--texte-2); margin:10px 0 0; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.barres { display:flex; align-items:flex-end; gap:8px; height:140px; }
+.colonne { flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:4px; height:100%; border-radius:6px; }
+/* Rail discret sous les barres pleines, pour situer un mois sans données. */
+.colonne.rail { background:linear-gradient(var(--separateur), var(--separateur)) center bottom 16px / 60% calc(100% - 32px) no-repeat; }
+.paire { flex:1; display:flex; align-items:flex-end; gap:2px; width:100%; justify-content:center; }
+.barre { display:block; width:12px; min-height:2px; border-radius:3px 3px 0 0; }
+.barre.pleine { width:60%; }
+.valeur-barre { font-size:11px; color:var(--texte-2); }
+.legende-mois { font-size:11px; color:var(--texte-2); }
+.puce-legende { display:inline-block; width:10px; height:10px; border-radius:3px; }
+
+.camembert { width:170px; height:170px; border-radius:50%; margin:0 auto; display:flex; align-items:center; justify-content:center; }
+.camembert .trou { width:104px; height:104px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; }
+.legende-cat { list-style:none; margin:14px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
+.legende-cat li { display:flex; align-items:center; gap:8px; font-size:13px; }
+.legende-cat li .mono { margin-left:auto; color:var(--texte-2); }
+
+/* ================= Vue annuelle ================= */
+.defilant { overflow-x:auto; border:1px solid var(--bordure); border-radius:12px; background:#fff; }
+.defilant table { min-width:900px; }
+.defilant th:first-child { position:sticky; left:0; background:#fff; z-index:1; white-space:nowrap; }
+.defilant td.courant, .defilant th.courant { background:var(--bleu-clair); }
+.defilant tr.fort th, .defilant tr.fort td { font-weight:600; }
+
+@media (min-width:1024px) {
+  .stats-grille { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); align-items:stretch; }
+  .rec { grid-template-columns:minmax(0,1fr) auto auto; align-items:center; }
+  .rec-actions { grid-column:auto; }
+}
+
+
+/* La colonne latérale ne prend de la place que lorsqu'un panneau (détail ou réglages d'une
+   charge) est ouvert : l'écran Mois porte les deux asides, jamais visibles en même temps.
+   Scopé à #ecran-mois : le Budget ne redéfinit pas .deux-colonnes pour les autres modules. */
+@media (min-width:1024px) {
+  #ecran-mois.deux-colonnes, #ecran-mois .deux-colonnes { grid-template-columns:minmax(0,1fr); }
+  #ecran-mois .deux-colonnes:has(> aside:not([hidden])) { grid-template-columns:minmax(0,1fr) 380px; }
+}
+
+/* Régularisations entre nous, dans la carte « Ce mois seulement » : ligne compacte + lien discret. */
+.ligne.regularisation .repere { font-size:11px; white-space:nowrap; }
+.btn-lien.discret { font-size:12px; min-height:32px; padding:4px 8px; text-decoration:none; }

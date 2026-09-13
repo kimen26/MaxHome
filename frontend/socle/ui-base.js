@@ -32,8 +32,19 @@ export function enregistrerModules(liste) {
   MODULES = Object.fromEntries(liste.map((m) => [m.cle, m]));
 }
 export const modules = () => ORDRE;
-const ecransDe = (m) => [...m.onglets, ...m.plus].map(([e]) => e);
+// `ecransTransition` : écrans hors navigation (ni barre basse, ni segmenté) qu'un module garde
+// atteignables par un lien direct pendant une transition (ex. Budget "charges"/"recurrents"
+// avant fusion, D-036 §4). Optionnel, absent pour les modules qui n'en ont pas besoin.
+// `defaut` est toujours l'écran ouvert par la barre basse, même quand le module n'a pas de
+// segmenté d'en-tête (`onglets: []`, ex. Courses D-036 §3) : sans lui dans la liste,
+// `moduleDe("courses")` renvoie null et `montrerEcran` ignore silencieusement la navigation
+// (pas d'erreur console — juste un clic qui ne fait rien).
+const ecransDe = (m) => [m.defaut, ...m.onglets.map(([e]) => e), ...m.reglages.map(([e]) => e)]
+  .concat(m.ecransTransition ?? []);
 export const moduleDe = (ecran) => ORDRE.find((m) => ecransDe(m).includes(ecran))?.cle ?? null;
+/** Un écran de réglages appartient à son module pour le rendu, mais à l'entrée « Réglages »
+ *  de la barre basse et à l'en-tête synthétique — pas au segmenté de son module d'origine. */
+export const estReglages = (ecran) => ORDRE.some((m) => m.reglages.some(([e]) => e === ecran));
 const CLE_ECRAN = "maxhome.ecran";
 
 let surEcran = () => {};
@@ -42,8 +53,9 @@ export function montrerEcran(nom, { rendre = true } = {}) {
   const module = moduleDe(nom);
   if (nom !== "accueil" && !module) return;
   for (const s of $$("main .ecran")) s.hidden = s.id !== `ecran-${nom}`;
-  rendreOnglets(module, nom);
+  rendreNavigation(module, nom);
   $("#puces-pc").hidden = !(module && MODULES[module].avecMois);
+  $("#pied-reglages").hidden = !estReglages(nom);
   window.scrollTo(0, 0);
   try { localStorage.setItem(CLE_ECRAN, nom); } catch { /* stockage indisponible : on repart de l'accueil */ }
   if (rendre) surEcran(nom);
@@ -53,7 +65,9 @@ export function ecranCourant() {
   return $$("main .ecran").find((s) => !s.hidden)?.id.replace(/^ecran-/, "") ?? "accueil";
 }
 
-/** Dernier écran ouvert sur cet appareil, sinon l'accueil. */
+/** Dernier écran ouvert sur cet appareil, sinon l'accueil (première visite, ou stockage
+ *  indisponible) — jamais directement `defaut` du premier module : l'accueil reste la porte
+ *  d'entrée normale, avec sa carte par module (D-036 §3). */
 export function ecranDeDepart() {
   try {
     const e = localStorage.getItem(CLE_ECRAN);
@@ -61,56 +75,82 @@ export function ecranDeDepart() {
   } catch { return "accueil"; }
 }
 
-function rendreOnglets(module, nom) {
+/** Segmenté d'en-tête partagé : boutons `.segment` sur les onglets d'UN module, dans SON
+ *  ordre. Les agents d'écran l'utilisent pour peupler leurs `[data-segment="<cle_module>"]`
+ *  (module.js s'en sert aussi pour Réglages, avec un pseudo-module synthétique). */
+export function segmentEcrans(entrees, ecranCourantNom, { large = false } = {}) {
+  return `<div class="segment${large ? " large" : ""}">${entrees.map(([e, l]) =>
+    `<button data-ecran="${e}" class="${e === ecranCourantNom ? "actif" : ""}">${txt(l)}</button>`).join("")}</div>`;
+}
+
+/** Remplit tous les `[data-segment]` de l'écran affiché : ceux du module courant avec ses
+ *  `onglets`, et — sur les écrans de réglages — le segmenté synthétique `data-segment="reglages"`
+ *  avec les entrées `reglages` de tous les modules, dans l'ordre des modules (D-036 §3). */
+function remplirSegments(module, nom) {
   const m = module ? MODULES[module] : null;
-  $("#onglets-pc").innerHTML = m
-    ? [...m.onglets, ...m.plus].map(([e, l]) =>
-      `<button class="onglet${e === nom ? " actif" : ""}" data-ecran="${e}">${txt(l)}</button>`).join("")
-    : "";
-  $("#module-pc").textContent = m ? m.nom : "";
-  // « Plus » est toujours présent dans un module : c'est la seule porte de sortie sur
-  // mobile (accueil, autres modules, déconnexion), même quand le module n'a qu'un onglet.
-  const mobile = m
-    ? [...m.onglets.map(([e, l]) => [e, l, e === nom]), ["plus", "Plus", m.plus.some(([e]) => e === nom)]]
-    : ORDRE.map((v) => [v.defaut, v.nom, false]);
-  $("#onglets").innerHTML = mobile.map(([e, l, actif]) =>
+  if (m && !estReglages(nom)) {
+    for (const cible of $$(`main .ecran:not([hidden]) [data-segment="${m.cle}"]`)) {
+      cible.innerHTML = segmentEcrans(m.onglets, nom);
+    }
+  }
+  if (estReglages(nom)) {
+    const entrees = ORDRE.flatMap((mod) => mod.reglages);
+    for (const cible of $$('main .ecran:not([hidden]) [data-segment="reglages"]')) {
+      cible.innerHTML = segmentEcrans(entrees, nom, { large: true });
+    }
+  }
+}
+
+function rendreOngletsGlobaux(nom) {
+  // Barre basse GLOBALE, 4 entrées fixes : un module par bouton (son écran `defaut`), puis
+  // Réglages (premier écran de réglages du premier module qui en a un). Actif = le module de
+  // l'écran courant, ou Réglages si l'écran courant en est un (D-036 §3).
+  const reglagesDefaut = ORDRE.flatMap((m) => m.reglages)[0]?.[0] ?? null;
+  const module = moduleDe(nom);
+  const entrees = [
+    ...ORDRE.map((m) => [m.defaut, m.nom, module === m.cle && !estReglages(nom)]),
+    reglagesDefaut ? [reglagesDefaut, "Réglages", estReglages(nom)] : null,
+  ].filter(Boolean);
+  $("#onglets").innerHTML = entrees.map(([e, l, actif]) =>
     `<button data-ecran="${e}" class="${actif ? "actif" : ""}">${txt(l)}</button>`).join("");
 }
 
-/** Navigation par délégation : les onglets sont reconstruits à chaque écran. */
+function rendreBarrePc(module, nom) {
+  const m = module ? MODULES[module] : null;
+  const reglagesDefaut = ORDRE.flatMap((mm) => mm.reglages)[0]?.[0] ?? null;
+  const entreesModules = [
+    ...ORDRE.map((mm) => [mm.defaut, mm.nom, mm.cle]),
+    reglagesDefaut ? [reglagesDefaut, "Réglages", "reglages"] : null,
+  ].filter(Boolean);
+  const cleActive = estReglages(nom) ? "reglages" : module;
+  $("#modules-pc").innerHTML = entreesModules.map(([e, l, cle]) =>
+    `<button class="onglet${cle === cleActive ? " actif" : ""}" data-ecran="${e}">${txt(l)}</button>`).join("");
+  const entreesEcran = estReglages(nom) ? ORDRE.flatMap((mm) => mm.reglages) : (m?.onglets ?? []);
+  $("#onglets-pc").innerHTML = entreesEcran.length ? segmentEcrans(entreesEcran, nom) : "";
+}
+
+function rendreNavigation(module, nom) {
+  rendreOngletsGlobaux(nom);
+  rendreBarrePc(module, nom);
+  remplirSegments(module, nom);
+}
+
+/** Navigation par délégation : `main` ET la barre basse/PC portent des `[data-ecran]`
+ *  reconstruits à chaque écran (segmentés d'en-tête compris, D-036 §3). */
 export function brancherNavigation(onChange) {
   surEcran = onChange ?? (() => {});
   const aller = (e) => {
     const b = e.target.closest("[data-ecran]");
     if (!b) return;
-    if (b.dataset.ecran === "plus") return menuPlus();
     montrerEcran(b.dataset.ecran);
   };
   $("#barre-pc").addEventListener("click", aller);
   $("#onglets").addEventListener("click", aller);
+  $("main").addEventListener("click", aller);
   $("#logo").addEventListener("click", () => montrerEcran("accueil"));
-}
-
-function menuPlus() {
-  const module = moduleDe(ecranCourant());
-  // Le menu ouvre TOUT écran de l'app, pas seulement le premier des autres modules :
-  // sans cela, un module à un seul onglet (Courses) enferme la navigation mobile.
-  const groupes = [
-    module ? [`Encore dans ${MODULES[module].nom}`, MODULES[module].plus] : null,
-    ["Aller à", [["accueil", "Accueil MaxHome"]]],
-    ...ORDRE.filter((m) => m.cle !== module).map((m) => [m.nom, [...m.onglets, ...m.plus]]),
-  ].filter((g) => g && g[1].length);
-
-  ouvrirFeuille(`
-    <h2 class="feuille-titre">Plus</h2>
-    ${groupes.map(([titre, entrees]) => `<h3 class="titre-section">${txt(titre)}</h3>
-      ${entrees.map(([e, l]) => `<button class="btn btn-menu" data-aller="${e}">${txt(l)}</button>`).join("")}`).join("")}
-    <button class="btn btn-menu danger" id="feuille-logout">Déconnexion</button>`);
-  $$("#feuille-corps [data-aller]").forEach((b) => b.addEventListener("click", () => {
-    fermerFeuille();
-    montrerEcran(b.dataset.aller);
-  }));
-  $("#feuille-logout").addEventListener("click", () => { fermerFeuille(); $("#logout").click(); });
+  // Pied des écrans Réglages (mobile) : « Accueil MaxHome » passe par la délégation
+  // ci-dessus (data-ecran), « Déconnexion » déclenche le même bouton que la barre PC.
+  $("#pied-reglages-logout")?.addEventListener("click", () => $("#logout").click());
 }
 
 // ---------- feuille mobile ----------

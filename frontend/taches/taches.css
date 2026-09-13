@@ -1,0 +1,362 @@
+/* MaxHome — Tâches : balance/pts, écrans Jour et Semaine, Réglages · Parts, feuilles
+   « Travaux en attente » et « Ajouter une tâche ». Les boutons-cycles génériques
+   (.cycle, .cycle-reglage, .cycle-jour...) restent dans le socle (blocs-cycle.js en dépend,
+   D-036 §CSS par module) : seul ce qui est propre à Tâches vit ici. */
+
+/* ================= Tâches ================= */
+.pts { display:inline-block; font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:13px; font-weight:600; color:var(--bleu); background:var(--bleu-clair); border-radius:6px; padding:3px 8px; white-space:nowrap; }
+.mvt.rapide .case.rapide { border-style:dashed; color:var(--texte-2); font-weight:600; font-size:16px; }
+.mvt.rapide:hover .case.rapide { border-color:var(--bleu); color:var(--bleu); }
+.choix-qui { display:flex; gap:8px; flex-wrap:wrap; }
+.pastille.grande { border:1px solid var(--bordure); background:#fff; font-size:14px; padding:8px 14px; min-height:40px; cursor:pointer; border-radius:8px; }
+.pastille.grande.bleue { background:var(--bleu-clair); border-color:var(--bleu); color:var(--bleu); font-weight:600; }
+.texte-consigne { margin:0; font-size:14px; line-height:1.45; }
+.detail-actions { flex-wrap:wrap; }
+.balance-grand { display:flex; justify-content:space-around; gap:16px; margin:6px 0 14px; }
+.balance-personne { display:flex; flex-direction:column; align-items:center; gap:2px; }
+.balance-personne .grand { font-size:34px; font-weight:600; letter-spacing:-.02em; line-height:1; }
+.balance-personne .nom { font-size:14px; font-weight:600; margin-top:6px; }
+.balance-personne .sous { font-size:12px; color:var(--texte-2); }
+#periode-balance { margin:14px 0; }
+#periode-balance button { font-size:13px; min-height:36px; padding:0 14px; }
+#btn-tache-ponctuelle { margin-top:10px; }
+@media (min-width:1024px) { .stats-grille:has(> .carte:nth-child(2):last-child) { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+
+
+/* ================= Tâches · Jour et Semaine (handoff design_handoff_maxhome_taches) =================
+   Couleurs des personnes : jamais la seule couleur qui porte l'information — la lettre (C/Y/CY)
+   est toujours là aussi. `case-cycle-p1` = première personne du foyer (ambre, comme Claudia dans
+   le handoff), `case-cycle-p2` = la seconde (bleu, comme Yann) : générique, pas de prénom en dur. */
+/* En-tête fixe (handoff « Structure de l'écran ») : sur mobile, le segment Jour|Semaine, le
+   bouton Todo et la bande des 7 jours restent visibles pendant que le contenu défile en
+   dessous. `main` scrolle avec la fenêtre (ui-base.js ne gère pas de conteneur interne), donc
+   `position:sticky` suffit : rien au-dessus n'a son propre scroll. Sur PC, la mise en page
+   deux-colonnes existante prend le dessus (règle plus bas) : pas de bande des 7 jours à fixer,
+   l'écran est plus large que haut. */
+.ecran-taches { padding-top:0; display:flex; flex-direction:column; }
+.tete-taches {
+  /* -12px / 12px : compense EXACTEMENT le padding latéral de `main` (style.css), pour que
+     l'en-tête sticky touche les bords de l'écran. Un padding de main désynchronisé de cette
+     valeur recrée un débordement horizontal (L-016, déjà vu avec l'ancien padding 16px). */
+  position:sticky; top:0; z-index:5; background:#fff; border-bottom:1px solid var(--bordure);
+  margin:0 -12px; padding:8px 12px; display:flex; flex-direction:column; gap:7px;
+}
+.tete-taches .ligne-segment-todo { display:flex; align-items:center; gap:8px; }
+/* Taille VISUELLE de la maquette (30 px) : la cible tapable 44 px passe par `.cible44` (posé
+   dans le HTML, ui-taches.js) plutôt que par la hauteur, comme la bande des jours ci-dessous
+   (D-036 décision 2 — la maquette avait grandi à 44 px de haut par erreur, cf. AUDIT-ecarts.md
+   §2.1). */
+.btn-todo {
+  position:relative; margin-left:auto; display:flex; align-items:center; gap:5px; height:30px; padding:0 10px;
+  border:1px solid var(--bordure); border-radius:8px; background:#fff; color:var(--bleu);
+  font-size:13px; font-weight:600; cursor:pointer;
+}
+.badge-todo {
+  min-width:17px; height:17px; border-radius:9px; background:var(--ambre-texte); color:#fff;
+  font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 4px;
+}
+
+/* Contenu scrollable sous l'en-tête fixe : seule zone qui défile (handoff « padding de contenu
+   8px 12px 92px » — le 92px de bas devient le padding-bottom déjà porté par main + de la marge
+   pour le FAB, jamais recalculé en dur ici). */
+/* `padding-bottom` : le FAB est `position:fixed`, donc hors flux — sans cette réserve il
+   recouvre la légende et la barre « Fait ». Hauteur du FAB (44) + son écart au bas (12) + air. */
+/* `padding-bottom` : le FAB est `position:fixed`, donc hors flux — sans réserve il recouvre le
+   bas du contenu (mesuré : 94x44 px sur la carte « Par catégorie », recette_ecrans.mjs).
+   Dérivé, jamais deviné : hauteur du FAB + son écart au bas + de l'air. `main` porte déjà la
+   réserve pour la barre d'onglets, d'où l'absence de --barre-basse ici. */
+.contenu-taches {
+  display:flex; flex-direction:column; gap:8px; padding-top:8px;
+  padding-bottom:calc(var(--fab-hauteur) + var(--fab-ecart) + 16px);
+}
+
+/* Le FAB « + Ajouter » (`.fab-ajouter`) est un gabarit du SOCLE (style.css) : visible aussi
+   sur Tâches mais pas propre à ce module, rien à redéfinir ici (D-036 §CSS par module). */
+
+/* ---------- bande des 7 jours ---------- */
+/* 36 px de haut (maquette), pas 44 : la cible tactile passe par `.cible44` (::before invisible,
+   posé sur le bouton dans le HTML), jamais par la hauteur de la bande — sinon l'écran Jour perd
+   sa densité pour un geste qui n'est tapé qu'une fois par jour (D-036 décision 2). */
+.bande-jours { display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:3px; }
+.jour-bande {
+  position:relative; height:36px; border:1.5px solid var(--bordure); border-radius:8px; background:#fff; color:var(--texte);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:4px 0; cursor:pointer;
+}
+.jour-lettre { font-size:9px; font-weight:500; letter-spacing:.03em; text-transform:uppercase; }
+.jour-num { font-size:14px; font-weight:700; line-height:1; }
+.jour-barre { display:flex; width:20px; height:3px; border-radius:2px; overflow:hidden; background:var(--bleu); flex:none; }
+.jour-barre span { display:block; height:100%; background:var(--claudia); }
+.jour-bande.jour-choisi { background:var(--bleu); border-color:var(--bleu); color:#fff; }
+.jour-bande.jour-choisi .jour-barre { background:rgba(255,255,255,.4); }
+.jour-bande.jour-auj { border-color:var(--bleu); }
+.jour-bande.jour-futur { color:var(--placeholder); opacity:.7; }
+
+/* ---------- ligne de titre + chiffres du jour ---------- */
+.ligne-titre-jour { display:flex; align-items:center; gap:8px; }
+.titre-jour-bloc { min-width:0; flex:1; }
+.titre-jour-bloc h1 { margin:0; font-size:15px; font-weight:600; line-height:1.15; }
+.titre-jour-bloc .sous {
+  font-size:12px; color:var(--texte-2); margin:2px 0 0;
+  /* La liste des obligatoires restants peut compter dix titres : sans limite elle pousse les
+     cartes hors de l'écran. Une ligne, ellipsis — le détail se lit dans les cartes, qui sont
+     la source de vérité. `min-width:0` sur le parent (flex) rend la troncature effective. */
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.chiffres-jour { display:flex; align-items:center; gap:6px; flex:none; }
+.chiffres-jour .mono { font-size:11px; font-weight:600; white-space:nowrap; }
+.chiffres-jour .repere-p1 { color:var(--ambre-texte); }
+.chiffres-jour .repere-p2 { color:var(--bleu); }
+.barre-partagee { width:48px; height:5px; border-radius:3px; background:var(--bleu); overflow:hidden; display:flex; flex:none; }
+.barre-partagee span { display:block; height:100%; background:var(--claudia); }
+.barre-partagee.barre-fine { width:auto; flex:1; height:6px; }
+
+/* ---------- cartes de tâches (Aujourd'hui, Semaine, Mois) ---------- */
+.grille-cartes { display:grid; grid-template-columns:1fr 1fr; gap:7px; align-items:start; }
+.carte-taches { background:#fff; border:1px solid var(--bordure); border-radius:11px; overflow:hidden; min-width:0; }
+.carte-taches-tete {
+  display:flex; justify-content:space-between; align-items:center; gap:8px; padding:3px 8px;
+  border-bottom:1px solid var(--separateur);
+}
+.carte-taches-tete span:first-child {
+  font-size:10px; font-weight:700; color:var(--bleu); text-transform:uppercase; letter-spacing:.05em;
+}
+.carte-taches-tete.tete-complete { background:var(--vert-clair); }
+.carte-taches-tete .compte-ambre { color:var(--ambre-texte); font-size:10px; font-weight:600; }
+.carte-taches-tete .compte-vert { color:var(--vert); font-size:10px; font-weight:600; }
+.vide-carte { margin:0; padding:8px 9px; font-size:12px; color:var(--texte-2); font-style:italic; }
+
+/* Ligne compacte (maquette) : 27-28 px. La cible tactile de 44 px n'est PAS portée par la hauteur
+   de la ligne — elle le serait au prix d'un écran qui ne montre plus que six tâches — mais par le
+   ::before de la case de coche, qui déborde en hauteur sans pousser ses voisins (plus bas).
+   `position:relative` contient ce ::before. */
+.ligne-tache {
+  display:flex; align-items:center; gap:6px; min-height:27px; padding:3px 8px; position:relative;
+  border-bottom:1px solid var(--separateur); background:#fff;
+}
+.ligne-tache:last-child { border-bottom:0; }
+/* Le fond ambre signale un RETARD (sens qu'il porte déjà dans Budget, cf. `.mvt.alerte`), il
+   n'est pas l'état normal d'une tâche à faire — sinon tout l'écran est jaune et le signal ne
+   signale plus rien. */
+.ligne-tache.ligne-retard { background:var(--ambre-ligne); }
+.point-oblig { width:5px; height:5px; border-radius:3px; flex:none; }
+.point-oblig.oblig-due { background:var(--rouge); }
+.point-oblig.oblig-faite { background:var(--tirets); }
+.point-oblig.oblig-non { background:transparent; }
+/* `white-space:nowrap` est ce qui rend `text-overflow:ellipsis` opérant : sans lui le titre
+   revient à la ligne et double la hauteur de chaque ligne (L-028). Le titre entier reste lisible
+   dans le détail, ouvert au tap sur la ligne. */
+.titre-tache { flex:1; min-width:0; font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.titre-tache.fait { font-weight:400; text-decoration:line-through; color:var(--texte-2); }
+.titre-tache.en-cours { color:var(--ambre-texte); }
+.parts-ligne { font-size:10px; color:var(--texte-2); flex:none; }
+.parts-ligne.vert { color:var(--vert); font-weight:600; }
+.parts-ligne.ambre { color:var(--ambre-texte); font-weight:600; }
+
+/* Case de coche tri-état : la couleur ne suffit jamais, la lettre (C/Y/CY) porte l'information.
+   17 px, radius 5 (maquette), pas 44 — c'est le geste le plus fréquent de l'écran Jour, pas un
+   réglage rare (rules/mobile-parents.md, cible 44x44) : un ::before invisible étend la zone
+   tapable sans changer l'apparence ni pousser les voisins (position:relative sur .ligne-tache,
+   .cellule-semaine pour le contenir). */
+.case-tache.cycle { position:relative; width:17px; min-width:17px; height:17px; min-height:17px; padding:0; border-radius:5px; font-size:9px; border-width:1.5px; }
+.case-tache.cycle::before {
+  content:""; position:absolute; inset:-15px -10px; /* 48px de haut x 38 de large : cible pleine, invisible */
+}
+.case-cycle-vide { background:#fff; border-color:var(--bordure-case); }
+.case-cycle-p1 { background:var(--claudia); border-color:var(--claudia); color:#fff; }
+.case-cycle-p2 { background:var(--bleu); border-color:var(--bleu); color:#fff; }
+.case-cycle-deux { background:var(--a-deux); border-color:var(--a-deux); color:#fff; }
+
+/* ---------- barre « Fait · N » repliable ---------- */
+.barre-fait-bouton {
+  display:flex; align-items:center; gap:7px; width:100%; min-height:44px; background:#fff;
+  border:1px solid var(--bordure); border-radius:11px; padding:5px 10px; text-align:left; cursor:pointer;
+}
+.fait-label { font-size:12px; font-weight:600; color:var(--texte-2); flex:none; }
+.fait-pastilles { flex:1; display:flex; gap:3px; overflow:hidden; }
+.pastille-fait { width:15px; height:15px; flex:none; border-radius:4px; font-size:8px; font-weight:700; display:flex; align-items:center; justify-content:center; color:#fff; }
+.fait-voir { font-size:12px; color:var(--bleu); font-weight:600; flex:none; }
+/* padding-right:130px (socle .legende, D-036 gabarits communs) : le FAB « + Ajouter » est
+   position:fixed en bas à droite, la légende ne doit jamais passer dessous. */
+.legende-taches { margin:0 2px; padding-right:130px; font-size:12px; color:var(--texte-2); line-height:1.4; }
+
+/* ---------- KPI Obligatoire (écran Semaine) ---------- */
+.carte-kpi-oblig { background:#fff; border:1px solid var(--bordure); border-radius:11px; padding:9px 10px; display:flex; flex-direction:column; gap:6px; }
+.kpi-oblig-ligne1 { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.kpi-oblig-etiquette { font-size:10px; font-weight:700; color:var(--rouge); text-transform:uppercase; letter-spacing:.05em; flex:none; }
+.kpi-oblig-phrase { font-size:12px; color:var(--texte-2); }
+.kpi-oblig-ligne2 { display:flex; align-items:center; gap:7px; }
+.kpi-oblig-ligne2 .repere-p1 { color:var(--ambre-texte); }
+.kpi-oblig-ligne2 .repere-p2 { color:var(--bleu); }
+
+/* ---------- grille tâches × jours (écran Semaine) ----------
+   7 colonnes de 25 px + le nom de la tâche : à 320 px de large, la grille (bordures/padding de
+   la carte comprises) tient dans ~305 px utiles — vérifié à la capture, cf. rapport de recette. */
+.grille-semaine-carte { background:#fff; border:1px solid var(--bordure); border-radius:11px; overflow:hidden; }
+.ligne-grille-semaine {
+  display:grid; grid-template-columns:minmax(0,1fr) repeat(7, 25px); gap:0 2px;
+  align-items:center; padding:1px 8px; border-bottom:1px solid var(--separateur);
+}
+.ligne-grille-semaine:last-child { border-bottom:0; }
+.ligne-entete-semaine { padding:4px 8px; border-bottom:1px solid var(--bordure); }
+.titre-grille-entete { font-size:10px; font-weight:700; color:var(--texte-2); text-transform:uppercase; letter-spacing:.05em; }
+.titre-grille { font-size:12px; color:var(--texte); padding-right:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.titre-grille.titre-ambre { color:var(--ambre-texte); }
+.lettre-jour-semaine {
+  height:24px; min-width:24px; border:0; border-radius:4px; background:transparent; color:var(--texte-2);
+  font-size:10px; font-weight:700; padding:0; cursor:pointer;
+}
+.lettre-jour-semaine.lettre-jour-auj { background:var(--bleu); color:#fff; }
+/* 25x22 px, sous 48x48 : la grille (7 jours + titre en 320 px, gap 2px) ne peut pas grandir en
+   largeur sans rendre deux jours voisins ambigus au tap (rules/mobile-parents.md l'emporterait
+   sinon, mais casserait la fonction). On grandit la cible verticalement, où les lignes n'ont pas
+   de voisin adjacent au pixel près : ::before ajoute ~13 px en haut et en bas (largeur inchangée,
+   pas de chevauchement latéral). Compromis documenté, pas un renoncement silencieux. */
+.cellule-semaine.cycle { position:relative; width:25px; min-width:25px; height:22px; min-height:22px; border-radius:5px; font-size:10px; padding:0; }
+.cellule-semaine.cycle::before { content:""; position:absolute; inset:-13px 0; }
+.cellule-semaine.cycle.cellule-vide { background:var(--fond-bandeau); border-color:var(--separateur-2); }
+.cellule-semaine.cellule-future { opacity:.45; }
+.bandeau-cadence {
+  display:flex; justify-content:space-between; padding:2px 8px; background:var(--fond-bandeau);
+  border-bottom:1px solid var(--separateur-2); font-size:10px; font-weight:700; color:var(--bleu);
+  text-transform:uppercase; letter-spacing:.06em;
+}
+.bandeau-cadence .mono { color:var(--texte-2); font-weight:600; text-transform:none; letter-spacing:0; }
+
+/* Le détail (feuille/aside) réutilise .detail-actions ; le choix « Fait par » y a besoin de la
+   même mise en page que Budget (déjà stylée). Rien à ajouter ici. */
+
+/* ---------- Réglages · Parts (tableau par cadence) ----------
+   5 colonnes minmax(0,1fr) 42px 38px 32px 36px (handoff §5) : c'est le point de rupture à
+   320 px identifié au brief — vérifié à la capture (recette_ecrans.mjs mesure le débordement
+   réel, pas seulement à l'œil, L-016). Les cycles de réglage font 30 px (cf. .cycle-reglage,
+   usage rare à deux mains, handoff assumé) ; jamais moins, même serré à 320 px.
+   La carte d'explication réutilise `.carte-explication` du socle telle quelle (D-036 §5,
+   « texte, jamais des boutons ») : rien à redéfinir ici, sauf l'espacement propre à cet écran. */
+#tableau-taches-parts .carte-explication { margin-bottom:8px; }
+
+/* Une carte par cadence : `.carte` (socle) sans son padding — l'en-tête et les lignes gèrent
+   leur propre padding, comme `.carte-taches`/`.carte-taches-tete` de l'écran Jour. */
+.bloc-cadence { padding:0; margin-bottom:8px; }
+.entete-reglage-parts, .ligne-reglage-parts {
+  display:grid; grid-template-columns:minmax(0,1fr) 42px 38px 32px 36px; gap:4px;
+  align-items:center; padding:5px 8px;
+}
+.entete-reglage-parts {
+  /* `.carte-tete` (socle) porte déjà le fond bleu-titre-majuscule : ici la maquette veut au
+     contraire un bandeau gris avec 4 en-têtes de colonnes en plus du titre — on redéfinit la
+     grille et la couleur plutôt que d'ajouter une deuxième classe d'en-tête générique. */
+  background:var(--fond-bandeau); border-bottom:1px solid var(--bordure);
+  font-size:9px; font-weight:700; color:var(--bleu); text-transform:uppercase; letter-spacing:.04em;
+}
+.entete-reglage-parts span:first-child { text-align:left; font-size:10px; }
+.entete-reglage-parts span:not(:first-child) { text-align:center; }
+.ligne-reglage-parts { border-bottom:1px solid var(--separateur); }
+.ligne-reglage-parts:last-child { border-bottom:0; }
+.ligne-reglage-parts > .cycle,
+.ligne-reglage-parts > .rp-fois-fige { justify-self:center; }
+
+/* Colonne 1 : titre (bouton, ouvre la feuille de modification) + deux/trois petits boutons
+   texte (minutes, écart, moment) — jamais de hauteur fixe, le libellé de l'écart peut grandir
+   (zoom Android, rules/mobile-parents.md). */
+.rp-titre { min-width:0; display:flex; flex-direction:column; gap:2px; padding-right:4px; }
+.rp-nom {
+  border:0; background:none; padding:0; margin:0; display:block; width:100%; text-align:left;
+  font-family:inherit; font-size:13px; font-weight:600; color:var(--texte); overflow-wrap:break-word; cursor:pointer;
+}
+.rp-mini { display:flex; flex-wrap:wrap; gap:2px 10px; }
+/* Plancher absolu 24x24 (rules/mobile-parents.md) : bouton texte, pas un cycle de réglage
+   30 px comme les autres colonnes — la maquette les veut visuellement légers (10 px). */
+.rp-bouton-texte.cycle {
+  border:0; background:none; padding:2px 0; min-width:0; min-height:24px; font-family:inherit;
+  font-variant-numeric:normal; font-weight:400; font-size:10px; color:var(--texte-2); justify-content:flex-start;
+}
+.rp-bouton-texte.rp-ecart { color:var(--bleu); }
+
+/* Fois figé (mensuel) : même gabarit que le bouton-cycle, pour garder la grille alignée. */
+.rp-fois-fige {
+  display:inline-flex; align-items:center; justify-content:center; min-width:30px; min-height:30px;
+  font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:13px; font-weight:700; color:var(--texte-2);
+}
+
+@media (min-width:1024px) {
+  .grille-cartes { grid-template-columns:1fr 1fr; }
+}
+
+/* < 360 px (non-régression 320 px, rules/mobile-parents.md) : la grille Semaine et les deux
+   colonnes de cartes sont le point de rupture identifié au brief — on serre les espacements
+   plutôt que de casser la mise en page, jamais de scroll horizontal sur la page. */
+@media (max-width:359px) {
+  .grille-cartes { gap:5px; }
+  .ligne-tache { padding:2px 5px; gap:4px; }
+  .titre-tache { font-size:12px; }
+  .ligne-grille-semaine { padding:1px 4px; gap:0 1px; }
+  .cellule-semaine.cycle { width:22px; min-width:22px; }
+  /* Tableau Réglages · Parts, 5 colonnes : on serre gap et padding, jamais les cibles à moins
+     de 30 px (handoff §5, usage rare à deux mains — cf. .cycle-reglage). */
+  .entete-reglage-parts, .ligne-reglage-parts { grid-template-columns:minmax(0,1fr) 38px 34px 30px 32px; gap:2px; padding:5px 4px; }
+  .rp-mini { gap:1px 6px; }
+}
+
+/* ================= Feuilles « Travaux en attente » et « Ajouter une tâche » (handoff §8) ================= */
+/* En-tête de feuille titre + sous-titre sur une ligne (comme .tete-ecran, réutilisé pour deux
+   feuilles) : jamais de hauteur fixe, un sous-titre long doit pouvoir passer à la ligne. */
+.entete-feuille-todo { display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.entete-feuille-todo .sous { font-size:12px; color:var(--texte-2); }
+
+/* ---------- Travaux en attente : liste sans date, case 19 px, titre 14 px, méta 11 px ---------- */
+.liste-todo { border:1px solid var(--bordure); border-radius:11px; overflow:auto; max-height:50vh; }
+.ligne-todo {
+  display:flex; align-items:center; gap:9px; min-height:48px; padding:4px 10px;
+  border-bottom:1px solid var(--separateur); cursor:pointer;
+}
+.ligne-todo:last-child { border-bottom:0; }
+/* Case 19 px : plancher accepté par mobile-parents.md (≥8 px d'espacement autour, ligne de
+   48 px de haut qui porte la vraie cible tactile — c'est la ligne entière qui bascule, pas
+   seulement la case, cf. brancherDetail plus bas dans ui-taches.js). */
+.case-todo {
+  width:19px; height:19px; flex:none; border-radius:6px; box-sizing:border-box;
+  border:1.5px solid var(--tirets); background:#fff; color:#fff;
+  display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;
+}
+.case-todo-faite { background:var(--vert); border-color:var(--vert); }
+.todo-corps { flex:1; min-width:0; display:flex; flex-direction:column; }
+.todo-titre { font-size:14px; font-weight:600; color:var(--texte); }
+.todo-titre.fait { font-weight:400; text-decoration:line-through; color:var(--texte-2); }
+.todo-meta { font-size:11px; color:var(--texte-2); }
+.todo-parts { font-size:11px; color:var(--texte-2); flex:none; }
+
+/* ---------- Ajouter une tâche : champs empilés, boutons de choix direct (pas des cycles : un
+   seul état actif à la fois, pas de "tap = valeur suivante" — cf. rapport de l'agent). ---------- */
+.champ-groupe { display:flex; flex-direction:column; gap:4px; }
+.etiquette-champ { font-size:10px; font-weight:700; color:var(--texte-2); text-transform:uppercase; letter-spacing:.06em; }
+/* .puces-suggestions / .puce-suggestion : socle.css */
+
+/* Quand / Fait par / drapeaux : boutons pleine largeur en ligne, cible 48 px (règle mobile du
+   projet — le handoff dessine 32 px, mais rules/mobile-parents.md est non négociable ici). */
+.ligne-boutons-4, .ligne-boutons-3, .ligne-boutons-2 { display:flex; gap:5px; }
+.btn-choix {
+  flex:1; min-height:48px; border:1px solid var(--bordure); border-radius:8px; background:#fff;
+  color:var(--texte); font-size:13px; font-weight:600; padding:2px 4px; cursor:pointer; line-height:1.2;
+}
+/* Sélectionné = bleu PLEIN, texte blanc (D-036, gabarits communs « feuille ») : la maquette
+   distingue l'état choisi (Quand, Fait par, Parts) du survol/disponible, jamais un simple bleu
+   clair bordé qui se confond avec un état « disponible mais pas choisi ». */
+.btn-choix.actif { background:var(--bleu); border-color:var(--bleu); color:#fff; }
+
+/* Parts : 6 boutons — l'échelle tient sur une ligne à 360 px avec un gap serré ; 44 px de haut
+   reste au-dessus du plancher 24 px de mobile-parents.md tout en approchant les 48 px cible. */
+.ligne-parts { display:flex; gap:3px; }
+.btn-part {
+  flex:1; min-height:44px; border:1px solid var(--bordure); border-radius:8px; background:#fff;
+  color:var(--texte); font-family:var(--mono); font-variant-numeric:tabular-nums; font-weight:700;
+  font-size:13px; padding:2px 2px; cursor:pointer;
+}
+.btn-part.actif { background:var(--bleu); border-color:var(--bleu); color:#fff; }
+
+/* < 360 px : les 4 boutons Quand et les 6 boutons Parts sont les plus serrés — on réduit la
+   police avant de laisser déborder (recette obligatoire à 320 px, rules/mobile-parents.md). */
+@media (max-width:359px) {
+  .btn-choix { font-size:12px; padding:2px 2px; }
+  .btn-part { font-size:12px; }
+}
+
