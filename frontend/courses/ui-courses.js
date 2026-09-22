@@ -5,6 +5,7 @@
 import { $, $$, txt, toast, confirmer, ouvrirFeuille, fermerFeuille } from "../socle/ui-base.js";
 import { ligneCoche, brancherCoches, creerFileEcritures } from "../socle/blocs.js";
 import { classiquesAbsents, repasProposes, sequenceTournee } from "./tournee.js";
+import { suggerer, classiqueCorrespondant } from "./suggestions.js";
 
 export function creerUiCourses(api, etat, cb) {
   const aFaire = () => etat.courses.filter((a) => !a.coche_le);
@@ -166,23 +167,65 @@ export function creerUiCourses(api, etat, cb) {
   }
 
   /** Ajout rapide : le champ reste ouvert, on enchaîne les articles sans rouvrir de feuille. */
+  async function ajouterArticle({ libelle, quantite, rayon }) {
+    const champLibelle = $("#course-libelle");
+    try {
+      const cree = await api.creerCourse({ libelle, quantite: quantite || null, rayon, ajoute_par: etat.prenom });
+      etat.courses.push(cree);
+      champLibelle.value = "";
+      $("#course-quantite").value = "";
+      $("#course-rayon").value = "Autre";
+      champLibelle.focus();
+      rendre();
+    } catch (e) { cb.echec(e); }
+  }
+
   function brancherAjout() {
-    $("#form-course").addEventListener("submit", async (ev) => {
+    $("#form-course").addEventListener("submit", (ev) => {
       ev.preventDefault();
-      const champLibelle = $("#course-libelle");
-      const libelle = champLibelle.value.trim();
+      const libelle = $("#course-libelle").value.trim();
       if (!libelle) return;
-      try {
-        const cree = await api.creerCourse({
-          libelle, quantite: $("#course-quantite").value.trim() || null,
-          rayon: $("#course-rayon").value, ajoute_par: etat.prenom,
-        });
-        etat.courses.push(cree);
-        champLibelle.value = "";
-        $("#course-quantite").value = "";
-        champLibelle.focus();
-        rendre();
-      } catch (e) { cb.echec(e); }
+      // Un libellé déjà connu reprend son groupe quand on n'en a pas choisi (« Autre » est le
+      // défaut du select, pas un choix) : « lait » retombe dans le bon rayon sans y penser.
+      const connu = classiqueCorrespondant(libelle, etat.classiques);
+      const rayonChoisi = $("#course-rayon").value;
+      const rayon = connu && rayonChoisi === "Autre" ? connu.rayon : rayonChoisi;
+      void ajouterArticle({ libelle, quantite: $("#course-quantite").value.trim(), rayon });
+    });
+  }
+
+  // ---------- aide à la saisie : les derniers articles achetés ----------
+  // Affichée dès que le champ Article a le focus (vide = les derniers achetés), filtrée à
+  // chaque frappe ; un tap sur une puce ajoute l'article tel qu'il a été acheté la dernière
+  // fois (groupe et quantité compris). Logique pure dans suggestions.js.
+  function rendreAide() {
+    const champ = $("#course-libelle");
+    const zone = $("#aide-articles");
+    const propositions = document.activeElement === champ
+      ? suggerer(champ.value, etat.classiques, aFaire())
+      : [];
+    zone.hidden = !propositions.length;
+    zone.innerHTML = propositions.map((c) => `<button type="button" class="aide-article" data-libelle="${txt(c.libelle)}">
+      <span class="aide-libelle">${txt(c.libelle)}</span>${c.quantite ? `<span class="mono">${txt(c.quantite)}</span>` : ""}
+    </button>`).join("");
+  }
+
+  function brancherAide() {
+    const champ = $("#course-libelle");
+    const zone = $("#aide-articles");
+    champ.addEventListener("focus", rendreAide);
+    champ.addEventListener("input", rendreAide);
+    champ.addEventListener("blur", () => { zone.hidden = true; });
+    // pointerdown précède le blur du champ : sans preventDefault, la zone serait cachée avant
+    // que le click n'arrive, et le tap tomberait dans le vide.
+    zone.addEventListener("pointerdown", (ev) => ev.preventDefault());
+    zone.addEventListener("click", (ev) => {
+      const b = ev.target.closest("[data-libelle]");
+      if (!b) return;
+      const c = etat.classiques.find((x) => x?.libelle === b.dataset.libelle);
+      if (!c) return;
+      zone.hidden = true;
+      void ajouterArticle({ libelle: c.libelle, quantite: c.quantite, rayon: c.rayon });
     });
   }
 
@@ -302,6 +345,7 @@ export function creerUiCourses(api, etat, cb) {
   }
 
   brancherAjout();
+  brancherAide();
   $("#btn-vider-panier").addEventListener("click", viderPanier);
   $("#btn-tour").addEventListener("click", ouvrirTournee);
 

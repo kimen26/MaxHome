@@ -24,6 +24,18 @@
   background:var(--bleu); color:#fff; font-size:18px; font-weight:600; line-height:1; cursor:pointer;
 }
 
+/* Aide à la saisie sous la ligne d'ajout : puces des derniers articles achetés. Cible 44 px
+   (rules/mobile-parents.md), libellé à gauche, quantité mono à droite ; la zone grandit avec
+   le texte, jamais de hauteur fixe. */
+.aide-articles { display:flex; flex-wrap:wrap; gap:6px; padding:6px 0 2px; }
+.aide-article {
+  display:inline-flex; align-items:center; gap:8px; min-height:44px; padding:0 14px;
+  border:1px solid var(--bordure); border-radius:999px; background:#fff; color:var(--texte);
+  font-size:14px; cursor:pointer; max-width:100%;
+}
+.aide-article .mono { font-size:11px; color:var(--texte-2); }
+.aide-article:active { background:var(--fond-bandeau); }
+
 /* Titre de contenu « Liste commune » + sous-titre (hors en-tête, dans le flux — D-036 §4). */
 .titre-liste-courses { font-size:15px; font-weight:600; margin:10px 0 2px; }
 #sous-courses { font-size:12px; color:var(--texte-2); margin:0 0 8px; }

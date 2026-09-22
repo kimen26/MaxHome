@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { classiquesAbsents, ingredientsManquants, repasDansListe, repasProposes,
   sequenceTournee } from "../frontend/courses/tournee.js";
+import { suggerer, classiqueCorrespondant, normaliser } from "../frontend/courses/suggestions.js";
 
 // ---------- classiquesAbsents : triés par fréquence décroissante, présents exclus ----------
 const classiques = [
@@ -94,3 +95,30 @@ assert.deepEqual(
   [], "un article nul dans la liste ne masque pas la comparaison");
 
 console.log("test_courses OK");
+
+// ---------- suggestions : aide à la saisie de la ligne d'ajout ----------
+const recents = [
+  { libelle: "Lait", quantite: "2 L", rayon: "Épicerie, alcool, lait", fois: 20, dernier_le: "2026-09-10T10:00:00Z" },
+  { libelle: "Laitue", quantite: null, rayon: "Fruits et légumes", fois: 2, dernier_le: "2026-09-18T10:00:00Z" },
+  { libelle: "Œufs", quantite: "1 boîte", rayon: "Épicerie, alcool, lait", fois: 9, dernier_le: "2026-09-15T10:00:00Z" },
+  { libelle: "Chocolat au lait", quantite: null, rayon: "Épices et grignotage", fois: 1, dernier_le: "2026-09-19T10:00:00Z" },
+  { libelle: "Sans date", quantite: null, rayon: "Autre", fois: 7 },
+  null,
+];
+assert.equal(normaliser(" Œufs "), "oeufs", "normaliser : casse, accents, ligatures, bords");
+assert.deepEqual(suggerer("", recents, []).map((c) => c.libelle),
+  ["Chocolat au lait", "Laitue", "Œufs", "Lait", "Sans date"],
+  "saisie vide : les derniers achetés d'abord, sans date en dernier, null ignoré");
+assert.deepEqual(suggerer("lai", recents, []).map((c) => c.libelle),
+  ["Laitue", "Lait", "Chocolat au lait"],
+  "« commence par » avant « contient », chaque groupe par récence");
+assert.deepEqual(suggerer("oeu", recents, []).map((c) => c.libelle), ["Œufs"], "œ se tape oe");
+assert.deepEqual(suggerer("lait", recents, [{ id: 1, libelle: "Lait" }]).map((c) => c.libelle),
+  ["Laitue", "Chocolat au lait"], "Lait, déjà dans la liste, n'est pas proposé ; Laitue et « au lait » restent");
+assert.deepEqual(suggerer("", recents, [], 2).map((c) => c.libelle), ["Chocolat au lait", "Laitue"], "plafond");
+assert.deepEqual(suggerer("zzz", recents, []), [], "rien ne correspond : vide");
+assert.equal(classiqueCorrespondant("  LAIT ", recents)?.rayon, "Épicerie, alcool, lait", "correspondance exacte");
+assert.equal(classiqueCorrespondant("lai", recents), null, "préfixe seul : pas de correspondance");
+assert.equal(classiqueCorrespondant("", recents), null, "vide : rien");
+
+console.log("test_courses : suggestions OK");
