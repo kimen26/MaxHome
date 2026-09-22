@@ -1,0 +1,84 @@
+/* MaxHome — Agenda : grille du mois, liste des événements, écran Vacances, Réglages · Voyages.
+   Les gabarits génériques (.tete-ecran, .carte, .segment, .btn-lien, .legende) viennent du
+   socle ; ici seulement ce qui est propre à l'Agenda. Trois couleurs, toujours doublées d'un
+   libellé (« Vacances », « Voyage », « Férié ») : la couleur n'est jamais seule. */
+
+:root {
+  --vac-fond:#fff3d6; --vac-texte:#8a6d3b;      /* vacances scolaires : ambre clair */
+  --voy-fond:#e8eff6; --voy-texte:#1f4e79;      /* voyage : bleu MaxHome */
+  --fer-fond:#f2f8f4; --fer-texte:#1b7f3b;      /* férié : vert */
+}
+
+/* ================= En-tête : ‹ Mois AAAA › + Aujourd'hui ================= */
+.agenda-nav { display:flex; align-items:center; gap:6px; }
+.agenda-nav h1 { flex:1; text-align:center; font-size:15px; }
+.agenda-nav .btn-mois {
+  width:44px; height:44px; min-width:44px; border:1px solid var(--bordure); border-radius:8px;
+  background:#fff; font-size:20px; line-height:1; cursor:pointer; color:var(--texte);
+}
+.agenda-nav .btn-auj {
+  height:44px; padding:0 10px; border:1px solid var(--bordure); border-radius:8px; background:#fff;
+  font-size:12px; font-weight:600; color:var(--bleu); cursor:pointer;
+}
+#agenda-zone { font-size:12px; color:var(--texte-2); margin:0; text-align:center; }
+
+/* ================= Grille : 7 colonnes égales, cases ≥ 44 px, jamais de hauteur fixe ================= */
+.agenda-grille { background:#fff; border:1px solid var(--bordure); border-radius:11px; overflow:hidden; margin-top:8px; }
+.agenda-entete, .agenda-semaine { display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); }
+.agenda-entete span { text-align:center; font-size:11px; font-weight:600; color:var(--texte-2); padding:6px 0; border-bottom:1px solid var(--separateur-2); }
+.agenda-semaine { border-bottom:1px solid var(--separateur-2); }
+.agenda-semaine:last-child { border-bottom:0; }
+.agenda-case {
+  position:relative; min-height:46px; padding:4px 3px 14px; border-right:1px solid var(--separateur);
+  display:flex; flex-direction:column; align-items:center; gap:2px; background:#fff;
+}
+.agenda-case:last-child { border-right:0; }
+.agenda-case.hors-mois .agenda-jour { color:var(--placeholder); }
+.agenda-jour { font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:13px; }
+/* Vacances : fond ambre sur toute la case. Voyage : trait bleu au bas. Férié : lettre F verte. */
+.agenda-case.a-vacances { background:var(--vac-fond); }
+.agenda-marque-voyage { position:absolute; left:3px; right:3px; bottom:4px; height:5px; border-radius:3px; background:var(--voy-texte); }
+.agenda-marque-ferie {
+  position:absolute; right:3px; top:3px; font-size:10px; font-weight:700; color:var(--fer-texte);
+  background:var(--fer-fond); border-radius:4px; padding:0 3px; line-height:14px;
+}
+.agenda-case.a-ferie .agenda-jour { color:var(--fer-texte); font-weight:600; }
+/* Après la règle férié : aujourd'hui garde son disque bleu même un jour férié. */
+.agenda-case.aujourdhui .agenda-jour {
+  background:var(--bleu); color:#fff; font-weight:600; border-radius:999px; width:24px; height:24px;
+  display:inline-flex; align-items:center; justify-content:center;
+}
+
+/* ================= Événements du mois : type en étiquette + texte ================= */
+#agenda-evenements { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+.agenda-evt {
+  display:flex; align-items:flex-start; gap:10px; background:#fff; border:1px solid var(--bordure);
+  border-radius:11px; padding:10px 12px; min-height:44px;
+}
+.agenda-evt-type {
+  flex:0 0 auto; font-size:11px; font-weight:600; border-radius:6px; padding:2px 7px; margin-top:1px;
+  background:var(--fond-bandeau); color:var(--texte-2);
+}
+.agenda-evt.a-vacances .agenda-evt-type { background:var(--vac-fond); color:var(--vac-texte); }
+.agenda-evt.a-voyage .agenda-evt-type { background:var(--voy-fond); color:var(--voy-texte); }
+.agenda-evt.a-ferie .agenda-evt-type { background:var(--fer-fond); color:var(--fer-texte); }
+.agenda-evt-corps { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.agenda-evt-titre { font-size:14px; font-weight:600; }
+.agenda-evt .sous { font-size:12px; color:var(--texte-2); }
+
+/* ================= Écran Vacances ================= */
+#vacances-notre { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; margin:8px 0 2px; }
+#vacances-notre .sous { font-size:12px; color:var(--texte-2); }
+.ligne-periode {
+  display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:44px;
+  padding:8px 10px; border-bottom:1px solid var(--separateur);
+}
+.ligne-periode:last-child { border-bottom:0; }
+.ligne-periode-corps { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.ligne-periode-titre { font-size:14px; font-weight:600; }
+.ligne-periode .sous { font-size:12px; color:var(--texte-2); }
+.ligne-periode-quand { flex:0 0 auto; font-size:12px; font-weight:600; color:var(--bleu); text-align:right; }
+
+/* ================= Réglages · Voyages ================= */
+#liste-voyages { margin-top:10px; }
+#form-voyage { margin-top:10px; }

@@ -102,9 +102,18 @@ export function creerApi(sb) {
       // plantait alors sur `c.libelle`. Une écriture dont on réutilise le résultat doit le rendre.
       return sb.from("courses_classiques").upsert({
         libelle: article.libelle, quantite: article.quantite, rayon: article.rayon,
-        fois: (existant?.fois ?? 0) + 1,
+        fois: (existant?.fois ?? 0) + 1, dernier_le: new Date().toISOString(),
       }).select().single().then(rendre);
     },
+
+    // ---------- module Agenda ----------
+    voyages: () => sb.from("voyages").select("*").order("debut").order("id").then(rendre),
+    creerVoyage: (champs) => sb.from("voyages").insert(champs).select().single().then(rendre),
+    majVoyage: (id, champs) => sb.from("voyages").update(champs).eq("id", id).then(rendre),
+    supprimerVoyage: (id) => sb.from("voyages").delete().eq("id", id).then(rendre),
+    parametres: () => sb.from("parametres").select("*").then(rendre),
+    /** Une ligne par clé ; `.select().single()` obligatoire, l'appelant réutilise la ligne (L-025). */
+    majParametre: (cle, valeur) => sb.from("parametres").upsert({ cle, valeur }).select().single().then(rendre),
 
     // ---------- module Tâches ----------
     tachesRec: () => sb.from("taches_recurrentes").select("*").order("ordre").order("id").then(rendre),

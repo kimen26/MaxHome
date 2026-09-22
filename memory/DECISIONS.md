@@ -409,3 +409,35 @@ parallèle sans se marcher dessus — c'est ce qui a permis de livrer les quatre
 
 Vérification : `tests/planche_maquette.mjs` met chaque capture à côté de son image de référence
 (`tests/outils/capture_maquette.mjs` rend la maquette dans Playwright) ; onze planches regardées.
+
+## D-037 — Module Agenda : les voyages en base, les vacances lues à la volée, la zone en paramètre (2026-09-22)
+
+Contexte : Yann veut « une zone avec tout ça » — les voyages de MaxVoyage, un calendrier, les
+vacances scolaires par zone. Exploration de MaxVoyage : c'est un veilleur de prix d'avion local
+(FastAPI + SQLite, jamais déployé) ; ses « voyages » sont quatre carnets HTML écrits à la main
+sous `frontend/voyages/`, pleins de données personnelles (dates, budget, âge de l'enfant), sans
+aucune table ni export. Aucun code, aucun compte, aucune base partagés avec MaxHome.
+Arbitrages :
+1. **Les carnets ne migrent pas.** Le dépôt MaxHome est public (invariant 1) : seul le
+   nécessaire au calendrier entre en base — `voyages(titre, lieu, debut, fin, note)`, saisis
+   dans Réglages · Voyages. Le détail reste dans MaxVoyage ou dans la note. Les quatre voyages
+   réels ont été posés en base par un script `inbox/` (jamais commité).
+2. **Les vacances scolaires ne sont pas stockées** : l'app lit l'API publique
+   data.education.gouv.fr (même source que `MaxVoyage/backend/holidays.py`, CORS ouvert,
+   vérifié) depuis le navigateur, cache `localStorage` 7 jours, repli sur le cache périmé hors
+   ligne — annoncé à l'écran (« hors ligne, liste peut-être ancienne »), jamais une liste vide
+   silencieuse. Pas de table, pas d'Edge Function, rien à maintenir côté serveur.
+3. **La zone du foyer vit dans `parametres(cle, valeur)`**, une table clé/valeur générique
+   (première clé : `zone`), pas une colonne ni une constante. L'écran Vacances compare les
+   trois zones ; changer la zone du foyer est un bouton explicite, pas un effet de la
+   consultation. Défaut « Zone C » dans le code (comme MaxVoyage) tant que la clé manque.
+4. **Fériés calculés en JS** (Pâques par Meeus, 11 fériés de métropole) : aucune source à
+   interroger pour une règle stable depuis un siècle.
+5. **La grille du mois a son propre mois** (`etat.agenda`), pas le sélecteur partagé du Budget
+   (`avecMois`) : on feuillette l'agenda à plusieurs mois, on regarde le budget au mois courant.
+6. Le shell absorbe un cinquième module sans réglage : barre basse en colonnes automatiques,
+   segmenté Réglages à cinq entrées qui passe le libellé sur deux lignes à 320 px, barre PC qui
+   replie sur deux lignes. Un sixième module ne touchera pas ces feuilles.
+Alternatives écartées : servir les carnets HTML depuis MaxHome (données perso dans un dépôt
+public) ; un iframe vers MaxVoyage (jamais hébergé, local seulement) ; une table `vacances`
+remplie par cron (une source de vérité de plus à synchroniser pour une donnée publique).

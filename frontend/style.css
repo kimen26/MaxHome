@@ -38,12 +38,13 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .vide { color:var(--texte-2); font-style:italic; }
 .erreur { color:var(--rouge); }
 
-/* ---------- navigation mobile : barre basse GLOBALE à 4 entrées (D-036 §3) ---------- */
-/* Tâches · Budget · Courses · Réglages, toujours dans cet ordre — plus un menu « Plus » à
-   ouvrir : chaque module garde ses propres écrans dans le segmenté de son en-tête. */
+/* ---------- navigation mobile : barre basse GLOBALE, un bouton par module + Réglages (D-036 §3) ---------- */
+/* Tâches · Budget · Courses · Agenda · Réglages, dans l'ordre de modules.js — plus un menu
+   « Plus » à ouvrir : chaque module garde ses propres écrans dans le segmenté de son en-tête.
+   Colonnes automatiques : un module de plus ne se règle pas ici (D-037). */
 #onglets {
   position:fixed; left:0; right:0; bottom:0; z-index:20;
-  display:grid; grid-template-columns:repeat(4, 1fr); height:var(--barre-basse);
+  display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); height:var(--barre-basse);
   padding:4px 0 9px; padding-bottom:calc(9px + env(safe-area-inset-bottom, 0px));
   background:#fff; border-top:1px solid var(--bordure);
 }
@@ -147,7 +148,9 @@ main { padding:8px 12px calc(var(--barre-basse) + 84px); }
   body { font-size:14px; }
   #onglets { display:none; }
   #barre-pc {
-    display:flex; align-items:center; gap:8px; height:60px; padding:0 32px;
+    /* Hauteur souple : avec un module de plus, modules + segmenté de Réglages + mois + Déconnexion
+       ne tiennent plus toujours sur 1200 px ; la barre passe sur deux lignes plutôt que de déborder. */
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-height:60px; padding:6px 32px;
     background:#fff; border-bottom:1px solid var(--bordure); position:sticky; top:0; z-index:20;
   }
   #barre-pc .logo { font-size:17px; font-weight:600; color:var(--bleu); margin-right:12px; white-space:nowrap; }

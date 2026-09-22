@@ -301,3 +301,22 @@ relancer par message avec « exécute en avant-plan, timeout 300000 ». Le lot C
 rapport partiel (feuille + magasin faits, écran principal intact) qu'une planche a démasqué. **Dans
 un brief de sous-agent : interdire explicitement l'arrière-plan et exiger que le rapport final
 liste les captures regardées ; puis regarder soi-même la planche, jamais se fier au « fidèle ».**
+
+## L-032 — Un script Python qui écrit du JavaScript avale les `\n` (2026-09-22)
+
+Contexte : `tests/recette_ecrans.mjs` patché par un script Python en heredoc. La chaîne Python
+contenait `split("\n")` : Python a produit un vrai retour à la ligne au milieu du littéral JS,
+et Node a répondu `SyntaxError: Invalid or unexpected token` sur une ligne qui semblait
+anodine. Quatre tentatives de réparation ont échoué pour la même raison (la réparation aussi
+passait par une chaîne Python). **Pour insérer du JS qui contient des séquences d'échappement,
+l'outil Edit (correspondance exacte) plutôt qu'un patch Python ; et quand Node dit « unexpected
+token » sur une ligne saine, regarder les octets (`cat -A`), pas le rendu.**
+
+## L-033 — Une attente de test écrite de tête est fausse une fois sur trois (2026-09-22)
+
+Contexte : trois assertions de `test_agenda.mjs` / `test_courses.mjs` ont échoué alors que le
+code était juste — « lait » matche aussi « Laitue » ; un voyage qui commence le 11 novembre
+passe avant le férié du même jour ; février 2027 tient sur quatre semaines. Chaque fois, c'est
+l'attente que j'ai corrigée, pas le code, après avoir vérifié à la main que le résultat obtenu
+était le bon. **Quand un test neuf échoue, refaire le calcul à la main avant de toucher au code :
+un test écrit de tête vérifie surtout l'auteur du test.**

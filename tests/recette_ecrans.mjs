@@ -25,6 +25,19 @@ const FEUILLES = [
   { ecran: "jour", moduleDefaut: "jour", bouton: "#btn-todo", nom: "feuille-todo" },
   { ecran: "courses", moduleDefaut: "courses", bouton: "#btn-tour", nom: "feuille-tour" },
   { ecran: "mois", moduleDefaut: "mois", bouton: "#fab-ajouter-mois", nom: "feuille-ajout-mois" },
+  { ecran: "voyages", moduleDefaut: "taches-rec", bouton: "#form-voyage [data-nouveau]", nom: "feuille-ajout-voyage" },
+];
+
+// États qu'un geste révèle SANS feuille : le mois suivant de l'Agenda (les données factices y
+// posent vacances, voyage et férié, le mois courant peut n'en avoir aucun) et l'aide à la saisie
+// des Courses, qui n'apparaît que lorsque le champ Article a le focus. Même raison que FEUILLES.
+const GESTES = [
+  { ecran: "agenda-mois", moduleDefaut: "agenda-mois", nom: "agenda-mois-suivant",
+    // Deux mois plus loin : les données factices y posent à la fois des vacances, un voyage et,
+    // selon la date du jour, un férié — la grille montre alors ses trois marques.
+    geste: async (page) => { await page.click("#agenda-suiv"); await page.click("#agenda-suiv"); await page.waitForTimeout(150); } },
+  { ecran: "courses", moduleDefaut: "courses", nom: "courses-aide-saisie",
+    geste: async (page) => { await page.focus("#course-libelle"); await page.waitForSelector("#aide-articles:not([hidden])", { timeout: 3000 }); } },
 ];
 
 // ---------- 1. écrans à visiter, lus depuis les descripteurs (pas de liste en dur) ----------
@@ -88,6 +101,7 @@ const TABLES = {
   taches_recurrentes: "TACHES_RECURRENTES", taches: "TACHES",
   courses_rayons: "RAYONS", courses: "COURSES", repas: "REPAS", repas_ingredients: "REPAS_INGREDIENTS",
   courses_classiques: "COURSES_CLASSIQUES",
+  voyages: "VOYAGES", parametres: "PARAMETRES",
 };
 
 /** Construit le script de bouchon : un thenable qui imite from().select().eq()... et
@@ -96,6 +110,12 @@ function scriptBouchon(donnees) {
   const parTable = Object.fromEntries(Object.entries(TABLES).map(([table, cle]) => [table, donnees[cle] ?? []]));
   return `(() => {
     const DONNEES = ${JSON.stringify(parTable)};
+    // Vacances scolaires : cache local frais pour les trois zones, donc aucun appel réseau
+    // (frontend/agenda/vacances.js lit le cache avant l'API).
+    for (const zone of ["Zone A", "Zone B", "Zone C"]) {
+      localStorage.setItem("maxhome.vacances." + zone, JSON.stringify({ quand: Date.now(),
+        periodes: ${JSON.stringify(donnees.VACANCES_CACHE ?? [])}.map((p) => ({ ...p, zone })) }));
+    }
     const table = (nom) => JSON.parse(JSON.stringify(DONNEES[nom] ?? []));
 
     // Requête chaînable et thenable : chaque méthode renvoie l'objet lui-même, la résolution
@@ -378,6 +398,18 @@ try {
         // une preuve, pas un délai).
         await page.evaluate(() => document.getElementById("feuille-fond").click());
         await page.waitForSelector("#feuille", { state: "hidden", timeout: 5000 });
+      } catch (e) {
+        ecransCasses.push(`${nom} @ ${largeur}px : ${e.message.split("\n")[0]}`);
+        try { await page.click("#logo"); await page.waitForSelector("#ecran-accueil:not([hidden])", { timeout: 3000 }); }
+        catch { /* la page suivante repartira de zéro */ }
+      }
+    }
+    // ---------- les gestes ----------
+    for (const { ecran, moduleDefaut, geste, nom } of GESTES) {
+      try {
+        await aller(page, ecran, moduleDefaut);
+        await geste(page);
+        await capturer(page, nom, largeur, erreursPage);
       } catch (e) {
         ecransCasses.push(`${nom} @ ${largeur}px : ${e.message.split("\n")[0]}`);
         try { await page.click("#logo"); await page.waitForSelector("#ecran-accueil:not([hidden])", { timeout: 3000 }); }

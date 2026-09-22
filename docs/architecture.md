@@ -1,6 +1,6 @@
 # Architecture MaxHome
 
-MaxHome est une application privée à trois modules (Budget, Tâches, Courses) partagée par
+MaxHome est une application privée à quatre modules (Budget, Tâches, Courses, Agenda) partagée par
 Claudia et Yann. Le code est public (dépôt GitHub), les données ne le sont jamais.
 
 ## 1. Vue d'ensemble
@@ -46,6 +46,7 @@ frontend/
   budget/      module Budget
   taches/      module Tâches
   courses/     module Courses
+  agenda/      module Agenda
 ```
 
 ### Racine
@@ -55,7 +56,7 @@ frontend/
 | `index.html` | squelette de toutes les sections d'écran (`<section id="ecran-...">`), la feuille mobile, le formulaire de login |
 | `style.css` | feuille de style unique |
 | `config.js` | URL et clé anon du projet Supabase (publiable) |
-| `modules.js` | registre des modules, dans l'ordre d'affichage : `export const LISTE = [budget, taches, courses]` |
+| `modules.js` | registre des modules, dans l'ordre d'affichage : `export const LISTE = [taches, budget, courses, agenda]` |
 | `app.js` | orchestrateur : authentification, état partagé, sélecteur de mois, accueil, boucle de chargement sur les modules du registre. Ne cite aucun module par son nom. |
 
 ### `frontend/socle/` — ce qui est commun à tous les modules
@@ -101,7 +102,24 @@ ne doit pas réécrire à la main.
 | Fichier | Rôle |
 |---|---|
 | `mod-courses.js` | descripteur du module |
-| `ui-courses.js` | écran Liste, cases à cocher par rayon |
+| `ui-courses.js` | écran Liste, cases à cocher par rayon, aide à la saisie (puces des derniers articles achetés) |
+| `suggestions.js` | logique pure de l'aide à la saisie : classiques filtrés par la frappe, les plus récents d'abord (`dernier_le`) |
+| `tournee.js` | logique pure de la feuille « On fait le tour », partagée avec le bot |
+| `ui-magasin.js` | Réglages · Magasin : ordre des rayons |
+
+### `frontend/agenda/` — module Agenda
+
+| Fichier | Rôle |
+|---|---|
+| `mod-agenda.js` | descripteur du module : écrans Mois et Vacances, réglage Voyages, zone du foyer lue dans `parametres` |
+| `calendrier.js` | **règles pures** : Pâques et les 11 fériés métropolitains, grille d'un mois (lundi → dimanche), événements d'un mois, prochaines périodes, formats — testé par `tests/test_agenda.mjs` |
+| `vacances.js` | vacances scolaires par zone : appel de l'API publique data.education.gouv.fr (même source que MaxVoyage), parseur pur (UTC → jour de Paris, fin = veille de la reprise, dédoublonnage), cache `localStorage` 7 jours, repli sur le cache périmé hors ligne (`perime: true`, dit à l'écran) — jamais une liste vide silencieuse |
+| `ui-agenda.js` | écran Mois : grille + liste des événements en toutes lettres (la couleur n'est jamais seule) |
+| `ui-vacances.js` | écran Vacances : segmenté Zone A \| B \| C pour comparer, bouton explicite « Passer le foyer en Zone X », fériés à venir |
+| `ui-voyages.js` | Réglages · Voyages : CRUD assemblé sur `blocs-reglages.js` |
+
+Les carnets de voyage détaillés restent dans MaxVoyage (HTML écrits à la main, avec des
+données personnelles) : MaxHome ne porte que ce qu'il faut pour un calendrier (D-037).
 
 ## 3. Le contrat d'un module (descripteur `mod-*.js`)
 
@@ -199,6 +217,9 @@ ui-mouvements.js` / `scripts/bot/mouvements.py`, et `frontend/taches/taches.js` 
 | `taches` | `id`, `recurrent_id`, `titre`, `categorie`, `echeance`, `rang`, `qui`, `fait_le`, `points` | occurrence datée d'une tâche, points figés à la coche |
 | `courses` | `id`, `libelle`, `quantite`, `rayon`, `ajoute_par`, `ajoute_le`, `coche_le`, `coche_par` | articles de la liste commune |
 | `courses_rayons` | `nom` (PK), `ordre` | rayons dans l'ordre de parcours du magasin, pas alphabétique |
+| `courses_classiques` | `libelle` (PK), `quantite`, `rayon`, `fois`, `dernier_le` | articles déjà achetés (alimentés par « Vider le panier ») ; `fois` trie les classiques, `dernier_le` trie l'aide à la saisie |
+| `voyages` | `id`, `titre`, `lieu`, `debut`, `fin`, `note`, `cree_par`, `cree_le` | voyages du foyer posés sur le calendrier (`fin >= debut` contraint en base) |
+| `parametres` | `cle` (PK), `valeur` | paramètres du foyer ; `zone` = zone scolaire (« Zone C » par défaut dans l'app tant que la clé manque) |
 | `virements` | `annee`, `mois`, `prenom`, `montant_centimes`, `fait_le` | ancienne table, conservée par la migration 005 le temps de la bascule vers `mouvements` ; à retirer quand plus rien ne la lit |
 
 Toutes les tables ont `alter table ... enable row level security` et une politique
@@ -239,6 +260,8 @@ seule) : la fonction `est_membre()` (schéma principal) vérifie que l'email du 
 |---|---|
 | `node tests/test_calc.mjs` | moteur de répartition budgétaire (`frontend/budget/calc.js`) |
 | `node tests/test_taches.mjs` | échéances, points, balance du module Tâches |
+| `node tests/test_courses.mjs` | tournée, repas, aide à la saisie (`courses/tournee.js`, `courses/suggestions.js`) |
+| `node tests/test_agenda.mjs` | fériés, grille, événements, parseur et cache des vacances (`agenda/calendrier.js`, `agenda/vacances.js`) |
 | `python -m pytest -q tests/bot/` | grammaire (`commandes.py`), formatage (`reponses.py`), dispatch (`actions.py`, `test_dispatch_modules.py`), comportement global (`test_bot.py`) |
 | `tests/bot/test_taches.py` | **confrontation** : exécute la règle de points côté JS et côté Python sur les mêmes cas et compare, pour qu'une règle dupliquée ne diverge jamais silencieusement (L-014) |
 | `node tests/recette_visuelle.mjs` puis ouverture de `data/captures/*.png` | rendu visuel après tout changement d'UI — une capture se regarde, un log vert ne prouve rien |

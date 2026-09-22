@@ -267,8 +267,21 @@ export const REPAS_INGREDIENTS = [
   { id: 9, repas_id: 3, libelle: "Épinards", quantite: null, rayon: "Fruits et légumes" },
 ];
 
+// Agenda : deux voyages autour d'aujourd'hui (un en cours, un à venir), la zone du foyer, et
+// un cache de vacances scolaires (même forme que frontend/agenda/vacances.js) pour ne toucher
+// AUCUN réseau pendant la recette.
+export const VOYAGES = [
+  { id: 1, titre: "Week-end à la mer", lieu: "Normandie", debut: ilYA(1), fin: ilYA(-1), note: "Train de 9 h", cree_par: "Yann", cree_le: ilYA(30) },
+  { id: 2, titre: "Ski en famille", lieu: "Le Lioran", debut: ilYA(-40), fin: ilYA(-47), note: null, cree_par: "Claudia", cree_le: ilYA(10) },
+];
+export const PARAMETRES = [{ cle: "zone", valeur: "Zone C" }];
+export const VACANCES_CACHE = [
+  { titre: "Vacances d'exemple", zone: "Zone C", debut: ilYA(-10), fin: ilYA(-25), anneeScolaire: `${ANNEE}-${ANNEE + 1}` },
+  { titre: "Vacances suivantes", zone: "Zone C", debut: ilYA(-70), fin: ilYA(-85), anneeScolaire: `${ANNEE}-${ANNEE + 1}` },
+];
+
 export const COURSES_CLASSIQUES = [
-  { libelle: "Lait", quantite: "2 L", rayon: "Épicerie, alcool, lait", fois: 12 },
-  { libelle: "Œufs", quantite: "1 boîte", rayon: "Épicerie, alcool, lait", fois: 9 },
-  { libelle: "Papier toilette", quantite: "1 pack", rayon: "Papier et lavage", fois: 5 },
+  { libelle: "Lait", quantite: "2 L", rayon: "Épicerie, alcool, lait", fois: 12, dernier_le: "2026-09-10T10:00:00Z" },
+  { libelle: "Œufs", quantite: "1 boîte", rayon: "Épicerie, alcool, lait", fois: 9, dernier_le: "2026-09-18T10:00:00Z" },
+  { libelle: "Papier toilette", quantite: "1 pack", rayon: "Papier et lavage", fois: 5, dernier_le: "2026-09-01T10:00:00Z" },
 ];

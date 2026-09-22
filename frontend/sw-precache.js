@@ -5,6 +5,13 @@
 // automatiquement inclus au prochain déploiement, sans y penser.
 self.SW_PRECACHE = [
   "./",
+  "agenda/agenda.css",
+  "agenda/calendrier.js",
+  "agenda/mod-agenda.js",
+  "agenda/ui-agenda.js",
+  "agenda/ui-vacances.js",
+  "agenda/ui-voyages.js",
+  "agenda/vacances.js",
   "app.js",
   "budget/budget.css",
   "budget/calc.js",
@@ -19,6 +26,7 @@ self.SW_PRECACHE = [
   "config.js",
   "courses/courses.css",
   "courses/mod-courses.js",
+  "courses/suggestions.js",
   "courses/tournee.js",
   "courses/ui-courses.js",
   "courses/ui-magasin.js",

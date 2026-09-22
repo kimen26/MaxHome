@@ -189,3 +189,23 @@ _Brief : docs/briefs/refonte-fidelite.md (D-036). Quatre lots Sonnet en parallè
       faites la veille ne s'affichent plus sur le jour courant (elles restent sur l'onglet de la
       veille) ; « habit. » (jour habituel d'une hebdo) n'existe pas en base.
 - [ ] Nettoyer `docs/briefs/refonte-fidelite.md` → `docs/archives/` quand Yann aura validé.
+
+## Lane I — Agenda + aide à la saisie des courses (2026-09-22)
+_Demande de Yann : « ajouter les voyages (MaxVoyage), calendrier, vacances scolaires par zone » et
+« pour les courses, la liste des derniers aliments en aide à l'écriture ». Arbitrages : D-037._
+- [x] Courses : puces des derniers articles achetés sous la ligne d'ajout, filtrées à la frappe
+      (`courses/suggestions.js`, pur, testé) ; un libellé connu reprend son groupe ; migration
+      015 (`courses_classiques.dernier_le`) appliquée.
+- [x] Module Agenda : `frontend/agenda/` (calendrier.js, vacances.js, mod, trois écrans, CSS),
+      migration 016 (`voyages`, `parametres`) appliquée et rejouée, RLS vérifiée par la recette
+      connectée, quatre voyages réels posés en base depuis `inbox/seed_voyages.sql`.
+- [x] Portes : test_agenda (nouveau), test_courses, test_taches, test_calc, 128 tests bot,
+      recette écrans (63 captures, dont trois gestes : mois +2, aide à la saisie, feuille voyage),
+      recette connectée (Agenda et Voyages rendus sur la vraie base, vacances Zone C en ligne).
+- [ ] Bot Telegram : aucune commande Agenda (`voyages`, `vacances`) — à ajouter si Yann ou
+      Claudia les demandent ; `scripts/bot/courses.py` ne connaît pas non plus les classiques
+      (l'article ajouté par le bot reste en « Autre »).
+- [ ] Yann : vérifier la zone du foyer (Zone C posée par défaut, écran Agenda · Vacances) et
+      compléter les notes des quatre voyages si utile (Réglages · Voyages).
+- [ ] Yann et Claudia : regarder l'Agenda sur le téléphone ; dire si la grille doit aussi
+      porter les tâches ou les mouvements du Budget (non fait, volontairement : D-037).

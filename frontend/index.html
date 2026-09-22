@@ -22,6 +22,7 @@
 <link rel="stylesheet" href="budget/budget.css">
 <link rel="stylesheet" href="taches/taches.css">
 <link rel="stylesheet" href="courses/courses.css">
+<link rel="stylesheet" href="agenda/agenda.css">
 </head>
 <body>
 
@@ -231,6 +232,9 @@
           <select id="course-rayon" class="champ"></select>
           <button type="submit" class="btn-ajout-course cible44">+</button>
         </form>
+        <!-- Aide à la saisie : les derniers articles achetés, filtrés pendant qu'on tape
+             (courses/suggestions.js). Un tap ajoute l'article avec son groupe et sa quantité. -->
+        <div id="aide-articles" class="aide-articles" hidden></div>
       </div>
       <h2 class="titre-liste-courses">Liste commune</h2>
       <p class="sous" id="sous-courses"></p>
@@ -265,6 +269,51 @@
     </section>
 
     <!-- ===== Courses · Réglages · Magasin ===== -->
+    <!-- ===== Agenda ===== -->
+    <section id="ecran-agenda-mois" class="ecran" hidden>
+      <div class="tete-ecran">
+        <div class="tete-ligne"><div class="segment" data-segment="agenda"></div></div>
+        <div class="agenda-nav">
+          <button type="button" id="agenda-prec" class="btn-mois" aria-label="Mois précédent">‹</button>
+          <h1 id="agenda-titre"></h1>
+          <button type="button" id="agenda-suiv" class="btn-mois" aria-label="Mois suivant">›</button>
+          <button type="button" id="agenda-auj" class="btn-auj">Aujourd’hui</button>
+        </div>
+        <p id="agenda-zone"></p>
+      </div>
+      <div id="agenda-grille" class="agenda-grille"></div>
+      <div id="agenda-evenements"></div>
+      <p class="legende">Fond ambre : vacances scolaires de notre zone. Trait bleu : voyage. « F » vert : jour
+        férié. La liste sous la grille dit la même chose en toutes lettres.</p>
+    </section>
+    <section id="ecran-vacances" class="ecran" hidden>
+      <div class="tete-ecran">
+        <div class="tete-ligne"><div class="segment" data-segment="agenda"></div></div>
+        <div class="segment large" id="zones-vacances"></div>
+      </div>
+      <div id="vacances-notre"></div>
+      <div class="carte">
+        <div class="carte-tete"><span>Prochaines vacances scolaires</span></div>
+        <div id="liste-vacances"></div>
+      </div>
+      <div class="carte">
+        <div class="carte-tete"><span>Jours fériés à venir</span></div>
+        <div id="liste-feries"></div>
+      </div>
+      <p class="legende">Source : calendrier scolaire officiel (data.education.gouv.fr), relu au plus une fois
+        par semaine. Les jours fériés sont ceux de la métropole.</p>
+    </section>
+    <section id="ecran-voyages" class="ecran" hidden>
+      <div class="tete-ecran"><div class="segment large" data-segment="reglages"></div></div>
+      <div class="carte-explication">
+        <h3>Les voyages du foyer</h3>
+        <p>Un titre, un lieu, deux dates : le voyage apparaît sur le calendrier de l'Agenda et
+          sur la carte d'accueil. Le détail (hébergement, train, programme) reste dans la note,
+          ou dans MaxVoyage.</p>
+      </div>
+      <div id="liste-voyages"></div>
+      <div id="form-voyage"></div>
+    </section>
     <section id="ecran-magasin" class="ecran" hidden>
       <div class="tete-ecran"><div class="segment large" data-segment="reglages"></div></div>
       <div class="carte-explication">

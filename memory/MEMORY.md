@@ -175,3 +175,17 @@ _État courant. Réécrit en fin de session, jamais un journal._
   agents : `noteBot` lu avant sa déclaration (TDZ, feuille du tour), et le doublon des quotidiennes
   d'hier sur l'écran Jour (L-030). Sous-agents Sonnet : trois sur quatre ont bloqué sur un
   arrière-plan (L-031). Reste : validation par Yann et Claudia sur le téléphone.
+
+- 2026-09-22 : **Agenda + aide à la saisie livrés** (lane I, D-037). Quatrième module
+  `frontend/agenda/` : écran Mois (grille lundi → dimanche, fond ambre = vacances de notre zone,
+  trait bleu = voyage, « F » = férié, liste en toutes lettres dessous), écran Vacances (segmenté
+  Zone A | B | C, bouton « Passer le foyer en Zone X », fériés à venir), Réglages · Voyages (CRUD).
+  Vacances lues sur data.education.gouv.fr depuis le navigateur (cache 7 j, repli hors ligne
+  annoncé) ; fériés calculés ; zone du foyer dans `parametres`. Migrations 015 (`dernier_le` sur
+  les classiques) et 016 (`voyages`, `parametres`) appliquées ; quatre voyages réels en base
+  (Auvergne oct. 2026, Islande nov. 2026, Ski fév. 2027, Malaga avr. 2027) posés depuis `inbox/`.
+  Courses : puces des derniers articles achetés sous la ligne d'ajout, filtrées à la frappe ; un
+  tap ajoute l'article avec son groupe et sa quantité. Shell : barre basse à 5 entrées, segmenté
+  Réglages à 5 entrées, barre PC repliable. Toutes portes vertes ; captures regardées à 320/360/
+  1200 (`data/captures/ecrans/agenda-*`, `courses-aide-saisie-*`, `feuille-ajout-voyage-*`).
+  Non fait : commandes bot pour l'Agenda ; MaxVoyage reste une app locale séparée.

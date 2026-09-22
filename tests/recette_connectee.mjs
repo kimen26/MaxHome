@@ -16,7 +16,7 @@ const nombre = (s) => Number(String(s).replace(/[^\d,-]/g, "").replace(",", ".")
 
 // 1. RLS : la clé publique sans session ne voit rien, sur toutes les tables.
 const TABLES = ["revenus", "lignes", "mouvements", "mouvements_recurrents", "comptes",
-  "taches", "taches_recurrentes", "courses", "courses_rayons"];
+  "taches", "taches_recurrentes", "courses", "courses_rayons", "voyages", "parametres"];
 for (const table of TABLES) {
   const r = await fetch(`${URL_SB}/rest/v1/${table}?select=*`, { headers: { apikey: CLE, Authorization: `Bearer ${CLE}` } });
   const anon = await r.json();
@@ -287,6 +287,17 @@ try {
   await aller(pc, "magasin", "#ecran-magasin:not([hidden]) #liste-magasin .mag-ligne", "taches-rec");
   await pc.screenshot({ path: path.join(SORTIE, "magasin-pc.png"), fullPage: true });
   console.log("Écran Magasin rendu (PC)");
+  // Agenda : la grille se rend dès que voyages ET vacances (API publique, vrai réseau) sont là ;
+  // l'écran Voyages liste les voyages réels ou dit qu'il n'y en a aucun.
+  await aller(pc, "agenda-mois", "#ecran-agenda-mois:not([hidden]) #agenda-grille .agenda-case", "agenda-mois");
+  await pc.screenshot({ path: path.join(SORTIE, "agenda-mois-pc.png"), fullPage: true });
+  const zoneTexte = await pc.textContent("#agenda-zone");
+  if (!/Vacances Zone [ABC]/.test(zoneTexte)) throw new Error(`Agenda : zone illisible « ${zoneTexte} »`);
+  if (/hors ligne/.test(zoneTexte)) throw new Error("Agenda : vacances servies depuis un cache périmé alors que le réseau est là");
+  console.log(`Écran Agenda rendu (PC) — ${zoneTexte}`);
+  await aller(pc, "voyages", "#ecran-voyages:not([hidden]) #liste-voyages .rec, #ecran-voyages:not([hidden]) #liste-voyages .vide", "taches-rec");
+  await pc.screenshot({ path: path.join(SORTIE, "voyages-pc.png"), fullPage: true });
+  console.log("Écran Voyages rendu (PC)");
   await pc.close();
 } finally {
   await navigateur.close();
