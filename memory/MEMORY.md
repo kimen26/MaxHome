@@ -189,3 +189,11 @@ _État courant. Réécrit en fin de session, jamais un journal._
   Réglages à 5 entrées, barre PC repliable. Toutes portes vertes ; captures regardées à 320/360/
   1200 (`data/captures/ecrans/agenda-*`, `courses-aide-saisie-*`, `feuille-ajout-voyage-*`).
   Non fait : commandes bot pour l'Agenda ; MaxVoyage reste une app locale séparée.
+
+- 2026-09-24 : **Réglages des tâches refondus** (lane J, D-038). Tableau par thème, colonne
+  Rythme (2×/j, 3×/sem., 1×/mois, au besoin), part équiv / part spé par personne, « À 2 » retiré
+  des réglages : toute tâche se coche à deux, chacun prend ses parts pleines, réglables à ⅔ ou ⅓
+  dans le détail. Intro remplacée par un « ? » qui ouvre l'explication. Migration 017 appliquée ;
+  thème Enfant → Max en base. Portes vertes (test_taches, 128 bot, recette écrans 69 captures,
+  recette connectée) ; captures regardées à 320/360/1200 (`taches-rec-*`, `feuille-aide-parts-*`,
+  `detail-tache-a-deux-*`).

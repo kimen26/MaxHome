@@ -70,36 +70,46 @@ def du_jour(donnees, jour=None):
 def parts_de(recurrent, qui):
     """Parts d'une tâche pour la personne qui la fait (en quarts). `qui` : prénom ou None.
 
-    Miroir de frontend/taches/taches.js::partsDe. L'écart ajoute un cran à la personne
-    désignée par `ecart_prenom`, plafonné en haut de l'échelle. Pas de plancher à 1 ici :
-    0,5 est une valeur légitime (D-022 caduque).
+    Miroir de frontend/taches/taches.js::partsDe. « Part équiv » (`parts_spe` None) :
+    `parts_quart` pour tout le monde. « Part spé » : `parts_spe` donne les parts de chacun
+    (D-038, remplace l'écart d'un cran). Sans récurrent : 0.
     """
-    base = recurrent["parts_quart"]
-    if not qui or not recurrent.get("ecart_prenom") or recurrent["ecart_prenom"] != qui:
-        return base
-    # Une base hors échelle (donnée héritée, réglage manuel en base) ne doit pas faire tomber
-    # le bot : `.index()` lève là où `indexOf` du JS rend -1. On aligne sur le JS, qui repart
-    # du premier cran plutôt que de planter.
-    i = ECHELLE_QUART.index(base) if base in ECHELLE_QUART else -1
-    return ECHELLE_QUART[min(len(ECHELLE_QUART) - 1, i + 1)]
+    if not recurrent:
+        return 0
+    spe = recurrent.get("parts_spe")
+    # `bool` est un int en Python : on l'écarte pour rester aligné sur Number.isInteger du JS.
+    if qui and spe and isinstance(spe.get(qui), int) and not isinstance(spe.get(qui), bool):
+        return spe[qui]
+    return recurrent["parts_quart"]
+
+
+def au_tiers(q, tiers):
+    """Part retenue au tiers (1, 2 ou 3) : miroir de taches.js::auTiers, entier si plein."""
+    return q if tiers is None or tiers == 3 else q * tiers / 3
 
 
 def credit_de(recurrent, tache):
     """Crédit de parts d'une occurrence cochée : {"Yann": q, "Claudia": q} en quarts.
 
-    Miroir de frontend/taches/taches.js::creditDe. Fait à deux, on divise la base (jamais
-    l'écart) ; non cochée (`qui` None), aucun crédit.
+    Miroir de frontend/taches/taches.js::creditDe. `recurrent["parts_quart"]` est la base
+    FIGÉE de `qui`. Fait à deux (D-038) : chacun ses parts pleines (`parts_quart`,
+    `parts_quart2`), réduites au tiers retenu (`tiers`, `tiers2`). Une occurrence à deux
+    d'avant 017 (`parts_quart2` None) garde l'ancienne règle : base divisée en deux.
     """
     out = {}
+    if not tache.get("qui"):
+        return out
     if tache.get("qui2"):
-        # `//` et non `/` : les quarts sont des ENTIERS (colonne int en base). `/` rendrait
-        # 4.0 là où le JS rend 4 — même valeur, mais un float écrit dans une colonne int.
-        # La base de l'échelle est toujours paire, la division reste donc exacte.
-        moitie = recurrent["parts_quart"] // 2
-        out[tache["qui"]] = moitie
-        out[tache["qui2"]] = moitie
-    elif tache.get("qui"):
-        out[tache["qui"]] = parts_de(recurrent, tache["qui"])
+        if tache.get("parts_quart2") is None:
+            # `//` : les quarts sont des entiers, la base de l'échelle est toujours paire.
+            moitie = recurrent["parts_quart"] // 2
+            out[tache["qui"]] = moitie
+            out[tache["qui2"]] = moitie
+            return out
+        out[tache["qui"]] = au_tiers(recurrent["parts_quart"], tache.get("tiers"))
+        out[tache["qui2"]] = au_tiers(tache["parts_quart2"], tache.get("tiers2"))
+        return out
+    out[tache["qui"]] = parts_de(recurrent, tache["qui"])
     return out
 
 
@@ -166,8 +176,8 @@ def cibler(taches, titre):
 def basculer(donnees, prenom, titre, fait, jour=None, qui2=None):
     """Coche (ou décoche) une tâche. Retourne (tache_avant, champs_ecrits, erreur).
 
-    `qui2` coche « à deux » : la tâche porte alors `qui` + `qui2`, `creditDe` divisera
-    la base en deux au moment de la balance.
+    `qui2` coche « à deux » : la tâche porte alors `qui` + `qui2`, chacun avec ses parts
+    pleines figées (`parts_quart`, `parts_quart2`, D-038).
     """
     taches, recurrents = du_jour(donnees, jour)
     cible, erreur = cibler(taches if fait else [dict(t, fait_le=None) for t in taches if t["fait_le"]], titre)
@@ -181,12 +191,17 @@ def basculer(donnees, prenom, titre, fait, jour=None, qui2=None):
         # Les parts se figent à la coche, comme dans le frontend (L-008) : `taches.parts_quart`
         # ne se recalcule jamais depuis le récurrent courant, sinon changer le barème
         # réécrirait l'historique.
+        # Parts de la personne qui coche (part spé comprise) ; à deux, chacun les siennes,
+        # pleines (D-038) — l'ajustement au tiers se fait dans l'app.
         recurrent = recurrents.get(cible["recurrent_id"])
+        base = lambda p: parts_de(recurrent, p) if recurrent else (cible.get("parts_quart") or 0)  # noqa: E731
         champs = {"fait_le": datetime.now(timezone.utc).isoformat(), "qui": prenom, "qui2": qui2,
-                  "parts_quart": recurrent["parts_quart"] if recurrent else (cible.get("parts_quart") or 0)}
+                  "parts_quart": base(prenom), "parts_quart2": base(qui2) if qui2 else None,
+                  "tiers": 3, "tiers2": 3 if qui2 else None}
     else:
         rec = recurrents.get(cible["recurrent_id"]) or {}
-        champs = {"fait_le": None, "qui": rec.get("attribue_a"), "qui2": None, "parts_quart": 0}
+        champs = {"fait_le": None, "qui": rec.get("attribue_a"), "qui2": None, "parts_quart": 0,
+                  "parts_quart2": None, "tiers": 3, "tiers2": None}
     donnees.maj_tache(cible["id"], champs)
     return cible, champs, None
 

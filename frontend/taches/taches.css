@@ -225,38 +225,42 @@
 /* Le détail (feuille/aside) réutilise .detail-actions ; le choix « Fait par » y a besoin de la
    même mise en page que Budget (déjà stylée). Rien à ajouter ici. */
 
-/* ---------- Réglages · Parts (tableau par cadence) ----------
-   5 colonnes minmax(0,1fr) 42px 38px 32px 36px (handoff §5) : c'est le point de rupture à
-   320 px identifié au brief — vérifié à la capture (recette_ecrans.mjs mesure le débordement
-   réel, pas seulement à l'œil, L-016). Les cycles de réglage font 30 px (cf. .cycle-reglage,
-   usage rare à deux mains, handoff assumé) ; jamais moins, même serré à 320 px.
-   La carte d'explication réutilise `.carte-explication` du socle telle quelle (D-036 §5,
-   « texte, jamais des boutons ») : rien à redéfinir ici, sauf l'espacement propre à cet écran. */
-#tableau-taches-parts .carte-explication { margin-bottom:8px; }
+/* ---------- Réglages · Tâches (un tableau par thème, D-038) ----------
+   En-tête court : titre + une phrase + un « ? » qui ouvre l'explication en feuille. L'écran
+   montre le tableau d'abord ; la pédagogie ne pousse plus le contenu hors de l'écran. */
+.tete-reglages-taches { display:flex; align-items:center; gap:10px; margin:8px 0 10px; }
+.tete-reglages-texte { flex:1; min-width:0; }
+.tete-reglages-texte h1 { font-size:17px; margin:0; }
+.tete-reglages-texte p { font-size:13px; color:var(--texte-2); margin:2px 0 0; }
+.btn-aide {
+  flex:0 0 auto; width:44px; height:44px; border-radius:999px; border:1.5px solid var(--bleu);
+  background:#fff; color:var(--bleu); font-size:18px; font-weight:700; cursor:pointer;
+}
 
-/* Une carte par cadence : `.carte` (socle) sans son padding — l'en-tête et les lignes gèrent
-   leur propre padding, comme `.carte-taches`/`.carte-taches-tete` de l'écran Jour. */
+/* Une carte par thème : `.carte` (socle) sans son padding — l'en-tête et les lignes gèrent
+   leur propre padding, comme `.carte-taches`/`.carte-taches-tete` de l'écran Jour.
+   4 colonnes : titre, Parts, Oblig., Rythme (« 3×/sem. » tient dans 60 px à 12 px). */
 .bloc-cadence { padding:0; margin-bottom:8px; }
 .entete-reglage-parts, .ligne-reglage-parts {
-  display:grid; grid-template-columns:minmax(0,1fr) 42px 38px 32px 36px; gap:4px;
+  display:grid; grid-template-columns:minmax(0,1fr) 46px 46px 60px; gap:4px;
   align-items:center; padding:5px 8px;
 }
 .entete-reglage-parts {
   /* `.carte-tete` (socle) porte déjà le fond bleu-titre-majuscule : ici la maquette veut au
-     contraire un bandeau gris avec 4 en-têtes de colonnes en plus du titre — on redéfinit la
-     grille et la couleur plutôt que d'ajouter une deuxième classe d'en-tête générique. */
+     contraire un bandeau gris avec les en-têtes de colonnes en plus du titre. */
   background:var(--fond-bandeau); border-bottom:1px solid var(--bordure);
   font-size:9px; font-weight:700; color:var(--bleu); text-transform:uppercase; letter-spacing:.04em;
 }
-.entete-reglage-parts span:first-child { text-align:left; font-size:10px; }
+.entete-reglage-parts span:first-child { text-align:left; font-size:11px; }
 .entete-reglage-parts span:not(:first-child) { text-align:center; }
 .ligne-reglage-parts { border-bottom:1px solid var(--separateur); }
 .ligne-reglage-parts:last-child { border-bottom:0; }
 .ligne-reglage-parts > .cycle,
-.ligne-reglage-parts > .rp-fois-fige { justify-self:center; }
+.ligne-reglage-parts > .rp-fige { justify-self:center; }
+.ligne-reglage-parts > .rp-rythme { width:100%; padding:0 2px; font-size:12px; font-family:inherit; }
 
-/* Colonne 1 : titre (bouton, ouvre la feuille de modification) + deux/trois petits boutons
-   texte (minutes, écart, moment) — jamais de hauteur fixe, le libellé de l'écart peut grandir
+/* Colonne 1 : titre (bouton, ouvre la feuille de modification) + petits boutons texte
+   (minutes, moment, part équiv/spé) — jamais de hauteur fixe, le libellé peut grandir
    (zoom Android, rules/mobile-parents.md). */
 .rp-titre { min-width:0; display:flex; flex-direction:column; gap:2px; padding-right:4px; }
 .rp-nom {
@@ -264,19 +268,38 @@
   font-family:inherit; font-size:13px; font-weight:600; color:var(--texte); overflow-wrap:break-word; cursor:pointer;
 }
 .rp-mini { display:flex; flex-wrap:wrap; gap:2px 10px; }
-/* Plancher absolu 24x24 (rules/mobile-parents.md) : bouton texte, pas un cycle de réglage
-   30 px comme les autres colonnes — la maquette les veut visuellement légers (10 px). */
+/* Plancher absolu 24x24 (rules/mobile-parents.md) : bouton texte, visuellement léger. */
 .rp-bouton-texte.cycle {
   border:0; background:none; padding:2px 0; min-width:0; min-height:24px; font-family:inherit;
-  font-variant-numeric:normal; font-weight:400; font-size:10px; color:var(--texte-2); justify-content:flex-start;
+  font-variant-numeric:normal; font-weight:400; font-size:11px; color:var(--texte-2); justify-content:flex-start;
 }
-.rp-bouton-texte.rp-ecart { color:var(--bleu); }
+.rp-bouton-texte.rp-spe-actif { color:var(--bleu); font-weight:600; }
 
-/* Fois figé (mensuel) : même gabarit que le bouton-cycle, pour garder la grille alignée. */
-.rp-fois-fige {
+/* Valeur non réglable ici (part spé., au besoin) : même gabarit que le bouton-cycle, pour
+   garder la grille alignée ; le texte dit pourquoi, pas la couleur. */
+.rp-fige {
   display:inline-flex; align-items:center; justify-content:center; min-width:30px; min-height:30px;
-  font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:13px; font-weight:700; color:var(--texte-2);
+  font-size:11px; font-weight:600; color:var(--texte-2); text-align:center; line-height:1.15;
 }
+
+/* Part spé : parts de chacun, sur toute la largeur sous la ligne. */
+.rp-spe {
+  grid-column:1 / -1; display:flex; flex-wrap:wrap; align-items:center; gap:4px 14px;
+  padding:2px 0 4px; font-size:12px; color:var(--texte-2);
+}
+.rp-spe-titre { font-weight:600; color:var(--bleu); }
+.rp-spe-personne { display:inline-flex; align-items:center; gap:6px; color:var(--texte); }
+
+/* Détail d'une tâche faite à deux : la part de chacun, plein · ⅔ · ⅓ (D-038). */
+.detail-partage { display:flex; flex-direction:column; gap:6px; }
+.ligne-partage { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.ligne-partage-nom { font-size:14px; font-weight:600; }
+.segment-partage { display:flex; gap:6px; }
+.segment-partage button {
+  min-width:52px; min-height:40px; border:1px solid var(--bordure); border-radius:8px; background:#fff;
+  font-size:14px; font-weight:600; color:var(--texte); cursor:pointer; padding:0 8px;
+}
+.segment-partage button.actif { background:var(--bleu); border-color:var(--bleu); color:#fff; }
 
 @media (min-width:1024px) {
   .grille-cartes { grid-template-columns:1fr 1fr; }
@@ -291,9 +314,9 @@
   .titre-tache { font-size:12px; }
   .ligne-grille-semaine { padding:1px 4px; gap:0 1px; }
   .cellule-semaine.cycle { width:22px; min-width:22px; }
-  /* Tableau Réglages · Parts, 5 colonnes : on serre gap et padding, jamais les cibles à moins
+  /* Tableau Réglages · Tâches, 4 colonnes : on serre gap et padding, jamais les cibles à moins
      de 30 px (handoff §5, usage rare à deux mains — cf. .cycle-reglage). */
-  .entete-reglage-parts, .ligne-reglage-parts { grid-template-columns:minmax(0,1fr) 38px 34px 30px 32px; gap:2px; padding:5px 4px; }
+  .entete-reglage-parts, .ligne-reglage-parts { grid-template-columns:minmax(0,1fr) 44px 44px 56px; gap:2px; padding:5px 4px; }
   .rp-mini { gap:1px 6px; }
 }
 

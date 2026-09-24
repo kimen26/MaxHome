@@ -89,7 +89,8 @@ def parts_texte(quart):
 
     Miroir de frontend/taches/taches.js::partsTexte.
     """
-    valeur = quart / 4
+    # Arrondi au centième, comme le JS : une part au tiers (D-038) s'écrit 0,67.
+    valeur = round(quart / 4, 2)
     if valeur == int(valeur):
         valeur = int(valeur)
     return str(valeur).replace(".", ",")

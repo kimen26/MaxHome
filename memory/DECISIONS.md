@@ -441,3 +441,33 @@ Arbitrages :
 Alternatives écartées : servir les carnets HTML depuis MaxHome (données perso dans un dépôt
 public) ; un iframe vers MaxVoyage (jamais hébergé, local seulement) ; une table `vacances`
 remplie par cron (une source de vérité de plus à synchroniser pour une donnée publique).
+
+## D-038 — Réglages des tâches : par thème, part spé, « à deux » pour tout, chacun ses parts (2026-09-24)
+
+Contexte : retour de Yann sur Réglages · Parts — texte d'intro trop long, colonne « Jour »
+incomprise, « À 2 » sans intérêt en réglage, écart d'un cran trop rigide pour « déposer le
+petit » (ça coûte plus de temps à Claudia).
+Arbitrages :
+1. **Un tableau par thème** (la catégorie existante : Cuisine, Ménage, Max…), pas par cadence.
+   Dans un thème : quotidien, hebdo, mensuel, au besoin. Les tâches « au besoin » apparaissent
+   enfin dans les réglages (elles n'étaient dans aucune carte de cadence).
+2. **Colonne « Rythme »** : « 2×/j », « 3×/sem. », « 1×/mois ». C'est un minimum, pas un plafond ;
+   une mensuelle peut valoir 2× (le 1× figé des mensuelles a disparu). La fréquence se change
+   dans la fiche, pas au tap : un mauvais tap créerait des occurrences.
+3. **Part équiv / part spé** : `taches_recurrentes.parts_spe` (jsonb prénom → quarts) remplace
+   `ecart_prenom` (colonne gardée, plus lue). Migration 017 a repris l'écart existant tel quel
+   (Dépose école : Yann 3, Claudia 2 — à vérifier par Yann, qui dit l'inverse).
+4. **À deux possible sur toute tâche**, choisi à la coche ; `partageable` n'est plus lu. Chacun
+   prend SES parts pleines (ça pousse au partage), réductibles à ⅔ ou ⅓ dans le détail — pas de
+   micro-réglage. Lecture retenue de « 1/3 2/3 ou full » : la part de chaque personne, pas un
+   partage d'un total. Stockage : `taches.parts_quart2` + `tiers`/`tiers2` ; une ligne à deux
+   d'avant 017 (`parts_quart2` null) garde l'ancienne règle (base divisée), la balance passée
+   ne bouge pas. Crédit au tiers = flottant, affiché au centième (« 0,67 »).
+5. **L'explication passe dans une feuille** ouverte par « ? » ; l'en-tête dit « Tâches —
+   Répartition des tâches de la maison en « parts » » ; l'entrée du segmenté Réglages
+   s'appelle « Tâches ».
+6. Le bot fige désormais les parts de la personne qui coche (`parts_de`), il figeait la base
+   brute et ignorait l'écart.
+Alternatives écartées : parts au tiers arrondies au quart entier (0,5 × ⅓ et ⅔ tombaient sur la
+même valeur) ; un moment par occurrence (« Nourrir Max » matin/midi/soir) — une tâche 3×/j sur
+une seule ligne suffit en réglage, le découpage par carte attend l'avis de Yann.

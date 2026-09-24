@@ -320,3 +320,16 @@ passe avant le férié du même jour ; février 2027 tient sur quatre semaines. 
 l'attente que j'ai corrigée, pas le code, après avoir vérifié à la main que le résultat obtenu
 était le bon. **Quand un test neuf échoue, refaire le calcul à la main avant de toucher au code :
 un test écrit de tête vérifie surtout l'auteur du test.**
+
+## L-034 — Le heredoc Bash casse sur ce poste, même entre apostrophes (2026-09-24)
+
+Contexte : trois scripts Python passés par `cat > f <<'EOF'` ont échoué avec « unexpected EOF
+while looking for matching `'` », sans rien écrire (déjà vu le 2026-09-22). **Écrire le script
+avec l'outil Write dans le dossier temporaire, puis le lancer ; ne pas retenter le heredoc.**
+
+## L-035 — Un geste de recette qui ouvre une feuille doit la refermer (2026-09-24)
+
+Contexte : la capture « détail d'une tâche à deux » ouvrait la feuille de détail sur mobile ;
+le voile restait et le geste suivant (aide à la saisie des Courses) échouait en timeout à 320
+et 360 px, pas à 1200 (aside, pas de feuille). **La boucle GESTES referme toute feuille ouverte
+après capture, comme la boucle FEUILLES (L-018).**

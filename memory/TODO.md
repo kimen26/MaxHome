@@ -209,3 +209,17 @@ _Demande de Yann : « ajouter les voyages (MaxVoyage), calendrier, vacances scol
       compléter les notes des quatre voyages si utile (Réglages · Voyages).
 - [ ] Yann et Claudia : regarder l'Agenda sur le téléphone ; dire si la grille doit aussi
       porter les tâches ou les mouvements du Budget (non fait, volontairement : D-037).
+
+## Lane J — Réglages des tâches refondus (2026-09-24)
+_Demande de Yann : regrouper par thème, fréquence minimale, part spé pour la dépose, à deux
+pour tout avec ⅓ · ⅔ · plein, intro courte avec une icône d'aide. Arbitrages : D-038._
+- [x] Migration 017 (`parts_spe`, `parts_quart2`, `tiers`, `tiers2`) appliquée et rejouée.
+- [x] partsDe / creditDe en JS et Python, confrontation L-014 à jour ; bot fige la part spé.
+- [x] Réglages · Tâches par thème, colonne Rythme, part spé, aide en feuille ; « À deux » dans
+      le détail et au cycle de toute tâche ; part de chacun réglable au tiers.
+- [x] Thème « Enfant » renommé « Max » en base (inbox/theme_max.sql, jamais commité).
+- [ ] Yann : Dépose école est reprise avec Yann 3 / Claudia 2 ; il dit que ça coûte plus à
+      Claudia — inverser dans Réglages · Tâches si c'est le cas.
+- [ ] Yann : ranger Linge et Déchets dans Ménage ? (champ Thème de la fiche, ou une requête).
+- [ ] Yann : « Nourrir Max » matin/midi/soir — une ligne 3×/j suffit-elle, ou faut-il un moment
+      par fois (et une carte Midi sur l'écran Jour) ?

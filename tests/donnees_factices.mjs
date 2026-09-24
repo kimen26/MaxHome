@@ -102,7 +102,9 @@ export const TACHES_RECURRENTES = [
     parts_quart: 2, obligatoire: false, partageable: false, ecart_prenom: null, minutes: 2, moment: "matin", cree_le: ilYAHeure(400, 0) },
   { id: 5, titre: "Dépose école", categorie: "Enfant", frequence: "quotidien", fois: 1,
     penibilite: 2, importance: 3, attribue_a: null, consigne: null, ordre: 50, actif: true,
-    parts_quart: 4, obligatoire: true, partageable: false, ecart_prenom: null, minutes: 15, moment: "matin", cree_le: ilYAHeure(400, 0) },
+    parts_quart: 4, obligatoire: true, partageable: false, ecart_prenom: null, minutes: 15, moment: "matin", cree_le: ilYAHeure(400, 0),
+    // Part spé (D-038) : la dépose coûte plus à Claudia — la ligne « Parts de chacun » apparaît.
+    parts_spe: { Claudia: 8, Yann: 4 } },
   { id: 6, titre: "Table", categorie: "Cuisine", frequence: "quotidien", fois: 1,
     penibilite: 1, importance: 1, attribue_a: null, consigne: null, ordre: 60, actif: true,
     parts_quart: 2, obligatoire: false, partageable: false, ecart_prenom: null, minutes: 5, moment: "matin", cree_le: ilYAHeure(400, 0) },
@@ -203,7 +205,10 @@ export const TACHES = [
   { id: 11, recurrent_id: 10, titre: "Préparer le lait", categorie: "Enfant", echeance: auj,
     rang: 1, qui: "Claudia", qui2: null, fait_le: maintenant, points: 1, parts_quart: 2 },
   { id: 12, recurrent_id: 11, titre: "Cuisine", categorie: "Cuisine", echeance: auj,
-    rang: 1, qui: "Claudia", qui2: "Yann", fait_le: maintenant, points: 3, parts_quart: 12 },
+    rang: 1, qui: "Claudia", qui2: "Yann", fait_le: maintenant, points: 3, parts_quart: 12,
+    // À deux depuis 017 (D-038) : chacun ses parts, Yann au tiers ; l'autre ligne à deux reste
+    // au format d'avant (base divisée) pour que les deux formes soient rendues.
+    parts_quart2: 12, tiers: 3, tiers2: 1 },
   { id: 13, recurrent_id: 12, titre: "LV - vider", categorie: "Cuisine", echeance: auj,
     rang: 1, qui: null, qui2: null, fait_le: null, points: 0, parts_quart: 0 },
   // Hebdo, à échéance de la semaine (dimanche) : Courses faite à deux, les autres à faire.

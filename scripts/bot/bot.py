@@ -125,8 +125,8 @@ class Bot:
     def basculer_tache(self, telegram_id, prenom, titre, fait, a_deux=False):
         """Coche (ou décoche) une tâche et rend l'écriture annulable.
 
-        `a_deux` crédite l'autre membre du foyer en `qui2` : `credit_de` divisera la base
-        en deux au moment de la balance.
+        `a_deux` crédite aussi l'autre membre du foyer en `qui2`, avec ses propres parts
+        pleines (D-038).
         """
         qui2 = None
         if a_deux and fait:
@@ -135,7 +135,8 @@ class Bot:
         if erreur:
             return erreur
         avant = {"fait_le": cible["fait_le"], "qui": cible["qui"], "qui2": cible.get("qui2"),
-                 "parts_quart": cible["parts_quart"]}
+                 "parts_quart": cible["parts_quart"], "parts_quart2": cible.get("parts_quart2"),
+                 "tiers": cible.get("tiers", 3), "tiers2": cible.get("tiers2")}
         self.marquer_annulable(telegram_id, "taches", {"id": cible["id"]}, avant)
         return reponses.confirmation_tache(cible["titre"], champs["parts_quart"], prenom, fait)
 

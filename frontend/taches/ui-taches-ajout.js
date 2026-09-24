@@ -31,7 +31,7 @@ export function creerAjoutTache(api, etat, cb, { onEcrit } = {}) {
   }
 
   function render(etatForm) {
-    const { titre, cad, qui, pts, oblig, partageable } = etatForm;
+    const { titre, cad, qui, pts, oblig } = etatForm;
     const [p1, p2] = membres();
     const aDeux = qui === "_deux";
 
@@ -41,7 +41,7 @@ export function creerAjoutTache(api, etat, cb, { onEcrit } = {}) {
     const boutonDrapeau = (cle, nom, actif) => `<button type="button" class="btn-choix${actif ? " actif" : ""}" data-drapeau="${cle}">${txt(nom)}</button>`;
 
     const libelleValider = cad === "todo" ? `Mettre en attente · ${partsTexte(pts)} part${pts >= 8 ? "s" : ""}`
-      : aDeux ? `✓ Fait à deux · ${partsTexte(pts / 2)} part chacun`
+      : aDeux ? `✓ Fait à deux · ${partsTexte(pts)} part${pts >= 8 ? "s" : ""} chacun`
         : qui ? `✓ Fait · ${partsTexte(pts)} part${pts >= 8 ? "s" : ""} pour ${txt(qui)}`
           : `Mettre en attente · ${partsTexte(pts)} part${pts >= 8 ? "s" : ""}`;
     const classeValider = cad !== "todo" && qui ? "btn-vert" : "btn-bleu";
@@ -70,7 +70,6 @@ export function creerAjoutTache(api, etat, cb, { onEcrit } = {}) {
       </div>
       <div class="ligne-boutons-2">
         ${boutonDrapeau("oblig", "Obligatoire", oblig)}
-        ${boutonDrapeau("partageable", "Faisable à deux", partageable)}
       </div>
       <button type="button" id="ajout-valider" class="${classeValider} grandir">${txt(libelleValider)}</button>
     </div>`;
@@ -86,10 +85,7 @@ export function creerAjoutTache(api, etat, cb, { onEcrit } = {}) {
     for (const b of racine.querySelectorAll("[data-qui]")) {
       // Retapper la personne déjà choisie la désélectionne : le handoff permet de ne choisir
       // personne (tâche créée non faite, cf. §8 du brief).
-      b.addEventListener("click", () => majEtat({ qui: qui === b.dataset.qui ? null : b.dataset.qui,
-        // Choisir « À deux » active aussi `partageable` (spec §8) ; redevenir seul ne la désactive
-        // pas automatiquement — Faisable à deux reste une bascule que la personne règle elle-même.
-        ...(b.dataset.qui === "_deux" && qui !== "_deux" ? { partageable: true } : {}) }));
+      b.addEventListener("click", () => majEtat({ qui: qui === b.dataset.qui ? null : b.dataset.qui }));
     }
     for (const b of racine.querySelectorAll("[data-pts]")) {
       b.addEventListener("click", () => majEtat({ pts: Number(b.dataset.pts) }));
@@ -116,7 +112,7 @@ export function creerAjoutTache(api, etat, cb, { onEcrit } = {}) {
       if (etatForm.cad === "todo") {
         const r = await api.creerTacheRec({
           titre, categorie: "Maison", frequence: "au_besoin", fois: 1,
-          parts_quart: etatForm.pts, obligatoire: etatForm.oblig, partageable: etatForm.partageable,
+          parts_quart: etatForm.pts, obligatoire: etatForm.oblig,
           actif: true, ordre: etat.tachesRec.length + 1,
         });
         etat.tachesRec.push(r);
@@ -125,12 +121,14 @@ export function creerAjoutTache(api, etat, cb, { onEcrit } = {}) {
         const freq = { jour: "quotidien", semaine: "hebdo", mois: "mensuel" }[etatForm.cad];
         const e = echeance(freq, jour);
         const fait = !!etatForm.qui;
+        // Les parts s'écrivent même non faite : une ponctuelle n'a pas de récurrent où relire
+        // son barème au moment de la coche. À deux : chacun ses parts pleines (D-038).
         const [t] = await api.creerTaches([{
           recurrent_id: null, titre, categorie: "Maison", echeance: e, rang: 1,
           qui: fait ? (aDeux ? p1 : etatForm.qui) : null,
-          qui2: fait && aDeux ? p2 : null,
           fait_le: fait ? new Date().toISOString() : null,
-          parts_quart: fait ? etatForm.pts : 0,
+          parts_quart: etatForm.pts,
+          ...(fait && aDeux ? { qui2: p2, parts_quart2: etatForm.pts, tiers: 3, tiers2: 3 } : { qui2: null }),
         }]);
         etat.taches.push(t);
       }
@@ -146,7 +144,7 @@ export function creerAjoutTache(api, etat, cb, { onEcrit } = {}) {
     // « Fait par » part sur la personne connectée (maquette : la feuille s'ouvre sur
     // « ✓ Fait · 1 part pour Claudia ») ; à défaut de session, le premier membre.
     const moi = etat.prenom ?? membres()[0] ?? null;
-    etatCourant = { titre: "", cad: "jour", qui: moi, pts: 4, oblig: false, partageable: false, ...preset };
+    etatCourant = { titre: "", cad: "jour", qui: moi, pts: 4, oblig: false, ...preset };
     ouvrirFeuille("");
     render(etatCourant);
   }

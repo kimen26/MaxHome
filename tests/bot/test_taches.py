@@ -47,21 +47,26 @@ def test_echeances_identiques_au_frontend():
 # ---------- confrontation JS/Python : partsDe et creditDe (L-014) ----------
 # Cas limites du tableau logique-metier.md §10 : c'est là que deux implémentations
 # divergent, jamais sur le cas normal.
+SPE = {"Claudia": 12, "Yann": 8}
 CAS_PARTS_DE = [
     # (recurrent, qui)
-    ({"parts_quart": 8, "ecart_prenom": None}, "Yann"),
-    ({"parts_quart": 8, "ecart_prenom": "Claudia"}, "Claudia"),
-    ({"parts_quart": 8, "ecart_prenom": "Claudia"}, "Yann"),
-    ({"parts_quart": 32, "ecart_prenom": "Yann"}, "Yann"),  # plafond de l'échelle
-    ({"parts_quart": 4, "ecart_prenom": None}, None),       # non cochée
+    ({"parts_quart": 8, "parts_spe": None}, "Yann"),         # part équiv
+    ({"parts_quart": 8, "parts_spe": SPE}, "Claudia"),       # part spé
+    ({"parts_quart": 8, "parts_spe": SPE}, "Yann"),
+    ({"parts_quart": 8, "parts_spe": {"Claudia": 12}}, "Yann"),  # prénom absent : base
+    ({"parts_quart": 4, "parts_spe": None}, None),           # non cochée
+    (None, "Yann"),                                           # ponctuelle sans récurrent
 ]
 CAS_CREDIT_DE = [
     # (recurrent, tache)
-    ({"parts_quart": 8, "ecart_prenom": None}, {"qui": "Yann", "qui2": "Claudia"}),
-    ({"parts_quart": 2, "ecart_prenom": None}, {"qui": "Yann", "qui2": "Claudia"}),  # 0,5 en quarts
-    # l'écart ne s'applique pas à deux : Claudia reste créditée de la moitié de la base
-    ({"parts_quart": 8, "ecart_prenom": "Claudia"}, {"qui": "Claudia", "qui2": "Yann"}),
-    ({"parts_quart": 32, "ecart_prenom": "Yann"}, {"qui": "Yann", "qui2": None}),  # plafond, seul
+    # à deux d'avant 017 (sans parts_quart2) : base divisée
+    ({"parts_quart": 8}, {"qui": "Yann", "qui2": "Claudia"}),
+    ({"parts_quart": 2}, {"qui": "Yann", "qui2": "Claudia"}),  # 0,5 en quarts
+    # à deux depuis 017 : chacun ses parts pleines, ou au tiers
+    ({"parts_quart": 12}, {"qui": "Claudia", "qui2": "Yann", "parts_quart2": 8, "tiers": 3, "tiers2": 3}),
+    ({"parts_quart": 12}, {"qui": "Yann", "qui2": "Claudia", "parts_quart2": 12, "tiers": 3, "tiers2": 1}),
+    ({"parts_quart": 8}, {"qui": "Yann", "qui2": "Claudia", "parts_quart2": 8, "tiers": 2, "tiers2": 1}),
+    ({"parts_quart": 12, "parts_spe": SPE}, {"qui": "Claudia", "qui2": None}),  # seul, part spé
 ]
 
 
@@ -90,8 +95,10 @@ def test_partsde_creditde_identiques_au_frontend():
     assert du_js["creditDe"] == attendu_credit_de
 
     # `4.0 == 4` est vrai en Python : l'égalité ci-dessus ne verrait PAS un crédit devenu
-    # flottant, alors qu'il partirait tel quel dans une colonne int. On vérifie donc le TYPE.
-    for credit in attendu_credit_de:
+    # flottant. Seule une part au tiers (D-038) a le droit de l'être ; le reste reste entier.
+    for (_, t), credit in zip(CAS_CREDIT_DE, attendu_credit_de):
+        if t.get("tiers", 3) != 3 or t.get("tiers2", 3) != 3:
+            continue
         for q in credit.values():
             assert isinstance(q, int), f"les quarts restent entiers, reçu {q!r} ({type(q).__name__})"
 
@@ -102,23 +109,23 @@ def test_parts_de_hors_echelle_ne_plante_pas():
     `list.index()` lève là où `indexOf` rend -1 : sans garde, le bot tombait sur une tâche
     dont `parts_quart` n'était pas un cran valide.
     """
-    assert taches_mod.parts_de({"parts_quart": 7, "ecart_prenom": "Yann"}, "Yann") == 2
-    assert taches_mod.parts_de({"parts_quart": 7, "ecart_prenom": None}, "Yann") == 7
+    assert taches_mod.parts_de({"parts_quart": 7, "parts_spe": None}, "Yann") == 7
+    assert taches_mod.parts_de({"parts_quart": 7, "parts_spe": {"Yann": True}}, "Yann") == 7, \
+        "un booléen n'est pas une part (aligné sur Number.isInteger)"
 
 
-def test_partsde_plafond_et_ecart_a_deux_valeurs_attendues():
+def test_part_spe_et_partage_au_tiers_valeurs_attendues():
     """Doublon explicite des cas limites, en clair : un cas non testé littéralement dort (L-007)."""
-    assert taches_mod.parts_de({"parts_quart": 8, "ecart_prenom": None}, "Yann") == 8
-    assert taches_mod.parts_de({"parts_quart": 8, "ecart_prenom": "Claudia"}, "Claudia") == 12
-    assert taches_mod.parts_de({"parts_quart": 8, "ecart_prenom": "Claudia"}, "Yann") == 8
-    assert taches_mod.parts_de({"parts_quart": 32, "ecart_prenom": "Yann"}, "Yann") == 32, "plafond"
+    assert taches_mod.parts_de({"parts_quart": 8, "parts_spe": None}, "Yann") == 8
+    assert taches_mod.parts_de({"parts_quart": 8, "parts_spe": SPE}, "Claudia") == 12
+    assert taches_mod.parts_de({"parts_quart": 8, "parts_spe": SPE}, "Yann") == 8
     assert taches_mod.credit_de({"parts_quart": 8}, {"qui": "Yann", "qui2": "Claudia"}) == \
-        {"Yann": 4, "Claudia": 4}
-    assert taches_mod.credit_de({"parts_quart": 2}, {"qui": "Yann", "qui2": "Claudia"}) == \
-        {"Yann": 1, "Claudia": 1}, "0,5 part divisée en quarts : exact"
-    assert taches_mod.credit_de({"parts_quart": 8, "ecart_prenom": "Claudia"},
-                                {"qui": "Claudia", "qui2": "Yann"}) == {"Claudia": 4, "Yann": 4}, \
-        "l'écart ne s'applique pas à deux"
+        {"Yann": 4, "Claudia": 4}, "à deux d'avant 017 : base divisée"
+    plein = {"qui": "Yann", "qui2": "Claudia", "parts_quart2": 12, "tiers": 3, "tiers2": 3}
+    assert taches_mod.credit_de({"parts_quart": 12}, plein) == {"Yann": 12, "Claudia": 12}, \
+        "à deux : chacun ses parts pleines"
+    assert taches_mod.credit_de({"parts_quart": 12}, dict(plein, tiers2=1)) == {"Yann": 12, "Claudia": 4}, \
+        "un tiers de 3 parts = 1 part"
 
 
 # ---------- occurrences ----------
@@ -175,7 +182,8 @@ def test_basculer_a_deux_credite_qui2():
     cible, champs, erreur = taches_mod.basculer(d, "Yann", "linge", True, LUNDI, qui2="Claudia")
     assert erreur is None
     assert champs["qui"] == "Yann" and champs["qui2"] == "Claudia"
-    assert champs["parts_quart"] == 20, "la base se fige entière ; c'est creditDe qui divise"
+    assert champs["parts_quart"] == 20 and champs["parts_quart2"] == 20, "chacun ses parts pleines (D-038)"
+    assert champs["tiers"] == 3 and champs["tiers2"] == 3
 
 
 def test_basculer_puis_annuler_revient_a_zero():
@@ -184,7 +192,8 @@ def test_basculer_puis_annuler_revient_a_zero():
     assert champs["parts_quart"] == 4
     cible, champs2, erreur = taches_mod.basculer(d, "Yann", "biberons", False, LUNDI)
     assert erreur is None
-    assert champs2 == {"fait_le": None, "qui": None, "qui2": None, "parts_quart": 0}
+    assert champs2 == {"fait_le": None, "qui": None, "qui2": None, "parts_quart": 0,
+                       "parts_quart2": None, "tiers": 3, "tiers2": None}
 
 
 def test_basculer_puis_bareme_change_ne_reecrit_pas_l_historique():
@@ -358,5 +367,5 @@ def test_balance_vide_partage_a_moitie():
 
 
 def test_credit_de_tache_non_cochee_retourne_objet_vide():
-    recurrent = {"parts_quart": 8, "ecart_prenom": None}
+    recurrent = {"parts_quart": 8, "parts_spe": None}
     assert taches_mod.credit_de(recurrent, {"qui": None, "qui2": None}) == {}

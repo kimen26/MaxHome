@@ -15,7 +15,7 @@ const JOURS_HISTORIQUE = 100;
 export default {
   cle: "taches", nom: "Tâches", defaut: "jour", avecMois: false,
   onglets: [["jour", "Jour"], ["semaine", "Semaine"]],
-  reglages: [["taches-rec", "Parts"]],
+  reglages: [["taches-rec", "Tâches"]],
   etatInitial: { tachesRec: [], taches: [] },
   referentiels: (api) => ({ tachesRec: api.tachesRec() }),
 

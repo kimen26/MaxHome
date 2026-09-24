@@ -15,7 +15,8 @@ import { enteteDetail, choixQui } from "../socle/blocs.js";
 import { creerCheckList } from "../socle/blocs-checklist.js";
 import { brancherCycles, suivante } from "../socle/blocs-cycle.js";
 import { occurrencesManquantes, perimees, partsDe, creditDe, partsTexte, groupe, trier,
-  jourIso, depuisIso, decalerJours, FREQUENCES, libelleRelatif, libelleAjoutTodo } from "./taches.js";
+  jourIso, depuisIso, decalerJours, FREQUENCES, libelleRelatif, libelleAjoutTodo,
+  TIERS, champsADeux, CHAMPS_SEUL } from "./taches.js";
 import { carteMoment, cartePeriode, regrouper, ligneTache } from "./ui-taches-cartes.js";
 
 const ASIDE = "#detail-tache-pc";
@@ -53,8 +54,9 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
   const partDe = (c, prenom) => c[prenom] ?? 0;
 
   // ---------- cycle de coche (tri-état) ----------
-  /** Valeurs du cycle, dans l'ordre du handoff : Claudia → Yann → (les deux) → rien. */
-  const valeursCycle = (r) => (r?.partageable ? [null, ...membres(), A_DEUX] : [null, ...membres()]);
+  /** Valeurs du cycle, dans l'ordre du handoff : Claudia → Yann → les deux → rien. Toute tâche
+   *  peut se faire à deux (D-038) : plus de réglage « faisable à deux » à consulter. */
+  const valeursCycle = () => [null, ...membres(), A_DEUX];
   /** Valeur courante de la case, dérivée de l'état réel de la tâche (jamais recalculée à part). */
   const valeurCourante = (t) => (!t.fait_le ? null : t.qui2 ? A_DEUX : t.qui);
 
@@ -100,6 +102,20 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
   }
 
   // ---------- détail (feuille / colonne PC) ----------
+  /** Fait à deux : chacun choisit sa part — plein, deux tiers, un tiers (D-038). Un bouton par
+   *  valeur, la valeur retenue en `aria-pressed`, jamais la couleur seule. */
+  function htmlPartage(t) {
+    const ligne = (prenom, champ, valeur) => `<div class="ligne-partage">
+      <span class="ligne-partage-nom">${txt(prenom)}</span>
+      <div class="segment-partage">${TIERS.map(([n, lib]) => `<button type="button" class="cible44${valeur === n ? " actif" : ""}"
+        aria-pressed="${valeur === n}" data-tiers="${champ}|${n}">${lib}</button>`).join("")}</div>
+    </div>`;
+    return `<div class="detail-partage">
+      <span class="etiquette">Fait à deux · la part de chacun</span>
+      ${ligne(t.qui, "tiers", t.tiers ?? 3)}${ligne(t.qui2, "tiers2", t.tiers2 ?? 3)}
+    </div>`;
+  }
+
   function htmlDetail(t) {
     const r = recDe(t);
     const quand = t.fait_le ? new Date(t.fait_le).toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : null;
@@ -109,9 +125,10 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
         <span class="mono grand">${txt(partsLigne(t))}</span>
         <span class="sous">${t.fait_le ? `Fait le ${quand}${t.qui ? ` par ${txt(t.qui)}${t.qui2 ? ` et ${txt(t.qui2)}` : ""}` : ""}.` : "Les parts vont à qui coche."}</span>
       </div>
+      ${t.fait_le && t.qui2 && t.parts_quart2 != null ? htmlPartage(t) : ""}
       ${r?.consigne ? `<div class="detail-consigne"><span class="etiquette">Consigne</span><p class="texte-consigne">${txt(r.consigne)}</p></div>` : ""}
       <div class="detail-actions">
-        ${t.fait_le ? '<button class="btn grandir" data-basculer>Annuler la coche</button>' : choixQui(membres(), null)}
+        ${t.fait_le ? '<button class="btn grandir" data-basculer>Annuler la coche</button>' : choixQui(membres(), null, [[A_DEUX, "À deux"]])}
       </div>
       ${r ? '<button class="btn-lien centre" data-vers-reglages>Modifier la tâche récurrente</button>' : ""}
     </div>`;
@@ -124,21 +141,33 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
     htmlDetail, rendre, echec: cb.echec,
     brancherDetail: (t, racine, { basculer, fermer }) => {
       for (const b of racine.querySelectorAll("[data-qui]")) b.addEventListener("click", () => basculer({ suivant: b.dataset.qui }));
+      for (const b of racine.querySelectorAll("[data-tiers]")) {
+        const [champ, n] = b.dataset.tiers.split("|");
+        b.addEventListener("click", () => basculer({ partage: { [champ]: Number(n) } }));
+      }
       racine.querySelector("[data-vers-reglages]")?.addEventListener("click", () => { fermer(); montrerEcran("taches-rec"); });
     },
     basculer: {
       // Les parts se figent à la coche : lues AVANT de poser la date (L-008).
+      // Les parts se recalculent pour la personne choisie dans `appliquer` (part spé, D-038).
       figer: (t) => partsDe(recDe(t), t.qui ?? recDe(t)?.attribue_a ?? null),
-      appliquer(t, figees, { suivant } = {}) {
+      appliquer(t, figees, { suivant, partage } = {}) {
         const r = recDe(t);
+        const champsEcrits = () => ({ fait_le: t.fait_le, qui: t.qui, qui2: t.qui2, parts_quart: t.parts_quart,
+          parts_quart2: t.parts_quart2, tiers: t.tiers, tiers2: t.tiers2 });
+        // Part au tiers d'une tâche déjà faite à deux : seul le tiers change, rien d'autre.
+        if (partage) { Object.assign(t, partage); return champsEcrits(); }
         // `suivant` vient du cycle (case tapée) ou du choix « Fait par » du détail.
         const cible = suivant !== undefined ? suivant : (t.fait_le ? null : etat.prenom);
-        if (cible === null) Object.assign(t, { fait_le: null, qui: null, qui2: null, parts_quart: 0 });
+        // Une ponctuelle garde ses parts en base même décochée : c'est sa seule mémoire du barème.
+        const base = r ? null : t.parts_quart;
+        if (cible === null) Object.assign(t, { fait_le: null, qui: null, parts_quart: r ? 0 : base, ...CHAMPS_SEUL });
         else if (cible === A_DEUX) {
           const [p1, p2] = membres();
-          Object.assign(t, { fait_le: t.fait_le ?? new Date().toISOString(), qui: p1, qui2: p2, parts_quart: r.parts_quart });
-        } else Object.assign(t, { fait_le: t.fait_le ?? new Date().toISOString(), qui: cible, qui2: null, parts_quart: figees });
-        return { fait_le: t.fait_le, qui: t.qui, qui2: t.qui2, parts_quart: t.parts_quart };
+          Object.assign(t, { fait_le: t.fait_le ?? new Date().toISOString(), ...champsADeux(r, p1, p2, base) });
+        } else Object.assign(t, { fait_le: t.fait_le ?? new Date().toISOString(), qui: cible, ...CHAMPS_SEUL,
+          parts_quart: r ? partsDe(r, cible) : base });
+        return champsEcrits();
       },
       ecrire: (id, champs) => api.majTache(id, champs),
       message: (t) => {

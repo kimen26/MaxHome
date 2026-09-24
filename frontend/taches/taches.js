@@ -13,7 +13,8 @@ export const FREQUENCES = {
 // à deux. Remplace la pénibilité 1-5 et son plancher à 1 point (D-022, désormais caduc).
 export const ECHELLE_QUART = [2, 4, 8, 12, 20, 32];
 /** « 0,5 » « 1,5 » « 8 » — virgule française, pas de zéro inutile. */
-export const partsTexte = (q) => String(q / 4).replace(".", ",");
+// Arrondi au centième : une part « au tiers » (fait à deux, D-038) donne 0,67, jamais 0,6666….
+export const partsTexte = (q) => String(Math.round((q / 4) * 100) / 100).replace(".", ",");
 /** « 1 part » / « 2 parts » — un seul endroit, l'accord se fait ici (remplace pts() pour les parts). */
 // Pluriel à partir de 2 (8 quarts), pas de 1 : en français « 1,5 part » reste au singulier.
 export const parts = (q) => `${partsTexte(q)} part${q >= 8 ? "s" : ""}`;
@@ -62,29 +63,55 @@ export const perimees = (taches, jour) =>
   taches.filter((t) => !t.fait_le && t.recurrent_id && t.echeance < decalerJours(jour, -1));
 
 /** Parts d'une tâche pour la personne qui la fait (en quarts). `qui` : prénom ou null.
- *  L'écart ajoute un cran à la personne désignée par `ecart_prenom`, plafonné en haut
- *  de l'échelle — amener Max coûte un cran de plus à Claudia, jamais plus que 8. */
+ *  « Part équiv » (`parts_spe` null) : `parts_quart` pour tout le monde. « Part spé » :
+ *  `parts_spe` donne les parts de chacun ({"Claudia": 12, "Yann": 8}) — déposer le petit ne
+ *  coûte pas pareil aux deux (D-038, remplace l'écart d'un cran). Sans récurrent (tâche
+ *  ponctuelle), aucune base à lire : 0, jamais une exception qui casserait l'écran. */
 export function partsDe(recurrent, qui) {
-  const base = recurrent.parts_quart;
-  if (!qui || !recurrent.ecart_prenom || recurrent.ecart_prenom !== qui) return base;
-  const i = ECHELLE_QUART.indexOf(base);
-  return ECHELLE_QUART[Math.min(ECHELLE_QUART.length - 1, i + 1)] ?? base;
+  if (!recurrent) return 0;
+  const spe = recurrent.parts_spe;
+  if (qui && spe && Number.isInteger(spe[qui])) return spe[qui];
+  return recurrent.parts_quart;
 }
 
+/** Tiers retenu d'une part pleine quand on a fait à deux : 1, 2 ou 3 (plein). Pas de micro
+ *  réglage (D-038). */
+export const TIERS = [[3, "Plein"], [2, "⅔"], [1, "⅓"]];
+const auTiers = (q, tiers) => (tiers == null || tiers === 3 ? q : (q * tiers) / 3);
+
 /** Crédit de parts d'une occurrence cochée : { Yann: q, Claudia: q } en quarts.
- *  Fait à deux, on divise la base (jamais l'écart, sinon tout faire à deux devient la
- *  stratégie gagnante) ; non cochée (`qui` null), aucun crédit. */
+ *  `recurrent.parts_quart` est la base FIGÉE de `qui` (l'appelant passe celle de l'occurrence).
+ *  Fait à deux (D-038) : chacun ses parts pleines (`parts_quart`, `parts_quart2`), réduites au
+ *  tiers retenu (`tiers`, `tiers2`) — faire à deux n'enlève rien à personne. Une occurrence à
+ *  deux d'avant 017 (`parts_quart2` absent) garde l'ancienne règle : base divisée en deux.
+ *  Non cochée (`qui` null), aucun crédit. */
 export function creditDe(recurrent, tache) {
   const out = {};
+  if (!tache.qui) return out;
   if (tache.qui2) {
-    const moitie = recurrent.parts_quart / 2;      // exact : quarts, base toujours paire
-    out[tache.qui] = moitie;
-    out[tache.qui2] = moitie;
-  } else if (tache.qui) {
-    out[tache.qui] = partsDe(recurrent, tache.qui);
+    if (tache.parts_quart2 == null) {
+      const moitie = recurrent.parts_quart / 2;
+      out[tache.qui] = moitie;
+      out[tache.qui2] = moitie;
+      return out;
+    }
+    out[tache.qui] = auTiers(recurrent.parts_quart, tache.tiers);
+    out[tache.qui2] = auTiers(tache.parts_quart2, tache.tiers2);
+    return out;
   }
+  out[tache.qui] = partsDe(recurrent, tache.qui);
   return out;
 }
+
+/** Champs d'une occurrence cochée « à deux » : les parts pleines de chacun, figées maintenant,
+ *  au plein par défaut (on ajuste ensuite au tiers dans le détail). */
+export function champsADeux(recurrent, p1, p2, base = null) {
+  const q = (p) => (recurrent ? partsDe(recurrent, p) : base ?? 0);
+  return { qui: p1, qui2: p2, parts_quart: q(p1), parts_quart2: q(p2), tiers: 3, tiers2: 3 };
+}
+/** Champs d'une occurrence décochée (ou cochée par une seule personne) : plus de trace d'un
+ *  partage. */
+export const CHAMPS_SEUL = { qui2: null, parts_quart2: null, tiers: 3, tiers2: null };
 
 /** Méta « ajouté … » de la feuille Todo (§8 du handoff, bug 6) : « ajouté aujourd'hui »,
  *  « ajouté hier », ou « ajouté il y a N j », suivi de « · M min » quand la tâche porte des

@@ -139,6 +139,7 @@ export function fermerPanneau(selecteurAside) {
   a.hidden = true;
   a.innerHTML = "";
 }
-/** Choix d'une personne : pastilles cliquables, `data-qui`. */
-export const choixQui = (membres, choisi) => `<div class="choix-qui">${membres.map((p) =>
-  `<button type="button" class="pastille grande${p === choisi ? " bleue" : ""}" data-qui="${txt(p)}">${txt(p)}</button>`).join("")}</div>`;
+/** Choix d'une personne : pastilles cliquables, `data-qui`. `extras` : choix en plus des
+ *  prénoms, `[[valeur, libellé]]` (ex. « À deux » dans les Tâches). */
+export const choixQui = (membres, choisi, extras = []) => `<div class="choix-qui">${[...membres.map((p) => [p, p]), ...extras].map(([v, lib]) =>
+  `<button type="button" class="pastille grande${v === choisi ? " bleue" : ""}" data-qui="${txt(v)}">${txt(lib)}</button>`).join("")}</div>`;

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { echeance, occurrencesManquantes, groupe, trier, balance, jourIso, decalerJours, perimees,
-  ECHELLE_QUART, partsTexte, parts, partsDe, creditDe, libelleRelatif, dernierPassage,
+  ECHELLE_QUART, partsTexte, parts, partsDe, creditDe, champsADeux, libelleRelatif, dernierPassage,
   avancementPeriode, libelleAjoutTodo } from "../frontend/taches/taches.js";
 import { suivante } from "../frontend/socle/blocs-cycle.js";
 
@@ -71,7 +71,7 @@ assert.deepEqual(b.parCategorie.Cuisine, { Claudia: 4, Yann: 12 });
 const vide = balance([], recBalance, ["Claudia", "Yann"], "2026-08-31", "2026-09-06");
 assert.equal(vide.ratio.Claudia, 0.5, "sans tâche, moitié-moitié");
 
-// balance à deux : les deux personnes créditées, total conservé.
+// balance à deux, ligne d'avant 017 (sans parts_quart2) : base divisée, total conservé.
 const aDeux = [
   { recurrent_id: 1, qui: "Yann", qui2: "Claudia", parts_quart: 8, categorie: "Cuisine", fait_le: new Date(2026, 8, 6, 18).toISOString() },
 ];
@@ -99,15 +99,32 @@ assert.deepEqual(bFige.parts, { Claudia: 0, Yann: 4 }, "la balance passée lit t
 
 // Les dix cas de logique-metier.md §10, littéralement (L-007 : un cas du brief non testé
 // littéralement est un bug qui dort).
-assert.equal(partsDe({ parts_quart: 8, ecart_prenom: null }, "Yann"), 8, "2 parts");
-assert.equal(partsDe({ parts_quart: 8, ecart_prenom: "Claudia" }, "Claudia"), 12, "3 parts");
-assert.equal(partsDe({ parts_quart: 8, ecart_prenom: "Claudia" }, "Yann"), 8, "2 parts, l'écart n'est pas pour Yann");
-assert.equal(partsDe({ parts_quart: 32, ecart_prenom: "Yann" }, "Yann"), 32, "plafond de l'échelle");
+// Part équiv / part spé (D-038, remplace l'écart d'un cran).
+assert.equal(partsDe({ parts_quart: 8, parts_spe: null }, "Yann"), 8, "part équiv : 2 parts pour tout le monde");
+assert.equal(partsDe({ parts_quart: 8, parts_spe: { Claudia: 12, Yann: 8 } }, "Claudia"), 12, "part spé : 3 parts pour Claudia");
+assert.equal(partsDe({ parts_quart: 8, parts_spe: { Claudia: 12, Yann: 8 } }, "Yann"), 8, "part spé : 2 parts pour Yann");
+assert.equal(partsDe({ parts_quart: 8, parts_spe: { Claudia: 12 } }, "Yann"), 8, "prénom absent de la part spé : base");
+assert.equal(partsDe({ parts_quart: 8, parts_spe: { Claudia: 12 } }, null), 8, "personne : base");
+assert.equal(partsDe(undefined, "Yann"), 0, "tâche ponctuelle sans récurrent : 0, pas d'exception");
+// Anciennes lignes à deux (avant 017, sans parts_quart2) : base divisée, comme avant.
 assert.deepEqual(creditDe({ parts_quart: 8 }, { qui: "Yann", qui2: "Claudia" }), { Yann: 4, Claudia: 4 }, "1 + 1");
 assert.deepEqual(creditDe({ parts_quart: 2 }, { qui: "Yann", qui2: "Claudia" }), { Yann: 1, Claudia: 1 },
   "0,25 + 0,25 — exact grâce aux quarts");
-assert.deepEqual(creditDe({ parts_quart: 8, ecart_prenom: "Claudia" }, { qui: "Claudia", qui2: "Yann" }),
-  { Claudia: 4, Yann: 4 }, "l'écart ne s'applique pas à deux");
+// À deux depuis 017 : chacun ses parts pleines, ou ⅔ / ⅓.
+assert.deepEqual(creditDe({ parts_quart: 8 }, { qui: "Yann", qui2: "Claudia", parts_quart2: 8, tiers: 3, tiers2: 3 }),
+  { Yann: 8, Claudia: 8 }, "à deux, chacun ses 2 parts : faire à deux n'enlève rien");
+assert.deepEqual(creditDe({ parts_quart: 12 }, { qui: "Claudia", qui2: "Yann", parts_quart2: 8, tiers: 3, tiers2: 3 }),
+  { Claudia: 12, Yann: 8 }, "à deux avec part spé : chacun la sienne");
+assert.deepEqual(creditDe({ parts_quart: 12 }, { qui: "Yann", qui2: "Claudia", parts_quart2: 12, tiers: 3, tiers2: 1 }),
+  { Yann: 12, Claudia: 4 }, "3 parts : Yann plein, Claudia un tiers = 1 part");
+assert.deepEqual(creditDe({ parts_quart: 12 }, { qui: "Yann", qui2: "Claudia", parts_quart2: 12, tiers: 2, tiers2: 3 }),
+  { Yann: 8, Claudia: 12 }, "deux tiers de 3 parts = 2 parts");
+assert.equal(partsTexte(creditDe({ parts_quart: 8 }, { qui: "Yann", qui2: "Claudia", parts_quart2: 8, tiers: 3, tiers2: 1 }).Claudia),
+  "0,67", "un tiers de 2 parts s'affiche arrondi au centième");
+assert.deepEqual(champsADeux({ parts_quart: 8, parts_spe: { Claudia: 12, Yann: 8 } }, "Claudia", "Yann"),
+  { qui: "Claudia", qui2: "Yann", parts_quart: 12, parts_quart2: 8, tiers: 3, tiers2: 3 }, "coche à deux : parts pleines figées");
+assert.deepEqual(champsADeux(null, "Claudia", "Yann", 4),
+  { qui: "Claudia", qui2: "Yann", parts_quart: 4, parts_quart2: 4, tiers: 3, tiers2: 3 }, "ponctuelle : sa propre base");
 // balance(..., {obligatoireSeul: true}) et « barème modifié après coche » : voir bOblig et bFige ci-dessus.
 assert.equal(partsTexte(2), "0,5");
 assert.equal(partsTexte(6), "1,5");

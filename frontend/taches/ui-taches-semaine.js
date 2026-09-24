@@ -6,7 +6,7 @@
 import { $, txt } from "../socle/ui-base.js";
 import { creerFileEcritures } from "../socle/blocs.js";
 import { boutonCycle, brancherCycles, suivante } from "../socle/blocs-cycle.js";
-import { partsTexte, partsDe, balance, jourIso, depuisIso, decalerJours, echeance } from "./taches.js";
+import { partsTexte, partsDe, balance, jourIso, depuisIso, decalerJours, echeance, champsADeux, CHAMPS_SEUL } from "./taches.js";
 
 const A_DEUX = "_deux";
 const CADENCES = [["quotidien", "Chaque jour"], ["hebdo", "Cette semaine"], ["mensuel", "Ce mois"]];
@@ -15,7 +15,8 @@ export function creerUiTachesSemaine(api, etat, cb, ui, ouvrirAjout) {
   const membres = () => etat.membres.map((m) => m.prenom);
   const enFile = creerFileEcritures();
 
-  const valeursCycle = (r) => (r?.partageable ? [null, ...membres(), A_DEUX] : [null, ...membres()]);
+  // Toute tâche peut se faire à deux (D-038).
+  const valeursCycle = () => [null, ...membres(), A_DEUX];
   const valeurCourante = (t) => (!t?.fait_le ? null : t.qui2 ? A_DEUX : t.qui);
   function renduCellule(valeur) {
     if (valeur === null) return { libelle: "", classe: "cellule-vide" };
@@ -167,7 +168,8 @@ export function creerUiTachesSemaine(api, etat, cb, ui, ouvrirAjout) {
         cible = creee;
       } catch (e) { return cb.echec(e); }
     }
-    const avant = { fait_le: cible.fait_le, qui: cible.qui, qui2: cible.qui2, parts_quart: cible.parts_quart };
+    const avant = { fait_le: cible.fait_le, qui: cible.qui, qui2: cible.qui2, parts_quart: cible.parts_quart,
+      parts_quart2: cible.parts_quart2, tiers: cible.tiers, tiers2: cible.tiers2 };
     const champs = calculerChamps(r, cible, suivant, j);
     Object.assign(cible, champs);
     rendre();
@@ -185,12 +187,12 @@ export function creerUiTachesSemaine(api, etat, cb, ui, ouvrirAjout) {
   const dateDuJour = (j) => { const d = depuisIso(j); d.setHours(12, 0, 0, 0); return d.toISOString(); };
 
   function calculerChamps(r, t, suivant, j) {
-    if (suivant === null) return { fait_le: null, qui: null, qui2: null, parts_quart: 0 };
+    if (suivant === null) return { fait_le: null, qui: null, parts_quart: 0, ...CHAMPS_SEUL };
     if (suivant === A_DEUX) {
       const [p1, p2] = membres();
-      return { fait_le: t.fait_le ?? dateDuJour(j), qui: p1, qui2: p2, parts_quart: r.parts_quart };
+      return { fait_le: t.fait_le ?? dateDuJour(j), ...champsADeux(r, p1, p2) };
     }
-    return { fait_le: t.fait_le ?? dateDuJour(j), qui: suivant, qui2: null, parts_quart: partsDe(r, suivant) };
+    return { fait_le: t.fait_le ?? dateDuJour(j), qui: suivant, ...CHAMPS_SEUL, parts_quart: partsDe(r, suivant) };
   }
 
   // Le segmenté Jour|Semaine est maintenant rendu par le socle (segmentEcrans, data-segment) :

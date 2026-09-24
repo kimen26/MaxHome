@@ -26,6 +26,7 @@ const FEUILLES = [
   { ecran: "courses", moduleDefaut: "courses", bouton: "#btn-tour", nom: "feuille-tour" },
   { ecran: "mois", moduleDefaut: "mois", bouton: "#fab-ajouter-mois", nom: "feuille-ajout-mois" },
   { ecran: "voyages", moduleDefaut: "taches-rec", bouton: "#form-voyage [data-nouveau]", nom: "feuille-ajout-voyage" },
+  { ecran: "taches-rec", moduleDefaut: "taches-rec", bouton: "#btn-aide-parts", nom: "feuille-aide-parts" },
 ];
 
 // États qu'un geste révèle SANS feuille : le mois suivant de l'Agenda (les données factices y
@@ -36,6 +37,17 @@ const GESTES = [
     // Deux mois plus loin : les données factices y posent à la fois des vacances, un voyage et,
     // selon la date du jour, un férié — la grille montre alors ses trois marques.
     geste: async (page) => { await page.click("#agenda-suiv"); await page.click("#agenda-suiv"); await page.waitForTimeout(150); } },
+  // Détail d'une tâche faite à deux : la part de chacun (plein · ⅔ · ⅓, D-038).
+  { ecran: "jour", moduleDefaut: "jour", nom: "detail-tache-a-deux",
+    geste: async (page) => {
+      await page.evaluate(() => { const b = document.querySelector("#bouton-plier-faites"); if (b?.getAttribute("aria-expanded") === "false") b.click(); });
+      await page.waitForTimeout(100);
+      await page.evaluate(() => {
+        const l = [...document.querySelectorAll("#liste-faites-jour .ligne-tache[data-id]")].find((x) => x.querySelector(".case-cycle-deux"));
+        l?.click();
+      });
+      await page.waitForSelector(".detail-partage", { timeout: 3000 });
+    } },
   { ecran: "courses", moduleDefaut: "courses", nom: "courses-aide-saisie",
     geste: async (page) => { await page.focus("#course-libelle"); await page.waitForSelector("#aide-articles:not([hidden])", { timeout: 3000 }); } },
 ];
@@ -410,6 +422,12 @@ try {
         await aller(page, ecran, moduleDefaut);
         await geste(page);
         await capturer(page, nom, largeur, erreursPage);
+        // Un geste peut ouvrir une feuille (détail d'une tâche sur mobile) : la refermer, sinon
+        // son voile intercepte le geste suivant — même règle que la boucle des feuilles (L-018).
+        if (await page.locator("#feuille:not([hidden])").count()) {
+          await page.evaluate(() => document.getElementById("feuille-fond").click());
+          await page.waitForSelector("#feuille", { state: "hidden", timeout: 5000 });
+        }
       } catch (e) {
         ecransCasses.push(`${nom} @ ${largeur}px : ${e.message.split("\n")[0]}`);
         try { await page.click("#logo"); await page.waitForSelector("#ecran-accueil:not([hidden])", { timeout: 3000 }); }
