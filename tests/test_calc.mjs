@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { calculer, repartir, versCentimes, montantLigne, regleEffective, montantTheorique } from "../frontend/budget/calc.js";
-import { montantHabituel } from "../frontend/budget/habituel.js";
-import { detailRegle } from "../frontend/budget/repartition.js";
+import { montantHabituel, montantNote, champsDuMontant, montantInchange } from "../frontend/budget/habituel.js";
+import { detailRegle, regleBasculee, motPartage } from "../frontend/budget/repartition.js";
+import { compteDeCharge, compteSource, optionsCompte, aAutreCompte, choisirCompte } from "../frontend/budget/compte-charge.js";
+import { etatDuMois, texteAFaireVide } from "../frontend/budget/etat-mois.js";
 
 // Cas réel : Comptes 2026, février. Doit TOUJOURS donner Yann -3 236,15 ±1 ct.
 const chargesFevrier = [
@@ -129,5 +131,159 @@ assert.equal(detailRegle("proport", { ...etatDetail, resultat: { totalRevenus: 0
 assert.equal(detailRegle("cle", etatDetail, { cle_pct: 60 }), "Y 60 % · C 40 %");
 assert.equal(detailRegle("perso", etatDetail, { payeur: "Claudia" }), "payé par Claudia");
 assert.throws(() => detailRegle("??", etatDetail), /inconnue/);
+
+// État du mois (D-042) : salaire, puis charge sans montant, puis virement — jamais « tout est
+// fait » tant qu'un salaire ou une charge manque (septembre 2026 : deux virements cochés avant
+// la saisie des salaires faisaient dire « Tout est viré »).
+const moisComplet = {
+  mois: 9, membres: [{ prenom: "Yann" }, { prenom: "Claudia" }],
+  revenus: { Yann: 280000, Claudia: 250000 },
+  charges: [
+    { id: 1, actif: true, ponctuel: false }, { id: 2, actif: true, ponctuel: false },
+    { id: 3, actif: false, ponctuel: false }, { id: 4, actif: true, ponctuel: true },
+  ],
+  lignes: { 1: { montant_centimes: -1000 }, 2: { montant_centimes: 0 } }, // 0 saisi = rempli
+  mouvements: [{ id: 1, fait_le: "2026-09-13T10:00:00Z" }, { id: 2, fait_le: "2026-09-13T10:00:00Z" }],
+};
+const fait = etatDuMois(moisComplet);
+assert.equal(fait.statut, "fait", "charge inactive et ponctuelle sans ligne ne manquent pas");
+assert.equal(fait.phrase, "Tout est viré pour septembre");
+assert.equal(texteAFaireVide(fait), "Tout est fait pour ce mois.");
+
+const unSalaire = etatDuMois({ ...moisComplet, revenus: { Yann: 280000, Claudia: 0 } });
+assert.equal(unSalaire.statut, "salaires", "virements tous cochés mais salaire manquant");
+assert.equal(unSalaire.phrase, "Salaire de Claudia à noter");
+assert.equal(texteAFaireVide(unSalaire), "Salaire de Claudia à noter avant de faire les virements.");
+const deuxSalaires = etatDuMois({ ...moisComplet, revenus: {}, lignes: {} });
+assert.equal(deuxSalaires.phrase, "Salaires à noter", "le salaire passe avant les charges");
+
+const chargesVides = etatDuMois({ ...moisComplet, lignes: {} });
+assert.equal(chargesVides.statut, "charges");
+assert.equal(chargesVides.phrase, "2 charges à remplir");
+assert.equal(etatDuMois({ ...moisComplet, lignes: { 1: { montant_centimes: -1000 } } }).phrase, "1 charge à remplir");
+assert.ok(!texteAFaireVide(chargesVides).includes("Tout est fait"), "jamais « tout est fait » avec une charge vide");
+
+const aVirer = etatDuMois({ ...moisComplet, mouvements: [{ id: 1, fait_le: null }, { id: 2, fait_le: "2026-09-13T10:00:00Z" }] });
+assert.equal(aVirer.statut, "virements");
+assert.equal(aVirer.phrase, "1 virement à faire en septembre");
+assert.equal(etatDuMois({ ...moisComplet, mouvements: [{ fait_le: null }, { fait_le: null }] }).phrase, "2 virements à faire en septembre");
+
+const sansMouvement = etatDuMois({ ...moisComplet, mouvements: [] });
+assert.equal(sansMouvement.statut, "aucun");
+assert.equal(sansMouvement.phrase, "Aucun virement prévu");
+assert.equal(texteAFaireVide(sansMouvement), "Aucun virement prévu. Ajoute les virements dans Réglages · Comptes.");
+assert.equal(texteAFaireVide(etatDuMois({ ...moisComplet, mouvements: [], revenus: {} })),
+  "Aucun virement prévu. Ajoute les virements dans Réglages · Comptes.", "sans virement, la carte le dit même si un salaire manque");
+
+// ---------- Réglages · Charges en rangées (D-042) ----------
+// Partage : un toucher bascule 50/50 ↔ Prorata ; une règle rare ne bascule pas (feuille).
+assert.equal(regleBasculee("egales"), "proport");
+assert.equal(regleBasculee("proport"), "egales");
+assert.equal(regleBasculee("cle"), null);
+assert.equal(regleBasculee("perso"), null);
+assert.equal(motPartage({ regle: "egales" }), "50/50");
+assert.equal(motPartage({ regle: "proport" }), "Prorata");
+assert.equal(motPartage({ regle: "cle", cle_pct: 60 }), "Clé 60 %");
+assert.equal(motPartage({ regle: "perso", payeur: "Yann" }), "Un seul paie");
+
+// Montant tapé dans la rangée : noté = « Toujours le même », vidé = on reprend le dernier.
+assert.equal(montantNote({ defaut_dernier: false, montant_defaut: -120000 }), -120000);
+assert.equal(montantNote({ defaut_dernier: true, montant_defaut: -120000 }), null, "variable : rien de noté à montrer");
+assert.deepEqual(champsDuMontant("-1 450,37"), { montant_defaut: -145037, defaut_dernier: false });
+assert.deepEqual(champsDuMontant("1450,37"), { montant_defaut: 145037, defaut_dernier: false }, "signe : ce qui est tapé, comme l'écran Mois");
+assert.deepEqual(champsDuMontant("  "), { defaut_dernier: true });
+assert.throws(() => champsDuMontant("abc"), /invalide/);
+assert.equal(montantInchange({ defaut_dernier: true }, { defaut_dernier: true }), true);
+assert.equal(montantInchange({ defaut_dernier: false, montant_defaut: -9000 }, { defaut_dernier: true }), false);
+assert.equal(montantInchange({ defaut_dernier: false, montant_defaut: -9000 }, champsDuMontant("-90")), true);
+assert.equal(montantInchange({ defaut_dernier: true, montant_defaut: -9000 }, champsDuMontant("-90")), false, "passe en « Toujours le même »");
+
+// Où va l'argent : le récurrent ACTIF en mode charge de cette charge, sinon Commun (null).
+const comptesT = [
+  { id: 1, nom: "Compte commun", titulaire: null, commun: true },
+  { id: 2, nom: "Compte Claudia", titulaire: "Claudia", commun: false },
+  { id: 3, nom: "Livret A", titulaire: null, commun: false },
+];
+const elec = { id: 2, libelle: "Électricité", regle: "proport" };
+const recT = (champs) => ({ id: 9, mode: "charge", charge_id: 2, compte_de: 1, compte_vers: 3, actif: true,
+  titre: "Électricité → Livret A", ...champs });
+assert.equal(compteDeCharge(elec, []), null, "sans récurrent : Commun");
+assert.equal(compteDeCharge(elec, [recT()]), 3);
+assert.equal(compteDeCharge(elec, [recT({ actif: false })]), null, "récurrent éteint : Commun");
+assert.equal(compteDeCharge(elec, [recT({ charge_id: 5 })]), null, "récurrent d'une autre charge");
+assert.equal(compteDeCharge(elec, [recT({ mode: "fixe" })]), null, "pas en mode charge");
+assert.deepEqual(optionsCompte(comptesT), [["", "Commun"], [2, "Compte Claudia"], [3, "Livret A"]]);
+assert.deepEqual(optionsCompte([]), [["", "Commun"]], "aucun compte en base : Commun seul");
+assert.equal(aAutreCompte([comptesT[0]]), false);
+assert.equal(aAutreCompte(comptesT), true);
+assert.equal(compteSource(elec, comptesT), 1, "le virement part du commun");
+assert.equal(compteSource({ ...elec, regle: "perso", payeur: "Claudia" }, comptesT), 2, "un seul paie : du compte du payeur");
+assert.equal(compteSource(elec, []), null);
+
+/** Api espionne : note chaque écriture, rend ce que rendrait Supabase. */
+function apiEspion() {
+  const appels = [];
+  return {
+    appels,
+    creerRecurrent: async (champs) => { appels.push(["creerRecurrent", champs]); return { id: 50, ...champs }; },
+    majRecurrent: async (id, champs) => { appels.push(["majRecurrent", id, champs]); },
+    majMouvement: async (id, champs) => { appels.push(["majMouvement", id, champs]); },
+    supprimerMouvement: async (id) => { appels.push(["supprimerMouvement", id]); },
+  };
+}
+const etatT = (recurrents = [], mouvements = []) => ({ comptes: comptesT, recurrents, mouvements });
+
+{ // Première fois : un récurrent est créé, du commun vers le compte choisi, le 5.
+  const api = apiEspion();
+  const etat = etatT();
+  assert.equal(await choisirCompte(api, etat, elec, 3), true);
+  assert.deepEqual(api.appels, [["creerRecurrent", { titre: "Électricité → Livret A", compte_de: 1, compte_vers: 3,
+    actif: true, mode: "charge", charge_id: 2, montant_centimes: null, prenom_part: null, qui: null, jour: 5,
+    consigne: null, ordre: 100 }]]);
+  assert.equal(compteDeCharge(elec, etat.recurrents), 3, "etat.recurrents tenu à jour");
+}
+{ // Même compte : rien n'est écrit, pas de rechargement.
+  const api = apiEspion();
+  assert.equal(await choisirCompte(api, etatT([recT()]), elec, 3), false);
+  assert.equal(api.appels.length, 0);
+}
+{ // Autre compte : le récurrent change, le virement NON coché du mois le suit.
+  const api = apiEspion();
+  const etat = etatT([recT()], [{ id: 40, recurrent_id: 9, fait_le: null, compte_vers: 3 }, { id: 41, recurrent_id: 1, fait_le: null }]);
+  assert.equal(await choisirCompte(api, etat, elec, 2), true);
+  const champs = { titre: "Électricité → Compte Claudia", compte_de: 1, compte_vers: 2 };
+  assert.deepEqual(api.appels, [["majRecurrent", 9, { ...champs, actif: true }], ["majMouvement", 40, champs]]);
+  assert.equal(etat.mouvements[0].compte_vers, 2);
+  assert.equal(compteDeCharge(elec, etat.recurrents), 2);
+}
+{ // Retour à Commun : récurrent éteint, virement non coché retiré, virement coché gardé.
+  const api = apiEspion();
+  const etat = etatT([recT()], [{ id: 40, recurrent_id: 9, fait_le: null }, { id: 42, recurrent_id: 9, fait_le: "2026-02-05" }]);
+  assert.equal(await choisirCompte(api, etat, elec, null), true);
+  assert.deepEqual(api.appels, [["majRecurrent", 9, { actif: false }], ["supprimerMouvement", 40]]);
+  assert.deepEqual(etat.mouvements.map((m) => m.id), [42]);
+  assert.equal(compteDeCharge(elec, etat.recurrents), null);
+  assert.equal(await choisirCompte(apiEspion(), etat, elec, null), false, "déjà Commun : rien à écrire");
+}
+{ // Un récurrent éteint est repris (pas de doublon à chaque aller-retour).
+  const api = apiEspion();
+  const etat = etatT([recT({ actif: false })]);
+  assert.equal(await choisirCompte(api, etat, elec, 3), true);
+  assert.deepEqual(api.appels, [["majRecurrent", 9, { titre: "Électricité → Livret A", compte_de: 1, compte_vers: 3, actif: true }]]);
+  assert.equal(etat.recurrents.length, 1);
+}
+{ // Deux actifs (donnée abîmée) : un seul reste, AU PLUS UN récurrent actif par charge.
+  const api = apiEspion();
+  const etat = etatT([recT(), recT({ id: 10, compte_vers: 2 })]);
+  await choisirCompte(api, etat, elec, 3);
+  assert.equal(etat.recurrents.filter((r) => r.actif).length, 1);
+  assert.deepEqual(api.appels, [["majRecurrent", 10, { actif: false }]]);
+}
+{ // Un seul paie : le virement part du compte du payeur.
+  const api = apiEspion();
+  await choisirCompte(api, etatT(), { ...elec, regle: "perso", payeur: "Claudia" }, 3);
+  assert.equal(api.appels[0][1].compte_de, 2);
+}
+await assert.rejects(() => choisirCompte(apiEspion(), etatT(), elec, 99), /introuvable/);
 
 console.log("test_calc OK");

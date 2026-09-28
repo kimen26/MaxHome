@@ -11,6 +11,9 @@
 #commun-mois:empty { display:none; }
 .ligne-titre-mois { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin:10px 0 8px; }
 .titre-mois-h2 { font-size:15px; font-weight:600; margin:0; }
+/* « (fin de mois) » : précision du titre, en retrait mais lisible (5,5:1 sur le fond, D-042).
+   Insécable : à 320 px, « (fin de / mois) » se coupait au milieu ; il passe entier à la ligne. */
+.titre-mois-quand { font-weight:400; color:var(--texte-2); white-space:nowrap; }
 .total-charges-mois { font-size:16px; white-space:nowrap; }
 
 /* ---------- carte Salaires ---------- */
@@ -35,6 +38,7 @@
 .chiffre-etiquette { font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--texte-2); }
 .chiffre-valeur { font-size:17px; font-weight:600; }
 .chiffre-valeur.accent-vert { color:var(--vert); }
+.chiffre-valeur.accent-rouge { color:var(--rouge); } /* reste négatif : jamais en vert (le signe « − » le dit aussi) */
 @media (min-width:640px) {
   .trois-chiffres { grid-template-columns:repeat(3, minmax(0,1fr)); }
   .trois-chiffres > :first-child { grid-column:auto; flex-direction:column; align-items:flex-start; }
@@ -172,24 +176,60 @@
 .ligne-mois-repartition .etiquette { display:block; margin-bottom:6px; }
 
 /* ================= Écran « Réglages · Charges » ================= */
-/* Une ligne par charge, qui se lit sans rien toucher (D-040) : nom, puis « Toujours le même ·
-   50/50 » ; montant habituel à droite ; chevron = « touche pour régler ». Toute la ligne est
-   la cible (≥ 56 px). */
-.carte-charges-ref { padding:8px 12px; margin-bottom:10px; }
-.carte-charges-ref + .carte-charges-ref { margin-top:0; }
-.ligne-charge-ref {
-  display:flex; align-items:center; gap:10px; width:100%; min-height:56px; padding:8px 0;
-  background:none; border:0; border-bottom:1px solid var(--separateur); text-align:left; cursor:pointer; color:var(--texte);
+/* Une rangée par charge, tout se règle sur place (D-042). Téléphone : le nom (15 px 600, passe à
+   la ligne, jamais rogné) et « va sur » dessous ; le partage et le montant à droite, sur la
+   hauteur des deux. Si « va sur » + le compte ne tiennent pas sous le nom, le compte passe à la
+   ligne (rangée plus haute) plutôt que d'être rogné. ≥ 640 px : une seule ligne, nom · compte ·
+   partage · montant ; ≥ 1024 px : cartes sur deux colonnes, comme l'écran Mois. */
+.grille-charges-ref { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; margin:10px 0; }
+.grille-charges-ref .carte + .carte { margin-top:0; }
+@media (min-width:1024px) { .grille-charges-ref { grid-template-columns:repeat(2, minmax(0,1fr)); align-items:start; } }
+.carte-charges-ref { padding:6px 12px; }
+.rang-charge {
+  display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; column-gap:6px;
+  grid-template-areas:"nom partage montant" "compte partage montant";
+  padding:2px 0 5px; border-bottom:1px solid var(--separateur);
 }
-.ligne-charge-ref:last-child { border-bottom:0; }
-.ligne-charge-ref:hover .lcr-nom { color:var(--bleu); }
-.ligne-charge-ref:focus-visible { outline:3px solid var(--bleu); outline-offset:2px; border-radius:6px; }
-.lcr-corps { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
-.lcr-nom { font-size:15px; font-weight:600; line-height:1.25; overflow-wrap:anywhere; }
-.lcr-infos { font-size:13px; color:var(--texte-2); line-height:1.3; }
-.lcr-montant { flex:none; font-size:15px; white-space:nowrap; }
-.lcr-montant.vide { font-size:13px; font-style:italic; color:var(--ambre-texte); }
-.lcr-chevron { flex:none; font-size:22px; color:var(--texte-2); line-height:1; }
+.rang-charge:last-child { border-bottom:0; }
+.ligne-charge-ref {
+  grid-area:nom; min-height:28px; padding:4px 0 2px; background:none; border:0; cursor:pointer; text-align:left;
+  color:var(--texte); font-size:15px; font-weight:600; line-height:1.25; overflow-wrap:anywhere; hyphens:auto;
+}
+.ligne-charge-ref:hover { color:var(--bleu); text-decoration:underline; }
+.rc-compte { grid-area:compte; display:flex; flex-wrap:wrap; align-items:center; gap:0 4px; font-size:13px; color:var(--texte-2); }
+/* `field-sizing:content` : le select prend la largeur du compte CHOISI, pas celle de la plus
+   longue option — « va sur Commun » tient sous le nom à 360 px. Sans lui (navigateur ancien),
+   le select passe simplement à la ligne. */
+.rc-compte .champ {
+  width:auto; max-width:100%; field-sizing:content; min-height:32px; padding:0 4px; border-radius:6px;
+  font-size:13px; color:var(--texte);
+}
+/* 50/50 : fond blanc, bordure grise ; Prorata : fond bleu clair, bordure bleue ; règle rare
+   (clé fixe, un seul paie) : bordure en tirets, elle ouvre la feuille. Le mot dit toujours la règle. */
+.rc-partage {
+  grid-area:partage; width:68px; min-height:44px; padding:4px 6px; border-radius:8px; cursor:pointer;
+  border:1.5px solid var(--bordure-case); background:#fff; color:var(--texte);
+  font-size:13px; font-weight:600; line-height:1.15; text-align:center; white-space:normal;
+}
+.rc-partage.regle-proport { background:var(--bleu-clair); border-color:var(--bleu); color:var(--bleu); }
+.rc-partage.regle-rare { border-style:dashed; color:var(--texte-2); font-weight:500; }
+.rc-partage:hover { border-color:var(--bleu); }
+.rc-partage:focus-visible, .ligne-charge-ref:focus-visible { outline:3px solid var(--bleu); outline-offset:2px; }
+.rc-montant { grid-area:montant; width:92px; padding:0 6px; }
+/* L'indice (le dernier montant, repris chaque mois) se lit : texte secondaire à 5,9:1 et en
+   italique, ce qui le distingue d'un montant noté sans passer par la couleur seule. */
+.rc-montant::placeholder { color:var(--texte-2); font-style:italic; }
+/* Sous 360 px, la colonne du nom (~110 px) rognerait le compte choisi (un select ne passe pas à
+   la ligne) : « va sur » prend toute la largeur de la rangée, sous le partage et le montant. */
+@media (max-width:359px) {
+  .rang-charge { grid-template-areas:"nom partage montant" "compte compte compte"; }
+  .rc-partage { width:62px; }
+  .rc-montant { width:84px; font-size:14px; }
+}
+@media (min-width:640px) {
+  .rang-charge { grid-template-columns:minmax(0,1fr) auto auto auto; grid-template-areas:"nom compte partage montant"; padding:4px 0; }
+  .rc-compte { flex-wrap:nowrap; }
+}
 
 /* ================= Feuille de réglage d'une charge (ui-charge-feuille.js) ================= */
 .bloc-reglage { border:0; margin:0; padding:0; min-width:0; display:flex; flex-direction:column; gap:10px; }
@@ -202,6 +242,7 @@
 }
 .ecart-mois .btn-lien { min-height:44px; font-size:14px; text-align:left; }
 .reglages .regle-mois { margin:0; font-size:14px; display:flex; align-items:center; gap:4px 10px; flex-wrap:wrap; }
+.bloc-reglage .aide-compte { margin:0; font-size:13px; line-height:1.4; color:var(--texte-2); }
 
 /* ================= Bandeau « à compléter » (tête de l'écran Mois) ================= */
 .a-completer {

@@ -561,3 +561,33 @@ Arbitrages :
 Alternatives écartées : un moment par récurrent + fois (ne dit pas « midi le week-end ») ;
 étapes en jsonb dans le parent (chaque étape doit se cocher et se créditer seule) ; « + »
 pénibilité (Yann n'en a pas voulu, il donne des minutes ressenties).
+
+## D-042 — Une charge tient sur une rangée, son argent a un compte, le mois dit ce qui manque (2026-09-28)
+
+Contexte : Yann, sur D-040 : « plus clair, mais tu perds une place de ouf : tout doit tenir sur
+une ligne — nom, 50/50 | Prorata, montant modifiable, où cet argent doit être déplacé » ; et à
+l'écran Mois : « préciser Septembre 2026 (fin de mois) » ; « j'ai juste noté les 2 salaires, tu
+me dis que tout est fait ??? ». Enquête : les 2 virements de septembre avaient été cochés le
+13/09 à 22:56 par un test, avant la saisie des salaires (montants figés en 50/50, L-041).
+Arbitrages :
+1. **Rangée compacte** (ui-charges-ref.js) : nom (→ feuille pour le reste), bouton de partage
+   qui AFFICHE sa valeur en mots (« 50/50 », « Prorata » ; tap = bascule, écrit tout de suite ;
+   « Clé 60 % » / « Un seul paie » ouvrent la feuille), montant éditable (tapé = « Toujours le
+   même », vidé = « Change chaque mois », en italique le dernier repris), « va sur » (compte).
+   Au-dessus de 640 px, une ligne. Remplace la liste lecture seule de D-040 §3.
+2. **Compte à remplir sans migration** (compte-charge.js) : « Commun » par défaut (les virements
+   au commun couvrent déjà les charges) ; un autre compte = un mouvement récurrent mode
+   `charge` (commun → compte, ou compte du payeur pour « Un seul paie »), que le calcul, le bot
+   et le rappel savent déjà traiter. Au plus un récurrent actif par charge ; le virement non
+   coché du mois affiché suit le changement. Écarté : `charges.compte_id` + nouveau mode (calcul
+   JS et Python, bot à redéployer, confrontation L-014). Aucun compte n'existe encore en base :
+   l'écran dit de les créer dans Réglages · Comptes.
+3. **Le mois dit ce qui manque, dans l'ordre** (etat-mois.js, une seule fonction pour l'accueil,
+   le sous-titre et la carte À faire) : salaire à noter → charges à remplir → virements à faire
+   → tout viré → aucun virement prévu. « Tout est fait » n'apparaît plus tant qu'un salaire ou
+   une charge manque. Un virement coché dont le montant figé ne correspond plus au calcul porte
+   une note ambre (« décoche puis recoche ») ; pas de recalcul automatique (D-015 tient).
+4. Titre « Septembre 2026 (fin de mois) », carte « Salaires de fin de mois » : le mois est celui
+   du salaire reçu à sa fin. Reste négatif en rouge ; prorata « salaires à saisir » tant qu'un
+   seul salaire manque (il affichait « C 0 % · Y 100 % »).
+Données : les 2 virements de septembre décochés en base (même geste que « Annuler la coche »).

@@ -26,12 +26,23 @@ export function detailRegle(regle, etat, charge = {}) {
   if (regle === "egales") return partsEnPourcent(membres, 100 / membres.length);
   if (regle === "proport") {
     const r = etat.resultat;
-    return r?.totalRevenus ? partsEnPourcent(membres, r.ratio[membres[0].prenom] * 100) : "salaires à saisir";
+    // Un seul salaire manquant donnerait « C 0 % · Y 100 % » : faux tant que le mois n'est pas saisi.
+    const complets = r?.totalRevenus && membres.every((m) => (etat.revenus?.[m.prenom] ?? 1) !== 0);
+    return complets ? partsEnPourcent(membres, r.ratio[membres[0].prenom] * 100) : "salaires à saisir";
   }
   if (regle === "cle") return partsEnPourcent(membres, charge.cle_pct ?? 50);
   if (regle === "perso") return charge.payeur ? `payé par ${charge.payeur}` : "payeur à choisir";
   throw new Error(`règle de répartition inconnue : ${regle}`);
 }
+
+/** Règle obtenue en touchant le bouton de partage d'une rangée de Réglages · Charges (D-042) :
+ *  50/50 ↔ Prorata. null pour une règle rare, qui se règle dans la feuille de la charge. */
+export const regleBasculee = (regle) => ({ egales: "proport", proport: "egales" })[regle] ?? null;
+
+/** Mot du bouton de partage : « 50/50 », « Prorata », « Clé 60 % », « Un seul paie ». Espace
+ *  insécable avant « % » : le bouton est étroit, le signe ne part pas seul à la ligne. */
+export const motPartage = (charge) =>
+  (charge.regle === "cle" ? `Clé ${charge.cle_pct ?? 50} %` : libelleRegle(charge.regle));
 
 /** Options d'un `choixDetaille` (socle/blocs.js) pour la règle d'une charge. */
 export const optionsRegle = (etat, charge, valeurs = REGLES_COURANTES) =>

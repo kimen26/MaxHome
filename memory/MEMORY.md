@@ -224,3 +224,11 @@ _État courant. Réécrit en fin de session, jamais un journal._
   soir redéployé. Portes vertes (test_taches, 130 bot, recette écrans 84 captures, recette
   connectée) ; captures regardées (`taches-rec-*`, `fiche-tache-*`, `jour-*`,
   `detail-tache-etapes-*`).
+
+- 2026-09-28 (nuit) : **une charge = une rangée, son argent a un compte, le mois dit ce qui
+  manque** (D-042). Réglages · Charges : nom, 50/50 | Prorata en mots, montant éditable, « va
+  sur ». Écran Mois : « Septembre 2026 (fin de mois) », statut honnête (salaire → charges →
+  virements), note sur un virement coché devenu faux. Les 2 virements de septembre cochés par un
+  test le 13/09 ont été décochés en base (L-041). Portes : test_calc, recette écrans (84),
+  recette connectée (règle basculée puis remise sur la vraie base). recette_token rouge à cause
+  du bouchon `insert` absent côté Tâches (autre session, D-041) — pas du Budget.

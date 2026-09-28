@@ -15,6 +15,8 @@ self.SW_PRECACHE = [
   "app.js",
   "budget/budget.css",
   "budget/calc.js",
+  "budget/compte-charge.js",
+  "budget/etat-mois.js",
   "budget/habituel.js",
   "budget/mod-budget.js",
   "budget/repartition.js",

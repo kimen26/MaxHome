@@ -1,9 +1,10 @@
-// Feuille de réglage d'UNE charge, ouverte au tap sur son libellé (écran Mois) ou sur sa
-// ligne (Réglages · Charges). Trois questions, dans l'ordre où on se les pose (D-040) :
+// Feuille de réglage d'UNE charge, ouverte au tap sur son libellé (écran Mois) ou sur son
+// nom (Réglages · Charges). Quatre questions, dans l'ordre où on se les pose (D-040, D-042) :
 //   1. Le montant revient-il chaque mois ? « Toujours le même » (noté ici) ou « Change chaque
 //      mois » (on reprend le dernier) ;
 //   2. Qui paie quoi ? 50/50, prorata, clé fixe, un seul paie — la part de chacun sous chaque option ;
-//   3. Nom et catégorie.
+//   3. Où va l'argent ? Commun, ou un autre compte (compte-charge.js) ;
+//   4. Nom et catégorie.
 // Les choix sont locaux jusqu'à « Enregistrer » : un seul geste écrit, comme partout ailleurs
 // dans les feuilles. Mobile : feuille ; PC : colonne de droite de l'écran Mois, ou feuille
 // depuis Réglages · Charges (qui n'a pas de colonne).
@@ -14,6 +15,7 @@ import { ouvrirPanneau, fermerPanneau, choixDetaille, marquerChoix } from "../so
 import { champ, select, membresOptions, lire, enEuros } from "../socle/blocs-form.js";
 import { REGLES, libelleRegle, optionsRegle } from "./repartition.js";
 import { FIXE, VARIABLE, faconDe, montantHabituel, optionsFacon } from "./habituel.js";
+import { AIDE_SANS_COMPTE, aAutreCompte, compteDeCharge, optionsCompte, choisirCompte } from "./compte-charge.js";
 
 const ASIDE = "#reglages-pc";
 
@@ -58,6 +60,11 @@ export function creerFeuilleCharge(api, etat, cb, categories) {
           <button type="button" class="btn-lien" data-rendre-defaut>Revenir à ${txt(libelleRegle(c.regle))}</button></p>` : ""}
       </fieldset>
 
+      <fieldset class="bloc-reglage"><legend class="etiquette">Où va l'argent</legend>
+        ${select("compte", "va sur", optionsCompte(etat.comptes), compteDeCharge(c, etat.recurrents))}
+        ${aAutreCompte(etat.comptes) ? "" : `<p class="aide-compte">${txt(AIDE_SANS_COMPTE)}</p>`}
+      </fieldset>
+
       <fieldset class="bloc-reglage"><legend class="etiquette">Nom et catégorie</legend>
         ${champ("libelle", "Nom", { valeur: c.libelle, requis: true })}
         ${select("categorie", "Catégorie", cats.map((k) => [k, k]), c.categorie)}
@@ -94,14 +101,17 @@ export function creerFeuilleCharge(api, etat, cb, categories) {
     apres?.();
   }
 
-  /** Écrit, ferme la feuille, rafraîchit. Une saisie invalide s'annonce en toast, sans écrire. */
+  /** Écrit, ferme la feuille, rafraîchit. Une saisie invalide s'annonce en toast, sans écrire.
+   *  `ecrire` renvoie true quand le compte de la charge a changé : le module se recharge alors,
+   *  ce qui crée le virement du mois s'il manque (compte-charge.js). */
   async function enregistrerPuisFermer(ecrire, message) {
     const { apres } = ouverte;
     try {
-      await ecrire();
+      const recharger = await ecrire();
       fermer();
       rafraichirEcrans(apres);
       toast(message);
+      if (recharger) await cb.rafraichir?.("budget");
     } catch (e) { cb.echec(e); }
   }
 
@@ -141,18 +151,24 @@ export function creerFeuilleCharge(api, etat, cb, categories) {
       } catch (e) { cb.echec(e); }
     });
 
+    // Une charge archivée n'envoie plus rien : son virement vers un autre compte s'arrête aussi.
     form.querySelector("[data-archiver]").addEventListener("click", () => enregistrerPuisFermer(async () => {
       await api.majCharge(c.id, { actif: false });
       c.actif = false;
+      return choisirCompte(api, etat, c, null);
     }, `${c.libelle} archivée.`));
 
     form.addEventListener("submit", (ev) => {
       ev.preventDefault();
       const champs = lireChamps(form, facon, regle);
       if (typeof champs === "string") { toast(champs); return; }
+      const compte = form.elements.compte.value ? Number(form.elements.compte.value) : null;
       enregistrerPuisFermer(async () => {
         await api.majCharge(c.id, champs);
         Object.assign(c, champs);
+        // Après la charge : le titre du virement et son compte de départ suivent le nom et la
+        // règle qu'on vient d'écrire. Sans changement, choisirCompte n'écrit rien.
+        return choisirCompte(api, etat, c, compte);
       }, `${champs.libelle} enregistrée.`);
     });
   }

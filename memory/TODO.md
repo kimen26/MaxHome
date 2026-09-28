@@ -232,7 +232,13 @@ _Retour de Yann : bouton 50/50 | Prorata pas clair, charges écrasées. Arbitrag
 - [x] `recette_token.mjs` : échec intermittent (300 ms fixes, l'Agenda lit une API publique) —
       attend désormais la preuve, 5/5 vert.
 - [x] Montant habituel + « Remplir », Réglages · Charges en liste, mise à jour sans geste (D-040).
-- [ ] Déployer D-040 après accord de Yann.
+- [ ] Déployer D-040 + D-042 après accord de Yann.
+- [ ] Yann : créer les comptes (commun, livrets) dans Réglages · Comptes, puis choisir « va sur »
+      pour les charges d'épargne (PEL, LDD, Livret Vacances, Livret Max).
+- [ ] Rappel Telegram : quand tout est coché, la requête revient vide et il renvoie la liste des
+      récurrents comme « à faire » (supabase/functions/rappel-virements/index.ts, l.44).
+- [ ] Mouvement mode `charge` affiché en négatif (« −100,00 € ») alors qu'un virement au commun
+      est positif : signe à unifier (calc JS + bot Python, confrontation L-014).
 - [ ] Yann : passer en « Toujours le même » les charges qui ne bougent pas (crédit, assurances…).
 - [ ] Segmenté de Réglages (Tâches | Charges | Comptes | Magasin | Voyages) serré à 320 px.
 

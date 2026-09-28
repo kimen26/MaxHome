@@ -13,6 +13,7 @@ import { champ, select, membresOptions, lire } from "../socle/blocs-form.js";
 import { creerUiMoisCharges } from "./ui-mois-charges.js";
 import { creerUiRegularisations } from "./ui-regularisations.js";
 import { optionsRegle, detailRegle, libelleRegle } from "./repartition.js";
+import { etatDuMois, texteAFaireVide } from "./etat-mois.js";
 
 const ASIDE = "#detail-pc";
 const SUGGESTIONS_AJOUT = ["Resto", "Vacances", "Cadeaux", "Santé"];
@@ -95,11 +96,21 @@ export function creerUiMouvements(api, etat, cb) {
     });
   }
 
+  /** Coché, le montant est figé (D-015) ; s'il ne correspond plus au calcul du jour (salaires
+   *  ou charges saisis après la coche), on le DIT — pas de recalcul silencieux d'un virement
+   *  peut-être déjà parti (D-042). Écart d'1 centime toléré : arrondi du prorata. */
+  function ecartFige(m) {
+    const t = montantTheorique(recurrentDe(m), etat);
+    if (t === null || Math.abs(t - m.montant_centimes) <= 1) return null;
+    return `Coché à ${euros(m.montant_centimes)} ; le calcul donne maintenant ${euros(t)}. Décoche puis recoche pour mettre à jour.`;
+  }
+
   function ligneFaite(m) {
     const date = new Date(m.fait_le);
     const quand = `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+    const ecart = ecartFige(m);
     return ligneCoche({
-      id: m.id, titre: m.titre, cochee: true, sous: quand,
+      id: m.id, titre: m.titre, cochee: true, sous: quand, alerte: !!ecart, notes: [ecart],
       droite: `<span class="mono mvt-montant pale">${euros(m.montant_centimes)}</span>`,
     });
   }
@@ -316,17 +327,21 @@ export function creerUiMouvements(api, etat, cb) {
   function rendre() {
     const restants = aFaire();
     const termines = faits();
-    const total = etat.mouvements.length;
     const r = etat.resultat;
+    const statut = etatDuMois(etat);
 
     const commun = etat.comptes.find((c) => c.commun);
     $("#commun-mois").textContent = commun ? `Commun · ${commun.nom}` : "";
 
+    // « (fin de mois) » est écrit à côté, dans index.html : le salaire noté ici est celui reçu
+    // à la fin de ce mois-là (D-042).
     const nomMois = `${MOIS[etat.mois - 1][0].toUpperCase()}${MOIS[etat.mois - 1].slice(1)} ${etat.annee}`;
     $("#titre-mois").textContent = nomMois;
-    $("#sous-mois").textContent = total
-      ? `${termines.length}/${total} virements faits · clé ${etat.membres.map((m) => Math.round((r.ratio[m.prenom] ?? 0) * 100)).join(" / ")}`
-      : "Aucun mouvement ce mois.";
+    // Sans salaire, la clé de prorata n'est pas encore connue (100 / 0 ou 50 / 50 par défaut) :
+    // on ne l'affiche qu'une fois les salaires notés. Espaces insécables : à 360 px, « clé 47 »
+    // et « / 53 » tombaient sur deux lignes.
+    const cle = etat.membres.map((m) => Math.round((r.ratio[m.prenom] ?? 0) * 100)).join("\u00a0/\u00a0");
+    $("#sous-mois").textContent = statut.statut === "salaires" ? statut.phrase : `${statut.phrase} · clé\u00a0${cle}`;
     $("#total-charges-mois").textContent = euros(r.total);
 
     rendreSalaires();
@@ -335,11 +350,11 @@ export function creerUiMouvements(api, etat, cb) {
       <div class="carte chiffre-carte"><span class="chiffre-etiquette">Total commun</span>
         <span class="mono chiffre-valeur">${euros(r.totalCommun)}</span></div>
       ${etat.membres.map((m) => `<div class="carte chiffre-carte"><span class="chiffre-etiquette">Reste ${txt(m.prenom)}</span>
-        <span class="mono chiffre-valeur accent-vert">${euros(r.reste[m.prenom] ?? 0)}</span></div>`).join("")}`;
+        <span class="mono chiffre-valeur ${(r.reste[m.prenom] ?? 0) < 0 ? "accent-rouge" : "accent-vert"}">${euros(r.reste[m.prenom] ?? 0)}</span></div>`).join("")}`;
 
     $("#afaire-tete-total").textContent = String(restants.length);
     $("#fait-tete-total").textContent = String(termines.length);
-    $("#mvts-a-faire").innerHTML = carteListe(restants.map(ligneAFaire), "Tout est fait pour ce mois.");
+    $("#mvts-a-faire").innerHTML = carteListe(restants.map(ligneAFaire), texteAFaireVide(statut));
     $("#mvts-faits").innerHTML = carteListe(termines.map(ligneFaite), "Rien de coché pour l’instant.");
     liste.apresRendu();
 

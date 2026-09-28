@@ -377,3 +377,12 @@ client encore sur l'ancienne version, avec l'ancienne liste en mémoire, les ava
 bloquaient les nouvelles (même clé récurrent + échéance + rang). **Une migration de données qui
 touche la génération d'occurrences se fait APRÈS le déploiement du code, puis se vérifie par une
 requête sur les occurrences du jour — et se rejoue si un vieux client a repeuplé.**
+
+## L-041 — Un test qui écrit dans la vraie base se défait, et jamais sur le mois en cours (2026-09-28)
+
+Contexte : les 2 virements au commun de septembre 2026 ont été cochés le 13/09 à 22:56 (1 s
+d'écart, 3 min avant un commit de correctif du jeton) et jamais décochés : leurs montants se
+sont figés à 50/50, salaires encore vides. Deux semaines plus tard Yann saisit ses salaires et
+l'app lui dit « tout est viré ». **Une écriture de recette sur la base réelle se fait sur un mois
+passé (février 2026 pour recette_connectee), se défait dans le même script, et toute session qui
+coche à la main pour tester décoche avant de clore.**

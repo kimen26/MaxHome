@@ -6,7 +6,8 @@ import { creerUiChargesRef } from "./ui-charges-ref.js";
 import { creerUiRecurrents } from "./ui-recurrents.js";
 import { creerUiComptes } from "./ui-comptes.js";
 import { creerUiStats } from "./ui-stats.js";
-import { decaler, MOIS } from "../socle/ui-base.js";
+import { etatDuMois } from "./etat-mois.js";
+import { decaler } from "../socle/ui-base.js";
 import { synchroniserOccurrences } from "../socle/occurrences.js";
 
 export default {
@@ -59,13 +60,10 @@ export default {
         recalculer();
         await synchroniserOccurrences(api, etat, STRATEGIE_MOUVEMENTS);
       },
+      // Même phrase que le sous-titre de l'écran Mois : salaire, charge, puis virement (D-042).
       resume() {
         if (!etat.resultat) return "Chargement…";
-        const restants = etat.mouvements.filter((m) => !m.fait_le).length;
-        const mois = MOIS[etat.mois - 1];
-        return restants
-          ? `${restants} mouvement${restants > 1 ? "s" : ""} à faire en ${mois}`
-          : `Tout est viré pour ${mois}`;
+        return etatDuMois(etat).phrase;
       },
     };
   },

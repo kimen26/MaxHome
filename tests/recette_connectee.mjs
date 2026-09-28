@@ -128,22 +128,31 @@ try {
   // confondus (Parts, module Tâches) : on y entre par lui, puis par le segmenté synthétique.
   await aller(page, "charges-ref", "#charges-ref-corps .carte-charges-ref", "taches-rec");
   await page.screenshot({ path: path.join(SORTIE, "charges-ref-mobile.png"), fullPage: true });
-  // La règle se change dans la feuille de la charge (D-040) : tap sur la ligne, autre règle,
-  // Enregistrer, la ligne l'affiche ; puis retour à la règle d'origine par le même chemin.
-  const premiere = "#charges-ref-corps .ligne-charge-ref";
-  const avant = await page.locator(premiere).first().getAttribute("data-regle");
+  // La règle se bascule dans la rangée de la charge (D-042) : un toucher sur le bouton de
+  // partage écrit tout de suite, la rangée dit la nouvelle règle (mot ET data-regle), puis un
+  // second toucher la remet — aller-retour en base réelle. Première charge en 50/50 ou Prorata
+  // (une règle rare ouvre la feuille au lieu de basculer). Ni le compte ni le montant ne sont
+  // touchés ici : un compte créerait un vrai virement dans le mois.
+  const MOTS = { egales: "50/50", proport: "Prorata" };
+  const premiere = "#charges-ref-corps .rang-charge:is([data-regle=egales],[data-regle=proport])";
+  const rangee = page.locator(premiere).first();
+  const nomCharge = (await rangee.locator(".ligne-charge-ref").textContent()).trim();
+  const avant = await rangee.getAttribute("data-regle");
   const autre = avant === "egales" ? "proport" : "egales";
-  const changerRegle = async (regle) => {
-    await page.locator(premiere).first().click();
-    await page.waitForSelector("#feuille form.reglages", { state: "visible", timeout: 5000 });
-    await page.click(`#feuille form.reglages [data-regle=${regle}]`);
-    await page.click("#feuille form.reglages [type=submit]");
-    await page.waitForSelector("#feuille", { state: "hidden", timeout: 10000 });
+  const basculerRegle = async (regle) => {
+    const ecriture = page.waitForResponse((r) => r.request().method() === "PATCH"
+      && r.url().includes("/rest/v1/charges"), { timeout: 10000 });
+    await rangee.locator("[data-partage]").click();
+    if ((await ecriture).status() >= 300) throw new Error("bascule de règle refusée par la base");
+    // L'écran est redessiné après l'écriture ; la charge basculée reste la première de `premiere`
+    // (l'ordre ne bouge pas, sa règle reste 50/50 ou Prorata) : le locator la relit.
     await page.waitForFunction(([sel, r]) => document.querySelector(sel)?.dataset.regle === r, [premiere, regle], { timeout: 10000 });
+    const mot = (await rangee.locator("[data-partage]").textContent()).trim();
+    if (mot !== MOTS[regle]) throw new Error(`le bouton de partage dit « ${mot} » au lieu de « ${MOTS[regle]} »`);
   };
-  await changerRegle(autre);
-  await changerRegle(avant);
-  console.log(`Règle par défaut : ${avant} → ${autre} → ${avant} OK`);
+  await basculerRegle(autre);
+  await basculerRegle(avant);
+  console.log(`Règle par défaut : ${nomCharge} ${avant} → ${autre} → ${avant} OK`);
 
   // Retour sur Mois (défaut du module) avant de rejoindre Stats par son segmenté d'en-tête.
   await page.click(`${await page.isVisible("#barre-pc") ? "#barre-pc" : "#onglets"} button[data-ecran=mois]`);

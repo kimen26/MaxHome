@@ -7,19 +7,35 @@
 //     confondus — électricité, courses, impôts.
 // Avant D-040, `defaut_dernier` n'était lu par aucun code appelé : le réglage n'avait aucun effet.
 
-import { euros } from "./calc.js";
+import { euros, versCentimes } from "./calc.js";
 
 export const FIXE = "fixe";
 export const VARIABLE = "variable";
 
 export const faconDe = (c) => (c.defaut_dernier ? VARIABLE : FIXE);
-export const libelleFacon = (c) => (c.defaut_dernier ? "Change chaque mois" : "Toujours le même");
 
 /** Montant proposé pour un mois sans saisie, ou null s'il n'y a rien à proposer. */
 export function montantHabituel(c, derniers) {
   if (!c.defaut_dernier) return c.montant_defaut ?? null;
   return derniers[c.id] ?? c.montant_defaut ?? null;
 }
+
+/** Montant NOTÉ (« Toujours le même »), ou null quand on reprend le dernier. */
+export const montantNote = (c) => (c.defaut_dernier ? null : c.montant_defaut ?? null);
+
+/** Champs à écrire pour un montant tapé dans la rangée de Réglages · Charges (D-042) : un
+ *  montant = « Toujours le même » ; champ vidé = « Change chaque mois » (le montant noté reste
+ *  en base, repli tant qu'il n'y a pas de dernier). Même convention de signe que l'écran Mois
+ *  et la feuille : on écrit ce qui est tapé, une charge se tape en négatif. Lève si illisible. */
+export function champsDuMontant(saisie) {
+  const s = String(saisie ?? "").trim();
+  return s ? { montant_defaut: versCentimes(s), defaut_dernier: false } : { defaut_dernier: true };
+}
+
+/** La saisie ne change rien à la charge : pas d'écriture. */
+export const montantInchange = (c, champs) => (champs.defaut_dernier
+  ? !!c.defaut_dernier
+  : !c.defaut_dernier && c.montant_defaut === champs.montant_defaut);
 
 /** Options d'un `choixDetaille` (socle/blocs.js) : la façon dont le montant revient chaque mois. */
 export function optionsFacon(c, derniers) {
