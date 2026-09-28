@@ -140,7 +140,13 @@ try {
 await page.evaluate(() => {
   document.querySelector('[data-ecran="accueil"], #btn-accueil')?.click();
 });
-await page.waitForTimeout(300);
+// On attend la PREUVE (plus aucun « Chargement… »), pas un délai (L-018) : l'Agenda lit les
+// vacances sur data.education.gouv.fr, et 300 ms fixes échouaient dès que l'API traînait.
+// Au bout de 10 s, on constate l'état tel quel : un module resté en chargement est un échec.
+await page.waitForFunction(() => {
+  const cartes = [...document.querySelectorAll(".module-resume")];
+  return cartes.length > 0 && cartes.every((e) => e.textContent.trim() !== "Chargement…");
+}, null, { timeout: 10000 }).catch(() => {});
 const resumes = await page.evaluate(() =>
   [...document.querySelectorAll(".module-resume")].map((e) => e.textContent.trim()));
 await page.screenshot({ path: path.join(SORTIE, "2-apres-refresh.png"), fullPage: false });

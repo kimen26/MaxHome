@@ -1,15 +1,17 @@
-// Partie « charges par catégorie » de l'écran Mois : une carte par catégorie, une colonne sur
-// téléphone, deux au-dessus de 640 px (D-039 : les deux colonnes de la maquette rognaient les
-// libellés à 360 px). Chaque ligne : libellé entier, dessous sa répartition et, en ambre et en
-// toutes lettres, « à saisir » ou l'écart à la référence (montant_defaut). Le réglage d'une charge (libellé,
-// catégorie, règle par défaut, montant de référence, archivage) reste dans sa propre feuille,
-// ouverte au tap sur le libellé — ce fichier ne la redessine pas deux fois.
+// Partie « charges » de l'écran Mois : une carte par catégorie, une colonne sur téléphone, deux
+// au-dessus de 640 px (D-039). Chaque ligne : libellé entier, dessous sa répartition et, en
+// ambre et en toutes lettres, « à saisir » ou l'écart au montant habituel. En tête d'écran,
+// tant qu'il manque des montants, un bandeau le dit et propose de les remplir d'un geste avec
+// les montants habituels (D-040, habituel.js). Le réglage d'une charge vit dans sa feuille
+// (ui-charge-feuille.js), ouverte au tap sur le libellé.
 
 import { euros, versCentimes, regleEffective } from "./calc.js";
-import { $, $$, txt } from "../socle/ui-base.js";
-import { ouvrirPanneau, fermerPanneau, choixDetaille } from "../socle/blocs.js";
-import { champ, select, membresOptions, lire } from "../socle/blocs-form.js";
-import { REGLES, REGLES_COURANTES, libelleRegle, detailRegle, optionsRegle } from "./repartition.js";
+import { $, $$, txt, toast } from "../socle/ui-base.js";
+import { enEuros } from "../socle/blocs-form.js";
+import { REGLES_COURANTES, libelleRegle, detailRegle } from "./repartition.js";
+import { montantHabituel } from "./habituel.js";
+import { creerFeuilleCharge } from "./ui-charge-feuille.js";
+
 export const CATEGORIES = ["Logement", "Max", "Épargne", "Alimentation", "Impôts", "Banque", "Autre"];
 
 /** Catégories à afficher, dans l'ordre de CATEGORIES puis les autres par ordre alphabétique :
@@ -19,15 +21,12 @@ export const categoriesPresentes = (parCat) => [
   ...Object.keys(parCat).filter((k) => !CATEGORIES.includes(k)).sort((a, b) => a.localeCompare(b, "fr")),
 ];
 
-const ASIDE = "#reglages-pc";
-
 export function creerUiMoisCharges(api, etat, cb) {
   const ligne = (id) => etat.lignes[id];
   const montantDe = (id) => ligne(id)?.montant_centimes ?? 0;
   const saisie = (id) => ligne(id) !== undefined;
 
-  /** Montant proposé si rien n'est saisi : dernier montant si la charge le demande, sinon la valeur fixe. */
-  const prefixe = (c) => (c.defaut_dernier ? etat.derniers[c.id] ?? c.montant_defaut : c.montant_defaut) ?? null;
+  const habituel = (c) => montantHabituel(c, etat.derniers);
 
   // Les charges ponctuelles (« Ligne de ce mois ») vivent dans la carte « Ce mois seulement »
   // de ui-mouvements.js, pas dans la grille par catégorie.
@@ -49,23 +48,55 @@ export function creerUiMoisCharges(api, etat, cb) {
         ${items.map(ligneCharge).join("")}
       </div>`;
     }).join("");
+    rendreACompleter(liste);
     brancher();
+  }
+
+  /** Bandeau de tête : ce qui manque ce mois-ci, et le geste qui le remplit. Vide si complet. */
+  function rendreACompleter(liste) {
+    const manquantes = liste.filter((c) => !saisie(c.id));
+    const remplissables = manquantes.filter((c) => habituel(c) != null);
+    const zone = $("#mois-a-completer");
+    if (!manquantes.length) { zone.innerHTML = ""; return; }
+    const n = manquantes.length;
+    const aTaper = n - remplissables.length;
+    zone.innerHTML = `<div class="carte a-completer">
+      <p><strong>${n} charge${n > 1 ? "s" : ""} sans montant ce mois-ci.</strong>
+      Les virements ne sont justes qu'une fois toutes les charges remplies.</p>
+      ${remplissables.length ? `<button type="button" class="btn btn-bleu" data-remplir>
+        Remplir avec les montants habituels (${remplissables.length})</button>` : ""}
+      ${aTaper ? `<p class="sous">${aTaper} à taper à la main : en ambre plus bas.</p>` : ""}
+    </div>`;
+    zone.querySelector("[data-remplir]")?.addEventListener("click", () => remplir(remplissables));
+  }
+
+  async function remplir(charges) {
+    const lignes = charges.map((c) => ({ charge_id: c.id, montant_centimes: habituel(c) }));
+    try {
+      await api.majLignes(etat.annee, etat.mois, lignes);
+      for (const l of lignes) etat.lignes[l.charge_id] = { montant_centimes: l.montant_centimes, regle: null };
+      cb.recalculer();
+      cb.rendreMois();
+      toast(`${lignes.length} montant${lignes.length > 1 ? "s" : ""} rempli${lignes.length > 1 ? "s" : ""}. Corrige ceux qui ont changé.`);
+    } catch (e) { cb.echec(e); }
   }
 
   function ligneCharge(c) {
     const m = montantDe(c.id);
-    const ref = c.montant_defaut ?? null;
+    const hab = habituel(c);
     const manque = !saisie(c.id);
-    const differe = !manque && ref !== null && m !== ref;
+    // Écart dit seulement pour un montant « Toujours le même » : un montant qui change chaque
+    // mois diffère du précédent par nature.
+    const differe = !manque && !c.defaut_dernier && hab !== null && m !== hab;
     const regle = regleEffective(c, ligne(c.id));
-    // L'écart se DIT (« réf. 1 200,00 € »), il n'est plus une pastille de couleur seule. Une
+    // L'écart se DIT (« habituel −1 200,00 € »), jamais par une pastille de couleur seule. Une
     // règle rare dit aussi la part de chacun : « Clé fixe » seul ne dit pas qui paie quoi.
     const nomRegle = REGLES_COURANTES.includes(regle)
       ? libelleRegle(regle) : `${libelleRegle(regle)} (${detailRegle(regle, etat, c)})`;
     const infos = [
       `${nomRegle}${regle !== c.regle ? " ce mois" : ""}`,
       manque ? "à saisir" : "",
-      differe ? `réf. ${euros(ref)}` : "",
+      differe ? `habituel ${euros(hab)}` : "",
     ].filter(Boolean).join(" · ");
     return `<div class="mois-charge${manque ? " a-faire" : ""}${differe ? " differe" : ""}" data-charge="${c.id}">
       <button type="button" class="mc-libelle" data-reglages="${c.id}">
@@ -73,8 +104,8 @@ export function creerUiMoisCharges(api, etat, cb) {
       </button>
       <input class="champ champ-montant${m > 0 ? " pos" : ""}${manque ? " oubli" : ""}" inputmode="decimal"
              aria-label="Montant de ce mois : ${txt(c.libelle)}"
-             data-montant="${c.id}" value="${saisie(c.id) ? (m / 100).toFixed(2).replace(".", ",") : ""}"
-             placeholder="${ref !== null ? (ref / 100).toFixed(2).replace(".", ",") : "0,00"}">
+             data-montant="${c.id}" value="${saisie(c.id) ? enEuros(m) : ""}"
+             placeholder="${hab !== null ? enEuros(hab) : "0,00"}">
     </div>`;
   }
 
@@ -110,100 +141,10 @@ export function creerUiMoisCharges(api, etat, cb) {
     }
   }
 
-  // ---------- réglages d'une charge ----------
-  function htmlReglages(c) {
-    const regle = regleEffective(c, ligne(c.id));
-    const surchargee = regle !== c.regle;
-    return `<form class="pile reglages" data-charge="${c.id}">
-      <div class="detail-tete"><div><h2>${txt(c.libelle)}</h2>
-        <span class="sous">${txt(c.categorie)}</span></div>
-        <button type="button" class="btn-lien" data-fermer-reglages>Fermer</button></div>
-
-      ${champ("libelle", "Libellé", { valeur: c.libelle, requis: true })}
-      ${select("categorie", "Catégorie", CATEGORIES.map((k) => [k, k]), c.categorie)}
-
-      <div><span class="etiquette">Montant de référence</span>
-        <input class="champ champ-montant grand-montant" name="montant_defaut" inputmode="decimal"
-               value="${c.montant_defaut != null ? (c.montant_defaut / 100).toFixed(2).replace(".", ",") : ""}" placeholder="0,00">
-        <label class="case-a-cocher"><input type="checkbox" name="defaut_dernier" ${c.defaut_dernier ? "checked" : ""}>
-          Reprendre le dernier montant saisi</label></div>
-
-      <div data-regle-defaut><span class="etiquette">Répartition, tous les mois</span>
-        ${choixDetaille(optionsRegle(etat, c, REGLES.map(([v]) => v)), c.regle, { attr: "regle", etiquette: "Répartition, tous les mois" })}</div>
-
-      ${c.regle === "cle" ? champ("cle_pct", `Clé pour ${etat.membres[0]?.prenom ?? ""} (%)`,
-    { type: "number", valeur: c.cle_pct ?? 50, attrs: 'min="0" max="100"' }) : ""}
-      ${c.regle === "perso" ? select("payeur", "Payeur", membresOptions(etat), c.payeur) : ""}
-
-      <div class="regle-mois"><span class="etiquette">Ce mois-ci</span>
-        <p>${txt(libelleRegle(regle))}${surchargee ? " (exception pour ce mois)" : " (comme tous les mois)"}
-        ${surchargee ? '<button type="button" class="btn-lien" data-rendre-defaut>Revenir au défaut</button>' : ""}</p></div>
-
-      <div class="detail-actions">
-        <button type="button" class="btn" data-archiver>Archiver</button>
-        <button type="submit" class="btn btn-bleu grandir">Enregistrer</button>
-      </div>
-    </form>`;
-  }
-
-  function ouvrirReglages(id) {
-    const c = etat.charges.find((x) => x.id === id);
-    if (!c) return;
-    brancherReglages(c, ouvrirPanneau(ASIDE, htmlReglages(c)));
-  }
-
-  const fermerReglages = () => fermerPanneau(ASIDE);
-
-  function brancherReglages(c, racine) {
-    racine.querySelector("[data-fermer-reglages]").addEventListener("click", fermerReglages);
-
-    for (const b of racine.querySelectorAll("[data-regle-defaut] [data-regle]")) {
-      b.addEventListener("click", async () => {
-        if (b.dataset.regle === c.regle) return;
-        try {
-          await api.majCharge(c.id, { regle: b.dataset.regle });
-          c.regle = b.dataset.regle;
-          cb.recalculer();
-          cb.rendreMois();
-          ouvrirReglages(c.id);
-        } catch (e) { cb.echec(e); }
-      });
-    }
-
-    racine.querySelector("[data-rendre-defaut]")?.addEventListener("click", async () => {
-      await ecrireLigne(c.id, { regle: null, montant_centimes: montantDe(c.id) });
-      ouvrirReglages(c.id);
-    });
-
-    racine.querySelector("[data-archiver]").addEventListener("click", async () => {
-      try {
-        await api.majCharge(c.id, { actif: false });
-        c.actif = false;
-        fermerReglages();
-        cb.recalculer();
-        cb.rendreMois();
-      } catch (e) { cb.echec(e); }
-    });
-
-    racine.querySelector("form.reglages").addEventListener("submit", async (ev) => {
-      ev.preventDefault();
-      try {
-        const v = lire(ev.target, { nombres: ["cle_pct"], booleens: ["defaut_dernier"] });
-        const champs = {
-          libelle: v.libelle, categorie: v.categorie,
-          montant_defaut: v.montant_defaut ? versCentimes(v.montant_defaut) : null,
-          defaut_dernier: v.defaut_dernier,
-        };
-        if ("cle_pct" in v) champs.cle_pct = v.cle_pct;
-        if ("payeur" in v) champs.payeur = v.payeur;
-        await api.majCharge(c.id, champs);
-        Object.assign(c, champs);
-        fermerReglages();
-        cb.recalculer();
-        cb.rendreMois();
-      } catch (e) { cb.echec(e); }
-    });
-  }
+  // ---------- réglages d'une charge : feuille dédiée (ui-charge-feuille.js) ----------
+  const feuille = creerFeuilleCharge(api, etat, cb, CATEGORIES);
+  const ouvrirReglages = (id, options) => feuille.ouvrir(id, options);
+  const fermerReglages = () => feuille.fermer();
 
   return { rendre, fermerReglages, ouvrirReglages };
 }

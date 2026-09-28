@@ -498,3 +498,31 @@ Arbitrages — le retour d'usage prime sur la maquette, à 360 px :
    de disparaître des deux écrans.
 Écart assumé à la planche maquette (mois, charges-ref). Tailles de texte des `.mvt` scopées à
 `.carte-mvts` : les Tâches gardent leur densité.
+
+## D-040 — Montant habituel, Réglages · Charges en liste, mise à jour sans geste (2026-09-28)
+
+Contexte : Yann, capture à l'appui, le soir du déploiement de D-039 : « on ne voit pas ce qui est
+sélectionné, à quoi sert le champ Dernier, on ne peut rien en faire… c'est quoi la logique ? ».
+Deux constats. (a) Sa capture montrait une version d'au moins deux déploiements plus tôt : la
+coquille servie cache-first ne se renouvelait qu'à la deuxième ouverture complète, jamais pour
+une app ramenée au premier plan. (b) `defaut_dernier` n'avait AUCUN effet : `prefixe()` le lisait
+mais n'était appelée nulle part ; chaque mois se tapait à la main, la « référence » n'était qu'un
+placeholder gris. Arbitrages :
+1. **Montant habituel** (`budget/habituel.js`) : par charge, « Toujours le même » (montant noté,
+   `defaut_dernier = false`) ou « Change chaque mois » (dernier saisi, à défaut le noté). Pas de
+   migration : les deux colonnes existaient.
+2. **Remplir d'un geste, jamais en silence** : un bandeau en tête de l'écran Mois dit combien de
+   charges manquent (« les virements ne sont justes qu'une fois toutes remplies ») et propose
+   « Remplir avec les montants habituels » — une seule écriture (`api.majLignes`). Écarté : créer
+   les lignes automatiquement à l'ouverture d'un mois — écritures invisibles, mois futurs figés
+   avec un montant qui peut changer d'ici là, divergence avec le bot et le rappel Telegram.
+3. **Réglages · Charges = une liste qui se lit** (nom, « Toujours le même · 50/50 », montant
+   habituel, chevron) ; tout réglage se fait dans la feuille de la charge
+   (`ui-charge-feuille.js`), choix locaux jusqu'à « Enregistrer ». Remplace les choix en ligne
+   de D-039 §2. Depuis cet écran la feuille est toujours une feuille, même sur PC (pas d'aside).
+4. **Mise à jour sans geste** (index.html) : `updateViaCache: "none"`, `update()` à chaque retour
+   au premier plan, rechargement au `controllerchange` — différé à l'arrière-plan si un champ a
+   le focus ou qu'une feuille est ouverte. Porte : `tests/recette_mise_a_jour.mjs` (vérifiée
+   rouge sur l'ancien index.html).
+Les 16 charges réelles sont toutes « Change chaque mois » : c'est à Yann de passer en « Toujours
+le même » celles qui ne bougent pas (le geste Remplir marche dans les deux cas).

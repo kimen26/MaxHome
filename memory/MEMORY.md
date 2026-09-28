@@ -207,3 +207,12 @@ _État courant. Réécrit en fin de session, jamais un journal._
   connectée (bascule de règle sur la vraie base), recette_token (1 échec isolé sur le résumé
   Agenda puis 3 verts). Captures regardées à 320/360/1200 et sur données réelles. Déployé en prod le
   2026-09-28 ; reste à le voir sur le P30 Pro.
+
+- 2026-09-28 (soir) : **montant habituel et mise à jour sans geste** (D-040). Yann voyait une
+  version vieille de deux déploiements (L-038) et un réglage « dernier » sans effet (L-039).
+  Chaque charge : « Toujours le même » ou « Change chaque mois » ; bandeau « Remplir avec les
+  montants habituels » en tête de l'écran Mois ; Réglages · Charges en liste + feuille ; l'app se
+  recharge seule sur une nouvelle version. recette_token : attente d'une preuve au lieu de 300 ms
+  (l'Agenda lit une API publique), 5/5 vert. Portes vertes : test_calc (habituel + part affichée),
+  test_taches, recette écrans (78 captures), recette_mise_a_jour (6 vérifs, rouge sur l'ancien
+  index.html), recette_token, recette connectée (règle changée par la feuille sur la vraie base).

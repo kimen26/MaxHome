@@ -128,13 +128,21 @@ try {
   // confondus (Parts, module Tâches) : on y entre par lui, puis par le segmenté synthétique.
   await aller(page, "charges-ref", "#charges-ref-corps .carte-charges-ref", "taches-rec");
   await page.screenshot({ path: path.join(SORTIE, "charges-ref-mobile.png"), fullPage: true });
-  const seg = page.locator("#charges-ref-corps .ligne-charges-ref .choix-detaille").first();
-  const avant = await seg.locator(".choix-option.actif").getAttribute("data-regle");
+  // La règle se change dans la feuille de la charge (D-040) : tap sur la ligne, autre règle,
+  // Enregistrer, la ligne l'affiche ; puis retour à la règle d'origine par le même chemin.
+  const premiere = "#charges-ref-corps .ligne-charge-ref";
+  const avant = await page.locator(premiere).first().getAttribute("data-regle");
   const autre = avant === "egales" ? "proport" : "egales";
-  await seg.locator(`button[data-regle=${autre}]`).click();
-  await page.waitForFunction((a) => document.querySelector("#charges-ref-corps .ligne-charges-ref .choix-option.actif")?.dataset.regle === a, autre, { timeout: 10000 });
-  await seg.locator(`button[data-regle=${avant}]`).click();
-  await page.waitForFunction((a) => document.querySelector("#charges-ref-corps .ligne-charges-ref .choix-option.actif")?.dataset.regle === a, avant, { timeout: 10000 });
+  const changerRegle = async (regle) => {
+    await page.locator(premiere).first().click();
+    await page.waitForSelector("#feuille form.reglages", { state: "visible", timeout: 5000 });
+    await page.click(`#feuille form.reglages [data-regle=${regle}]`);
+    await page.click("#feuille form.reglages [type=submit]");
+    await page.waitForSelector("#feuille", { state: "hidden", timeout: 10000 });
+    await page.waitForFunction(([sel, r]) => document.querySelector(sel)?.dataset.regle === r, [premiere, regle], { timeout: 10000 });
+  };
+  await changerRegle(autre);
+  await changerRegle(avant);
   console.log(`Règle par défaut : ${avant} → ${autre} → ${avant} OK`);
 
   // Retour sur Mois (défaut du module) avant de rejoindre Stats par son segmenté d'en-tête.

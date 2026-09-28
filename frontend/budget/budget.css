@@ -151,7 +151,6 @@
 .reglages .case-a-cocher input { width:20px; height:20px; }
 .segment.large { display:flex; width:100%; }
 .segment.large button { flex:1; font-size:12px; min-height:38px; }
-.regle-mois p { margin:6px 0 0; font-size:14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 
 
 /* ================= « Ce mois seulement » (charges ponctuelles) ================= */
@@ -170,44 +169,48 @@
 /* .puces-suggestions / .puce-suggestion : socle.css ; le choix de répartition (choixDetaille)
    prend toute la largeur sous le montant. */
 .ligne-mois-repartition { display:flex; flex-direction:column; gap:12px; }
-.ligne-mois-repartition .etiquette, .reglages [data-regle-defaut] .etiquette { display:block; margin-bottom:6px; }
+.ligne-mois-repartition .etiquette { display:block; margin-bottom:6px; }
 
 /* ================= Écran « Réglages · Charges » ================= */
-/* Une charge = un bloc empilé (D-039) : libellé + montant de référence, puis le choix
-   50/50 | Prorata en pleine largeur, puis l'écart du mois s'il existe. Au-dessus de 640 px,
-   libellé, montant et choix tiennent sur une ligne. */
-.carte-charges-ref { padding:10px 12px; margin-bottom:10px; }
+/* Une ligne par charge, qui se lit sans rien toucher (D-040) : nom, puis « Toujours le même ·
+   50/50 » ; montant habituel à droite ; chevron = « touche pour régler ». Toute la ligne est
+   la cible (≥ 56 px). */
+.carte-charges-ref { padding:8px 12px; margin-bottom:10px; }
 .carte-charges-ref + .carte-charges-ref { margin-top:0; }
-.ligne-charges-ref {
-  display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px 10px;
-  grid-template-areas:"libelle montant" "regle regle" "ecart ecart";
-  padding:12px 0; border-bottom:1px solid var(--separateur);
+.ligne-charge-ref {
+  display:flex; align-items:center; gap:10px; width:100%; min-height:56px; padding:8px 0;
+  background:none; border:0; border-bottom:1px solid var(--separateur); text-align:left; cursor:pointer; color:var(--texte);
 }
-.ligne-charges-ref:last-child { border-bottom:0; padding-bottom:4px; }
-.ligne-charges-ref .lc-libelle {
-  grid-area:libelle; min-height:44px; background:none; border:0; padding:0; text-align:left; cursor:pointer;
-  font-size:15px; font-weight:600; color:var(--texte); line-height:1.25; overflow-wrap:anywhere;
-}
-.ligne-charges-ref .lc-libelle:hover { color:var(--bleu); }
-.ligne-charges-ref .champ-montant { grid-area:montant; width:120px; min-height:44px; font-size:15px; }
-.ref-dernier {
-  grid-area:montant; display:flex; flex-direction:column; align-items:flex-end; gap:2px;
-  font-size:12px; font-style:italic; color:var(--texte-2);
-}
-.ref-dernier strong { font-size:15px; font-style:normal; font-weight:600; color:var(--texte); white-space:nowrap; }
-.ligne-charges-ref .choix-detaille { grid-area:regle; }
+.ligne-charge-ref:last-child { border-bottom:0; }
+.ligne-charge-ref:hover .lcr-nom { color:var(--bleu); }
+.ligne-charge-ref:focus-visible { outline:3px solid var(--bleu); outline-offset:2px; border-radius:6px; }
+.lcr-corps { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.lcr-nom { font-size:15px; font-weight:600; line-height:1.25; overflow-wrap:anywhere; }
+.lcr-infos { font-size:13px; color:var(--texte-2); line-height:1.3; }
+.lcr-montant { flex:none; font-size:15px; white-space:nowrap; }
+.lcr-montant.vide { font-size:13px; font-style:italic; color:var(--ambre-texte); }
+.lcr-chevron { flex:none; font-size:22px; color:var(--texte-2); line-height:1; }
+
+/* ================= Feuille de réglage d'une charge (ui-charge-feuille.js) ================= */
+.bloc-reglage { border:0; margin:0; padding:0; min-width:0; display:flex; flex-direction:column; gap:10px; }
+.bloc-reglage legend { padding:0; margin-bottom:8px; }
+.bloc-reglage [hidden] { display:none; }
 .ecart-mois {
-  grid-area:ecart; display:flex; flex-wrap:wrap; align-items:center; gap:0 12px; padding:2px 10px;
+  display:flex; flex-wrap:wrap; align-items:center; gap:0 12px; padding:4px 12px;
   border:1px solid var(--ambre-bordure); border-radius:8px; background:var(--ambre-ligne);
-  color:var(--ambre-texte); font-size:13px;
+  color:var(--ambre-texte); font-size:14px;
 }
-.ecart-mois .btn-lien { min-height:44px; font-size:13px; }
-@media (min-width:640px) {
-  .ligne-charges-ref {
-    grid-template-columns:minmax(0,1fr) auto minmax(260px, 340px);
-    grid-template-areas:"libelle montant regle" "ecart ecart ecart";
-  }
+.ecart-mois .btn-lien { min-height:44px; font-size:14px; text-align:left; }
+.reglages .regle-mois { margin:0; font-size:14px; display:flex; align-items:center; gap:4px 10px; flex-wrap:wrap; }
+
+/* ================= Bandeau « à compléter » (tête de l'écran Mois) ================= */
+.a-completer {
+  display:flex; flex-direction:column; gap:10px; margin-bottom:10px; padding:12px;
+  border-color:var(--ambre-bordure); background:var(--ambre-ligne);
 }
+.a-completer p { margin:0; font-size:14px; line-height:1.4; color:var(--texte); }
+.a-completer .sous { font-size:13px; color:var(--ambre-texte); }
+.a-completer .btn { min-height:48px; border-radius:10px; font-size:15px; white-space:normal; line-height:1.25; padding:8px 14px; }
 
 /* ================= Récurrents et comptes ================= */
 .rec { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px 12px; padding:14px 16px; border-bottom:1px solid var(--separateur); }

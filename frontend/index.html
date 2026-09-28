@@ -77,6 +77,8 @@
             <span class="mono total-charges-mois" id="total-charges-mois"></span>
           </div>
 
+          <div id="mois-a-completer"></div>
+
           <div class="carte carte-salaires">
             <span class="salaires-etiquette">SALAIRES</span>
             <div id="salaires" class="salaires-corps"></div>
@@ -357,9 +359,36 @@
   // /MaxHome/, un chemin absolu casserait l'enregistrement (voir sw.js).
   // Le worker est un plus (usage hors ligne en magasin) : un échec ne doit
   // JAMAIS empêcher l'app de démarrer, d'où le catch qui se contente de logguer.
+  //
+  // Mise à jour (D-040) : un téléphone garde l'app en mémoire des jours, et la coquille est
+  // servie cache-first — sans ce bloc, une version déployée n'apparaissait qu'à la DEUXIÈME
+  // ouverture complète, et jamais pour une app seulement ramenée au premier plan.
+  //  - updateViaCache "none" : sw.js et sw-version.js (importé) sont relus sur le réseau, pas
+  //    dans le cache HTTP de GitHub Pages (max-age=600) ;
+  //  - update() à chaque retour dans l'app ;
+  //  - nouvelle version active → rechargement, sauf pendant une saisie (champ actif ou feuille
+  //    ouverte) : on attend alors que l'app passe en arrière-plan.
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch((erreur) => {
+    navigator.serviceWorker.register("./sw.js", { scope: "./", updateViaCache: "none" }).then((reg) => {
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState !== "visible") return;
+        reg.update().catch((erreur) => console.warn("Vérification de mise à jour impossible (hors ligne ?) :", erreur));
+      });
+    }).catch((erreur) => {
       console.error("Service worker MaxHome non enregistré (l'app fonctionne quand même) :", erreur);
+    });
+
+    const dejaControlee = Boolean(navigator.serviceWorker.controller); // première installation : pas de rechargement
+    let rechargementPrevu = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!dejaControlee || rechargementPrevu) return;
+      rechargementPrevu = true;
+      const enSaisie = document.activeElement?.matches("input, textarea, select")
+        || !document.getElementById("feuille")?.hidden;
+      if (!enSaisie) { location.reload(); return; }
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") location.reload();
+      });
     });
   }
 </script>

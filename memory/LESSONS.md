@@ -350,3 +350,20 @@ Contexte : les charges factices étaient positives (restes supérieurs aux salai
 de `CATEGORIES` faisait disparaître la Crèche sans que personne le voie. Trois états d'écran
 n'avaient jamais été capturés. **Les factices portent un exemple de chaque état que l'écran sait
 dire, avec le signe et la forme réels des données.**
+
+## L-038 — Un déploiement n'est livré que quand l'appareil l'affiche (2026-09-28)
+
+Contexte : D-039 déployé, « au prochain lancement les téléphones prennent la nouvelle version »
+annoncé sans l'avoir vérifié ; Yann a jugé une capture vieille de deux déploiements et conclu
+que rien n'avait changé. Coquille cache-first = version N−1 à la première ouverture, et une PWA
+gardée en mémoire ne revérifiait jamais. **Avant de dire « c'est en ligne », prouver qu'un
+client déjà installé bascule seul (recette_mise_a_jour.mjs), et devant une capture d'utilisateur,
+vérifier d'abord QUELLE version elle montre (un libellé qui a changé depuis suffit).**
+
+## L-039 — Tracer qui lit un réglage avant de le redessiner (2026-09-28)
+
+Contexte : D-039 a joliment affiché « dernier montant saisi » sans que personne vérifie ce que
+ce réglage faisait : rien, sa seule lectrice (`prefixe`) n'était jamais appelée. Yann : « à quoi
+sert le champ Dernier, on ne peut rien en faire ». **Pour chaque réglage montré, grep de ses
+lecteurs jusqu'à un effet visible à l'écran ; un réglage sans effet se corrige ou se retire, il
+ne se décore pas.**

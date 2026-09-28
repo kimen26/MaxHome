@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { calculer, repartir, versCentimes, montantLigne, regleEffective, montantTheorique } from "../frontend/budget/calc.js";
+import { montantHabituel } from "../frontend/budget/habituel.js";
+import { detailRegle } from "../frontend/budget/repartition.js";
 
 // Cas réel : Comptes 2026, février. Doit TOUJOURS donner Yann -3 236,15 ±1 ct.
 const chargesFevrier = [
@@ -108,5 +110,24 @@ assert.equal(montantTheorique({ mode: "charge", charge_id: 7 }, contexte), -1234
 assert.equal(montantTheorique({ mode: "charge", charge_id: 99 }, contexte), 0, "charge sans montant ce mois");
 assert.equal(montantTheorique({ mode: "part", prenom_part: "Yann" }, contexte), 323615, "part = virement positif");
 assert.throws(() => montantTheorique({ mode: "??" }, contexte), /inconnu/);
+
+// Montant habituel (D-040) : « Toujours le même » = le montant noté ; « Change chaque mois » =
+// le dernier saisi, à défaut le montant noté ; rien à proposer = null.
+const derniers = { 1: -5500 };
+assert.equal(montantHabituel({ id: 1, defaut_dernier: false, montant_defaut: -120000 }, derniers), -120000, "fixe : le noté, même s'il y a un dernier");
+assert.equal(montantHabituel({ id: 1, defaut_dernier: true, montant_defaut: -9000 }, derniers), -5500, "variable : le dernier");
+assert.equal(montantHabituel({ id: 2, defaut_dernier: true, montant_defaut: -9000 }, derniers), -9000, "variable sans dernier : le noté");
+assert.equal(montantHabituel({ id: 2, defaut_dernier: true, montant_defaut: null }, derniers), null);
+assert.equal(montantHabituel({ id: 2, defaut_dernier: false, montant_defaut: null }, derniers), null);
+
+// Part de chacun affichée sous chaque règle : le second complète à 100, jamais 101 %.
+const etatDetail = { membres: [{ prenom: "Yann" }, { prenom: "Claudia" }],
+  resultat: { totalRevenus: 1000, ratio: { Yann: 0.57378, Claudia: 0.42622 } } };
+assert.equal(detailRegle("egales", etatDetail), "Y 50 % · C 50 %");
+assert.equal(detailRegle("proport", etatDetail), "Y 57 % · C 43 %");
+assert.equal(detailRegle("proport", { ...etatDetail, resultat: { totalRevenus: 0, ratio: {} } }), "salaires à saisir");
+assert.equal(detailRegle("cle", etatDetail, { cle_pct: 60 }), "Y 60 % · C 40 %");
+assert.equal(detailRegle("perso", etatDetail, { payeur: "Claudia" }), "payé par Claudia");
+assert.throws(() => detailRegle("??", etatDetail), /inconnue/);
 
 console.log("test_calc OK");

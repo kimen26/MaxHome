@@ -229,6 +229,9 @@ _Retour de Yann : bouton 50/50 | Prorata pas clair, charges écrasées. Arbitrag
 - [x] Bloc `choixDetaille`, Réglages · Charges empilé, écran Mois sur une colonne.
 - [x] Poussé et déployé le 2026-09-28 (run Pages 32321a6 vert, fichiers neufs servis en prod).
 - [ ] Yann : le voir sur le P30 Pro (police système agrandie comprise).
-- [ ] `recette_token.mjs` : échec intermittent, résumé Agenda encore « Chargement… » après
-      TOKEN_REFRESHED (1 sur 5 le 2026-09-28) — la preuve attendue dépend d'un appel réseau.
+- [x] `recette_token.mjs` : échec intermittent (300 ms fixes, l'Agenda lit une API publique) —
+      attend désormais la preuve, 5/5 vert.
+- [x] Montant habituel + « Remplir », Réglages · Charges en liste, mise à jour sans geste (D-040).
+- [ ] Déployer D-040 après accord de Yann.
+- [ ] Yann : passer en « Toujours le même » les charges qui ne bougent pas (crédit, assurances…).
 - [ ] Segmenté de Réglages (Tâches | Charges | Comptes | Magasin | Voyages) serré à 320 px.

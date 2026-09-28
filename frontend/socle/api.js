@@ -58,6 +58,10 @@ export function creerApi(sb) {
     majLigne: (annee, mois, charge_id, champs) =>
       sb.from("lignes").upsert({ annee, mois, charge_id, ...champs }).then(rendre),
 
+    /** Plusieurs lignes d'un mois en une requête : [{ charge_id, montant_centimes }]. */
+    majLignes: (annee, mois, lignes) =>
+      sb.from("lignes").upsert(lignes.map((l) => ({ annee, mois, ...l }))).then(rendre),
+
     supprimerLigne: (annee, mois, charge_id) =>
       filtre(sb.from("lignes").delete(), annee, mois).eq("charge_id", charge_id).then(rendre),
 

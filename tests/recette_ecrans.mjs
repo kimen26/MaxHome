@@ -56,6 +56,21 @@ const GESTES = [
       await page.waitForSelector("form.reglages", { state: "visible", timeout: 3000 });
       await page.waitForTimeout(250); // la feuille glisse en 200 ms
     } },
+  // Même feuille ouverte depuis Réglages · Charges (toujours en feuille, même sur PC : cet
+  // écran n'a pas de colonne de droite).
+  { ecran: "charges-ref", moduleDefaut: "taches-rec", nom: "reglage-charge-ref",
+    geste: async (page) => {
+      await page.click("#charges-ref-corps .ligne-charge-ref");
+      await page.waitForSelector("#feuille form.reglages", { state: "visible", timeout: 3000 });
+      await page.waitForTimeout(250);
+    } },
+  // « Remplir avec les montants habituels » (D-040) : le bandeau disparaît, les montants
+  // manquants sont écrits, les virements se recalculent.
+  { ecran: "mois", moduleDefaut: "mois", nom: "mois-apres-remplir",
+    geste: async (page) => {
+      await page.click("#mois-a-completer [data-remplir]");
+      await page.waitForFunction(() => !document.querySelector("#mois-a-completer .a-completer"), null, { timeout: 3000 });
+    } },
   { ecran: "courses", moduleDefaut: "courses", nom: "courses-aide-saisie",
     geste: async (page) => { await page.focus("#course-libelle"); await page.waitForSelector("#aide-articles:not([hidden])", { timeout: 3000 }); } },
 ];
@@ -209,12 +224,17 @@ function scriptBouchon(donnees) {
           return unique ? (maj[0] ?? null) : maj;
         }
         if (operation === "upsert") {
-          // Bouchon minimal : une seule ligne à la fois, clé = colonnes non-montant présentes.
-          const cles = Object.keys(payload).filter((k) => !k.includes("montant") && k !== "fait_le");
-          const i = base.findIndex((l) => cles.every((k) => l[k] === payload[k]));
-          if (i === -1) { const cree = { id: prochainId(), ...payload }; window.__bouchonTables[nomTable] = [...base, cree]; return cree; }
-          window.__bouchonTables[nomTable] = base.map((l, k) => k === i ? { ...l, ...payload } : l);
-          return window.__bouchonTables[nomTable][i];
+          // Bouchon minimal : clé = colonnes non-montant présentes ; une ligne ou un tableau
+          // (« Remplir avec les montants habituels » écrit tout le mois d'un coup).
+          const unePasse = (champs) => {
+            const table = window.__bouchonTables[nomTable];
+            const cles = Object.keys(champs).filter((k) => !k.includes("montant") && k !== "fait_le");
+            const i = table.findIndex((l) => cles.every((k) => l[k] === champs[k]));
+            if (i === -1) { const cree = { id: prochainId(), ...champs }; window.__bouchonTables[nomTable] = [...table, cree]; return cree; }
+            window.__bouchonTables[nomTable] = table.map((l, k) => k === i ? { ...l, ...champs } : l);
+            return window.__bouchonTables[nomTable][i];
+          };
+          return Array.isArray(payload) ? payload.map(unePasse) : unePasse(payload);
         }
         if (operation === "delete") {
           const idsASupprimer = new Set(lignes.map((l) => l.id));
