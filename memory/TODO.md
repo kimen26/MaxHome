@@ -227,7 +227,8 @@ pour tout avec ⅓ · ⅔ · plein, intro courte avec une icône d'aide. Arbitra
 ## Lane K — Budget lisible à 360 px (2026-09-28)
 _Retour de Yann : bouton 50/50 | Prorata pas clair, charges écrasées. Arbitrages : D-039._
 - [x] Bloc `choixDetaille`, Réglages · Charges empilé, écran Mois sur une colonne.
-- [ ] Pousser (déploiement GitHub Pages) après accord de Yann, puis le voir sur le P30 Pro.
+- [x] Poussé et déployé le 2026-09-28 (run Pages 32321a6 vert, fichiers neufs servis en prod).
+- [ ] Yann : le voir sur le P30 Pro (police système agrandie comprise).
 - [ ] `recette_token.mjs` : échec intermittent, résumé Agenda encore « Chargement… » après
       TOKEN_REFRESHED (1 sur 5 le 2026-09-28) — la preuve attendue dépend d'un appel réseau.
 - [ ] Segmenté de Réglages (Tâches | Charges | Comptes | Magasin | Voyages) serré à 320 px.

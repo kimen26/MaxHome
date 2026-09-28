@@ -205,4 +205,5 @@ _État courant. Réécrit en fin de session, jamais un journal._
   Factices réalistes (charges négatives, écart, à saisir, clé fixe, ponctuelle). Portes vertes :
   test_calc, test_taches, recette écrans (72 captures, geste « reglage-charge » ajouté), recette
   connectée (bascule de règle sur la vraie base), recette_token (1 échec isolé sur le résumé
-  Agenda puis 3 verts). Captures regardées à 320/360/1200 et sur données réelles. Non poussé.
+  Agenda puis 3 verts). Captures regardées à 320/360/1200 et sur données réelles. Déployé en prod le
+  2026-09-28 ; reste à le voir sur le P30 Pro.
