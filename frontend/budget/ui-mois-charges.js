@@ -30,11 +30,17 @@ export function creerUiMoisCharges(api, etat, cb) {
 
   // Les charges ponctuelles (« Ligne de ce mois ») vivent dans la carte « Ce mois seulement »
   // de ui-mouvements.js, pas dans la grille par catégorie.
-  const actives = () => etat.charges.filter((c) => c.actif !== false && !c.ponctuel);
+  // Deux notions (D-043) : PROPOSÉES = actives, celles qu'on peut encore saisir ce mois-ci ou
+  // remplir d'un geste. AFFICHÉES = actives + une charge terminée qui a déjà une ligne ce mois —
+  // un mois passé garde ce qui a été payé, sinon son montant compterait dans le total sans être
+  // visible nulle part. Une terminée SANS ligne ce mois n'apparaît plus du tout ici.
+  const proposees = () => etat.charges.filter((c) => c.actif !== false && !c.ponctuel);
+  const affichees = () => etat.charges.filter((c) => !c.ponctuel
+    && (c.actif !== false || saisie(c.id)));
 
   // ---------- rendu ----------
   function rendre() {
-    const liste = actives();
+    const liste = affichees();
     const parCat = {};
     for (const c of liste) (parCat[c.categorie] ??= []).push(c);
     $("#mois-categories").innerHTML = categoriesPresentes(parCat).map((k) => {
@@ -48,7 +54,9 @@ export function creerUiMoisCharges(api, etat, cb) {
         ${items.map(ligneCharge).join("")}
       </div>`;
     }).join("");
-    rendreACompleter(liste);
+    // PROPOSÉES seulement (jamais une terminée) : « à remplir » et « montants habituels »
+    // ne portent que sur ce qui reste à saisir pour de vrai ce mois-ci.
+    rendreACompleter(proposees());
     brancher();
   }
 

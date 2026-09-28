@@ -591,3 +591,16 @@ Arbitrages :
    du salaire reçu à sa fin. Reste négatif en rouge ; prorata « salaires à saisir » tant qu'un
    seul salaire manque (il affichait « C 0 % · Y 100 % »).
 Données : les 2 virements de septembre décochés en base (même geste que « Annuler la coche »).
+
+## D-043 — Ajouter et terminer une charge depuis Réglages · Charges (2026-09-28)
+
+Contexte : Yann veut ajouter des lignes (catégorie + titre) et mettre fin à d'autres, rangées
+dans une catégorie « Terminées » en bas. Arbitrages :
+1. « + Ajouter une charge » (feuille : nom, catégorie, 50/50 | Prorata, défaut Prorata) crée une
+   charge régulière qui reprend le dernier montant ; le montant se règle ensuite dans la rangée.
+   Nom vide ou déjà pris par une charge active : refusé.
+2. « Terminer cette charge » (feuille, avec confirmation) = `actif: false`, pas de suppression :
+   les mois passés gardent leur montant. Carte « Terminées (N) » repliée en bas, « Reprendre ».
+3. Écran Mois : une charge terminée n'est plus proposée (ni bandeau, ni « Remplir »), mais reste
+   affichée dans un mois où elle a une ligne — sinon son montant compterait sans être visible.
+Réalisé par un sous-agent Sonnet sur spec, vérifié ici (captures 320/360, recette connectée).

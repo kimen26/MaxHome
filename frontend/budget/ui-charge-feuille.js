@@ -16,6 +16,7 @@ import { champ, select, membresOptions, lire, enEuros } from "../socle/blocs-for
 import { REGLES, libelleRegle, optionsRegle } from "./repartition.js";
 import { FIXE, VARIABLE, faconDe, montantHabituel, optionsFacon } from "./habituel.js";
 import { AIDE_SANS_COMPTE, aAutreCompte, compteDeCharge, optionsCompte, choisirCompte } from "./compte-charge.js";
+import { confirmerFinDeCharge } from "./ui-charges-ajout.js";
 
 const ASIDE = "#reglages-pc";
 
@@ -71,7 +72,7 @@ export function creerFeuilleCharge(api, etat, cb, categories) {
       </fieldset>
 
       <div class="detail-actions">
-        <button type="button" class="btn" data-archiver>Archiver</button>
+        <button type="button" class="btn" data-archiver>Terminer cette charge</button>
         <button type="submit" class="btn btn-bleu grandir">Enregistrer</button>
       </div>
     </form>`;
@@ -151,12 +152,17 @@ export function creerFeuilleCharge(api, etat, cb, categories) {
       } catch (e) { cb.echec(e); }
     });
 
-    // Une charge archivée n'envoie plus rien : son virement vers un autre compte s'arrête aussi.
-    form.querySelector("[data-archiver]").addEventListener("click", () => enregistrerPuisFermer(async () => {
-      await api.majCharge(c.id, { actif: false });
-      c.actif = false;
-      return choisirCompte(api, etat, c, null);
-    }, `${c.libelle} archivée.`));
+    // Une charge terminée n'envoie plus rien : son virement vers un autre compte s'arrête aussi.
+    // Elle descend dans la carte « Terminées » de Réglages · Charges (D-043) — pas de perte des
+    // mois passés, juste plus proposée les mois suivants.
+    form.querySelector("[data-archiver]").addEventListener("click", async () => {
+      if (!(await confirmerFinDeCharge(c.libelle))) return;
+      enregistrerPuisFermer(async () => {
+        await api.majCharge(c.id, { actif: false });
+        c.actif = false;
+        return choisirCompte(api, etat, c, null);
+      }, `${c.libelle} terminée.`);
+    });
 
     form.addEventListener("submit", (ev) => {
       ev.preventDefault();

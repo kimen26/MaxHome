@@ -231,6 +231,31 @@
   .rc-compte { flex-wrap:nowrap; }
 }
 
+/* ================= Ajouter une charge / carte Terminées (ui-charges-ajout.js, D-043) ========= */
+/* Pleine largeur, cible tactile 48 px (au-dessus du .btn du socle, 44 px). */
+.btn-ajouter-charge { min-height:48px; margin-top:4px; font-weight:600; }
+
+.carte-terminees { padding:0; overflow:hidden; }
+.ct-entete {
+  display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%;
+  min-height:48px; padding:0 14px; background:none; border:0; cursor:pointer;
+  font-size:14px; font-weight:600; color:var(--texte); text-align:left;
+}
+.ct-entete:focus-visible { outline:3px solid var(--bleu); outline-offset:-3px; }
+.ct-voir { font-size:13px; font-weight:400; color:var(--bleu); text-decoration:underline; }
+.ct-liste { border-top:1px solid var(--separateur); }
+/* Gris lisible (--texte-2, ≥ 4.5:1) : jamais l'opacité, qui abîme le contraste ET touche le
+   bouton « Reprendre » en même temps que le texte (règle mobile-parents.md). */
+.charge-terminee {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:10px 14px; border-bottom:1px solid var(--separateur); color:var(--texte-2);
+}
+.charge-terminee:last-child { border-bottom:0; }
+.ct-corps { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.ct-nom { font-size:14px; font-weight:600; overflow-wrap:anywhere; }
+.ct-categorie { font-size:12px; }
+.charge-terminee .btn { min-height:48px; flex:none; }
+
 /* ================= Feuille de réglage d'une charge (ui-charge-feuille.js) ================= */
 .bloc-reglage { border:0; margin:0; padding:0; min-width:0; display:flex; flex-direction:column; gap:10px; }
 .bloc-reglage legend { padding:0; margin-bottom:8px; }

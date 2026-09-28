@@ -232,3 +232,5 @@ _État courant. Réécrit en fin de session, jamais un journal._
   test le 13/09 ont été décochés en base (L-041). Portes : test_calc, recette écrans (84),
   recette connectée (règle basculée puis remise sur la vraie base). recette_token rouge à cause
   du bouchon `insert` absent côté Tâches (autre session, D-041) — pas du Budget.
+- 2026-09-28 (nuit) : **ajouter / terminer une charge** (D-043) dans Réglages · Charges, carte
+  « Terminées » repliée en bas. Portes : test_calc, recette écrans (90 captures), recette connectée.

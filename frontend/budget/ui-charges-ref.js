@@ -16,6 +16,7 @@ import { categoriesPresentes } from "./ui-mois-charges.js";
 import { libelleRegle, detailRegle, regleBasculee, motPartage } from "./repartition.js";
 import { montantHabituel, montantNote, champsDuMontant, montantInchange } from "./habituel.js";
 import { AIDE_SANS_COMPTE, aAutreCompte, compteDeCharge, optionsCompte, nomDuCompte, choisirCompte } from "./compte-charge.js";
+import { creerAjoutCharges, creerCarteTerminees } from "./ui-charges-ajout.js";
 
 export function creerUiChargesRef(api, etat, cb) {
   // Les charges ponctuelles (« Ligne de ce mois ») n'ont ni montant habituel ni compte : hors d'ici.
@@ -23,12 +24,19 @@ export function creerUiChargesRef(api, etat, cb) {
   const chargeDe = (id) => etat.charges.find((c) => c.id === id);
   const ouvrirFeuille = (id) => cb.ouvrirReglagesCharge(id, { enFeuille: true, apres: rendre });
 
+  // Le bouton d'ajout et la carte Terminées se rafraîchissent comme cet écran : `cb.rendre`
+  // leur est passé tel quel, `rendre` ci-dessous appelle l'un ET l'autre.
+  const ajout = creerAjoutCharges(api, etat, { ...cb, rendre });
+  const finies = creerCarteTerminees(api, etat, { ...cb, rendre });
+
   function rendre() {
     const parCat = {};
     for (const c of actives()) (parCat[c.categorie] ??= []).push(c);
     const corps = $("#charges-ref-corps");
     corps.innerHTML = `${carteExplication()}
-      <div class="grille-charges-ref">${categoriesPresentes(parCat).map((k) => carteCategorie(k, parCat[k])).join("")}</div>`;
+      <div class="grille-charges-ref">${categoriesPresentes(parCat).map((k) => carteCategorie(k, parCat[k])).join("")}</div>
+      <button type="button" class="btn-tirets btn-ajouter-charge" data-ajouter-charge>+ Ajouter une charge</button>
+      ${finies.html()}`;
     brancher(corps);
   }
 
@@ -75,6 +83,8 @@ export function creerUiChargesRef(api, etat, cb) {
   }
 
   function brancher(corps) {
+    corps.querySelector("[data-ajouter-charge]").addEventListener("click", () => ajout.ouvrir());
+    finies.brancher(corps);
     for (const b of corps.querySelectorAll("[data-reglages]")) {
       b.addEventListener("click", () => ouvrirFeuille(Number(b.dataset.reglages)));
     }

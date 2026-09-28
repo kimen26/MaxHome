@@ -88,6 +88,20 @@ const GESTES = [
     } },
   { ecran: "courses", moduleDefaut: "courses", nom: "courses-aide-saisie",
     geste: async (page) => { await page.focus("#course-libelle"); await page.waitForSelector("#aide-articles:not([hidden])", { timeout: 3000 }); } },
+  // Feuille d'ajout d'une charge (D-043), ouverte depuis Réglages · Charges.
+  { ecran: "charges-ref", moduleDefaut: "taches-rec", nom: "charges-ajout",
+    geste: async (page) => {
+      await page.click("#charges-ref-corps [data-ajouter-charge]");
+      await page.waitForSelector("#feuille form#form-ajout-charge", { state: "visible", timeout: 3000 });
+      await page.waitForTimeout(250); // la feuille glisse en 200 ms
+    } },
+  // Carte « Terminées » dépliée (D-043) : les données factices y posent une charge (Ancienne
+  // box internet, catégorie Logement, sans ligne ce mois).
+  { ecran: "charges-ref", moduleDefaut: "taches-rec", nom: "charges-terminees",
+    geste: async (page) => {
+      await page.click("#charges-ref-corps [data-plier-terminees]");
+      await page.waitForSelector("#charges-ref-corps .ct-liste:not([hidden])", { timeout: 3000 });
+    } },
 ];
 
 // ---------- 1. écrans à visiter, lus depuis les descripteurs (pas de liste en dur) ----------

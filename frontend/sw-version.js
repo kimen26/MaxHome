@@ -3,4 +3,4 @@
 // contenu de tous les fichiers de frontend/sw-precache.js : change dès qu'un
 // seul octet de la coquille change, ce qui force le service worker à recréer
 // son cache. Chargé par sw.js via importScripts (pas de module ESM).
-self.SW_VERSION = "ce7067ab78a1";
+self.SW_VERSION = "9121f375e9f5";

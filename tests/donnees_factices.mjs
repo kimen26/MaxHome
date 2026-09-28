@@ -35,7 +35,9 @@ export const COMPTES = [
 // Charges en montants NÉGATIFS, comme en base (docs/regles-repartition.md). Chaque état qu'un
 // écran sait dire a sa charge : référence fixe, « dernier montant saisi », mois qui diffère de
 // la référence (Crédit immobilier), montant du mois pas encore saisi (Impôts), règle rare
-// (Assurance, clé fixe), catégorie hors liste (Léo), ligne ponctuelle (Resto).
+// (Assurance, clé fixe), catégorie hors liste (Léo), ligne ponctuelle (Resto), charge terminée
+// sans ligne ce mois (Ancienne box internet, D-043 : elle peuple la carte « Terminées » et ne
+// doit apparaître nulle part sur l'écran Mois).
 export const CHARGES = [
   { id: 1, libelle: "Crédit immobilier", ordre: 10, categorie: "Logement", type: "egales", regle: "egales",
     cle_pct: null, payeur: null, ponctuel: false, montant_defaut: -120000, defaut_dernier: false },
@@ -51,10 +53,14 @@ export const CHARGES = [
     cle_pct: 60, payeur: null, ponctuel: false, montant_defaut: -3890, defaut_dernier: false },
   { id: 7, libelle: "Resto anniversaire", ordre: 70, categorie: "Autre", type: "egales", regle: "egales",
     cle_pct: null, payeur: null, ponctuel: true, montant_defaut: null, defaut_dernier: false },
+  { id: 8, libelle: "Ancienne box internet", ordre: 80, categorie: "Logement", type: "egales", regle: "egales",
+    cle_pct: null, payeur: null, ponctuel: false, montant_defaut: -3500, defaut_dernier: true, actif: false },
 ];
 
 const MONTANT_DU_MOIS = { 1: -125000, 7: -8640 }; // Crédit immobilier ≠ référence ; Resto ponctuel
-const SANS_MONTANT = new Set([4]); // Impôts : pas encore saisi ce mois
+// Impôts : pas encore saisi ce mois. Ancienne box internet : terminée AVANT ce mois, sans ligne
+// (D-043) — c'est la seule façon qu'elle n'apparaisse nulle part sur l'écran Mois.
+const SANS_MONTANT = new Set([4, 8]);
 export const LIGNES = CHARGES.filter((c) => !SANS_MONTANT.has(c.id)).map((c) => ({
   annee: ANNEE, mois: MOIS, charge_id: c.id, montant_centimes: MONTANT_DU_MOIS[c.id] ?? c.montant_defaut, regle: null,
 }));
