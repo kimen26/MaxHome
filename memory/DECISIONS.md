@@ -471,3 +471,30 @@ Arbitrages :
 Alternatives écartées : parts au tiers arrondies au quart entier (0,5 × ⅓ et ⅔ tombaient sur la
 même valeur) ; un moment par occurrence (« Nourrir Max » matin/midi/soir) — une tâche 3×/j sur
 une seule ligne suffit en réglage, le découpage par carte attend l'avis de Yann.
+
+## D-039 — Répartition dite en clair, charges sur une colonne au téléphone (2026-09-28)
+
+Contexte : Yann, sur Réglages · Charges et l'écran Mois : « hyper pas clair le bouton des 50/50
+ou prorata… tout est écrasé, les lignes et mots ne se terminent pas ». À 360 px, le segmenté
+gris « 50/50 | Prorata » débordait de la ligne et son état actif ne tenait qu'à une nuance
+(blanc sur gris) ; les charges en deux colonnes laissaient ~90 px au libellé (« Crédit
+immobilie », « Alimentat »). Les deux venaient de la maquette, suivie à la lettre (D-036 §1).
+Arbitrages — le retour d'usage prime sur la maquette, à 360 px :
+1. **Un seul bloc de choix** `choixDetaille` (socle/blocs.js) : chaque option dit ce qu'elle
+   implique sous son titre (« Prorata » / « C 47 % · Y 53 % », calculé sur les salaires du mois
+   par `budget/repartition.js`) ; l'actif est plein bleu ET coché ✓. Utilisé partout où l'on
+   choisit une règle : Réglages · Charges, feuille d'une charge, feuille « Ligne de ce mois ».
+   Vocabulaire gardé (50/50, Prorata) ; « Clé % » → « Clé fixe », « Perso » → « Un seul paie ».
+2. **Réglages · Charges empilé** : libellé + référence, puis le choix en pleine largeur, puis
+   l'écart du mois en toutes lettres (« Ce mois : −1 250,00 € · Garder comme référence »). Les
+   colonnes Référence | Règle | Ce mois et le « = / ≠ » disparaissent. Une charge en « dernier
+   montant » montre ce dernier montant. L'écran règle la règle PAR DÉFAUT (il montrait la règle
+   du mois et enregistrait celle par défaut) ; une exception du mois est écrite sous la ligne.
+3. **Écran Mois** : charges sur une colonne sous 640 px, deux au-dessus ; libellé 15 px qui
+   passe à la ligne, règle et écart écrits dessous (la pastille ambre, couleur seule, disparaît).
+   Salaires avec prénoms entiers, total commun en pleine largeur, restes côte à côte, À faire /
+   Fait sans double cadre, « Ce mois seulement » en 15 px.
+4. Une charge dont la catégorie n'est pas dans `CATEGORIES` s'affiche après les autres au lieu
+   de disparaître des deux écrans.
+Écart assumé à la planche maquette (mois, charges-ref). Tailles de texte des `.mvt` scopées à
+`.carte-mvts` : les Tâches gardent leur densité.

@@ -128,13 +128,13 @@ try {
   // confondus (Parts, module Tâches) : on y entre par lui, puis par le segmenté synthétique.
   await aller(page, "charges-ref", "#charges-ref-corps .carte-charges-ref", "taches-rec");
   await page.screenshot({ path: path.join(SORTIE, "charges-ref-mobile.png"), fullPage: true });
-  const seg = page.locator("#charges-ref-corps .charges-ref-regle").first();
-  const avant = await seg.locator("button.actif").getAttribute("data-regle");
+  const seg = page.locator("#charges-ref-corps .ligne-charges-ref .choix-detaille").first();
+  const avant = await seg.locator(".choix-option.actif").getAttribute("data-regle");
   const autre = avant === "egales" ? "proport" : "egales";
   await seg.locator(`button[data-regle=${autre}]`).click();
-  await page.waitForFunction((a) => document.querySelector("#charges-ref-corps .charges-ref-regle button.actif")?.dataset.regle === a, autre, { timeout: 10000 });
+  await page.waitForFunction((a) => document.querySelector("#charges-ref-corps .ligne-charges-ref .choix-option.actif")?.dataset.regle === a, autre, { timeout: 10000 });
   await seg.locator(`button[data-regle=${avant}]`).click();
-  await page.waitForFunction((a) => document.querySelector("#charges-ref-corps .charges-ref-regle button.actif")?.dataset.regle === a, avant, { timeout: 10000 });
+  await page.waitForFunction((a) => document.querySelector("#charges-ref-corps .ligne-charges-ref .choix-option.actif")?.dataset.regle === a, avant, { timeout: 10000 });
   console.log(`Règle par défaut : ${avant} → ${autre} → ${avant} OK`);
 
   // Retour sur Mois (défaut du module) avant de rejoindre Stats par son segmenté d'en-tête.

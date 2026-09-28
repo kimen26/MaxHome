@@ -223,3 +223,11 @@ pour tout avec ⅓ · ⅔ · plein, intro courte avec une icône d'aide. Arbitra
 - [ ] Yann : ranger Linge et Déchets dans Ménage ? (champ Thème de la fiche, ou une requête).
 - [ ] Yann : « Nourrir Max » matin/midi/soir — une ligne 3×/j suffit-elle, ou faut-il un moment
       par fois (et une carte Midi sur l'écran Jour) ?
+
+## Lane K — Budget lisible à 360 px (2026-09-28)
+_Retour de Yann : bouton 50/50 | Prorata pas clair, charges écrasées. Arbitrages : D-039._
+- [x] Bloc `choixDetaille`, Réglages · Charges empilé, écran Mois sur une colonne.
+- [ ] Pousser (déploiement GitHub Pages) après accord de Yann, puis le voir sur le P30 Pro.
+- [ ] `recette_token.mjs` : échec intermittent, résumé Agenda encore « Chargement… » après
+      TOKEN_REFRESHED (1 sur 5 le 2026-09-28) — la preuve attendue dépend d'un appel réseau.
+- [ ] Segmenté de Réglages (Tâches | Charges | Comptes | Magasin | Voyages) serré à 320 px.

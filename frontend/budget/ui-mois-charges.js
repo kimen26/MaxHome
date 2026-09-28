@@ -1,16 +1,23 @@
-// Partie « charges par catégorie » de l'écran Mois (budget.png) : deux colonnes de cartes,
-// une par catégorie, ligne compacte libellé + champ montant, pastille ambre quand le montant
-// du mois diffère de la référence (montant_defaut). Le réglage d'une charge (libellé,
+// Partie « charges par catégorie » de l'écran Mois : une carte par catégorie, une colonne sur
+// téléphone, deux au-dessus de 640 px (D-039 : les deux colonnes de la maquette rognaient les
+// libellés à 360 px). Chaque ligne : libellé entier, dessous sa répartition et, en ambre et en
+// toutes lettres, « à saisir » ou l'écart à la référence (montant_defaut). Le réglage d'une charge (libellé,
 // catégorie, règle par défaut, montant de référence, archivage) reste dans sa propre feuille,
 // ouverte au tap sur le libellé — ce fichier ne la redessine pas deux fois.
 
 import { euros, versCentimes, regleEffective } from "./calc.js";
 import { $, $$, txt } from "../socle/ui-base.js";
-import { ouvrirPanneau, fermerPanneau } from "../socle/blocs.js";
+import { ouvrirPanneau, fermerPanneau, choixDetaille } from "../socle/blocs.js";
 import { champ, select, membresOptions, lire } from "../socle/blocs-form.js";
-
-export const REGLES = [["egales", "50/50"], ["proport", "Prorata"], ["cle", "Clé %"], ["perso", "Perso"]];
+import { REGLES, REGLES_COURANTES, libelleRegle, detailRegle, optionsRegle } from "./repartition.js";
 export const CATEGORIES = ["Logement", "Max", "Épargne", "Alimentation", "Impôts", "Banque", "Autre"];
+
+/** Catégories à afficher, dans l'ordre de CATEGORIES puis les autres par ordre alphabétique :
+ *  une charge dont la catégorie n'est pas dans la liste ne disparaît pas de l'écran. */
+export const categoriesPresentes = (parCat) => [
+  ...CATEGORIES.filter((k) => parCat[k]),
+  ...Object.keys(parCat).filter((k) => !CATEGORIES.includes(k)).sort((a, b) => a.localeCompare(b, "fr")),
+];
 
 const ASIDE = "#reglages-pc";
 
@@ -31,7 +38,7 @@ export function creerUiMoisCharges(api, etat, cb) {
     const liste = actives();
     const parCat = {};
     for (const c of liste) (parCat[c.categorie] ??= []).push(c);
-    $("#mois-categories").innerHTML = CATEGORIES.filter((k) => parCat[k]).map((k) => {
+    $("#mois-categories").innerHTML = categoriesPresentes(parCat).map((k) => {
       const items = parCat[k];
       const remplies = items.filter((c) => montantDe(c.id)).length;
       const complet = remplies === items.length;
@@ -48,13 +55,24 @@ export function creerUiMoisCharges(api, etat, cb) {
   function ligneCharge(c) {
     const m = montantDe(c.id);
     const ref = c.montant_defaut ?? null;
-    // Pastille ambre : un montant est saisi ce mois ET diffère de la référence.
-    const differe = saisie(c.id) && ref !== null && m !== ref;
     const manque = !saisie(c.id);
-    return `<div class="ligne mois-charge${manque ? " a-faire" : ""}" data-charge="${c.id}">
-      <button type="button" class="titre lc-libelle" data-reglages="${c.id}">${txt(c.libelle)}</button>
-      ${differe ? '<span class="point-ambre" title="Diffère de la référence"></span>' : ""}
-      <input class="champ champ-montant cible44${m > 0 ? " pos" : ""}${manque ? " oubli" : ""}" inputmode="decimal"
+    const differe = !manque && ref !== null && m !== ref;
+    const regle = regleEffective(c, ligne(c.id));
+    // L'écart se DIT (« réf. 1 200,00 € »), il n'est plus une pastille de couleur seule. Une
+    // règle rare dit aussi la part de chacun : « Clé fixe » seul ne dit pas qui paie quoi.
+    const nomRegle = REGLES_COURANTES.includes(regle)
+      ? libelleRegle(regle) : `${libelleRegle(regle)} (${detailRegle(regle, etat, c)})`;
+    const infos = [
+      `${nomRegle}${regle !== c.regle ? " ce mois" : ""}`,
+      manque ? "à saisir" : "",
+      differe ? `réf. ${euros(ref)}` : "",
+    ].filter(Boolean).join(" · ");
+    return `<div class="mois-charge${manque ? " a-faire" : ""}${differe ? " differe" : ""}" data-charge="${c.id}">
+      <button type="button" class="mc-libelle" data-reglages="${c.id}">
+        <span class="mc-nom">${txt(c.libelle)}</span><span class="mc-infos">${txt(infos)}</span>
+      </button>
+      <input class="champ champ-montant${m > 0 ? " pos" : ""}${manque ? " oubli" : ""}" inputmode="decimal"
+             aria-label="Montant de ce mois : ${txt(c.libelle)}"
              data-montant="${c.id}" value="${saisie(c.id) ? (m / 100).toFixed(2).replace(".", ",") : ""}"
              placeholder="${ref !== null ? (ref / 100).toFixed(2).replace(".", ",") : "0,00"}">
     </div>`;
@@ -110,17 +128,15 @@ export function creerUiMoisCharges(api, etat, cb) {
         <label class="case-a-cocher"><input type="checkbox" name="defaut_dernier" ${c.defaut_dernier ? "checked" : ""}>
           Reprendre le dernier montant saisi</label></div>
 
-      <div><span class="etiquette">Règle par défaut</span>
-        <span class="segment large" data-regle-defaut>
-          ${REGLES.map(([v, l]) => `<button type="button" data-regle="${v}" class="${c.regle === v ? "actif" : ""}">${l}</button>`).join("")}
-        </span></div>
+      <div data-regle-defaut><span class="etiquette">Répartition, tous les mois</span>
+        ${choixDetaille(optionsRegle(etat, c, REGLES.map(([v]) => v)), c.regle, { attr: "regle", etiquette: "Répartition, tous les mois" })}</div>
 
       ${c.regle === "cle" ? champ("cle_pct", `Clé pour ${etat.membres[0]?.prenom ?? ""} (%)`,
     { type: "number", valeur: c.cle_pct ?? 50, attrs: 'min="0" max="100"' }) : ""}
       ${c.regle === "perso" ? select("payeur", "Payeur", membresOptions(etat), c.payeur) : ""}
 
-      <div class="regle-mois"><span class="etiquette">Règle de ce mois</span>
-        <p>${txt(REGLES.find(([v]) => v === regle)?.[1] ?? regle)}${surchargee ? " (surchargée pour ce mois)" : " (règle par défaut)"}
+      <div class="regle-mois"><span class="etiquette">Ce mois-ci</span>
+        <p>${txt(libelleRegle(regle))}${surchargee ? " (exception pour ce mois)" : " (comme tous les mois)"}
         ${surchargee ? '<button type="button" class="btn-lien" data-rendre-defaut>Revenir au défaut</button>' : ""}</p></div>
 
       <div class="detail-actions">
@@ -141,8 +157,9 @@ export function creerUiMoisCharges(api, etat, cb) {
   function brancherReglages(c, racine) {
     racine.querySelector("[data-fermer-reglages]").addEventListener("click", fermerReglages);
 
-    for (const b of racine.querySelectorAll("[data-regle-defaut] button")) {
+    for (const b of racine.querySelectorAll("[data-regle-defaut] [data-regle]")) {
       b.addEventListener("click", async () => {
+        if (b.dataset.regle === c.regle) return;
         try {
           await api.majCharge(c.id, { regle: b.dataset.regle });
           c.regle = b.dataset.regle;

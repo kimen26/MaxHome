@@ -35,6 +35,23 @@
    tient pas passe sur deux lignes (min-height, jamais tronqué), plutôt que de déborder. */
 .segment.large button { flex:1; min-width:0; padding:0 4px; white-space:normal; line-height:1.15; }
 
+/* ---------- choix détaillé (blocs.js choixDetaille) : titre + ce qu'il implique dessous.
+   L'option choisie est pleine bleue ET cochée ✓ ; 48 px de haut ; un libellé trop long passe
+   à la ligne, il n'est jamais rogné (D-039). ---------- */
+.choix-detaille { display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:8px; }
+.choix-option {
+  display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:2px;
+  min-height:48px; padding:6px 12px; text-align:left; cursor:pointer; min-width:0;
+  border:1.5px solid var(--bordure); border-radius:10px; background:#fff; color:var(--texte);
+}
+.choix-option:hover { border-color:var(--bleu); }
+.choix-option:focus-visible { outline:3px solid var(--bleu); outline-offset:2px; }
+.choix-titre { font-size:15px; font-weight:600; line-height:1.2; }
+.choix-detail { font-size:12px; color:var(--texte-2); line-height:1.3; }
+.choix-option.actif { background:var(--bleu); border-color:var(--bleu); color:#fff; }
+.choix-option.actif .choix-detail { color:#fff; }
+.choix-option.actif .choix-titre::before { content:"✓ "; }
+
 /* ---------- pastilles et repères ---------- */
 .pastille { display:inline-block; background:var(--fond-bandeau); color:var(--texte-2); border-radius:6px; font-size:11px; padding:2px 7px; }
 .repere { font-size:12px; color:var(--texte-2); }

@@ -197,3 +197,12 @@ _État courant. Réécrit en fin de session, jamais un journal._
   thème Enfant → Max en base. Portes vertes (test_taches, 128 bot, recette écrans 69 captures,
   recette connectée) ; captures regardées à 320/360/1200 (`taches-rec-*`, `feuille-aide-parts-*`,
   `detail-tache-a-deux-*`).
+
+- 2026-09-28 : **Répartition dite en clair, charges lisibles à 360 px** (D-039). Bloc
+  `choixDetaille` (actif plein + ✓, part de chacun sous chaque option) sur Réglages · Charges et
+  les deux feuilles ; Réglages · Charges empilé avec écart du mois en toutes lettres ; écran Mois
+  sur une colonne au téléphone (salaires, chiffres, virements, charges, ce mois seulement).
+  Factices réalistes (charges négatives, écart, à saisir, clé fixe, ponctuelle). Portes vertes :
+  test_calc, test_taches, recette écrans (72 captures, geste « reglage-charge » ajouté), recette
+  connectée (bascule de règle sur la vraie base), recette_token (1 échec isolé sur le résumé
+  Agenda puis 3 verts). Captures regardées à 320/360/1200 et sur données réelles. Non poussé.

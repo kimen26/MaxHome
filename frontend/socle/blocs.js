@@ -139,6 +139,25 @@ export function fermerPanneau(selecteurAside) {
   a.hidden = true;
   a.innerHTML = "";
 }
+/** Choix exclusif qui se lit sans légende : chaque option porte un titre et, dessous, ce
+ *  qu'elle implique (« Prorata » / « C 47 % · Y 53 % »). L'option choisie est pleine ET
+ *  cochée ✓ (socle.css) — jamais la couleur seule. `options` : [{ valeur, titre, detail }] ;
+ *  chaque bouton porte `data-<attr>="<valeur>"`. */
+export const choixDetaille = (options, choisi, { attr = "choix", etiquette = "" } = {}) =>
+  `<div class="choix-detaille" role="radiogroup"${etiquette ? ` aria-label="${txt(etiquette)}"` : ""}>${options.map(({ valeur, titre, detail = "" }) => {
+    const actif = valeur === choisi;
+    return `<button type="button" role="radio" aria-checked="${actif}" class="choix-option${actif ? " actif" : ""}" data-${attr}="${txt(valeur)}">
+      <span class="choix-titre">${txt(titre)}</span>${detail ? `<span class="choix-detail">${txt(detail)}</span>` : ""}</button>`;
+  }).join("")}</div>`;
+
+/** Coche `bouton` dans son `choixDetaille` sans re-rendu (feuille en cours de saisie). */
+export function marquerChoix(bouton) {
+  for (const b of bouton.closest(".choix-detaille").querySelectorAll(".choix-option")) {
+    b.classList.toggle("actif", b === bouton);
+    b.setAttribute("aria-checked", String(b === bouton));
+  }
+}
+
 /** Choix d'une personne : pastilles cliquables, `data-qui`. `extras` : choix en plus des
  *  prénoms, `[[valeur, libellé]]` (ex. « À deux » dans les Tâches). */
 export const choixQui = (membres, choisi, extras = []) => `<div class="choix-qui">${[...membres.map((p) => [p, p]), ...extras].map(([v, lib]) =>

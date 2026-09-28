@@ -7,11 +7,12 @@
 
 import { euros, versCentimes, montantTheorique } from "./calc.js";
 import { $, $$, txt, toast, copier, montrerEcran, ouvrirFeuille, fermerFeuille, confirmer, MOIS } from "../socle/ui-base.js";
-import { ligneCoche, carteListe, enteteDetail, trajetComptes } from "../socle/blocs.js";
+import { ligneCoche, carteListe, enteteDetail, trajetComptes, choixDetaille, marquerChoix } from "../socle/blocs.js";
 import { creerCheckList } from "../socle/blocs-checklist.js";
 import { champ, select, membresOptions, lire } from "../socle/blocs-form.js";
 import { creerUiMoisCharges } from "./ui-mois-charges.js";
 import { creerUiRegularisations } from "./ui-regularisations.js";
+import { optionsRegle, detailRegle, libelleRegle } from "./repartition.js";
 
 const ASIDE = "#detail-pc";
 const SUGGESTIONS_AJOUT = ["Resto", "Vacances", "Cadeaux", "Santé"];
@@ -176,16 +177,14 @@ export function creerUiMouvements(api, etat, cb) {
     },
   });
 
-  // ---------- revenus (salaires Y/C + clé) ----------
+  // ---------- revenus (salaires + part de chacun au prorata) ----------
   function rendreSalaires() {
-    const r = etat.resultat;
-    const cle = etat.membres.map((m) => Math.round((r.ratio[m.prenom] ?? 0) * 100)).join(" / ");
     $("#salaires").innerHTML = `${etat.membres.map((m) => `
-      <span class="salaire-champ"><span class="salaire-lettre">${txt(m.prenom[0])}</span>
-        <input class="champ champ-montant pos cible44" inputmode="decimal" data-revenu="${txt(m.prenom)}"
+      <label class="salaire-champ"><span class="salaire-prenom">${txt(m.prenom)}</span>
+        <input class="champ champ-montant pos" inputmode="decimal" data-revenu="${txt(m.prenom)}"
                value="${etat.revenus[m.prenom] ? (etat.revenus[m.prenom] / 100).toFixed(2).replace(".", ",") : ""}"
-               placeholder="0,00"></span>`).join("")}
-      <span class="mono salaire-cle">${cle}</span>`;
+               placeholder="0,00"></label>`).join("")}
+      <span class="salaire-cle">Prorata : <strong>${txt(detailRegle("proport", etat))}</strong></span>`;
     for (const el of $$("#salaires [data-revenu]")) {
       el.addEventListener("change", async () => {
         const prenom = el.dataset.revenu;
@@ -208,11 +207,10 @@ export function creerUiMouvements(api, etat, cb) {
   const ponctuelles = () => etat.charges.filter((c) => c.ponctuel && c.actif !== false);
 
   const ligneExtra = (c) => {
-    const regle = c.regle === "egales" ? "50/50" : "prorata";
     const m = etat.lignes[c.id]?.montant_centimes ?? 0;
     return `<div class="ligne" data-charge="${c.id}">
       <button type="button" class="titre" data-suppr-extra="${c.id}" title="Retirer">${txt(c.libelle)}</button>
-      <span class="repere">${regle}</span>
+      <span class="repere">${txt(libelleRegle(c.regle))}</span>
       <span class="mono valeur">${euros(m)}</span>
     </div>`;
   };
@@ -254,11 +252,8 @@ export function creerUiMouvements(api, etat, cb) {
       <div class="ligne-mois-repartition">
         <label class="champ-label"><span class="etiquette">Montant</span>
           <input class="champ champ-montant" name="montant" inputmode="decimal" placeholder="0,00" required></label>
-        <div><span class="etiquette">Répartition</span>
-          <span class="segment large" data-regle-ajout>
-            <button type="button" data-regle="proport" class="actif">Prorata</button>
-            <button type="button" data-regle="egales">50/50</button>
-          </span></div>
+        <div data-regle-ajout><span class="etiquette">Répartition</span>
+          ${choixDetaille(optionsRegle(etat, {}), "proport", { attr: "regle", etiquette: "Répartition" })}</div>
       </div>
       <button type="submit" class="btn btn-vert grandir">Ajouter au mois</button>
     </form>`);
@@ -267,11 +262,8 @@ export function creerUiMouvements(api, etat, cb) {
       p.addEventListener("click", () => { form.titre.value = p.dataset.suggestion; form.titre.focus(); });
     }
     let regleChoisie = "proport";
-    for (const b of form.querySelectorAll("[data-regle-ajout] button")) {
-      b.addEventListener("click", () => {
-        regleChoisie = b.dataset.regle;
-        for (const x of form.querySelectorAll("[data-regle-ajout] button")) x.classList.toggle("actif", x === b);
-      });
+    for (const b of form.querySelectorAll("[data-regle-ajout] [data-regle]")) {
+      b.addEventListener("click", () => { regleChoisie = b.dataset.regle; marquerChoix(b); });
     }
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();

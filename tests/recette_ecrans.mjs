@@ -48,6 +48,14 @@ const GESTES = [
       });
       await page.waitForSelector(".detail-partage", { timeout: 3000 });
     } },
+  // Réglage d'une charge (tap sur son libellé, écran Mois) : le choix de répartition à quatre
+  // options n'apparaît que là (D-039). Feuille sur mobile, colonne de droite sur PC.
+  { ecran: "mois", moduleDefaut: "mois", nom: "reglage-charge",
+    geste: async (page) => {
+      await page.click("#mois-categories [data-reglages]");
+      await page.waitForSelector("form.reglages", { state: "visible", timeout: 3000 });
+      await page.waitForTimeout(250); // la feuille glisse en 200 ms
+    } },
   { ecran: "courses", moduleDefaut: "courses", nom: "courses-aide-saisie",
     geste: async (page) => { await page.focus("#course-libelle"); await page.waitForSelector("#aide-articles:not([hidden])", { timeout: 3000 }); } },
 ];

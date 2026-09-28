@@ -333,3 +333,20 @@ Contexte : la capture « détail d'une tâche à deux » ouvrait la feuille de d
 le voile restait et le geste suivant (aide à la saisie des Courses) échouait en timeout à 320
 et 360 px, pas à 1200 (aside, pas de feuille). **La boucle GESTES referme toute feuille ouverte
 après capture, comme la boucle FEUILLES (L-018).**
+
+## L-036 — Conforme à la maquette ne veut pas dire lisible à 360 px (2026-09-28)
+
+Contexte : Réglages · Charges et l'écran Mois ressemblaient à la maquette (planches regardées,
+D-036) et Yann les a trouvés illisibles : libellés rognés, choix 50/50 | Prorata dont on ne voit
+pas lequel est actif. La planche compare deux images, elle ne dit pas si un œil lit la page ; la
+recette ne mesure que le débordement horizontal, pas un texte coupé. **À chaque capture 360,
+chercher un mot tronqué et un état porté par une nuance : c'est un défaut, même si la maquette
+fait pareil.** Un choix exclusif montre ce qu'il implique, et son actif est plein + ✓.
+
+## L-037 — Des données factices trop sages cachent des écrans entiers (2026-09-28)
+
+Contexte : les charges factices étaient positives (restes supérieurs aux salaires), toutes en
+« dernier montant », aucune à saisir ni différente de sa référence ; la catégorie « Léo » hors
+de `CATEGORIES` faisait disparaître la Crèche sans que personne le voie. Trois états d'écran
+n'avaient jamais été capturés. **Les factices portent un exemple de chaque état que l'écran sait
+dire, avec le signe et la forme réels des données.**

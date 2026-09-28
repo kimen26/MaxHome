@@ -32,21 +32,31 @@ export const COMPTES = [
   { id: 3, nom: "Compte Yann", titulaire: "Yann", iban_masque: "9012", note: null, commun: false },
 ];
 
+// Charges en montants NÉGATIFS, comme en base (docs/regles-repartition.md). Chaque état qu'un
+// écran sait dire a sa charge : référence fixe, « dernier montant saisi », mois qui diffère de
+// la référence (Crédit immobilier), montant du mois pas encore saisi (Impôts), règle rare
+// (Assurance, clé fixe), catégorie hors liste (Léo), ligne ponctuelle (Resto).
 export const CHARGES = [
   { id: 1, libelle: "Crédit immobilier", ordre: 10, categorie: "Logement", type: "egales", regle: "egales",
-    cle_pct: null, payeur: null, ponctuel: false, montant_defaut: 120000, defaut_dernier: true },
+    cle_pct: null, payeur: null, ponctuel: false, montant_defaut: -120000, defaut_dernier: false },
   { id: 2, libelle: "Électricité", ordre: 20, categorie: "Logement", type: "proport", regle: "proport",
-    cle_pct: null, payeur: null, ponctuel: false, montant_defaut: 9000, defaut_dernier: true },
+    cle_pct: null, payeur: null, ponctuel: false, montant_defaut: -9000, defaut_dernier: false },
   { id: 3, libelle: "Alimentation", ordre: 30, categorie: "Alimentation", type: "egales", regle: "egales",
-    cle_pct: null, payeur: null, ponctuel: false, montant_defaut: 60000, defaut_dernier: true },
+    cle_pct: null, payeur: null, ponctuel: false, montant_defaut: -60000, defaut_dernier: true },
   { id: 4, libelle: "Impôts", ordre: 40, categorie: "Impôts", type: "proport", regle: "proport",
-    cle_pct: null, payeur: null, ponctuel: false, montant_defaut: 25000, defaut_dernier: true },
+    cle_pct: null, payeur: null, ponctuel: false, montant_defaut: -25000, defaut_dernier: false },
   { id: 5, libelle: "Crèche", ordre: 50, categorie: "Léo", type: "egales", regle: "egales",
-    cle_pct: null, payeur: null, ponctuel: false, montant_defaut: 45000, defaut_dernier: true },
+    cle_pct: null, payeur: null, ponctuel: false, montant_defaut: -45000, defaut_dernier: true },
+  { id: 6, libelle: "Assurance habitation", ordre: 60, categorie: "Logement", type: "cle", regle: "cle",
+    cle_pct: 60, payeur: null, ponctuel: false, montant_defaut: -3890, defaut_dernier: false },
+  { id: 7, libelle: "Resto anniversaire", ordre: 70, categorie: "Autre", type: "egales", regle: "egales",
+    cle_pct: null, payeur: null, ponctuel: true, montant_defaut: null, defaut_dernier: false },
 ];
 
-export const LIGNES = CHARGES.map((c) => ({
-  annee: ANNEE, mois: MOIS, charge_id: c.id, montant_centimes: c.montant_defaut, regle: null,
+const MONTANT_DU_MOIS = { 1: -125000, 7: -8640 }; // Crédit immobilier ≠ référence ; Resto ponctuel
+const SANS_MONTANT = new Set([4]); // Impôts : pas encore saisi ce mois
+export const LIGNES = CHARGES.filter((c) => !SANS_MONTANT.has(c.id)).map((c) => ({
+  annee: ANNEE, mois: MOIS, charge_id: c.id, montant_centimes: MONTANT_DU_MOIS[c.id] ?? c.montant_defaut, regle: null,
 }));
 
 export const REVENUS = [

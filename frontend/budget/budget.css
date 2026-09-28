@@ -14,20 +14,33 @@
 .total-charges-mois { font-size:16px; white-space:nowrap; }
 
 /* ---------- carte Salaires ---------- */
-.carte-salaires { display:flex; align-items:center; gap:10px; padding:8px 10px; flex-wrap:wrap; margin-bottom:7px; }
-.salaires-etiquette { font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--bleu); flex:none; }
-.salaires-corps { display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex:1; }
-.salaire-champ { display:flex; align-items:center; gap:4px; }
-.salaire-lettre { font-size:12px; font-weight:700; color:var(--texte-2); }
-.salaire-champ .champ-montant { width:96px; min-width:90px; max-width:110px; font-size:15px; min-height:32px; }
-.salaire-cle { font-size:14px; margin-left:auto; }
+/* Deux champs côte à côte, le prénom en entier au-dessus ; la part de chacun au prorata en
+   dessous, dans les mots de l'écran Réglages · Charges (D-039). */
+.carte-salaires { display:flex; flex-direction:column; gap:8px; padding:10px 12px; margin-bottom:10px; }
+.salaires-etiquette { font-size:11px; font-weight:700; letter-spacing:.05em; color:var(--bleu); }
+.salaires-corps { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px 10px; }
+.salaire-champ { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.salaire-prenom { font-size:12px; font-weight:600; color:var(--texte-2); }
+.salaire-champ .champ-montant { width:100%; min-height:44px; font-size:16px; }
+.salaire-cle { grid-column:1 / -1; font-size:13px; color:var(--texte-2); }
+.salaire-cle strong { color:var(--texte); font-weight:600; font-variant-numeric:tabular-nums; }
 
-/* ---------- trois chiffres (Total commun, Reste Yann, Reste Claudia) ---------- */
-.trois-chiffres { display:grid; grid-template-columns:1fr 1fr 1fr; gap:7px; margin-bottom:7px; }
-.chiffre-carte { display:flex; flex-direction:column; gap:2px; padding:8px 9px; }
-.chiffre-etiquette { font-size:9px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--texte-2); }
-.chiffre-valeur { font-size:15px; font-weight:600; }
+/* ---------- trois chiffres (Total commun, puis le reste de chacun) ---------- */
+/* Téléphone : le total sur toute la largeur, les deux restes dessous — trois cases de 100 px
+   collaient « 3 815,38 € » au bord à 320 px. Trois colonnes au-dessus de 640 px. */
+.trois-chiffres { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; margin-bottom:10px; }
+.trois-chiffres .carte + .carte { margin-top:0; }
+.trois-chiffres > :first-child { grid-column:1 / -1; flex-direction:row; justify-content:space-between; align-items:baseline; flex-wrap:wrap; }
+.chiffre-carte { display:flex; flex-direction:column; gap:2px; padding:10px 12px; min-width:0; }
+.chiffre-etiquette { font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--texte-2); }
+.chiffre-valeur { font-size:17px; font-weight:600; }
 .chiffre-valeur.accent-vert { color:var(--vert); }
+@media (min-width:640px) {
+  .trois-chiffres { grid-template-columns:repeat(3, minmax(0,1fr)); }
+  .trois-chiffres > :first-child { grid-column:auto; flex-direction:column; align-items:flex-start; }
+  .salaires-corps { grid-template-columns:repeat(2, minmax(0,200px)) 1fr; align-items:end; }
+  .salaire-cle { grid-column:auto; text-align:right; padding-bottom:12px; }
+}
 
 /* ---------- À faire / Fait, ligne mvt (inchangé sur le fond, densifié) ---------- */
 .carte-liste { background:#fff; border:1px solid var(--bordure); border-radius:14px; overflow:hidden; }
@@ -53,6 +66,18 @@
 .mvt-droite { text-align:right; display:flex; flex-direction:column; gap:2px; align-items:flex-end; }
 .mvt-montant { font-size:15px; font-weight:600; white-space:nowrap; }
 .mvt-montant.pale { font-size:13px; font-weight:400; color:var(--texte-2); }
+/* À faire / Fait de l'écran Mois : la liste vit DANS la carte, sans second cadre (le double
+   bord mangeait ~30 px de largeur à 360 px), texte agrandi. Scopé à .carte-mvts : `.mvt`
+   sert aussi aux Tâches, qui gardent leur densité. */
+.carte-mvts { padding:10px 12px; }
+.carte-mvts .carte-liste { border:0; border-radius:0; background:none; }
+.carte-mvts .mvt { padding:10px 0; }
+.carte-mvts .mvt.alerte, .carte-mvts .mvt.choisi { margin:0 -12px; padding:10px 12px; }
+.carte-mvts .mvt-titre { font-size:15px; line-height:1.25; }
+.carte-mvts .mvt-trajet { font-size:13px; }
+.carte-mvts .mvt-note { font-size:12px; }
+.carte-mvts .mvt-montant { font-size:16px; }
+.carte-mvts .mvt-montant.pale { font-size:14px; }
 .lien-discret {
   display:block; background:none; border:0; color:var(--texte-2); font-size:12px; text-decoration:underline;
   padding:6px 2px; margin:2px 0 7px; cursor:pointer;
@@ -95,24 +120,30 @@
 }
 
 
-/* ================= Charges par catégorie, écran « Mois » (deux colonnes) ================= */
-.carte-charges { margin-bottom:0; }
-.mois-charge { gap:6px; }
-.mois-charge .lc-libelle {
-  flex:1; min-width:0; background:none; border:0; padding:0; text-align:left;
-  font-size:13px; color:var(--texte); cursor:pointer; line-height:1.2;
-  white-space:normal; overflow:visible; text-overflow:clip; /* prime sur .ligne .titre du socle : deux lignes plutôt que « Crédit I… » */
+/* ================= Charges par catégorie, écran « Mois » ================= */
+/* Une colonne sur téléphone, deux au-dessus de 640 px (D-039) : à 360 px, deux colonnes
+   laissaient ~90 px au libellé (« Crédit immobilie », « Alimentat »). Le libellé passe à la
+   ligne, il n'est jamais rogné ; le champ garde la place d'un « -1 450,30 » en 15 px. */
+#mois-categories { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; margin:10px 0; }
+#mois-categories .carte + .carte { margin-top:0; }
+@media (min-width:640px) { #mois-categories { grid-template-columns:repeat(2, minmax(0,1fr)); align-items:start; } }
+.carte-charges { padding:10px 12px; }
+.mois-charge {
+  display:flex; align-items:center; gap:10px; min-height:52px; padding:4px 0;
+  border-bottom:1px solid var(--separateur);
 }
-.mois-charge .lc-libelle:hover { color:var(--bleu); }
-.mois-charge.a-faire .lc-libelle { color:var(--ambre-texte); }
-.mois-charge .point-ambre { width:6px; height:6px; border-radius:50%; background:var(--ambre-bordure); flex:none; }
-.mois-charge .champ-montant { flex:0 0 auto; width:76px; min-height:28px; font-size:12px; padding:0 4px; } /* « -1 450,30 » doit tenir */
+.mois-charge:last-child { border-bottom:0; }
+.mois-charge.a-faire { background:var(--ambre-ligne); margin:0 -12px; padding:4px 12px; }
+.mc-libelle {
+  flex:1; min-width:0; min-height:44px; display:flex; flex-direction:column; justify-content:center;
+  align-items:flex-start; gap:2px; background:none; border:0; padding:4px 0; text-align:left; cursor:pointer;
+}
+.mc-nom { font-size:15px; color:var(--texte); line-height:1.25; overflow-wrap:anywhere; }
+.mc-libelle:hover .mc-nom { color:var(--bleu); }
+.mc-infos { font-size:12px; color:var(--texte-2); line-height:1.3; }
+.mois-charge.a-faire .mc-infos, .mois-charge.differe .mc-infos { color:var(--ambre-texte); }
+.mois-charge .champ-montant { flex:none; width:112px; min-height:44px; font-size:15px; padding:0 8px; }
 .mois-charge.a-faire .champ-montant { color:var(--ambre-texte); border-color:var(--ambre-bordure); background:var(--ambre-champ); }
-
-@media (max-width:400px) {
-  .mois-charge .champ-montant { width:68px; font-size:11px; }
-  .mois-charge .lc-libelle { font-size:12px; }
-}
 
 /* réglages d'une charge (feuille ouverte au tap du libellé) */
 .reglages .grand-montant { width:100%; text-align:left; font-size:18px; min-height:48px; }
@@ -124,38 +155,59 @@
 
 
 /* ================= « Ce mois seulement » (charges ponctuelles) ================= */
-#ajustements .ligne .titre { background:none; border:0; padding:0; text-align:left; cursor:pointer; color:var(--texte); }
+/* Même lisibilité que les charges du mois : libellé 15 px qui passe à la ligne, montant 14 px
+   (la ligne compacte du socle — 13 px rogné, valeur 10 px — était illisible, D-039). */
+#ajustements .ligne { min-height:48px; padding:4px 0; gap:4px 10px; flex-wrap:wrap; }
+#ajustements .ligne .titre {
+  background:none; border:0; padding:0; text-align:left; cursor:pointer; color:var(--texte);
+  flex:1 1 140px; min-height:44px; font-size:15px; white-space:normal; overflow:visible; overflow-wrap:anywhere;
+}
+#ajustements .ligne .repere { font-size:12px; }
+#ajustements .ligne .valeur { font-size:14px; }
 #ajustements .ligne .titre:hover { color:var(--bleu); }
 
 /* ================= Feuille « Ligne de ce mois » (FAB de l'écran Mois) ================= */
-/* .puces-suggestions / .puce-suggestion : socle.css */
-.ligne-mois-repartition { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; }
-.ligne-mois-repartition > * { flex:1; min-width:120px; }
-.ligne-mois-repartition .segment.large button.actif { background:var(--bleu); color:#fff; }
+/* .puces-suggestions / .puce-suggestion : socle.css ; le choix de répartition (choixDetaille)
+   prend toute la largeur sous le montant. */
+.ligne-mois-repartition { display:flex; flex-direction:column; gap:12px; }
+.ligne-mois-repartition .etiquette, .reglages [data-regle-defaut] .etiquette { display:block; margin-bottom:6px; }
 
 /* ================= Écran « Réglages · Charges » ================= */
-.carte-charges-ref { margin-bottom:7px; }
-.charges-ref-entete { align-items:center; }
-.charges-ref-colonnes { display:grid; grid-template-columns:72px 66px 44px; gap:4px; font-size:9px; text-align:right; }
+/* Une charge = un bloc empilé (D-039) : libellé + montant de référence, puis le choix
+   50/50 | Prorata en pleine largeur, puis l'écart du mois s'il existe. Au-dessus de 640 px,
+   libellé, montant et choix tiennent sur une ligne. */
+.carte-charges-ref { padding:10px 12px; margin-bottom:10px; }
+.carte-charges-ref + .carte-charges-ref { margin-top:0; }
 .ligne-charges-ref {
-  display:grid; grid-template-columns:minmax(0,1fr) 72px 66px 44px; gap:4px; align-items:center;
-  min-height:36px; padding:4px 8px; border-bottom:1px solid var(--separateur);
+  display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px 10px;
+  grid-template-areas:"libelle montant" "regle regle" "ecart ecart";
+  padding:12px 0; border-bottom:1px solid var(--separateur);
 }
-.ligne-charges-ref:last-child { border-bottom:0; }
+.ligne-charges-ref:last-child { border-bottom:0; padding-bottom:4px; }
 .ligne-charges-ref .lc-libelle {
-  background:none; border:0; padding:0; text-align:left; font-size:13px; color:var(--texte); cursor:pointer;
-  line-height:1.2; /* un libellé long passe sur deux lignes : jamais tronqué (« Crédit im… ») */
+  grid-area:libelle; min-height:44px; background:none; border:0; padding:0; text-align:left; cursor:pointer;
+  font-size:15px; font-weight:600; color:var(--texte); line-height:1.25; overflow-wrap:anywhere;
 }
 .ligne-charges-ref .lc-libelle:hover { color:var(--bleu); }
-.ligne-charges-ref .champ-montant { min-height:28px; font-size:12px; width:100%; }
-.ligne-charges-ref .champ-montant.desactive {
-  display:flex; align-items:center; justify-content:flex-end; color:var(--texte-2); font-style:italic; font-size:11px;
+.ligne-charges-ref .champ-montant { grid-area:montant; width:120px; min-height:44px; font-size:15px; }
+.ref-dernier {
+  grid-area:montant; display:flex; flex-direction:column; align-items:flex-end; gap:2px;
+  font-size:12px; font-style:italic; color:var(--texte-2);
 }
-.charges-ref-regle { padding:1px; }
-.charges-ref-regle button { flex:1; font-size:11px; min-height:26px; padding:0 4px; }
-.ce-mois { display:flex; align-items:center; justify-content:center; height:28px; border-radius:6px; font-family:var(--mono); font-size:13px; }
-.ce-mois-egal { color:var(--texte-2); }
-.ce-mois-differe { background:var(--ambre-fond); color:var(--ambre-texte); border:1px solid var(--ambre-bordure); cursor:pointer; }
+.ref-dernier strong { font-size:15px; font-style:normal; font-weight:600; color:var(--texte); white-space:nowrap; }
+.ligne-charges-ref .choix-detaille { grid-area:regle; }
+.ecart-mois {
+  grid-area:ecart; display:flex; flex-wrap:wrap; align-items:center; gap:0 12px; padding:2px 10px;
+  border:1px solid var(--ambre-bordure); border-radius:8px; background:var(--ambre-ligne);
+  color:var(--ambre-texte); font-size:13px;
+}
+.ecart-mois .btn-lien { min-height:44px; font-size:13px; }
+@media (min-width:640px) {
+  .ligne-charges-ref {
+    grid-template-columns:minmax(0,1fr) auto minmax(260px, 340px);
+    grid-template-areas:"libelle montant regle" "ecart ecart ecart";
+  }
+}
 
 /* ================= Récurrents et comptes ================= */
 .rec { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px 12px; padding:14px 16px; border-bottom:1px solid var(--separateur); }
