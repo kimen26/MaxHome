@@ -1,6 +1,8 @@
 // Logique du module Tâches : échéances, occurrences manquantes, points, balance. Aucun DOM,
 // importable en Node pour les tests (même rôle que calc.js pour le budget).
 
+import { idsParents, porteurRythme, rangsDuJour, quartsDesMinutes } from "./rythme.js";
+
 export const FREQUENCES = {
   quotidien: "Chaque jour", hebdo: "Chaque semaine", mensuel: "Chaque mois", au_besoin: "Au besoin",
 };
@@ -39,19 +41,25 @@ export function echeance(frequence, jour) {
   return null;
 }
 
-/** Occurrences à créer pour `jour` : celles des récurrents actifs qui manquent en base. */
+/** Occurrences à créer pour `jour` : celles des récurrents actifs qui manquent en base.
+ *  Un parent (tâche à étapes) ne crée rien, ses étapes suivent son rythme ; une étape
+ *  facultative ne crée rien (on l'ajoute quand elle a eu lieu). Une tâche quotidienne à
+ *  créneaux crée une occurrence par créneau du jour, avec son moment (D-041). */
 export function occurrencesManquantes(recurrents, existantes, jour) {
   const dejaLa = new Set(existantes.filter((t) => t.recurrent_id)
     .map((t) => `${t.recurrent_id}|${t.echeance}|${t.rang}`));
+  const parents = idsParents(recurrents);
   const out = [];
   for (const r of recurrents) {
-    if (!r.actif) continue;
-    const e = echeance(r.frequence, jour);
+    if (!r.actif || r.facultatif || parents.has(r.id)) continue;
+    const porteur = porteurRythme(r, recurrents);
+    if (!porteur.actif) continue;
+    const e = echeance(porteur.frequence, jour);
     if (!e) continue;
-    for (let rang = 1; rang <= (r.fois ?? 1); rang++) {
+    for (const { rang, moment } of rangsDuJour(r, porteur, jour)) {
       if (dejaLa.has(`${r.id}|${e}|${rang}`)) continue;
       out.push({ recurrent_id: r.id, titre: r.titre, categorie: r.categorie, echeance: e, rang,
-        qui: r.attribue_a ?? null, points: 0 });
+        moment, qui: r.attribue_a ?? null, points: 0 });
     }
   }
   return out;
@@ -63,12 +71,16 @@ export const perimees = (taches, jour) =>
   taches.filter((t) => !t.fait_le && t.recurrent_id && t.echeance < decalerJours(jour, -1));
 
 /** Parts d'une tâche pour la personne qui la fait (en quarts). `qui` : prénom ou null.
+ *  `variante` : la façon de faire choisie à la coche (« Cuisiner » 40′ vaut plus que
+ *  « Réchauffer » 5′, D-041) ; elle l'emporte sur tout le reste.
  *  « Part équiv » (`parts_spe` null) : `parts_quart` pour tout le monde. « Part spé » :
  *  `parts_spe` donne les parts de chacun ({"Claudia": 12, "Yann": 8}) — déposer le petit ne
  *  coûte pas pareil aux deux (D-038, remplace l'écart d'un cran). Sans récurrent (tâche
  *  ponctuelle), aucune base à lire : 0, jamais une exception qui casserait l'écran. */
-export function partsDe(recurrent, qui) {
+export function partsDe(recurrent, qui, variante = null) {
   if (!recurrent) return 0;
+  const v = variante && recurrent.variantes?.find((x) => x.nom === variante);
+  if (v) return quartsDesMinutes(v.minutes) ?? recurrent.parts_quart;
   const spe = recurrent.parts_spe;
   if (qui && spe && Number.isInteger(spe[qui])) return spe[qui];
   return recurrent.parts_quart;
@@ -105,8 +117,8 @@ export function creditDe(recurrent, tache) {
 
 /** Champs d'une occurrence cochée « à deux » : les parts pleines de chacun, figées maintenant,
  *  au plein par défaut (on ajuste ensuite au tiers dans le détail). */
-export function champsADeux(recurrent, p1, p2, base = null) {
-  const q = (p) => (recurrent ? partsDe(recurrent, p) : base ?? 0);
+export function champsADeux(recurrent, p1, p2, base = null, variante = null) {
+  const q = (p) => (recurrent ? partsDe(recurrent, p, variante) : base ?? 0);
   return { qui: p1, qui2: p2, parts_quart: q(p1), parts_quart2: q(p2), tiers: 3, tiers2: 3 };
 }
 /** Champs d'une occurrence décochée (ou cochée par une seule personne) : plus de trace d'un

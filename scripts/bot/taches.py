@@ -27,22 +27,64 @@ def echeance(frequence, jour):
     return None
 
 
+def quarts_des_minutes(minutes):
+    """Parts (en quarts) d'un temps : 0,5 part sous 3 minutes, 1 part par 5 minutes (D-041).
+
+    Miroir de frontend/taches/rythme.js::quartsDesMinutes. `int(x + 0.5)` et non `round` :
+    Python arrondit les demis au pair, le JS vers le haut.
+    """
+    if not minutes or minutes <= 0:
+        return None
+    if minutes < 3:
+        return 2
+    return int(minutes * 4 / 5 + 0.5)
+
+
+def creneau_du_jour(creneau, jour):
+    """Le créneau a-t-il lieu ce jour-là (date) ? Miroir de rythme.js::creneauDuJour."""
+    we = jour.weekday() >= 5
+    if creneau.get("jours") == "semaine":
+        return not we
+    if creneau.get("jours") == "we":
+        return we
+    return True
+
+
+def rangs_du_jour(porteur, jour):
+    """[(rang, moment)] du jour : un par créneau actif (rang = index dans la liste complète,
+    jamais renuméroté), sinon `fois` rangs au moment unique. Miroir de rythme.js::rangsDuJour."""
+    creneaux = porteur.get("creneaux") or []
+    if porteur["frequence"] == "quotidien" and creneaux:
+        return [(i + 1, c["moment"]) for i, c in enumerate(creneaux) if creneau_du_jour(c, jour)]
+    return [(rang, porteur.get("moment")) for rang in range(1, (porteur.get("fois") or 1) + 1)]
+
+
 def occurrences_manquantes(recurrents, existantes, jour):
-    """Occurrences à créer pour `jour` : celles des récurrents actifs qui manquent."""
+    """Occurrences à créer pour `jour` : celles des récurrents actifs qui manquent.
+
+    Miroir de taches.js::occurrencesManquantes : un parent (tâche à étapes) ne crée rien, ses
+    étapes suivent son rythme ; une étape facultative ne crée rien ; une quotidienne à
+    créneaux crée une occurrence par créneau du jour, avec son moment (D-041).
+    """
     deja = {(t["recurrent_id"], t["echeance"], t["rang"]) for t in existantes if t["recurrent_id"]}
+    par_id = {r["id"]: r for r in recurrents}
+    parents = {r["parent_id"] for r in recurrents if r.get("actif", True) and r.get("parent_id")}
     out = []
     for r in recurrents:
-        if not r.get("actif", True):
+        if not r.get("actif", True) or r.get("facultatif") or r["id"] in parents:
             continue
-        e = echeance(r["frequence"], jour)
+        porteur = par_id.get(r.get("parent_id"), r) if r.get("parent_id") else r
+        if not porteur.get("actif", True):
+            continue
+        e = echeance(porteur["frequence"], jour)
         if e is None:
             continue
-        for rang in range(1, (r.get("fois") or 1) + 1):
+        for rang, moment in rangs_du_jour(porteur, jour):
             if (r["id"], e.isoformat(), rang) in deja:
                 continue
             out.append({"recurrent_id": r["id"], "titre": r["titre"], "categorie": r["categorie"],
-                        "echeance": e.isoformat(), "rang": rang, "qui": r.get("attribue_a"),
-                        "qui2": None, "parts_quart": 0})
+                        "echeance": e.isoformat(), "rang": rang, "moment": moment,
+                        "qui": r.get("attribue_a"), "qui2": None, "parts_quart": 0})
     return out
 
 
@@ -67,15 +109,18 @@ def du_jour(donnees, jour=None):
     return existantes, {r["id"]: r for r in recurrents}
 
 
-def parts_de(recurrent, qui):
+def parts_de(recurrent, qui, variante=None):
     """Parts d'une tâche pour la personne qui la fait (en quarts). `qui` : prénom ou None.
 
-    Miroir de frontend/taches/taches.js::partsDe. « Part équiv » (`parts_spe` None) :
-    `parts_quart` pour tout le monde. « Part spé » : `parts_spe` donne les parts de chacun
-    (D-038, remplace l'écart d'un cran). Sans récurrent : 0.
+    Miroir de frontend/taches/taches.js::partsDe. La variante choisie à la coche l'emporte
+    (D-041) ; sinon « part spé » (`parts_spe`) puis `parts_quart`. Sans récurrent : 0.
     """
     if not recurrent:
         return 0
+    if variante:
+        v = next((x for x in (recurrent.get("variantes") or []) if x.get("nom") == variante), None)
+        if v:
+            return quarts_des_minutes(v.get("minutes")) or recurrent["parts_quart"]
     spe = recurrent.get("parts_spe")
     # `bool` est un int en Python : on l'écarte pour rester aligné sur Number.isInteger du JS.
     if qui and spe and isinstance(spe.get(qui), int) and not isinstance(spe.get(qui), bool):
@@ -113,6 +158,16 @@ def credit_de(recurrent, tache):
     return out
 
 
+# Ordre des créneaux dans la journée (rythme.js::MOMENTS) ; sans moment, après.
+RANG_MOMENT = {"matin": 0, "midi": 1, "soir": 2, "nuit": 3}
+
+
+def moment_de(tache, recurrents):
+    """Moment d'une occurrence : celui écrit à sa création (créneau, D-041), sinon celui du
+    récurrent (tâches d'avant 018)."""
+    return tache.get("moment") or recurrents.get(tache.get("recurrent_id"), {}).get("moment")
+
+
 def restantes(taches, recurrents, jour=None):
     """Tâches non faites dues aujourd'hui ou en retard, triées par obligatoire puis moment
     puis échéance.
@@ -128,10 +183,9 @@ def restantes(taches, recurrents, jour=None):
     jour = (jour or date.today()).isoformat()
     dues = [t for t in taches if not t["fait_le"] and t["echeance"] <= jour]
     oblig = lambda t: 1 if recurrents.get(t["recurrent_id"], {}).get("obligatoire") else 0  # noqa: E731
-    rang_moment = {"matin": 0, "soir": 1}
 
     def moment(t):
-        return rang_moment.get(recurrents.get(t["recurrent_id"], {}).get("moment"), 2)
+        return RANG_MOMENT.get(moment_de(t, recurrents), len(RANG_MOMENT))
 
     return sorted(dues, key=lambda t: (-oblig(t), moment(t), t["echeance"], t["rang"], t["id"]))
 
@@ -153,9 +207,14 @@ def regrouper_pour_affichage(restantes_triees, recurrents):
     groupes = {}
     ordre = []
     for t in restantes_triees:
-        cle = (t["recurrent_id"], t["echeance"]) if t["recurrent_id"] else ("ponctuelle", t["id"])
+        m = moment_de(t, recurrents)
+        cle = (t["recurrent_id"], t["echeance"], m) if t["recurrent_id"] else ("ponctuelle", t["id"], None)
         if cle not in groupes:
-            total = recurrents.get(t["recurrent_id"], {}).get("fois", 1) if t["recurrent_id"] else 1
+            rec = recurrents.get(t["recurrent_id"], {})
+            creneaux = rec.get("creneaux") or []
+            # Tâche à créneaux : une ligne par moment, son total = créneaux de ce moment.
+            total = (sum(1 for c in creneaux if c.get("moment") == m) if creneaux
+                     else rec.get("fois", 1)) if t["recurrent_id"] else 1
             groupes[cle] = {"tache": t, "restantes": 0, "total": total}
             ordre.append(cle)
         groupes[cle]["restantes"] += 1
@@ -198,6 +257,11 @@ def basculer(donnees, prenom, titre, fait, jour=None, qui2=None):
         champs = {"fait_le": datetime.now(timezone.utc).isoformat(), "qui": prenom, "qui2": qui2,
                   "parts_quart": base(prenom), "parts_quart2": base(qui2) if qui2 else None,
                   "tiers": 3, "tiers2": 3 if qui2 else None}
+        if recurrent and recurrent.get("variantes"):
+            # Variante par défaut : la première (« Réchauffer ») ; l'app permet d'en changer.
+            v = recurrent["variantes"][0]["nom"]
+            champs.update(variante=v, parts_quart=parts_de(recurrent, prenom, v),
+                          parts_quart2=parts_de(recurrent, qui2, v) if qui2 else None)
     else:
         rec = recurrents.get(cible["recurrent_id"]) or {}
         champs = {"fait_le": None, "qui": rec.get("attribue_a"), "qui2": None, "parts_quart": 0,

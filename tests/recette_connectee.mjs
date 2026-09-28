@@ -239,7 +239,7 @@ try {
   await page.screenshot({ path: path.join(SORTIE, "semaine-mobile.png"), fullPage: true });
   // « Parts » (ex-taches-rec) est maintenant un écran de Réglages, ouvert par le bouton
   // « Réglages » de la barre basse (D-036 §3) : premier écran du segmenté synthétique.
-  await aller(page, "taches-rec", "#tableau-taches-parts .bloc-cadence", "taches-rec");
+  await aller(page, "taches-rec", "#tableau-taches-parts .carte-theme", "taches-rec");
   await page.screenshot({ path: path.join(SORTIE, "taches-rec-mobile.png"), fullPage: true });
 
   // ---------- courses · réglages magasin (mobile) : segmenté Réglages (Parts | Charges | Comptes | Magasin) ----------
@@ -281,7 +281,7 @@ try {
   await pc.screenshot({ path: path.join(SORTIE, "jour-pc.png"), fullPage: true });
   for (const [ecran, selecteur, moduleDefaut] of [
     ["semaine", "#ecran-semaine:not([hidden]) #grille-semaine .ligne-grille-semaine", "jour"],
-    ["taches-rec", "#tableau-taches-parts .bloc-cadence", "taches-rec"]]) {
+    ["taches-rec", "#tableau-taches-parts .carte-theme", "taches-rec"]]) {
     await aller(pc, ecran, selecteur, moduleDefaut);
     await pc.screenshot({ path: path.join(SORTIE, `${ecran}-pc.png`), fullPage: true });
   }

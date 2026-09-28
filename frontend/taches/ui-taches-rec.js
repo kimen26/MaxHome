@@ -1,222 +1,170 @@
-// Écran « Réglages · Tâches » du module Tâches : un tableau par THÈME (la catégorie : Cuisine,
-// Ménage…), où chaque colonne est un bouton-cycle (D-024, blocs-cycle.js) — l'effet est
-// immédiat et se propage partout, pas de feuille à ouvrir pour changer une valeur. La feuille
-// en formulaire (blocs-reglages.js) reste pour créer une tâche et pour les champs longs (titre,
-// catégorie, consigne, fréquence). Arbitrages de cette présentation : D-038.
-//
-// Piège D-026 : un tap répété sur un cycle (parts, oblig., rythme) part en écriture optimiste
-// à chaque geste. Sans file, deux écritures rapprochées du même réglage pourraient arriver dans
-// le désordre et laisser la base sur un état antérieur au dernier tap. `creerFileEcritures()`
-// sérialise par tâche (clé = id du récurrent), comme le fait déjà l'écran Semaine.
+// Écran « Réglages · Tâches » : une LISTE À LIRE, une FICHE POUR SAISIR (D-041). Une ligne par
+// tâche, rangée par thème : le titre, quand, le temps. Tap sur la ligne = la fiche
+// (ui-taches-fiche.js) dans le cycle CRUD du socle (blocs-reglages.js, D-024). Plus de boutons
+// à taper dans la ligne : on voyait mal ce qui se lisait et ce qui se réglait (retour de Yann).
+// Les étapes ne s'affichent pas dans la liste (« 3 étapes ») : elles s'ouvrent depuis la fiche
+// de leur tâche.
 
 import { $, txt, ouvrirFeuille } from "../socle/ui-base.js";
-import { creerFileEcritures } from "../socle/blocs.js";
-import { boutonCycle, brancherCycles, suivante } from "../socle/blocs-cycle.js";
 import { creerReglages } from "../socle/blocs-reglages.js";
-import { champ, zone, select, caseACocher, listeChoix, membresOptions, lire } from "../socle/blocs-form.js";
-import { FREQUENCES, ECHELLE_QUART, partsTexte, parts } from "./taches.js";
+import { texteQuand, texteTemps, etapesDe } from "./rythme.js";
+import { htmlFiche, brancherFiche, lireFiche } from "./ui-taches-fiche.js";
 
 // Dans un thème : le quotidien d'abord, puis la semaine, le mois, l'au-besoin.
 const ORDRE_FREQUENCES = ["quotidien", "hebdo", "mensuel", "au_besoin"];
-const PAR_PERIODE = { quotidien: "j", hebdo: "sem.", mensuel: "mois" };
-const CYCLE_MINUTES = [5, 10, 15, 20, 30, 45, 60, 90];
-const CYCLE_FOIS = [1, 2, 3, 4, 5, 7];
 
 export function creerUiTachesRec(api, etat, cb) {
-  const enFile = creerFileEcritures();
   const actives = () => etat.tachesRec.filter((r) => r.actif);
-  const categories = () => [...new Set(etat.tachesRec.map((r) => r.categorie))];
-  const membres = () => etat.membres.map((m) => m.prenom);
+  const principales = () => actives().filter((r) => !r.parent_id);
+  const categories = () => [...new Set(principales().map((r) => r.categorie))];
+  const parId = (id) => etat.tachesRec.find((r) => r.id === id) ?? null;
+  // Nouvelle étape en cours de création : la fiche vide doit savoir de quelle tâche elle dépend.
+  let parentNouvelleEtape = null;
 
-  // ---------- petits cycles sous le titre : minutes, moment, part équiv/spé ----------
-  const renduMinutes = (v) => (v ? `${v}′` : "—");
-  // Moment (matin/soir) : seules les tâches quotidiennes alimentent les deux cartes de l'écran
-  // Jour (012_moment.sql) — un cycle « Matin → Soir → — » pour régler ça sans quitter le tableau.
-  const renduMoment = (v) => (v === "matin" ? "Matin" : v === "soir" ? "Soir" : "—");
-  const renduPartSpe = (v) => ({ libelle: v ? "Part spé." : "Part équiv.", classe: v ? "rp-spe-actif" : "" });
-
-  // ---------- colonnes du tableau ----------
-  function renduParts(q) {
-    const classe = q >= 20 ? "cycle-plein" : q >= 8 ? "cycle-clair" : "";
-    return { libelle: partsTexte(q), classe };
-  }
-  const renduOblig = (v) => (v ? { libelle: "Oui", classe: "cycle-actif-rouge" } : { libelle: "—", classe: "cycle-inactif" });
-  /** « 2×/j », « 3×/sem. », « 1×/mois » : le nombre de fois ET la période, lisibles sans
-   *  en-tête à décoder. C'est un minimum, pas un plafond. */
-  const renduRythme = (r) => (n) => `${n}×/${PAR_PERIODE[r.frequence]}`;
-
-  /** Part spé : une ligne sous la tâche, un cycle par personne sur l'échelle (D-038). */
-  const lignePartSpe = (r) => `<div class="rp-spe">
-      <span class="rp-spe-titre">Parts de chacun</span>
-      ${membres().map((p) => `<span class="rp-spe-personne">${txt(p)}
-        ${boutonCycle({ cle: `spep|${r.id}|${p}`, valeurs: ECHELLE_QUART, valeur: r.parts_spe[p] ?? r.parts_quart, rendu: renduParts, taille: "reglage", classe: "cible44" })}
-      </span>`).join("")}
-    </div>`;
-
-  /** Une ligne : titre (bouton, tap = feuille de modification, D-036 décision 5) + petits
-   *  cycles texte, puis Parts / Oblig. / Rythme. Modifier les champs longs et retirer la tâche
-   *  se fait dans la feuille (bouton « Retirer » en pied) — pas de deuxième liste (D-024). */
-  function ligneTableau(r) {
-    const spe = !!r.parts_spe;
-    return `<div class="ligne-reglage-parts" data-id="${r.id}">
-      <div class="rp-titre">
-        <button type="button" class="rp-nom" data-ouvrir-form="${r.id}">${txt(r.titre)}</button>
-        <span class="rp-mini">
-          ${boutonCycle({ cle: `minutes|${r.id}`, valeurs: CYCLE_MINUTES, valeur: r.minutes ?? 0, rendu: renduMinutes, classe: "rp-bouton-texte", taille: "mini" })}
-          ${r.frequence === "quotidien"
-            ? boutonCycle({ cle: `moment|${r.id}`, valeurs: ["matin", "soir", null], valeur: r.moment ?? null, rendu: renduMoment, classe: "rp-bouton-texte rp-moment", taille: "mini" })
-            : ""}
-          ${boutonCycle({ cle: `spe|${r.id}`, valeurs: [false, true], valeur: spe, rendu: renduPartSpe, classe: "rp-bouton-texte rp-part-spe", taille: "mini" })}
-        </span>
-      </div>
-      ${spe
-        ? '<span class="rp-fige cible44" aria-label="Parts propres à chacun, réglées dessous">spé.</span>'
-        : boutonCycle({ cle: `parts|${r.id}`, valeurs: ECHELLE_QUART, valeur: r.parts_quart, rendu: renduParts, taille: "reglage", classe: "cible44" })}
-      ${boutonCycle({ cle: `oblig|${r.id}`, valeurs: [false, true], valeur: r.obligatoire, rendu: renduOblig, taille: "reglage", classe: "cible44" })}
-      ${r.frequence === "au_besoin"
-        ? '<span class="rp-fige rp-rythme cible44">au besoin</span>'
-        : boutonCycle({ cle: `fois|${r.id}`, valeurs: CYCLE_FOIS, valeur: r.fois ?? 1, rendu: renduRythme(r), taille: "reglage", classe: "cible44 rp-rythme" })}
-      ${spe ? lignePartSpe(r) : ""}
-    </div>`;
+  /** Temps affiché à droite : « 15′ », « C 20′ · Y 15′ », « 5′ à 40′ », ou la somme des étapes. */
+  function texteTempsLigne(r) {
+    const etapes = etapesDe(r, etat.tachesRec).filter((e) => !e.facultatif);
+    if (etapes.length) return texteTemps(etapes.reduce((s, e) => s + (e.minutes ?? 0), 0));
+    if (r.variantes?.length) {
+      const m = r.variantes.map((v) => v.minutes);
+      return `${texteTemps(Math.min(...m))} à ${texteTemps(Math.max(...m))}`;
+    }
+    if (r.parts_spe) return etat.membres.map((p) => `${p.prenom[0]} ${texteTemps(Math.round(((r.parts_spe[p.prenom] ?? r.parts_quart) * 5) / 4))}`).join(" · ");
+    return texteTemps(r.minutes);
   }
 
-  /** Thèmes dans l'ordre de leur première tâche (`ordre`), tâches triées par cadence puis ordre. */
+  function ligne(r) {
+    const nbEtapes = etapesDe(r, etat.tachesRec).length;
+    const details = [texteQuand(r), r.repetable ? "répétable" : "", nbEtapes ? `${nbEtapes} étapes` : ""].filter(Boolean).join(" · ");
+    return `<button type="button" class="ligne-tr" data-ouvrir="${r.id}">
+      <span class="ligne-tr-corps">
+        <span class="ligne-tr-titre">${txt(r.titre)}</span>
+        <span class="ligne-tr-quand">${r.obligatoire ? '<span class="etiquette-oblig">oblig.</span> ' : ""}${txt(details)}</span>
+      </span>
+      <span class="ligne-tr-temps mono">${txt(texteTempsLigne(r))}</span>
+    </button>`;
+  }
+
+  /** Thèmes dans l'ordre de leur première tâche (`ordre`), tâches triées par rythme puis ordre. */
   function themes() {
-    const triees = [...actives()].sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0) || a.id - b.id);
+    const rang = (r) => ORDRE_FREQUENCES.indexOf(r.frequence);
+    const triees = [...principales()].sort((a, b) => rang(a) - rang(b) || (a.ordre ?? 0) - (b.ordre ?? 0) || a.id - b.id);
+    const premier = (recs) => Math.min(...recs.map((r) => r.ordre ?? 0));
     const parTheme = new Map();
     for (const r of triees) parTheme.set(r.categorie, [...(parTheme.get(r.categorie) ?? []), r]);
-    const rang = (r) => ORDRE_FREQUENCES.indexOf(r.frequence);
-    return [...parTheme].map(([nom, recs]) => [nom, [...recs].sort((a, b) => rang(a) - rang(b))]);
+    return [...parTheme].sort((a, b) => premier(a[1]) - premier(b[1]));
   }
 
-  const tableauTheme = ([nom, recs]) => `<section class="carte bloc-cadence">
-      <div class="carte-tete entete-reglage-parts">
-        <span>${txt(nom)}</span><span>Parts</span><span>Oblig.</span><span>Rythme</span>
-      </div>
-      ${recs.map(ligneTableau).join("")}
+  const carteTheme = ([nom, recs]) => `<section class="carte carte-theme">
+      <div class="carte-tete"><span>${txt(nom)}</span><span class="mono">${recs.length}</span></div>
+      ${recs.map(ligne).join("")}
     </section>`;
 
-  /** L'explication tient dans une feuille ouverte par le « ? » de l'en-tête : l'écran montre
-   *  le tableau d'abord (D-038). Texte seulement (`.carte-explication` du socle). Le dépôt
+  /** L'explication tient dans une feuille ouverte par le « ? » de l'en-tête (D-038). Le dépôt
    *  écrit « le petit », jamais le prénom de l'enfant (invariant 1). */
   function ouvrirAide() {
     ouvrirFeuille(`<h2 class="feuille-titre">Comment on compte</h2>
       <div class="carte-explication">
-        <p><strong>Parts</strong> : <span class="mono">${ECHELLE_QUART.map(partsTexte).join(" · ")}</span>.
-          Le temps et le relou dans un seul chiffre : 0,5 le lait du soir, 8 la salle de bain.</p>
-        <p><span class="accent-rouge">Oblig.</span> : pas négociable (le petit habillé, lavé, nourri).
-          Compté à part dans la semaine.</p>
-        <p><strong>Rythme</strong> : le minimum, 2×/j, 3×/sem. ou 1×/mois. Une fois de plus
-          s'ajoute avec « + Ajouter ».</p>
-        <p><span class="accent-bleu">Part spé.</span> : la tâche ne coûte pas pareil aux deux,
-          chacun a ses parts.</p>
-        <p><strong>À deux</strong> : se choisit en cochant. Chacun prend ses parts, ou ⅔ · ⅓
-          s'il en a fait moins.</p>
-        <p>Les minutes sous le titre sont un repère, hors calcul.</p>
+        <p><strong>Le temps fait les points</strong> : 5 minutes = 1 part, moins de 3 minutes = 0,5.
+          On estime le temps habituel, pénibilité comprise.</p>
+        <p><strong>Rythme</strong> : chaque jour (avec ses moments : matin, midi, soir, nuit, tous
+          les jours, en semaine ou le week-end), chaque semaine, chaque mois, ou au besoin.</p>
+        <p><strong>Répétable</strong> : un « +1 » sur la ligne compte une fois de plus dans la
+          période — un biberon après la sieste, des courses en plus.</p>
+        <p><span class="accent-rouge">Oblig.</span> : pas négociable (le petit habillé, lavé,
+          nourri). Compté à part dans la semaine.</p>
+        <p><strong>À deux</strong> : se choisit en cochant. Chacun prend ses parts, ou ⅔ · ⅓ s'il
+          en a fait moins.</p>
       </div>`);
   }
 
-  function rendreTableau() {
-    $("#tableau-taches-parts").innerHTML = themes().map(tableauTheme).join("")
+  function rendreListe() {
+    $("#tableau-taches-parts").innerHTML = themes().map(carteTheme).join("")
       || '<p class="vide">Aucune tâche récurrente.</p>';
-    brancherCycles($("#tableau-taches-parts"), surCycle);
-    for (const b of $("#tableau-taches-parts").querySelectorAll("[data-ouvrir-form]")) {
-      b.addEventListener("click", () => reglages.formulaire(actives().find((r) => r.id === Number(b.dataset.ouvrirForm)) ?? null));
+    for (const b of $("#tableau-taches-parts").querySelectorAll("[data-ouvrir]")) {
+      b.addEventListener("click", () => ouvrir(parId(Number(b.dataset.ouvrir))));
     }
   }
 
-  /** Applique le geste d'un cycle : écriture optimiste + rollback, sérialisée par tâche (D-026). */
-  async function surCycle(cle) {
-    const [champNom, idTxt, prenom] = cle.split("|");
-    const id = Number(idTxt);
-    const r = etat.tachesRec.find((x) => x.id === id);
-    if (!r) return;
-    const patch = calculerPatch(champNom, r, prenom);
-    if (!patch) return;
-    const avant = { ...r };
-    Object.assign(r, patch);
-    rendreTableau();
-    try {
-      await enFile(id, () => api.majTacheRec(id, patch));
-    } catch (e) {
-      Object.assign(r, avant);
-      rendreTableau();
-      cb.echec(e);
+  function ouvrir(r) {
+    parentNouvelleEtape = null;
+    reglages.formulaire(r);
+  }
+  function nouvelleEtape(parent) {
+    parentNouvelleEtape = parent;
+    reglages.formulaire(null);
+  }
+  const parentDe = (r) => (r ? parId(r.parent_id) : parentNouvelleEtape);
+
+  /** Les étapes suivent le thème et le rythme de leur tâche : recopiés à chaque enregistrement,
+   *  les écrans qui filtrent par fréquence (cartes Semaine/Mois) les rangent au bon endroit. */
+  async function alignerEtapes(parent) {
+    for (const e of etapesDe(parent, etat.tachesRec)) {
+      const champs = { categorie: parent.categorie, frequence: parent.frequence };
+      if (e.categorie === champs.categorie && e.frequence === champs.frequence) continue;
+      await api.majTacheRec(e.id, champs);
+      Object.assign(e, champs);
     }
   }
 
-  function calculerPatch(champNom, r, prenom) {
-    if (champNom === "parts") return { parts_quart: suivante(ECHELLE_QUART, r.parts_quart) };
-    if (champNom === "oblig") return { obligatoire: !r.obligatoire };
-    if (champNom === "fois") return r.frequence === "au_besoin" ? null : { fois: suivante(CYCLE_FOIS, r.fois ?? 1) };
-    if (champNom === "minutes") return { minutes: suivante([0, ...CYCLE_MINUTES], r.minutes ?? 0) || null };
-    if (champNom === "moment") return { moment: suivante(["matin", "soir", null], r.moment ?? null) };
-    // Part spé : chacun part des parts communes ; revenir en équiv efface le détail.
-    if (champNom === "spe") return { parts_spe: r.parts_spe ? null : Object.fromEntries(membres().map((p) => [p, r.parts_quart])) };
-    if (champNom === "spep" && r.parts_spe) {
-      return { parts_spe: { ...r.parts_spe, [prenom]: suivante(ECHELLE_QUART, r.parts_spe[prenom] ?? r.parts_quart) } };
-    }
-    return null;
-  }
-
-  // ---------- formulaire en feuille : création, champs longs, et Modifier / Retirer ----------
-  // Pas de liste séparée (D-036 décision 5) : le tableau au-dessus ouvre `formulaire(el)` au tap
-  // sur le titre d'une ligne ; le bouton « + Nouvelle tâche récurrente » reste la seule entrée
-  // de création, en tirets sous les cartes (`#form-tache-rec`, avant la légende).
   const reglages = creerReglages({
-    bouton: "#form-tache-rec", libelleNouveau: "+ Nouvelle tâche récurrente",
+    bouton: "#form-tache-rec", libelleNouveau: "+ Nouvelle tâche",
     elements: actives,
     retirerDansFeuille: true,
-    titreForm: (r) => (r ? "Modifier la tâche" : "Nouvelle tâche récurrente"),
-    htmlForm: (r) => `
-      ${champ("titre", "Titre", { valeur: r?.titre, requis: true })}
-      ${champ("categorie", "Thème", { valeur: r?.categorie ?? "Maison", attrs: 'list="cats-rec"' })}
-      ${listeChoix("cats-rec", categories())}
-      ${select("frequence", "Fréquence minimale", Object.entries(FREQUENCES), r?.frequence ?? "quotidien")}
-      ${champ("fois", "Combien de fois par période, au moins", { type: "number", valeur: r?.fois ?? 1, attrs: 'min="1" max="10"' })
-        .replace("<label>", "<label data-si-periode>")}
-      ${select("parts_quart", "Parts", ECHELLE_QUART.map((q) => [q, parts(q)]), r?.parts_quart ?? 4)}
-      ${champ("minutes", "Minutes indicatives (repère, hors calcul)", { type: "number", valeur: r?.minutes ?? "", attrs: 'min="1" max="240"' })}
-      ${select("attribue_a", "Attribuée d’habitude à", membresOptions(etat), r?.attribue_a, { vide: "Personne en particulier" })}
-      ${caseACocher("obligatoire", "Obligatoire — pas négociable", r?.obligatoire)}
-      ${zone("consigne", "Consigne", r?.consigne)}`,
-    apresOuverture: (form) => {
-      const majVisibilite = () => { form.querySelector("[data-si-periode]").hidden = form.frequence.value === "au_besoin"; };
-      form.frequence.addEventListener("change", majVisibilite);
-      majVisibilite();
+    titreForm: (r) => {
+      const p = parentDe(r);
+      if (p) return r ? `Étape de « ${p.titre} »` : `Nouvelle étape de « ${p.titre} »`;
+      return r ? "Modifier la tâche" : "Nouvelle tâche";
     },
-    champs: (form) => {
-      const v = lire(form, { nombres: ["fois", "parts_quart", "minutes"], booleens: ["obligatoire"] });
-      return {
-        titre: v.titre, categorie: v.categorie ?? "Maison", frequence: v.frequence,
-        fois: v.frequence === "au_besoin" ? 1 : Math.max(1, v.fois || 1),
-        parts_quart: ECHELLE_QUART.includes(v.parts_quart) ? v.parts_quart : 4,
-        minutes: v.minutes, attribue_a: v.attribue_a, obligatoire: v.obligatoire, consigne: v.consigne,
-      };
-    },
+    htmlForm: (r) => htmlFiche(r, { etat, parent: parentDe(r), etapes: r ? etapesDe(r, etat.tachesRec) : [], categories: categories() }),
+    apresOuverture: (form, r) => brancherFiche(form, {
+      surEtape: (id) => ouvrir(parId(id)),
+      surNouvelleEtape: () => nouvelleEtape(r),
+    }),
+    champs: (form, r) => lireFiche(form, { etat, etape: !!parentDe(r) }),
     api: {
       creer: async (valeurs) => {
-        etat.tachesRec.push(await api.creerTacheRec({ ...valeurs, actif: true, ordre: etat.tachesRec.length + 1 }));
-        rendreTableau();
+        const p = parentNouvelleEtape;
+        const ligneNouvelle = p
+          ? { ...valeurs, parent_id: p.id, categorie: p.categorie, frequence: p.frequence, fois: 1 }
+          : valeurs;
+        etat.tachesRec.push(await api.creerTacheRec({ ...ligneNouvelle, actif: true, ordre: etat.tachesRec.length + 1 }));
+        parentNouvelleEtape = null;
+        rendreListe();
       },
-      maj: async (id, valeurs) => { await api.majTacheRec(id, valeurs); rendreTableau(); },
-      // Désactivation, pas suppression : l'historique des parts reste lisible.
-      retirer: async (r) => { await api.majTacheRec(r.id, { actif: false }); r.actif = false; rendreTableau(); },
+      maj: async (id, valeurs) => {
+        await api.majTacheRec(id, valeurs);
+        const r = parId(id);
+        if (r && !r.parent_id) await alignerEtapes({ ...r, ...valeurs });
+        rendreListe();
+      },
+      // Désactivation, pas suppression : l'historique des parts reste lisible. Une tâche
+      // retirée emporte ses étapes.
+      retirer: async (r) => {
+        for (const x of [r, ...etapesDe(r, etat.tachesRec)]) {
+          await api.majTacheRec(x.id, { actif: false });
+          x.actif = false;
+        }
+        rendreListe();
+      },
     },
     apresEcriture: () => cb.rafraichir("taches"),
-    confirmerRetrait: (r) => `Retirer « ${r.titre} » ? Les tâches déjà faites restent comptées.`,
+    confirmerRetrait: (r) => `Retirer « ${r.titre} » ? Les fois déjà faites restent comptées.`,
     messageRetrait: "Tâche retirée.",
     echec: cb.echec,
   });
 
   function rendre() {
     reglages.rendre();
-    rendreTableau();
+    // « + Nouvelle tâche » ouvre une tâche, jamais une étape laissée en suspens par une fiche
+    // d'étape refermée sans enregistrer. Capture : passe avant l'écouteur du socle.
+    $("#form-tache-rec [data-nouveau]")?.addEventListener("click", () => { parentNouvelleEtape = null; }, { capture: true });
+    rendreListe();
   }
 
   $("#btn-aide-parts")?.addEventListener("click", ouvrirAide);
 
   // Le FAB « + Ajouter » des écrans Jour et Semaine ouvre la feuille d'ajout d'occurrence
-  // (ui-taches-ajout.js) ; ce formulaire-ci reste la seule création de tâche RÉCURRENTE (D-024).
-  return { rendre, ouvrirAjout: () => reglages.formulaire(null) };
+  // (ui-taches-ajout.js) ; cette fiche-ci reste la seule création de tâche RÉCURRENTE (D-024).
+  return { rendre, ouvrirAjout: () => ouvrir(null) };
 }

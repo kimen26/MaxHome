@@ -37,7 +37,7 @@ Deno.serve(async () => {
 
   const { data: taches, error } = await sb
     .from("taches")
-    .select("titre, categorie, echeance, rang, recurrent_id")
+    .select("titre, categorie, echeance, rang, recurrent_id, moment")
     .is("fait_le", null)
     .lte("echeance", jour)
     .order("echeance");
@@ -50,11 +50,17 @@ Deno.serve(async () => {
   }
 
   const { data: recurrents, error: e2 } = await sb
-    .from("taches_recurrentes").select("id, obligatoire, moment, fois");
+    .from("taches_recurrentes").select("id, obligatoire, moment, fois, creneaux");
   if (e2) throw e2;
   const obligatoire = new Map((recurrents ?? []).map((r) => [r.id, r.obligatoire]));
   const moment = new Map((recurrents ?? []).map((r) => [r.id, r.moment]));
   const fois = new Map((recurrents ?? []).map((r) => [r.id, r.fois ?? 1]));
+  const creneaux = new Map((recurrents ?? []).map((r) => [r.id, (r.creneaux ?? []) as { moment: string }[]]));
+  // Tâche à créneaux : une ligne par moment, son total = créneaux de ce moment (D-041).
+  const totalDe = (t: Tache) => {
+    const c = creneaux.get(t.recurrent_id) ?? [];
+    return c.length ? c.filter((x) => x.moment === t.moment).length || 1 : fois.get(t.recurrent_id) ?? 1;
+  };
 
   const urgentes = taches.filter((t) => obligatoire.get(t.recurrent_id) === true);
   if (urgentes.length === 0) {
@@ -65,8 +71,10 @@ Deno.serve(async () => {
   // réglée), et tout ce qui est déjà en retard (peu importe son moment — cf. commentaire
   // en tête de fichier). Bloc « ce matin » : uniquement le matin du jour même, pas en retard.
   const enRetard = (t: { echeance: string }) => t.echeance < jour;
-  const duMatinAujourdhui = (t: { recurrent_id: number; echeance: string }) =>
-    moment.get(t.recurrent_id) === "matin" && !enRetard(t);
+  // Le moment vient de l'occurrence (créneau, D-041), sinon du récurrent (tâches d'avant 018).
+  const momentDe = (t: { recurrent_id: number; moment?: string | null }) => t.moment ?? moment.get(t.recurrent_id);
+  const duMatinAujourdhui = (t: { recurrent_id: number; echeance: string; moment?: string | null }) =>
+    momentDe(t) === "matin" && !enRetard(t);
   const ceSoir = urgentes.filter((t) => !duMatinAujourdhui(t));
   const oublieCeMatin = urgentes.filter(duMatinAujourdhui);
 
@@ -75,15 +83,15 @@ Deno.serve(async () => {
   // (même défaut que le bot, D-023 étendu). On fusionne par récurrent + échéance, à
   // AFFICHAGE seulement — la coche continue de se faire par occurrence côté bot/app.
   // Miroir de scripts/bot/taches.py::regrouper_pour_affichage.
-  type Tache = { titre: string; echeance: string; recurrent_id: number };
+  type Tache = { titre: string; echeance: string; recurrent_id: number; moment?: string | null };
   function regrouperPourAffichage(liste: Tache[]) {
     const groupes = new Map<string, { tache: Tache; restantes: number; total: number }>();
     const ordre: string[] = [];
     for (const t of liste) {
-      const cle = `${t.recurrent_id}|${t.echeance}`;
+      const cle = `${t.recurrent_id}|${t.echeance}|${t.moment ?? ""}`;
       let g = groupes.get(cle);
       if (!g) {
-        g = { tache: t, restantes: 0, total: fois.get(t.recurrent_id) ?? 1 };
+        g = { tache: t, restantes: 0, total: totalDe(t) };
         groupes.set(cle, g);
         ordre.push(cle);
       }

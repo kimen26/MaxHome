@@ -367,3 +367,13 @@ ce réglage faisait : rien, sa seule lectrice (`prefixe`) n'était jamais appel�
 sert le champ Dernier, on ne peut rien en faire ». **Pour chaque réglage montré, grep de ses
 lecteurs jusqu'à un effet visible à l'écran ; un réglage sans effet se corrige ou se retire, il
 ne se décore pas.**
+
+## L-040 — Un téléphone resté ouvert recrée les occurrences d'avant la migration de données (2026-09-28)
+
+Contexte : la nouvelle liste des tâches posée en base, les occurrences non faites du jour
+supprimées pour qu'elles renaissent avec leur créneau. Une heure plus tard, la base en
+contenait de nouveau sous les ANCIENS titres (« Biberons », « Cuisine »), sans moment : un
+client encore sur l'ancienne version, avec l'ancienne liste en mémoire, les avait recréées. Elles
+bloquaient les nouvelles (même clé récurrent + échéance + rang). **Une migration de données qui
+touche la génération d'occurrences se fait APRÈS le déploiement du code, puis se vérifie par une
+requête sur les occurrences du jour — et se rejoue si un vieux client a repeuplé.**

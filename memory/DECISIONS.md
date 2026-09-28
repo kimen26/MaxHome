@@ -526,3 +526,38 @@ placeholder gris. Arbitrages :
    rouge sur l'ancien index.html).
 Les 16 charges réelles sont toutes « Change chaque mois » : c'est à Yann de passer en « Toujours
 le même » celles qui ne bougent pas (le geste Remplir marche dans les deux cas).
+
+## D-041 — Tâches : le temps fait les parts, créneaux, étapes, variantes, répétable (2026-09-28)
+
+Contexte : Yann trouve Réglages · Tâches encore confus. Ce qu'il veut régler : le temps (les
+points, « on s'en fout au fond »), obligatoire ou pas, le rythme, et « répét oui/non ». Il a
+relu et corrigé toute la liste des tâches, découpée en étapes (lessive, Roborock, débarrasser).
+Arbitrages :
+1. **1 part = 5 minutes, 0,5 sous 3 minutes.** `minutes` devient la source, `parts_quart` est
+   recalculé à l'enregistrement et reste ce que lisent bot, rappel et balance (rien d'aval ne
+   change). La fiche ne parle jamais de parts. Plus d'échelle, plus de « + » pénibilité : on
+   estime le temps ressenti. Le check `parts_quart in (échelle)` de 008 est retiré (018).
+2. **Créneaux** pour le quotidien : matin, midi, soir, nuit, chacun tous les jours, en semaine
+   ou le week-end (« nourrir Max » : midi seulement le week-end). Une occurrence par créneau du
+   jour, rang = index du créneau (jamais renuméroté : l'index unique reste stable), moment écrit
+   sur l'occurrence (`taches.moment`). Cartes Midi et Nuit à l'écran Jour quand elles servent ;
+   « Sans moment » devient « Dans la journée ».
+3. **Étapes** = récurrents enfants (`parent_id`). Le parent ne crée rien, ses étapes suivent son
+   rythme (thème et fréquence recopiés à l'enregistrement du parent). Écran Jour : une ligne par
+   tâche regroupée (« 0/2 »), la case coche toutes les étapes restantes pour soi, le détail les
+   coche une à une (on se partage parfois : redescendre une heure après). Étape `facultatif` :
+   aucune occurrence, un « + » dans le détail l'ajoute faite (vaisselle à la main). Dans les
+   cartes Semaine/Mois les étapes restent des lignes à part (titres explicites) : assez lisible
+   pour trois étapes, à revoir si ça gêne.
+4. **Variantes** (`variantes` jsonb, nom + minutes) : réchauffer / commandé / cuisiner. Première
+   variante par défaut à la coche, changeable dans le détail ; `taches.variante` garde le choix.
+5. **Répétable** : « +1 » sur une ligne déjà faite = une occurrence de plus, faite par moi, sans
+   ressaisie (biberon après la sieste, courses en plus). Le rythme reste un minimum.
+6. **Liste à lire, fiche pour saisir** : plus de boutons-cycles dans les lignes de Réglages (on
+   ne voyait plus ce qui se lisait et ce qui se réglait). Chacun son temps et plusieurs façons
+   de faire sont repliés en petit sous le temps. Les étapes s'ouvrent depuis la fiche.
+7. La liste réelle vit en base (`inbox/taches_liste_2026-09-28.sql`) : anciennes lignes
+   reprises par id quand c'est la même corvée, les autres désactivées, historique intact.
+Alternatives écartées : un moment par récurrent + fois (ne dit pas « midi le week-end ») ;
+étapes en jsonb dans le parent (chaque étape doit se cocher et se créditer seule) ; « + »
+pénibilité (Yann n'en a pas voulu, il donne des minutes ressenties).

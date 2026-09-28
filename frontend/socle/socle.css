@@ -141,6 +141,10 @@ td.num, th.num { text-align:right; font-family:var(--mono); font-variant-numeric
 .pile { display:flex; flex-direction:column; gap:12px; }
 .pile h2 { font-size:18px; }
 .pile label { display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--texte-2); }
+/* Case à cocher : la case À GAUCHE de son libellé, sur une ligne de 44 px (sinon la règle
+   ci-dessus empile la case au-dessus du texte). */
+.pile label.case-a-cocher { flex-direction:row; align-items:center; gap:10px; min-height:44px; font-size:14px; color:var(--texte); }
+.pile label.case-a-cocher input { width:22px; height:22px; margin:0; flex:0 0 auto; }
 .pile .champ-montant { width:100%; text-align:left; }
 .pile .grandir { width:100%; }
 

@@ -225,9 +225,8 @@
 /* Le détail (feuille/aside) réutilise .detail-actions ; le choix « Fait par » y a besoin de la
    même mise en page que Budget (déjà stylée). Rien à ajouter ici. */
 
-/* ---------- Réglages · Tâches (un tableau par thème, D-038) ----------
-   En-tête court : titre + une phrase + un « ? » qui ouvre l'explication en feuille. L'écran
-   montre le tableau d'abord ; la pédagogie ne pousse plus le contenu hors de l'écran. */
+/* ---------- Réglages · Tâches : liste à lire, fiche pour saisir (D-041) ----------
+   En-tête court : titre + une phrase + un « ? » qui ouvre l'explication en feuille (D-038). */
 .tete-reglages-taches { display:flex; align-items:center; gap:10px; margin:8px 0 10px; }
 .tete-reglages-texte { flex:1; min-width:0; }
 .tete-reglages-texte h1 { font-size:17px; margin:0; }
@@ -237,58 +236,44 @@
   background:#fff; color:var(--bleu); font-size:18px; font-weight:700; cursor:pointer;
 }
 
-/* Une carte par thème : `.carte` (socle) sans son padding — l'en-tête et les lignes gèrent
-   leur propre padding, comme `.carte-taches`/`.carte-taches-tete` de l'écran Jour.
-   4 colonnes : titre, Parts, Oblig., Rythme (« 3×/sem. » tient dans 60 px à 12 px). */
-.bloc-cadence { padding:0; margin-bottom:8px; }
-.entete-reglage-parts, .ligne-reglage-parts {
-  display:grid; grid-template-columns:minmax(0,1fr) 46px 46px 60px; gap:4px;
-  align-items:center; padding:5px 8px;
+/* Une carte par thème ; une ligne = un bouton pleine largeur (tap = fiche). Deux lignes de
+   texte dans 48 px : le titre, puis « oblig. · matin · soir · répétable » en petit. Jamais
+   de hauteur fixe : le titre peut passer sur deux lignes (zoom Android). */
+.carte-theme { padding:0; margin-bottom:8px; overflow:hidden; }
+.carte-theme .carte-tete { padding:7px 12px; }
+.ligne-tr {
+  display:flex; align-items:center; gap:10px; width:100%; min-height:48px; padding:5px 12px;
+  border:0; border-top:1px solid var(--separateur); background:#fff; text-align:left;
+  font-family:inherit; color:var(--texte); cursor:pointer;
 }
-.entete-reglage-parts {
-  /* `.carte-tete` (socle) porte déjà le fond bleu-titre-majuscule : ici la maquette veut au
-     contraire un bandeau gris avec les en-têtes de colonnes en plus du titre. */
-  background:var(--fond-bandeau); border-bottom:1px solid var(--bordure);
-  font-size:9px; font-weight:700; color:var(--bleu); text-transform:uppercase; letter-spacing:.04em;
-}
-.entete-reglage-parts span:first-child { text-align:left; font-size:11px; }
-.entete-reglage-parts span:not(:first-child) { text-align:center; }
-.ligne-reglage-parts { border-bottom:1px solid var(--separateur); }
-.ligne-reglage-parts:last-child { border-bottom:0; }
-.ligne-reglage-parts > .cycle,
-.ligne-reglage-parts > .rp-fige { justify-self:center; }
-.ligne-reglage-parts > .rp-rythme { width:100%; padding:0 2px; font-size:12px; font-family:inherit; }
+.carte-tete + .ligne-tr { border-top:0; }
+.ligne-tr:active { background:var(--fond-bandeau); }
+.ligne-tr-corps { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+.ligne-tr-titre { font-size:14px; font-weight:600; overflow-wrap:break-word; }
+.ligne-tr-quand { font-size:12px; color:var(--texte-2); overflow-wrap:break-word; }
+.etiquette-oblig { color:var(--rouge); font-weight:700; }
+.ligne-tr-temps { flex:0 0 auto; font-size:13px; font-weight:600; color:var(--bleu); text-align:right; max-width:42%; }
 
-/* Colonne 1 : titre (bouton, ouvre la feuille de modification) + petits boutons texte
-   (minutes, moment, part équiv/spé) — jamais de hauteur fixe, le libellé peut grandir
-   (zoom Android, rules/mobile-parents.md). */
-.rp-titre { min-width:0; display:flex; flex-direction:column; gap:2px; padding-right:4px; }
-.rp-nom {
-  border:0; background:none; padding:0; margin:0; display:block; width:100%; text-align:left;
-  font-family:inherit; font-size:13px; font-weight:600; color:var(--texte); overflow-wrap:break-word; cursor:pointer;
+/* Fiche : créneaux en puces, réglages rares repliés en petit sous le temps. */
+.puces-creneaux { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+.puce-creneau {
+  min-height:40px; padding:0 12px; border:1px solid var(--bordure); border-radius:999px; background:#fff;
+  font-family:inherit; font-size:14px; color:var(--texte-2); cursor:pointer;
 }
-.rp-mini { display:flex; flex-wrap:wrap; gap:2px 10px; }
-/* Plancher absolu 24x24 (rules/mobile-parents.md) : bouton texte, visuellement léger. */
-.rp-bouton-texte.cycle {
-  border:0; background:none; padding:2px 0; min-width:0; min-height:24px; font-family:inherit;
-  font-variant-numeric:normal; font-weight:400; font-size:11px; color:var(--texte-2); justify-content:flex-start;
+.puce-creneau.actif { background:var(--bleu); border-color:var(--bleu); color:#fff; font-weight:600; }
+.aide-champ { display:block; font-size:12px; color:var(--texte-2); margin-top:4px; }
+.fiche-mini { display:flex; flex-direction:column; gap:4px; margin-top:-4px; }
+.case-a-cocher.petite { font-size:13px; color:var(--texte-2); min-height:40px; }
+.fiche-mini-corps { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding-left:8px; }
+.fiche-variantes { grid-template-columns:1fr; }
+.ligne-variante { display:grid; grid-template-columns:minmax(0, 1.4fr) minmax(0, 1fr); gap:8px; }
+.fiche-etapes { display:flex; flex-direction:column; gap:6px; }
+.ligne-etape {
+  display:flex; justify-content:space-between; align-items:center; gap:10px; min-height:44px; padding:0 12px;
+  border:1px solid var(--bordure); border-radius:10px; background:#fff; font-family:inherit; font-size:14px;
+  color:var(--texte); text-align:left; cursor:pointer;
 }
-.rp-bouton-texte.rp-spe-actif { color:var(--bleu); font-weight:600; }
-
-/* Valeur non réglable ici (part spé., au besoin) : même gabarit que le bouton-cycle, pour
-   garder la grille alignée ; le texte dit pourquoi, pas la couleur. */
-.rp-fige {
-  display:inline-flex; align-items:center; justify-content:center; min-width:30px; min-height:30px;
-  font-size:11px; font-weight:600; color:var(--texte-2); text-align:center; line-height:1.15;
-}
-
-/* Part spé : parts de chacun, sur toute la largeur sous la ligne. */
-.rp-spe {
-  grid-column:1 / -1; display:flex; flex-wrap:wrap; align-items:center; gap:4px 14px;
-  padding:2px 0 4px; font-size:12px; color:var(--texte-2);
-}
-.rp-spe-titre { font-weight:600; color:var(--bleu); }
-.rp-spe-personne { display:inline-flex; align-items:center; gap:6px; color:var(--texte); }
+.ligne-etape em { font-style:normal; font-size:12px; color:var(--texte-2); }
 
 /* Détail d'une tâche faite à deux : la part de chacun, plein · ⅔ · ⅓ (D-038). */
 .detail-partage { display:flex; flex-direction:column; gap:6px; }
@@ -314,10 +299,6 @@
   .titre-tache { font-size:12px; }
   .ligne-grille-semaine { padding:1px 4px; gap:0 1px; }
   .cellule-semaine.cycle { width:22px; min-width:22px; }
-  /* Tableau Réglages · Tâches, 4 colonnes : on serre gap et padding, jamais les cibles à moins
-     de 30 px (handoff §5, usage rare à deux mains — cf. .cycle-reglage). */
-  .entete-reglage-parts, .ligne-reglage-parts { grid-template-columns:minmax(0,1fr) 44px 44px 56px; gap:2px; padding:5px 4px; }
-  .rp-mini { gap:1px 6px; }
 }
 
 /* ================= Feuilles « Travaux en attente » et « Ajouter une tâche » (handoff §8) ================= */
@@ -383,3 +364,16 @@
   .btn-part { font-size:12px; }
 }
 
+
+/* ---------- D-041 : +1 d'une tâche répétable, étapes et variantes dans le détail ---------- */
+/* +1 : petit à l'œil, 44 px au doigt (.cible44). Seulement sur une ligne déjà faite. */
+.btn-plus-un {
+  flex:0 0 auto; min-width:30px; height:24px; padding:0 6px; border:1px solid var(--bleu); border-radius:6px;
+  background:#fff; color:var(--bleu); font-family:var(--mono); font-size:11px; font-weight:700; cursor:pointer;
+}
+.detail-etapes { display:flex; flex-direction:column; gap:6px; }
+.ligne-etape-detail { display:flex; align-items:center; gap:10px; min-height:48px; font-size:14px; }
+.ligne-etape-detail > span:nth-child(2) { flex:1; min-width:0; }
+.ligne-etape-detail .fait { text-decoration:line-through; color:var(--texte-2); }
+.segment-variantes { flex-wrap:wrap; }
+.segment-variantes button { flex:1 1 auto; }

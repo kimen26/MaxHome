@@ -133,7 +133,7 @@ def _ligne_tache(groupe, recurrents, aujourdhui):
 def liste_taches(restantes, recurrents, aujourdhui):
     """`restantes` déjà triées (taches.restantes : obligatoire, moment, échéance, rang, id).
 
-    Groupée par moment (Matin / Soir), comme les deux cartes de l'écran Jour — texte brut,
+    Groupée par moment (Matin / Midi / Soir / Nuit), comme les cartes de l'écran Jour — texte brut,
     le bot n'envoie pas de HTML. Les tâches sans moment (hebdo, mensuelle, au besoin, ou
     quotidienne pas encore réglée) suivent sous un bloc « Autres tâches » plutôt que d'être
     mélangées ou perdues, miroir de la carte « Sans moment » du front. Une tâche à `fois` > 1
@@ -145,13 +145,14 @@ def liste_taches(restantes, recurrents, aujourdhui):
     # Import local : `taches` importe `commandes`, qui importe `normaliser` DE ce module
     # (reponses) — un import en tête de fichier créerait un cycle au chargement.
     import taches as taches_mod
-    groupes = {"matin": [], "soir": [], None: []}
+    intitules = [("matin", "Matin"), ("midi", "Midi"), ("soir", "Soir"), ("nuit", "Nuit"),
+                 (None, "Autres tâches")]
+    groupes = {cle: [] for cle, _ in intitules}
     for g in taches_mod.regrouper_pour_affichage(restantes, recurrents):
-        m = recurrents.get(g["tache"]["recurrent_id"], {}).get("moment")
-        groupes[m if m in ("matin", "soir") else None].append(g)
+        m = taches_mod.moment_de(g["tache"], recurrents)
+        groupes[m if m in groupes else None].append(g)
 
     lignes = ["À faire aujourd'hui :"]
-    intitules = [("matin", "Matin"), ("soir", "Soir"), (None, "Autres tâches")]
     for cle, intitule in intitules:
         bloc = groupes[cle]
         if not bloc:

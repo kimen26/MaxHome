@@ -235,3 +235,17 @@ _Retour de Yann : bouton 50/50 | Prorata pas clair, charges écrasées. Arbitrag
 - [ ] Déployer D-040 après accord de Yann.
 - [ ] Yann : passer en « Toujours le même » les charges qui ne bougent pas (crédit, assurances…).
 - [ ] Segmenté de Réglages (Tâches | Charges | Comptes | Magasin | Voyages) serré à 320 px.
+
+## Lane K — Tâches au temps, créneaux, étapes (2026-09-28)
+_Demande de Yann : régler le temps plutôt que les points, matin/midi/soir dans le rythme,
+répétable oui/non, sa liste de tâches découpée. Arbitrages : D-041._
+- [x] Migration 018 (créneaux, étapes, variantes, répétable, moment et variante sur l'occurrence).
+- [x] Génération JS et Python confrontées (L-014) ; bot et rappel du soir lisent le moment de
+      l'occurrence ; rappel redéployé (sans message de test).
+- [x] Réglages · Tâches en liste + fiche ; écran Jour : cartes Midi/Nuit, tâches à étapes sur
+      une ligne, variantes et +1 dans le détail ; feuille d'ajout en temps.
+- [x] Liste réelle en base (inbox/taches_liste_2026-09-28.sql).
+- [ ] Yann et Claudia : relire la liste sur le téléphone ; « Lever Max la nuit » est en
+      « au besoin » (Todo) — le dire si une carte Nuit quotidienne convient mieux.
+- [ ] Étagère, garage, cadres désactivés (absents de la liste relue) : les recréer si oubli.
+- [ ] Bot Telegram : ne sait pas choisir une variante ni faire « +1 » (défaut : première variante).

@@ -71,6 +71,21 @@ const GESTES = [
       await page.click("#mois-a-completer [data-remplir]");
       await page.waitForFunction(() => !document.querySelector("#mois-a-completer .a-completer"), null, { timeout: 3000 });
     } },
+  // Fiche d'une tâche (D-041) : Réglages · Tâches, tap sur une ligne.
+  { ecran: "taches-rec", moduleDefaut: "taches-rec", nom: "fiche-tache",
+    geste: async (page) => {
+      await page.click('#tableau-taches-parts [data-ouvrir="30"]');
+      await page.waitForSelector("#feuille:not([hidden]) [data-reglages-form]", { timeout: 3000 });
+      await page.waitForTimeout(250);
+    } },
+  // Détail d'une tâche à étapes : une case par étape, l'étape facultative en « + ».
+  { ecran: "jour", moduleDefaut: "jour", nom: "detail-tache-etapes",
+    geste: async (page) => {
+      await page.evaluate(() => [...document.querySelectorAll("#cartes-moment .ligne-tache")]
+        .find((l) => l.textContent.includes("Débarrasser"))?.click());
+      await page.waitForSelector(".detail-etapes", { timeout: 3000 });
+      await page.waitForTimeout(250);
+    } },
   { ecran: "courses", moduleDefaut: "courses", nom: "courses-aide-saisie",
     geste: async (page) => { await page.focus("#course-libelle"); await page.waitForSelector("#aide-articles:not([hidden])", { timeout: 3000 }); } },
 ];

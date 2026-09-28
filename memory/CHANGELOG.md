@@ -14,3 +14,12 @@ _Se remplit à la release, en vidant les lanes terminées de TODO.md._
 - Une tâche peut avoir des parts différentes pour chacun (« Part spé. »).
 - Toute tâche peut se cocher « à deux » : chacun prend ses parts, ou ⅔ · ⅓ s'il en a fait moins.
 - L'explication du barème s'ouvre avec le « ? » en haut de l'écran.
+
+## 2026-09-28 — Les tâches se règlent au temps
+- Dans Réglages · Tâches, on donne le temps d'une tâche : 5 minutes = 1 part, sans calcul.
+- Une tâche du quotidien dit ses moments : matin, midi, soir, nuit, tous les jours, en semaine
+  ou le week-end. L'écran Jour a ses cartes Midi et Nuit quand il en faut.
+- Les grosses tâches ont leurs étapes (lessive, Roborock, débarrasser) : un tap coche tout, le
+  détail les coche une à une.
+- « Faire à manger » se coche en réchauffé, commandé ou cuisiné : les parts suivent.
+- Une tâche répétable a son « +1 » : un biberon de plus se compte sans rien ressaisir.

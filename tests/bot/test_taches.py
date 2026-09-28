@@ -369,3 +369,56 @@ def test_balance_vide_partage_a_moitie():
 def test_credit_de_tache_non_cochee_retourne_objet_vide():
     recurrent = {"parts_quart": 8, "parts_spe": None}
     assert taches_mod.credit_de(recurrent, {"qui": None, "qui2": None}) == {}
+
+
+# ---------- confrontation JS/Python : créneaux, étapes, variantes (D-041, L-014) ----------
+RECURRENTS_D041 = [
+    {"id": 30, "titre": "Nourrir", "categorie": "Max", "frequence": "quotidien", "fois": 3, "actif": True,
+     "parts_quart": 12, "creneaux": [{"moment": "matin", "jours": "tous"}, {"moment": "midi", "jours": "we"},
+                                     {"moment": "soir", "jours": "tous"}]},
+    {"id": 31, "titre": "Dépose", "categorie": "Max", "frequence": "quotidien", "fois": 1, "actif": True,
+     "parts_quart": 16, "creneaux": [{"moment": "matin", "jours": "semaine"}]},
+    {"id": 40, "titre": "Débarrasser", "categorie": "Cuisine", "frequence": "quotidien", "fois": 2, "actif": True,
+     "parts_quart": 8, "creneaux": [{"moment": "midi", "jours": "we"}, {"moment": "soir", "jours": "tous"}]},
+    {"id": 41, "parent_id": 40, "titre": "Vider", "categorie": "Cuisine", "frequence": "quotidien", "fois": 1,
+     "actif": True, "parts_quart": 4},
+    {"id": 43, "parent_id": 40, "titre": "Vaisselle", "categorie": "Cuisine", "frequence": "quotidien", "fois": 1,
+     "actif": True, "parts_quart": 8, "facultatif": True},
+    {"id": 50, "titre": "Lessive", "categorie": "Linge", "frequence": "hebdo", "fois": 3, "actif": True, "parts_quart": 4},
+    {"id": 51, "parent_id": 50, "titre": "Lancer", "categorie": "Linge", "frequence": "hebdo", "fois": 1,
+     "actif": True, "parts_quart": 4},
+]
+
+
+def test_occurrences_creneaux_etapes_identiques_au_frontend():
+    """Samedi et lundi : mêmes occurrences (rang, moment) des deux côtés."""
+    import json
+    import subprocess
+    from pathlib import Path
+    racine = Path(__file__).resolve().parent.parent.parent
+    module_url = "file:///" + str(racine / "frontend" / "taches" / "taches.js").replace("\\", "/")
+    jours = ["2026-09-26", "2026-09-28"]
+    script = (
+        f"import('{module_url}').then(m => console.log(JSON.stringify("
+        f"{json.dumps(jours)}.map(j => m.occurrencesManquantes({json.dumps(RECURRENTS_D041)}, [], j)"
+        f".map(o => [o.recurrent_id, o.echeance, o.rang, o.moment])))))"
+    )
+    r = subprocess.run(["node", "--input-type=module", "-e", script], capture_output=True, text=True, timeout=30)
+    assert r.returncode == 0, r.stderr[:300]
+    du_js = json.loads(r.stdout)
+    du_py = [[[o["recurrent_id"], o["echeance"], o["rang"], o["moment"]]
+              for o in taches_mod.occurrences_manquantes(RECURRENTS_D041, [], date.fromisoformat(j))]
+             for j in jours]
+    assert du_js == du_py
+    samedi = {(o[0], o[3]) for o in du_py[0]}
+    assert (30, "midi") in samedi and (31, "matin") not in samedi, "midi le week-end, pas de dépose"
+    assert all(o[0] not in (40, 43, 50) for o in du_py[1]), "parent et facultative : aucune occurrence"
+
+
+def test_parts_variante_et_minutes():
+    manger = {"parts_quart": 4, "variantes": [{"nom": "Réchauffer", "minutes": 5}, {"nom": "Cuisiner", "minutes": 40}]}
+    assert taches_mod.parts_de(manger, "Yann", "Cuisiner") == 32
+    assert taches_mod.parts_de(manger, "Yann", "Inconnue") == 4
+    assert taches_mod.quarts_des_minutes(2) == 2
+    assert taches_mod.quarts_des_minutes(20) == 16
+    assert taches_mod.quarts_des_minutes(None) is None

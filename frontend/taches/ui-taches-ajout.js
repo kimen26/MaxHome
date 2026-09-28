@@ -14,8 +14,11 @@
 // ne recalcule rien à la main, il choisit juste la valeur d'entrée (`pts`, `qui`, `qui2`).
 
 import { $, txt, ouvrirFeuille, fermerFeuille, toast } from "../socle/ui-base.js";
-import { ECHELLE_QUART, partsTexte, echeance, jourIso } from "./taches.js";
+import { partsTexte, echeance, jourIso } from "./taches.js";
+import { quartsDesMinutes, texteTemps } from "./rythme.js";
 
+// Six temps : une ligne de boutons à 360 px (0,5 · 1 · 2 · 3 · 6 · 12 parts).
+const TEMPS_AJOUT = [2, 5, 10, 15, 30, 60];
 const RYTHMES = [["jour", "Ce jour"], ["semaine", "Semaine"], ["mois", "Mois"], ["todo", "En attente"]];
 
 export function creerAjoutTache(api, etat, cb, { onEcrit } = {}) {
@@ -37,7 +40,9 @@ export function creerAjoutTache(api, etat, cb, { onEcrit } = {}) {
 
     const boutonRythme = ([k, nom]) => `<button type="button" class="btn-choix${cad === k ? " actif" : ""}" data-cad="${k}">${txt(nom)}</button>`;
     const boutonPersonne = (val, nom) => `<button type="button" class="btn-choix${qui === val ? " actif" : ""}" data-qui="${val}">${txt(nom)}</button>`;
-    const boutonPart = (q) => `<button type="button" class="btn-part${pts === q ? " actif" : ""}" data-pts="${q}">${txt(partsTexte(q))}</button>`;
+    // Le temps fait les parts (D-041) : on choisit un temps, jamais des parts.
+    const boutonPart = (m) => { const q = quartsDesMinutes(m);
+      return `<button type="button" class="btn-part${pts === q ? " actif" : ""}" data-pts="${q}">${txt(texteTemps(m))}</button>`; };
     const boutonDrapeau = (cle, nom, actif) => `<button type="button" class="btn-choix${actif ? " actif" : ""}" data-drapeau="${cle}">${txt(nom)}</button>`;
 
     const libelleValider = cad === "todo" ? `Mettre en attente · ${partsTexte(pts)} part${pts >= 8 ? "s" : ""}`
@@ -65,8 +70,8 @@ export function creerAjoutTache(api, etat, cb, { onEcrit } = {}) {
         </div>
       </div>
       <div class="champ-groupe">
-        <span class="etiquette-champ">Parts · 0,5 lait du soir → 8 salle de bain</span>
-        <div class="ligne-parts">${ECHELLE_QUART.map(boutonPart).join("")}</div>
+        <span class="etiquette-champ">Temps</span>
+        <div class="ligne-parts">${TEMPS_AJOUT.map(boutonPart).join("")}</div>
       </div>
       <div class="ligne-boutons-2">
         ${boutonDrapeau("oblig", "Obligatoire", oblig)}

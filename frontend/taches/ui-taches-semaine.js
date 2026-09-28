@@ -6,6 +6,7 @@
 import { $, txt } from "../socle/ui-base.js";
 import { creerFileEcritures } from "../socle/blocs.js";
 import { boutonCycle, brancherCycles, suivante } from "../socle/blocs-cycle.js";
+import { idsParents, porteurRythme, varianteParDefaut } from "./rythme.js";
 import { partsTexte, partsDe, balance, jourIso, depuisIso, decalerJours, echeance, champsADeux, CHAMPS_SEUL } from "./taches.js";
 
 const A_DEUX = "_deux";
@@ -70,10 +71,11 @@ export function creerUiTachesSemaine(api, etat, cb, ui, ouvrirAjout) {
     const cellules = jours.map((j) => cellule(r, j, auj, occs));
     let suffixe = "";
     let ambre = false;
-    if (r.frequence !== "quotidien" && r.fois > 1) {
+    const fois = porteurRythme(r, etat.tachesRec).fois ?? 1;
+    if (r.frequence !== "quotidien" && fois > 1) {
       const faites = occs.filter((t) => t.fait_le).length;
-      suffixe = ` ${faites}/${r.fois}`;
-      ambre = faites < r.fois;
+      suffixe = ` ${faites}/${fois}`;
+      ambre = faites < fois;
     }
     return `<div class="ligne-grille-semaine">
       <span class="titre-grille${ambre ? " titre-ambre" : ""}">${txt(r.titre)}${txt(suffixe)}</span>
@@ -129,7 +131,10 @@ export function creerUiTachesSemaine(api, etat, cb, ui, ouvrirAjout) {
     // ---------- grille ----------
     let html = enteteJours(jours, auj);
     for (const [cle, nom] of CADENCES) {
-      const recs = etat.tachesRec.filter((r) => r.actif && r.frequence === cle);
+      // Une tâche à étapes ne se coche pas elle-même (ses étapes, si) ; une étape facultative
+      // ne se prévoit pas (D-041).
+      const parents = idsParents(etat.tachesRec);
+      const recs = etat.tachesRec.filter((r) => r.actif && r.frequence === cle && !parents.has(r.id) && !r.facultatif);
       if (!recs.length) continue;
       const compte = cle === "quotidien"
         ? `${jours.reduce((s, j) => s + etat.taches.filter((t) => t.echeance === j && t.fait_le && recs.some((r) => r.id === t.recurrent_id)).length, 0)} cochées`
@@ -169,7 +174,7 @@ export function creerUiTachesSemaine(api, etat, cb, ui, ouvrirAjout) {
       } catch (e) { return cb.echec(e); }
     }
     const avant = { fait_le: cible.fait_le, qui: cible.qui, qui2: cible.qui2, parts_quart: cible.parts_quart,
-      parts_quart2: cible.parts_quart2, tiers: cible.tiers, tiers2: cible.tiers2 };
+      parts_quart2: cible.parts_quart2, tiers: cible.tiers, tiers2: cible.tiers2, variante: cible.variante };
     const champs = calculerChamps(r, cible, suivant, j);
     Object.assign(cible, champs);
     rendre();
@@ -188,11 +193,12 @@ export function creerUiTachesSemaine(api, etat, cb, ui, ouvrirAjout) {
 
   function calculerChamps(r, t, suivant, j) {
     if (suivant === null) return { fait_le: null, qui: null, parts_quart: 0, ...CHAMPS_SEUL };
+    const variante = t.variante ?? varianteParDefaut(r);
     if (suivant === A_DEUX) {
       const [p1, p2] = membres();
-      return { fait_le: t.fait_le ?? dateDuJour(j), ...champsADeux(r, p1, p2) };
+      return { fait_le: t.fait_le ?? dateDuJour(j), ...champsADeux(r, p1, p2, null, variante), variante };
     }
-    return { fait_le: t.fait_le ?? dateDuJour(j), qui: suivant, ...CHAMPS_SEUL, parts_quart: partsDe(r, suivant) };
+    return { fait_le: t.fait_le ?? dateDuJour(j), qui: suivant, ...CHAMPS_SEUL, parts_quart: partsDe(r, suivant, variante), variante };
   }
 
   // Le segmenté Jour|Semaine est maintenant rendu par le socle (segmentEcrans, data-segment) :

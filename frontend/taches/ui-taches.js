@@ -16,8 +16,10 @@ import { creerCheckList } from "../socle/blocs-checklist.js";
 import { brancherCycles, suivante } from "../socle/blocs-cycle.js";
 import { occurrencesManquantes, perimees, partsDe, creditDe, partsTexte, groupe, trier,
   jourIso, depuisIso, decalerJours, FREQUENCES, libelleRelatif, libelleAjoutTodo,
-  TIERS, champsADeux, CHAMPS_SEUL } from "./taches.js";
-import { carteMoment, cartePeriode, regrouper, ligneTache } from "./ui-taches-cartes.js";
+  champsADeux, CHAMPS_SEUL } from "./taches.js";
+import { carteMoment, cartePeriode, ligneTache, regrouper } from "./ui-taches-cartes.js";
+import { htmlVariantes, htmlEtapes, htmlPartage, uneFoisDePlus } from "./ui-taches-detail.js";
+import { MOMENTS, varianteParDefaut } from "./rythme.js";
 
 const ASIDE = "#detail-tache-pc";
 // Marqueur du cran « fait à deux » dans le cycle de coche : ni un prénom, ni null, jamais
@@ -77,17 +79,20 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
   // Dépendances communes aux fonctions de rendu de carte (ui-taches-cartes.js) : tout ce
   // qu'une ligne ou une carte doit lire sans le recalculer (D-024, un seul endroit par règle).
   const ctxCartes = { etat, recDe, credit, membres, valeursCycle, valeurCourante, renduCase,
-    duJour, faitesLe, ponctuelle };
+    duJour, faitesLe, ponctuelle, plusUn: true };
 
-  /** Cartes du quotidien : Matin + Soir toujours affichées (structure de la maquette), et une
-   *  troisième carte « Sans moment » dès qu'une tâche quotidienne n'a pas encore de moment
-   *  réglé OU qu'une ponctuelle sans récurrent est due ce jour — jamais de tâche cochable qui
-   *  disparaîtrait de l'écran faute de réglage. */
+  /** Cartes du quotidien : Matin + Soir toujours affichées (structure de la maquette), Midi et
+   *  Nuit dès qu'une tâche y tombe ce jour-là (créneaux, D-041), et « Dans la journée » pour
+   *  une quotidienne sans créneau ou une ponctuelle — jamais de tâche cochable qui disparaîtrait
+   *  de l'écran faute de réglage. Le moment vient de l'occurrence (créneau), sinon du récurrent. */
   function cartesMoment(jour) {
-    const sansMoment = (t) => (recDe(t)?.frequence === "quotidien" && !recDe(t)?.moment) || ponctuelle(t);
-    const aSansMoment = regrouper(duJour(jour)).some(sansMoment) || faitesLe(jour).some(sansMoment);
-    return carteMoment("Matin", "matin", jour, ctxCartes) + carteMoment("Soir", "soir", jour, ctxCartes)
-      + (aSansMoment ? carteMoment("Sans moment", null, jour, ctxCartes) : "");
+    const momentDe = (t) => t.moment ?? recDe(t)?.moment ?? null;
+    const du = [...duJour(jour), ...faitesLe(jour)];
+    const present = (m) => du.some((t) => recDe(t)?.frequence === "quotidien" && momentDe(t) === m);
+    const sansMoment = du.some((t) => (recDe(t)?.frequence === "quotidien" && !momentDe(t)) || ponctuelle(t));
+    return MOMENTS.filter(([m]) => m === "matin" || m === "soir" || present(m))
+      .map(([m, nom]) => carteMoment(nom, m, jour, ctxCartes)).join("")
+      + (sansMoment ? carteMoment("Dans la journée", null, jour, ctxCartes) : "");
   }
 
   /** Parts affichées : `1+1` quand fait à deux, sinon la valeur qui suit qui a coché. Même
@@ -102,29 +107,25 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
   }
 
   // ---------- détail (feuille / colonne PC) ----------
-  /** Fait à deux : chacun choisit sa part — plein, deux tiers, un tiers (D-038). Un bouton par
-   *  valeur, la valeur retenue en `aria-pressed`, jamais la couleur seule. */
-  function htmlPartage(t) {
-    const ligne = (prenom, champ, valeur) => `<div class="ligne-partage">
-      <span class="ligne-partage-nom">${txt(prenom)}</span>
-      <div class="segment-partage">${TIERS.map(([n, lib]) => `<button type="button" class="cible44${valeur === n ? " actif" : ""}"
-        aria-pressed="${valeur === n}" data-tiers="${champ}|${n}">${lib}</button>`).join("")}</div>
-    </div>`;
-    return `<div class="detail-partage">
-      <span class="etiquette">Fait à deux · la part de chacun</span>
-      ${ligne(t.qui, "tiers", t.tiers ?? 3)}${ligne(t.qui2, "tiers2", t.tiers2 ?? 3)}
-    </div>`;
-  }
-
   function htmlDetail(t) {
     const r = recDe(t);
     const quand = t.fait_le ? new Date(t.fait_le).toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : null;
+    // Étape d'une tâche regroupée : le détail est celui de la TÂCHE, une case par étape (D-041).
+    const parent = r?.parent_id ? etat.tachesRec.find((p) => p.id === r.parent_id) : null;
+    if (parent) {
+      return `<div class="detail" data-id="${t.id}">
+        ${enteteDetail(parent.titre, `${FREQUENCES[parent.frequence]}${parent.obligatoire ? " · obligatoire" : ""}`)}
+        ${htmlEtapes(t, ctxCartes)}
+        <button class="btn-lien centre" data-vers-reglages>Modifier la tâche récurrente</button>
+      </div>`;
+    }
     return `<div class="detail" data-id="${t.id}">
       ${enteteDetail(t.titre, r ? `${FREQUENCES[r.frequence]}${r.obligatoire ? " · obligatoire" : ""}` : "Hors liste")}
       <div class="detail-montant">
         <span class="mono grand">${txt(partsLigne(t))}</span>
         <span class="sous">${t.fait_le ? `Fait le ${quand}${t.qui ? ` par ${txt(t.qui)}${t.qui2 ? ` et ${txt(t.qui2)}` : ""}` : ""}.` : "Les parts vont à qui coche."}</span>
       </div>
+      ${htmlVariantes(t, r)}
       ${t.fait_le && t.qui2 && t.parts_quart2 != null ? htmlPartage(t) : ""}
       ${r?.consigne ? `<div class="detail-consigne"><span class="etiquette">Consigne</span><p class="texte-consigne">${txt(r.consigne)}</p></div>` : ""}
       <div class="detail-actions">
@@ -141,6 +142,17 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
     htmlDetail, rendre, echec: cb.echec,
     brancherDetail: (t, racine, { basculer, fermer }) => {
       for (const b of racine.querySelectorAll("[data-qui]")) b.addEventListener("click", () => basculer({ suivant: b.dataset.qui }));
+      for (const b of racine.querySelectorAll("[data-variante]")) {
+        b.addEventListener("click", () => basculer({ variante: b.dataset.variante }));
+      }
+      // Étapes : chaque case coche SON occurrence ; « + étape facultative » l'ajoute faite.
+      brancherCycles(racine, (cle) => {
+        const x = etat.taches.find((o) => o.id === Number(cle.split("|")[1]));
+        if (x) liste.basculer(x.id, { suivant: suivante(valeursCycle(), valeurCourante(x)) });
+      });
+      for (const b of racine.querySelectorAll("[data-facultative]")) {
+        b.addEventListener("click", () => ajouterEnPlus(Number(b.dataset.facultative), t.moment ?? null, fermer));
+      }
       for (const b of racine.querySelectorAll("[data-tiers]")) {
         const [champ, n] = b.dataset.tiers.split("|");
         b.addEventListener("click", () => basculer({ partage: { [champ]: Number(n) } }));
@@ -151,22 +163,29 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
       // Les parts se figent à la coche : lues AVANT de poser la date (L-008).
       // Les parts se recalculent pour la personne choisie dans `appliquer` (part spé, D-038).
       figer: (t) => partsDe(recDe(t), t.qui ?? recDe(t)?.attribue_a ?? null),
-      appliquer(t, figees, { suivant, partage } = {}) {
+      appliquer(t, figees, { suivant, partage, variante } = {}) {
         const r = recDe(t);
         const champsEcrits = () => ({ fait_le: t.fait_le, qui: t.qui, qui2: t.qui2, parts_quart: t.parts_quart,
-          parts_quart2: t.parts_quart2, tiers: t.tiers, tiers2: t.tiers2 });
+          parts_quart2: t.parts_quart2, tiers: t.tiers, tiers2: t.tiers2, variante: t.variante ?? null });
         // Part au tiers d'une tâche déjà faite à deux : seul le tiers change, rien d'autre.
         if (partage) { Object.assign(t, partage); return champsEcrits(); }
+        // Façon de faire (variante) : les parts de chacun suivent, rien d'autre ne change.
+        if (variante) {
+          Object.assign(t, { variante, parts_quart: partsDe(r, t.qui, variante),
+            ...(t.qui2 ? { parts_quart2: partsDe(r, t.qui2, variante) } : {}) });
+          return champsEcrits();
+        }
         // `suivant` vient du cycle (case tapée) ou du choix « Fait par » du détail.
         const cible = suivant !== undefined ? suivant : (t.fait_le ? null : etat.prenom);
         // Une ponctuelle garde ses parts en base même décochée : c'est sa seule mémoire du barème.
         const base = r ? null : t.parts_quart;
+        const v = t.variante ?? varianteParDefaut(r);
         if (cible === null) Object.assign(t, { fait_le: null, qui: null, parts_quart: r ? 0 : base, ...CHAMPS_SEUL });
         else if (cible === A_DEUX) {
           const [p1, p2] = membres();
-          Object.assign(t, { fait_le: t.fait_le ?? new Date().toISOString(), ...champsADeux(r, p1, p2, base) });
+          Object.assign(t, { fait_le: t.fait_le ?? new Date().toISOString(), ...champsADeux(r, p1, p2, base, v), variante: v });
         } else Object.assign(t, { fait_le: t.fait_le ?? new Date().toISOString(), qui: cible, ...CHAMPS_SEUL,
-          parts_quart: r ? partsDe(r, cible) : base });
+          parts_quart: r ? partsDe(r, cible, v) : base, variante: v });
         return champsEcrits();
       },
       ecrire: (id, champs) => api.majTache(id, champs),
@@ -267,6 +286,7 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
 
     liste.apresRendu();
     brancherCycles($("#ecran-jour"), (cle) => {
+      if (cle.startsWith("g|")) return basculerGroupe(cle.slice(2).split(",").map(Number));
       const t = etat.taches.find((x) => x.id === Number(cle));
       if (!t) return;
       liste.basculer(t.id, { suivant: suivante(valeursCycle(recDe(t)), valeurCourante(t)) });
@@ -274,9 +294,41 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
     // apresRendu() ouvre le détail via brancherCoches(), qui ne connaît que .mvt[data-id] : nos
     // lignes portent leur propre layout (.ligne-tache), donc on branche nous-même l'ouverture au
     // tap sur la ligne. La case-cycle stoppe sa propagation (blocs-cycle.js), pas de conflit.
+    for (const b of $("#ecran-jour").querySelectorAll("[data-plus-un]")) {
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const t = etat.taches.find((x) => x.id === Number(b.dataset.plusUn));
+        if (t) ajouterEnPlus(t.recurrent_id, t.moment ?? null);
+      });
+    }
     for (const el of $("#ecran-jour").querySelectorAll(".ligne-tache[data-id]")) {
       el.addEventListener("click", () => { if (Number(el.dataset.id) > 0) liste.ouvrirDetail(Number(el.dataset.id)); });
     }
+  }
+
+  /** Case d'une tâche à étapes : coche d'un coup les étapes pas encore faites ; si toutes le
+   *  sont, fait tourner tout le groupe (annulation comprise). Une écriture par étape. */
+  async function basculerGroupe(ids) {
+    const occs = ids.map((id) => etat.taches.find((x) => x.id === id)).filter(Boolean);
+    const complet = occs.every((t) => t.fait_le);
+    const courant = complet ? valeurCourante(occs[0]) : null;
+    const suivant = suivante(valeursCycle(), courant);
+    for (const t of complet ? occs : occs.filter((x) => !x.fait_le)) await liste.basculer(t.id, { suivant });
+  }
+
+  /** « +1 » d'une tâche répétable, ou « + étape facultative » : une occurrence déjà faite par
+   *  moi, en plus du prévu, sur le jour affiché (D-041). */
+  async function ajouterEnPlus(recId, moment, apres) {
+    const r = etat.tachesRec.find((x) => x.id === recId);
+    if (!r) return;
+    const faitLe = jourSel === jourIso(new Date()) ? new Date().toISOString()
+      : (() => { const d = depuisIso(jourSel); d.setHours(12, 0, 0, 0); return d.toISOString(); })();
+    try {
+      const t = await uneFoisDePlus(api, etat, r, { jour: jourSel, moment, qui: etat.prenom, faitLe });
+      apres?.();
+      rendre();
+      toast(`${r.titre} : une fois de plus, ${partsTexte(t.parts_quart)} part${t.parts_quart >= 8 ? "s" : ""} pour ${etat.prenom}.`);
+    } catch (e) { cb.echec(e); }
   }
 
   // ---------- Todo : travaux sans date (tâches récurrentes « au besoin ») ----------

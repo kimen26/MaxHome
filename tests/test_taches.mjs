@@ -201,3 +201,43 @@ assert.equal(libelleAjoutTodo(new Date(2026, 8, 1, 8, 0).toISOString(), null, ma
   "sans minutes indicatives -> pas de suffixe");
 
 console.log("test_taches OK");
+
+// ---------- temps, créneaux, étapes, variantes (D-041) ----------
+import { quartsDesMinutes, texteTemps, texteQuand, rangsDuJour, creneauDuJour } from "../frontend/taches/rythme.js";
+assert.equal(quartsDesMinutes(2), 2, "moins de 3′ : 0,5 part");
+assert.equal(quartsDesMinutes(5), 4, "5′ = 1 part");
+assert.equal(quartsDesMinutes(20), 16, "20′ = 4 parts");
+assert.equal(quartsDesMinutes(40), 32, "40′ = 8 parts");
+assert.equal(quartsDesMinutes(null), null);
+assert.equal(texteTemps(2), "<3′");
+assert.equal(texteTemps(45), "45′");
+const SAMEDI = "2026-09-26", LUNDI_28 = "2026-09-28";
+assert.ok(creneauDuJour({ moment: "midi", jours: "we" }, SAMEDI));
+assert.ok(!creneauDuJour({ moment: "midi", jours: "we" }, LUNDI_28));
+assert.ok(!creneauDuJour({ moment: "matin", jours: "semaine" }, SAMEDI));
+const nourrir = { id: 30, titre: "Nourrir", categorie: "Max", frequence: "quotidien", fois: 3, actif: true, parts_quart: 12,
+  creneaux: [{ moment: "matin", jours: "tous" }, { moment: "midi", jours: "we" }, { moment: "soir", jours: "tous" }] };
+assert.deepEqual(rangsDuJour(nourrir, nourrir, LUNDI_28), [{ rang: 1, moment: "matin" }, { rang: 3, moment: "soir" }],
+  "en semaine, pas de midi ; le soir garde son rang 3");
+assert.deepEqual(rangsDuJour(nourrir, nourrir, SAMEDI).map((x) => x.moment), ["matin", "midi", "soir"]);
+assert.equal(texteQuand(nourrir), "matin · midi w-e · soir");
+assert.equal(texteQuand({ frequence: "hebdo", fois: 3 }), "3×/sem.");
+assert.equal(texteQuand({ frequence: "au_besoin" }), "au besoin");
+// Étapes : le parent ne crée rien, les étapes suivent son rythme, la facultative attend.
+const debarrasser = { id: 40, titre: "Débarrasser", categorie: "Cuisine", frequence: "quotidien", fois: 2, actif: true, parts_quart: 8,
+  creneaux: [{ moment: "midi", jours: "we" }, { moment: "soir", jours: "tous" }] };
+const etapes = [
+  { id: 41, parent_id: 40, titre: "Vider la table", categorie: "Cuisine", frequence: "quotidien", fois: 1, actif: true, parts_quart: 4 },
+  { id: 42, parent_id: 40, titre: "Remplir le lave-vaisselle", categorie: "Cuisine", frequence: "quotidien", fois: 1, actif: true, parts_quart: 4 },
+  { id: 43, parent_id: 40, titre: "Vaisselle à la main", categorie: "Cuisine", frequence: "quotidien", fois: 1, actif: true, parts_quart: 8, facultatif: true },
+];
+const occ = occurrencesManquantes([debarrasser, ...etapes, nourrir], [], LUNDI_28);
+assert.deepEqual(occ.filter((o) => [40, 41, 42, 43].includes(o.recurrent_id)).map((o) => `${o.recurrent_id}:${o.rang}:${o.moment}`),
+  ["41:2:soir", "42:2:soir"], "lundi : seules les étapes, au soir, rang du créneau");
+assert.equal(occurrencesManquantes([debarrasser, ...etapes], [], SAMEDI).length, 4, "samedi : midi et soir pour deux étapes");
+// Variantes : les parts suivent la façon de faire.
+const manger = { parts_quart: 4, variantes: [{ nom: "Réchauffer", minutes: 5 }, { nom: "Cuisiner", minutes: 40 }] };
+assert.equal(partsDe(manger, "Yann", "Cuisiner"), 32);
+assert.equal(partsDe(manger, "Yann", "Réchauffer"), 4);
+assert.equal(partsDe(manger, "Yann", "Inconnue"), 4, "variante inconnue : base");
+console.log("test_taches : temps, créneaux, étapes OK");

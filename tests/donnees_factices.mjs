@@ -178,6 +178,27 @@ export const TACHES_RECURRENTES = [
   { id: 24, titre: "Étagère", categorie: "Ménage", frequence: "au_besoin", fois: 1,
     penibilite: 2, importance: 1, attribue_a: null, consigne: null, ordre: 240, actif: true,
     parts_quart: 8, obligatoire: false, partageable: false, ecart_prenom: null, minutes: 20, moment: null, cree_le: ilYAHeure(1, 10) },
+  // -- D-041 : créneaux (midi le week-end), tâche à étapes (dont une facultative), variantes,
+  // répétable. Le rythme des étapes vient de leur parent ; le parent ne crée aucune occurrence.
+  { id: 30, titre: "Faire manger Léo", categorie: "Enfant", frequence: "quotidien", fois: 3, ordre: 5, actif: true,
+    attribue_a: null, consigne: null, parts_quart: 12, obligatoire: true, minutes: 15, moment: null, repetable: false,
+    creneaux: [{ moment: "matin", jours: "tous" }, { moment: "midi", jours: "tous" }, { moment: "soir", jours: "tous" }], cree_le: ilYAHeure(400, 0) },
+  { id: 31, titre: "Débarrasser", categorie: "Cuisine", frequence: "quotidien", fois: 1, ordre: 125, actif: true,
+    attribue_a: null, consigne: null, parts_quart: 8, obligatoire: false, minutes: 10, moment: null,
+    creneaux: [{ moment: "soir", jours: "tous" }], cree_le: ilYAHeure(400, 0) },
+  { id: 32, parent_id: 31, titre: "Vider et nettoyer la table", categorie: "Cuisine", frequence: "quotidien", fois: 1, ordre: 1, actif: true,
+    attribue_a: null, consigne: null, parts_quart: 4, obligatoire: false, minutes: 5, moment: null, cree_le: ilYAHeure(400, 0) },
+  { id: 33, parent_id: 31, titre: "Remplir le lave-vaisselle", categorie: "Cuisine", frequence: "quotidien", fois: 1, ordre: 2, actif: true,
+    attribue_a: null, consigne: null, parts_quart: 4, obligatoire: false, minutes: 5, moment: null, cree_le: ilYAHeure(400, 0) },
+  { id: 34, parent_id: 31, titre: "Vaisselle à la main", categorie: "Cuisine", frequence: "quotidien", fois: 1, ordre: 3, actif: true,
+    attribue_a: null, consigne: null, parts_quart: 8, obligatoire: false, minutes: 10, moment: null, facultatif: true, cree_le: ilYAHeure(400, 0) },
+  { id: 35, titre: "Faire à manger", categorie: "Cuisine", frequence: "quotidien", fois: 1, ordre: 124, actif: true,
+    attribue_a: null, consigne: null, parts_quart: 4, obligatoire: true, minutes: 5, moment: null,
+    creneaux: [{ moment: "soir", jours: "tous" }],
+    variantes: [{ nom: "Réchauffer", minutes: 5 }, { nom: "Commandé", minutes: 5 }, { nom: "Cuisiner", minutes: 40 }], cree_le: ilYAHeure(400, 0) },
+  { id: 36, titre: "Laver les biberons", categorie: "Enfant", frequence: "quotidien", fois: 1, ordre: 6, actif: true,
+    attribue_a: null, consigne: null, parts_quart: 4, obligatoire: true, minutes: 5, moment: null, repetable: true,
+    creneaux: [{ moment: "soir", jours: "tous" }], cree_le: ilYAHeure(400, 0) },
 ];
 
 // Occurrences du jour pour les quotidiennes (fois occurrences chacune), des hebdo à l'échéance

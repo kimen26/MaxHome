@@ -216,3 +216,11 @@ _État courant. Réécrit en fin de session, jamais un journal._
   (l'Agenda lit une API publique), 5/5 vert. Portes vertes : test_calc (habituel + part affichée),
   test_taches, recette écrans (78 captures), recette_mise_a_jour (6 vérifs, rouge sur l'ancien
   index.html), recette_token, recette connectée (règle changée par la feuille sur la vraie base).
+
+- 2026-09-28 : **Tâches au temps** (lane K, D-041). 1 part = 5 minutes ; la fiche règle le
+  temps, le rythme (créneaux matin/midi/soir/nuit, tous les jours / semaine / week-end),
+  obligatoire, répétable ; étapes (Lessive, Roborock, Débarrasser) et variantes (Faire à manger,
+  Ranger). Liste relue par Yann en base : 26 tâches, 9 étapes. Migration 018 appliquée, rappel du
+  soir redéployé. Portes vertes (test_taches, 130 bot, recette écrans 84 captures, recette
+  connectée) ; captures regardées (`taches-rec-*`, `fiche-tache-*`, `jour-*`,
+  `detail-tache-etapes-*`).

@@ -54,10 +54,13 @@ self.SW_PRECACHE = [
   "socle/ui-base.js",
   "style.css",
   "taches/mod-taches.js",
+  "taches/rythme.js",
   "taches/taches.css",
   "taches/taches.js",
   "taches/ui-taches-ajout.js",
   "taches/ui-taches-cartes.js",
+  "taches/ui-taches-detail.js",
+  "taches/ui-taches-fiche.js",
   "taches/ui-taches-rec.js",
   "taches/ui-taches-semaine.js",
   "taches/ui-taches.js"

@@ -19,7 +19,7 @@ En prod sur https://kimen26.github.io/MaxHome/ (Supabase `maxhome`), plus un bot
 |---|---|---|
 | charge · règle de répartition · prorata · 50/50 · calcul | MÉTIER | docs/regles-repartition.md |
 | écran · page · saisie · affichage · UI | FRONT | frontend/socle/blocs*.js + ui-base.js, puis le ui-*.js du module |
-| tâche · ménage · parts · obligatoire · à deux · balance | TÂCHES | frontend/taches/taches.js + scripts/bot/taches.py |
+| tâche · ménage · parts · temps · créneau · étape · obligatoire · à deux · balance | TÂCHES | frontend/taches/taches.js + rythme.js + scripts/bot/taches.py |
 | courses · liste · rayon | COURSES | frontend/courses/ui-courses.js + scripts/bot/courses.py |
 | agenda · voyage · vacances · zone · férié · calendrier | AGENDA | frontend/agenda/calendrier.js + vacances.js + mod-agenda.js |
 | bot · Telegram · commande · rappel | BOT | scripts/bot/commandes.py + bot.py |
