@@ -1,8 +1,9 @@
 // Écran « Comptes » : cartes par compte, le commun mis en avant. La note porte le virement permanent.
 
-import { txt } from "../socle/ui-base.js";
+import { txt, copier } from "../socle/ui-base.js";
 import { creerReglages } from "../socle/blocs-reglages.js";
 import { champ, zone, caseACocher, lire } from "../socle/blocs-form.js";
+import { nettoyerIban, erreurIban, formaterIban, derniersCaracteres } from "./iban.js";
 
 export function creerUiComptes(api, etat, cb) {
   const carte = (c) => `<div class="carte compte${c.commun ? " commun" : ""}">
@@ -11,7 +12,8 @@ export function creerUiComptes(api, etat, cb) {
         ${c.titulaire ? `<span class="sous">${txt(c.titulaire)}</span>` : ""}</div>
       ${c.commun ? '<span class="pastille bleue">Compte commun</span>' : ""}
     </div>
-    ${c.iban_masque ? `<p class="mono compte-iban">····${txt(c.iban_masque)}</p>` : ""}
+    ${c.iban ? `<p class="mono compte-iban">${formaterIban(c.iban).split(" ").map((g) => `<span>${txt(g)}</span>`).join(" ")}</p>
+      <button class="btn-lien compte-copier-iban" data-copier-iban="${c.id}">Copier l'IBAN</button>` : ""}
     ${c.note ? `<p class="compte-note">${txt(c.note)}</p>` : ""}
     <div class="rec-actions">
       <button class="btn-lien" data-modifier="${c.id}">Modifier</button>
@@ -27,10 +29,20 @@ export function creerUiComptes(api, etat, cb) {
     htmlForm: (c) => `
       ${champ("nom", "Nom", { valeur: c?.nom, requis: true, placeholder: "ex. Boursorama commun" })}
       ${champ("titulaire", "Titulaire", { valeur: c?.titulaire })}
-      ${champ("iban_masque", "4 derniers chiffres", { valeur: c?.iban_masque, attrs: 'maxlength="4" inputmode="numeric"' })}
+      ${champ("iban", "IBAN", { valeur: c?.iban, placeholder: "ex. FR76 3000 ...", attrs: 'autocomplete="off" spellcheck="false"' })}
+      ${champ("bic", "BIC (facultatif)", { valeur: c?.bic, placeholder: "ex. BNPAFRPP" })}
       ${zone("note", "Note — virement permanent (montant et jour)", c?.note, { placeholder: "ex. permanent de 3 000 € le 2" })}
       ${caseACocher("commun", "Compte commun", c?.commun)}`,
-    champs: (form) => lire(form, { booleens: ["commun"] }),
+    champs: (form, c) => {
+      const valeurs = lire(form, { booleens: ["commun"] });
+      const messageErreur = erreurIban(valeurs.iban);
+      if (messageErreur) throw new Error(messageErreur);
+      const iban = valeurs.iban ? nettoyerIban(valeurs.iban) : null;
+      const bic = valeurs.bic ? valeurs.bic.toUpperCase().replace(/\s/g, "") : null;
+      // iban_masque reste à jour pour ui-mouvements.js (detailCompte), qui n'affiche que les
+      // 4 derniers caractères dans le détail d'un mouvement.
+      return { ...valeurs, iban, bic, iban_masque: derniersCaracteres(iban) ?? c?.iban_masque ?? null };
+    },
     api: {
       creer: async (valeurs) => { etat.comptes.push(await api.creerCompte(valeurs)); },
       maj: (id, valeurs) => api.majCompte(id, valeurs),
@@ -42,5 +54,15 @@ export function creerUiComptes(api, etat, cb) {
     echec: cb.echec,
   });
 
-  return { rendre: reglages.rendre };
+  const rendre = () => {
+    reglages.rendre();
+    document.querySelectorAll("[data-copier-iban]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const c = etat.comptes.find((x) => x.id === Number(btn.dataset.copierIban));
+        if (c?.iban) copier(c.iban);
+      });
+    });
+  };
+
+  return { rendre };
 }

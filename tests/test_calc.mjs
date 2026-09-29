@@ -4,7 +4,8 @@ import { montantHabituel, montantNote, champsDuMontant, montantInchange } from "
 import { detailRegle, regleBasculee, motPartage } from "../frontend/budget/repartition.js";
 import { compteDeCharge, compteSource, optionsCompte, aAutreCompte, choisirCompte, compteCommun } from "../frontend/budget/compte-charge.js";
 import { etatDuMois, texteAFaireVide } from "../frontend/budget/etat-mois.js";
-import { champsBascule, champsMouvementLie, preparerBascule, appliquerBascule, annulerBascule, ecrireBascule } from "../frontend/budget/coche-ligne.js";
+import { champsCycle, valeurCourante, valeurAffichee, prochaineValeur, SANS_PRENOM, champsMouvementLie, preparerBascule, appliquerBascule, annulerBascule, ecrireBascule } from "../frontend/budget/coche-ligne.js";
+import { construireGroupes, preparerBasculeGroupe, lignesAFaire, lignesFaites } from "../frontend/budget/groupes-virements.js";
 
 // Cas réel : Comptes 2026, février. Doit TOUJOURS donner Yann -3 236,15 ±1 ct.
 const chargesFevrier = [
@@ -321,43 +322,105 @@ const etatT = (recurrents = [], mouvements = []) => ({ comptes: comptesT, recurr
 }
 await assert.rejects(() => choisirCompte(apiEspion(), etatT(), elec, 99), /introuvable/);
 
-// ---------- Validation ligne à ligne (D-046, coche-ligne.js) ----------
+// ---------- Cycle de validation (D-048 : rien → moi → l'autre → rien) ----------
 {
-  const c = champsBascule(false, "Yann");
+  const c = champsCycle(null, "Yann", null);
   assert.equal(c.fait_par, "Yann");
   assert.ok(c.fait_le && !Number.isNaN(Date.parse(c.fait_le)), "fait_le est une date ISO valide");
 }
-assert.equal(champsBascule(false, null).fait_par, null, "sans prénom connecté : fait_par reste null");
-assert.deepEqual(champsBascule(true, "Yann"), { fait_le: null, fait_par: null }, "décoche : les deux à null, peu importe le prénom");
+// Changement de personne (pas la première coche) : fait_le GARDÉ, pas régénéré.
+assert.deepEqual(champsCycle("Yann", "Claudia", "2026-09-29T10:00:00Z"),
+  { fait_le: "2026-09-29T10:00:00Z", fait_par: "Claudia" }, "changement de personne : date gardée");
+assert.deepEqual(champsCycle("Claudia", null, "2026-09-29T10:00:00Z"),
+  { fait_le: null, fait_par: null }, "retour à rien : les deux à null");
+
+// valeurCourante : dérivée de fait_le/fait_par, jamais recalculée à part.
+assert.equal(valeurCourante({ fait_le: null, fait_par: null }), null);
+assert.equal(valeurCourante({ fait_le: "x", fait_par: "Yann" }), "Yann");
+assert.equal(valeurCourante(undefined), null, "pas de ligne du tout : rien");
+
+// ---------- D-048 : coché SANS prénom (coches d'avant D-048, ou posées par le bot) ----------
+// Une ligne fait_le posé + fait_par null n'est PAS « rien » : la case doit rester cochée
+// (« ✓ » plein, jamais vide), donc valeurCourante renvoie le marqueur dédié SANS_PRENOM.
+assert.equal(valeurCourante({ fait_le: "2026-09-25T00:00:00Z", fait_par: null }), SANS_PRENOM,
+  "coché sans fait_par (bot, ancienne coche) : SANS_PRENOM, jamais null (case vide = mensonge)");
+assert.notEqual(SANS_PRENOM, null, "SANS_PRENOM est distinct de null (rien) par construction");
+
+// valeurAffichee : traduit SANS_PRENOM en `true` pour caseCycle (socle agnostique du Symbol du
+// Budget) ; toute autre valeur (null, un prénom) passe inchangée.
+assert.equal(valeurAffichee(SANS_PRENOM), true);
+assert.equal(valeurAffichee(null), null);
+assert.equal(valeurAffichee("Yann"), "Yann");
+
+// prochaineValeur : depuis SANS_PRENOM, avance vers le PREMIER membre du cycle — comme depuis
+// null, jamais un indexOf(Symbol) qui retomberait sur la première valeur par défaut ET
+// laisserait faussement croire qu'on est reparti de zéro (le cas se confond avec `null` par
+// hasard dans l'implémentation naïve de `suivante`, mais la sémantique voulue est la même ici :
+// un cran depuis un état déjà validé va vers le premier membre, jamais vers « rien »).
+const valeursDeuxMembres = [null, "Yann", "Claudia"];
+assert.equal(prochaineValeur(valeursDeuxMembres, SANS_PRENOM), "Yann", "SANS_PRENOM -> premier membre");
+assert.equal(prochaineValeur(valeursDeuxMembres, null), "Yann", "null -> premier membre (inchangé)");
+assert.equal(prochaineValeur(valeursDeuxMembres, "Yann"), "Claudia", "cycle normal inchangé");
+assert.equal(prochaineValeur(valeursDeuxMembres, "Claudia"), null, "dernier membre -> rien");
+
+// champsCycle : depuis SANS_PRENOM (courant), avancer vers un membre GARDE fait_le existant
+// (la ligne était déjà cochée, pas de nouvelle date) — même règle que depuis un prénom.
+const dejaCoche = "2026-09-25T00:00:00Z";
+assert.deepEqual(champsCycle(SANS_PRENOM, "Yann", dejaCoche), { fait_le: dejaCoche, fait_par: "Yann" },
+  "avancer depuis SANS_PRENOM : date gardée, jamais régénérée");
+
+// preparerBascule : une ligne fait_le posé sans fait_par (D-048) avance vers le premier membre
+// au tap, jamais vers « rien » (ce ne serait pas cohérent avec une case déjà cochée) ; le
+// mouvement lié éventuel n'est PAS considéré comme une « première coche » (son montant ne se
+// refige pas, il est déjà figé depuis la coche d'origine).
+{
+  const etat = {
+    annee: 2026, mois: 9, prenom: "Yann", membres: [{ prenom: "Yann" }, { prenom: "Claudia" }],
+    charges: [{ id: 1, libelle: "Électricité" }],
+    recurrents: [{ id: 9, mode: "charge", charge_id: 1, actif: true }],
+    mouvements: [{ id: 40, recurrent_id: 9, montant_centimes: -9999, fait_le: dejaCoche, fait_par: null }],
+    lignes: { 1: { montant_centimes: -9000, regle: null, fait_le: dejaCoche, fait_par: null } },
+  };
+  const prep = preparerBascule(etat, 1);
+  assert.equal(prep.message, "Validé pour Yann.");
+  assert.deepEqual(prep.champsLigne, { fait_le: dejaCoche, fait_par: "Yann" });
+  assert.equal(prep.mouvementLie.champs.montant_centimes, undefined,
+    "pas de refigeage du montant : ce n'était pas une première coche (fait_le déjà posé)");
+}
 
 // Sans mouvement lié (pas de récurrent en mode charge pour cette charge) : rien à écrire côté mouvements.
 const etatSansLien = { charges: [{ id: 1, libelle: "Alimentation" }], recurrents: [], mouvements: [] };
-assert.equal(champsMouvementLie(etatSansLien, 1, { fait_le: "2026-09-29T10:00:00Z", fait_par: "Yann" }), null);
+assert.equal(champsMouvementLie(etatSansLien, 1, { fait_le: "2026-09-29T10:00:00Z", fait_par: "Yann" }, true), null);
 
-// Charge envoyée vers un compte (mode "charge") : coche => mouvement lié figé au montant
-// théorique de calc.js::montantTheorique (règle 5 du brief). Décoche => fait_le/fait_par à null.
+// Charge envoyée vers un compte (mode "charge") : PREMIÈRE coche => mouvement lié figé au
+// montant théorique de calc.js::montantTheorique (règle 5 du brief). Décoche => null.
 const etatAvecLien = {
   charges: [{ id: 1, libelle: "Crédit" }],
   recurrents: [{ id: 9, mode: "charge", charge_id: 1, actif: true }],
   mouvements: [{ id: 40, recurrent_id: 9, montant_centimes: -100000, fait_le: null, fait_par: null }],
   lignes: { 1: { montant_centimes: -125000 } },
 };
-const lieCoche = champsMouvementLie(etatAvecLien, 1, { fait_le: "2026-09-29T10:00:00Z", fait_par: "Yann" });
+const lieCoche = champsMouvementLie(etatAvecLien, 1, { fait_le: "2026-09-29T10:00:00Z", fait_par: "Yann" }, true);
 assert.deepEqual(lieCoche, { id: 40, champs: { fait_le: "2026-09-29T10:00:00Z", fait_par: "Yann", montant_centimes: -125000 } },
   "le mouvement lié se fige au montant théorique de la charge, pas à son ancien montant");
-const lieDecoche = champsMouvementLie(etatAvecLien, 1, { fait_le: null, fait_par: null });
+// Changement de personne (pas la première coche) : montant PAS recalculé, gardé tel quel.
+const lieChangePersonne = champsMouvementLie(etatAvecLien, 1, { fait_le: "2026-09-29T10:00:00Z", fait_par: "Claudia" }, false);
+assert.deepEqual(lieChangePersonne, { id: 40, champs: { fait_le: "2026-09-29T10:00:00Z", fait_par: "Claudia" } },
+  "changement de personne : pas de montant_centimes dans les champs, jamais recalculé");
+const lieDecoche = champsMouvementLie(etatAvecLien, 1, { fait_le: null, fait_par: null }, false);
 assert.deepEqual(lieDecoche, { id: 40, champs: { fait_le: null, fait_par: null } });
 
 // Récurrent en mode charge mais SANS mouvement créé ce mois-ci : rien à écrire (pas d'erreur).
-assert.equal(champsMouvementLie({ ...etatAvecLien, mouvements: [] }, 1, { fait_le: "x", fait_par: "Yann" }), null);
+assert.equal(champsMouvementLie({ ...etatAvecLien, mouvements: [] }, 1, { fait_le: "x", fait_par: "Yann" }, true), null);
 
 // preparerBascule refuse sans montant saisi (règle 3 du brief) — rien à muter, rien à écrire.
-const etatSansMontant = { charges: [{ id: 1, libelle: "Assurance" }], lignes: {}, recurrents: [], mouvements: [], prenom: "Yann" };
+const etatSansMontant = { charges: [{ id: 1, libelle: "Assurance" }], lignes: {}, recurrents: [], mouvements: [], membres: [{ prenom: "Yann" }, { prenom: "Claudia" }], prenom: "Yann" };
 const refus = preparerBascule(etatSansMontant, 1);
 assert.equal(refus.ok, false);
 assert.equal(refus.message, "Saisis d'abord le montant de Assurance.");
 
-// Cycle complet préparer → appliquer (optimiste) → écrire, avec un mouvement lié.
+// Cycle complet préparer → appliquer (optimiste) → écrire, avec un mouvement lié : rien → Yann
+// → Claudia → rien. Le montant du mouvement lié ne se fige qu'à la PREMIÈRE coche.
 {
   const appels = [];
   const api = {
@@ -365,7 +428,7 @@ assert.equal(refus.message, "Saisis d'abord le montant de Assurance.");
     majMouvement: async (id, champs) => { appels.push(["majMouvement", id, champs]); },
   };
   const etat = {
-    annee: 2026, mois: 9, prenom: "Yann",
+    annee: 2026, mois: 9, prenom: "Yann", membres: [{ prenom: "Yann" }, { prenom: "Claudia" }],
     charges: [{ id: 1, libelle: "Crédit" }],
     recurrents: [{ id: 9, mode: "charge", charge_id: 1, actif: true }],
     mouvements: [{ id: 40, recurrent_id: 9, montant_centimes: -100000, fait_le: null, fait_par: null }],
@@ -373,22 +436,33 @@ assert.equal(refus.message, "Saisis d'abord le montant de Assurance.");
   };
   const prep = preparerBascule(etat, 1);
   assert.equal(prep.ok, true);
-  assert.equal(prep.message, "Validé.");
+  assert.equal(prep.message, "Validé pour Yann.");
   appliquerBascule(etat, 1, prep);
   assert.ok(etat.lignes[1].fait_le, "mutation optimiste immédiate, avant l'écriture réseau");
   assert.equal(etat.lignes[1].fait_par, "Yann");
   assert.equal(etat.mouvements[0].fait_le, etat.lignes[1].fait_le, "mouvement lié basculé pareil");
-  assert.equal(etat.mouvements[0].montant_centimes, -125000, "figé au montant théorique de la charge");
+  assert.equal(etat.mouvements[0].montant_centimes, -125000, "figé au montant théorique de la charge (première coche)");
   await ecrireBascule(api, etat, 1, prep);
   assert.deepEqual(appels, [
     ["majLigne", 1, prep.champsLigne],
     ["majMouvement", 40, prep.mouvementLie.champs],
   ]);
 
-  // Décoche : mouvement lié remis à fait_le/fait_par null.
+  // Changement de personne : Yann → Claudia. fait_le gardé, montant PAS recalculé même si le
+  // calcul a bougé entre-temps (on force une valeur théorique différente pour le vérifier).
+  const faitLeAvant = etat.lignes[1].fait_le;
+  etat.lignes[1].montant_centimes = -999999; // le calcul aurait changé le montant théorique
   const prep2 = preparerBascule(etat, 1);
-  assert.equal(prep2.message, "Validation annulée.");
+  assert.equal(prep2.message, "Validé pour Claudia.");
   appliquerBascule(etat, 1, prep2);
+  assert.equal(etat.lignes[1].fait_le, faitLeAvant, "date gardée au changement de personne");
+  assert.equal(etat.lignes[1].fait_par, "Claudia");
+  assert.equal(etat.mouvements[0].montant_centimes, -125000, "montant du mouvement lié jamais recalculé au changement de personne");
+
+  // Retour à rien : mouvement lié remis à fait_le/fait_par null.
+  const prep3 = preparerBascule(etat, 1);
+  assert.equal(prep3.message, "Validation annulée.");
+  appliquerBascule(etat, 1, prep3);
   assert.equal(etat.lignes[1].fait_le, null);
   assert.equal(etat.mouvements[0].fait_le, null);
 }
@@ -396,7 +470,7 @@ assert.equal(refus.message, "Saisis d'abord le montant de Assurance.");
 // Rollback : preparerBascule + appliquerBascule, puis annulerBascule restaure exactement l'avant.
 {
   const etat = {
-    annee: 2026, mois: 9, prenom: "Claudia",
+    annee: 2026, mois: 9, prenom: "Claudia", membres: [{ prenom: "Yann" }, { prenom: "Claudia" }],
     charges: [{ id: 1, libelle: "Électricité" }],
     recurrents: [],
     mouvements: [],
@@ -408,6 +482,170 @@ assert.equal(refus.message, "Saisis d'abord le montant de Assurance.");
   assert.notEqual(etat.lignes[1].fait_le, null, "muté");
   annulerBascule(etat, 1, restaure, prep.mouvementLie);
   assert.deepEqual(etat.lignes[1], avantLigne, "rollback exact après échec réseau simulé");
+}
+
+// ---------- Regroupement des virements par trajet (D-048 §3, groupes-virements.js) ----------
+{
+  const etat = {
+    membres: [{ prenom: "Yann" }, { prenom: "Claudia" }],
+    comptes: [
+      { id: 1, nom: "Commun", commun: true },
+      { id: 2, nom: "Caisse d'Épargne" },
+      { id: 3, nom: "Commun épargne", commun: true },
+    ],
+    charges: [
+      { id: 1, libelle: "Crédit immo", categorie: "Logement", regle: "egales", actif: true, ponctuel: false },
+      { id: 2, libelle: "Loyer", categorie: "Logement", regle: "egales", actif: true, ponctuel: false }, // reste sur le commun
+    ],
+    recurrents: [
+      { id: 9, mode: "charge", charge_id: 1, actif: true, compte_de: 1, compte_vers: 2 },
+    ],
+    lignes: {
+      1: { montant_centimes: -125000, fait_le: null, fait_par: null },
+      2: { montant_centimes: -80000, fait_le: null, fait_par: null }, // pas de récurrent "charge" : reste sur le commun
+    },
+    mouvements: [
+      // Virement personnel au commun de chacun (compte_de null + qui, comme trajet() de ui-mouvements.js).
+      { id: 100, recurrent_id: null, titre: "Virement Yann", compte_de: null, qui: "Yann", compte_vers: 1, montant_centimes: -30000, fait_le: null, fait_par: null },
+      { id: 101, recurrent_id: null, titre: "Virement Claudia", compte_de: null, qui: "Claudia", compte_vers: 3, montant_centimes: -20000, fait_le: null, fait_par: null },
+      // Mouvement du récurrent en mode "charge" : ne doit PAS apparaître seul, déjà représenté par la ligne 1.
+      { id: 102, recurrent_id: 9, titre: "Crédit immo → Caisse d'Épargne", compte_de: 1, compte_vers: 2, montant_centimes: -125000, fait_le: null, fait_par: null },
+    ],
+  };
+  const groupes = construireGroupes(etat);
+
+  // La charge qui reste sur le commun (id 2, pas de compteDeCharge) ne forme aucun groupe.
+  assert.ok(!groupes.some((g) => g.lignes.some((l) => l.type === "ligne" && l.id === 2)),
+    "une charge sans destination autre que le commun n'entre dans aucun groupe (rien à virer)");
+
+  // Le mouvement du récurrent "charge" (id 102) ne compte pas en plus de la ligne de charge liée
+  // (id 1) : un seul groupe Commun → Caisse d'Épargne, une seule ligne dedans (pas de doublon).
+  const gCredit = groupes.find((g) => g.vers === 2);
+  assert.ok(gCredit, "groupe Commun → Caisse d'Épargne trouvé");
+  assert.equal(gCredit.lignes.length, 1, "le mouvement lié au récurrent charge ne double pas la ligne de charge");
+  assert.equal(gCredit.lignes[0].type, "ligne");
+  assert.equal(gCredit.total, -125000);
+
+  // Deux virements personnels vers deux comptes communs différents : deux groupes distincts.
+  const gYann = groupes.find((g) => g.vers === 1);
+  const gClaudia = groupes.find((g) => g.vers === 3);
+  assert.ok(gYann && gClaudia, "un groupe par trajet, même destination commune mais comptes différents");
+  assert.equal(gYann.lignes[0].type, "mouvement");
+  assert.equal(gYann.total, -30000);
+
+  // Aucune ligne n'est encore validée : aucun groupe n'est "fait".
+  assert.ok(groupes.every((g) => !g.fait));
+
+  // ---------- cycle de la case groupe (rien → Yann → Claudia → rien) ----------
+  const p1 = preparerBasculeGroupe(gCredit, etat.membres);
+  assert.equal(p1.valeurCible, "Yann", "cycle du groupe : rien -> premier membre");
+  assert.equal(p1.cibles.length, 1);
+  assert.deepEqual(p1.cibles[0], { type: "ligne", id: 1 });
+
+  // Après validation de la ligne 1 par Yann, le groupe est "fait" : un nouveau tap avance vers
+  // Claudia (cycle du GROUPE, pas de la ligne individuelle) — toutes les lignes suivent.
+  etat.lignes[1] = { ...etat.lignes[1], fait_le: "2026-09-29T10:00:00Z", fait_par: "Yann" };
+  const groupes2 = construireGroupes(etat);
+  const gCredit2 = groupes2.find((g) => g.vers === 2);
+  assert.equal(gCredit2.fait, true, "toutes les lignes du groupe sont validées : le groupe est fait");
+  assert.equal(gCredit2.prenom, "Yann");
+  const p2 = preparerBasculeGroupe(gCredit2, etat.membres);
+  assert.equal(p2.valeurCible, "Claudia", "groupe déjà fait par Yann : le cycle avance vers Claudia");
+  assert.equal(p2.cibles.length, 1, "groupe fait : TOUTES ses lignes sont ciblées, pas seulement les non-faites");
+
+  // Groupe à deux lignes, une seule validée : un nouveau tap ne cible QUE la ligne non faite —
+  // il ne vole pas la validation déjà posée par quelqu'un sur l'autre ligne.
+  const etatMixte = {
+    ...etat,
+    mouvements: [
+      { id: 200, recurrent_id: null, titre: "Virement A", compte_de: null, qui: "Yann", compte_vers: 5, montant_centimes: -10000, fait_le: "2026-09-29T10:00:00Z", fait_par: "Claudia" },
+      { id: 201, recurrent_id: null, titre: "Virement B", compte_de: null, qui: "Yann", compte_vers: 5, montant_centimes: -20000, fait_le: null, fait_par: null },
+    ],
+    comptes: [...etat.comptes, { id: 5, nom: "Livret" }],
+  };
+  const groupesMixte = construireGroupes(etatMixte);
+  const gMixte = groupesMixte.find((g) => g.vers === 5);
+  assert.equal(gMixte.fait, false, "une ligne non faite suffit à garder le groupe non fait");
+  assert.equal(lignesAFaire(gMixte).length, 1);
+  assert.equal(lignesFaites(gMixte).length, 1);
+  const pMixte = preparerBasculeGroupe(gMixte, etat.membres);
+  assert.equal(pMixte.cibles.length, 1, "seule la ligne NON faite est ciblée, jamais celle déjà validée par Claudia");
+  assert.deepEqual(pMixte.cibles[0], { type: "mouvement", id: 201 });
+
+  // « Même personne, même date » (règle 3 du brief) : une date explicite (dateCible), pas un
+  // `new Date()` par ligne qui divergerait de quelques millisecondes entre deux lignes ciblées.
+  const dateGroupe = "2026-09-30T08:00:00.000Z";
+  const etatDeuxLignes = {
+    membres: [{ prenom: "Yann" }, { prenom: "Claudia" }],
+    comptes: [{ id: 1, nom: "Commun", commun: true }, { id: 6, nom: "Livret 2" }],
+    charges: [
+      { id: 10, libelle: "Charge A", categorie: "Autre", regle: "egales", actif: true, ponctuel: false },
+      { id: 11, libelle: "Charge B", categorie: "Autre", regle: "egales", actif: true, ponctuel: false },
+    ],
+    recurrents: [
+      { id: 90, mode: "charge", charge_id: 10, actif: true, compte_de: 1, compte_vers: 6 },
+      { id: 91, mode: "charge", charge_id: 11, actif: true, compte_de: 1, compte_vers: 6 },
+    ],
+    lignes: {
+      10: { montant_centimes: -5000, fait_le: null, fait_par: null },
+      11: { montant_centimes: -7000, fait_le: null, fait_par: null },
+    },
+    mouvements: [],
+  };
+  const groupesDeuxLignes = construireGroupes(etatDeuxLignes);
+  const gDeux = groupesDeuxLignes.find((g) => g.vers === 6);
+  assert.equal(gDeux.lignes.length, 2);
+  const prepA = preparerBascule(etatDeuxLignes, 10, "Yann", dateGroupe);
+  const prepB = preparerBascule(etatDeuxLignes, 11, "Yann", dateGroupe);
+  assert.equal(prepA.champsLigne.fait_le, dateGroupe, "date imposée, pas régénérée");
+  assert.equal(prepB.champsLigne.fait_le, dateGroupe, "même date exacte sur la seconde ligne du groupe");
+  assert.equal(prepA.champsLigne.fait_le, prepB.champsLigne.fait_le, "les deux lignes du groupe partagent EXACTEMENT la même date");
+}
+
+// ---------- D-048 : groupe fait mais SANS prénom commun (coches d'avant D-048, ou mélange) ----------
+{
+  const etatGroupeSansPrenom = {
+    membres: [{ prenom: "Yann" }, { prenom: "Claudia" }],
+    comptes: [{ id: 1, nom: "Commun", commun: true }, { id: 7, nom: "Livret 3" }],
+    charges: [
+      { id: 20, libelle: "Charge X", categorie: "Autre", regle: "egales", actif: true, ponctuel: false },
+      { id: 21, libelle: "Charge Y", categorie: "Autre", regle: "egales", actif: true, ponctuel: false },
+    ],
+    recurrents: [
+      { id: 92, mode: "charge", charge_id: 20, actif: true, compte_de: 1, compte_vers: 7 },
+      { id: 93, mode: "charge", charge_id: 21, actif: true, compte_de: 1, compte_vers: 7 },
+    ],
+    // Les deux lignes sont cochées (fait_le posé), mais AUCUNE n'a de prénom (coches d'avant
+    // D-048, ou posées par le bot) : le groupe est fait, sans prénom commun.
+    lignes: {
+      20: { montant_centimes: -3000, fait_le: "2026-09-20T00:00:00Z", fait_par: null },
+      21: { montant_centimes: -4000, fait_le: "2026-09-21T00:00:00Z", fait_par: null },
+    },
+    mouvements: [],
+  };
+  const groupes = construireGroupes(etatGroupeSansPrenom);
+  const g = groupes.find((x) => x.vers === 7);
+  assert.equal(g.fait, true, "toutes les lignes sont cochées : le groupe est fait");
+  assert.equal(g.prenom, SANS_PRENOM, "aucun prénom commun (aucune ligne n'en a) : SANS_PRENOM, jamais null ni un prénom au hasard");
+
+  // Un tap depuis cet état avance vers le PREMIER membre (comme depuis null), jamais vers
+  // « rien » — la case affiche déjà « ✓ », un tap ne peut pas la vider directement.
+  const prep = preparerBasculeGroupe(g, etatGroupeSansPrenom.membres);
+  assert.equal(prep.valeurCible, "Yann", "groupe fait sans prénom commun : le cycle avance vers le premier membre");
+  assert.equal(prep.cibles.length, 2, "groupe fait : toutes ses lignes sont ciblées");
+
+  // Mélange : une ligne avec prénom, une autre sans — pas de prénom COMMUN non plus.
+  const etatMelange = {
+    ...etatGroupeSansPrenom,
+    lignes: {
+      20: { montant_centimes: -3000, fait_le: "2026-09-20T00:00:00Z", fait_par: "Yann" },
+      21: { montant_centimes: -4000, fait_le: "2026-09-21T00:00:00Z", fait_par: null },
+    },
+  };
+  const groupesMelange = construireGroupes(etatMelange);
+  const gMelange = groupesMelange.find((x) => x.vers === 7);
+  assert.equal(gMelange.fait, true);
+  assert.equal(gMelange.prenom, SANS_PRENOM, "prénoms différents entre les lignes (Yann vs sans) : pas de prénom commun");
 }
 
 console.log("test_calc OK");

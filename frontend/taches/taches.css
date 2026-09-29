@@ -161,10 +161,7 @@
 .case-tache.cycle::before {
   content:""; position:absolute; inset:-15px -10px; /* 48px de haut x 38 de large : cible pleine, invisible */
 }
-.case-cycle-vide { background:#fff; border-color:var(--bordure-case); }
-.case-cycle-p1 { background:var(--claudia); border-color:var(--claudia); color:#fff; }
-.case-cycle-p2 { background:var(--bleu); border-color:var(--bleu); color:#fff; }
-.case-cycle-deux { background:var(--a-deux); border-color:var(--a-deux); color:#fff; }
+/* Couleurs .case-cycle-vide/p1/p2/deux : socle.css (partagées avec Courses et le Budget, D-048). */
 
 /* ---------- barre « Fait · N » repliable ---------- */
 .barre-fait-bouton {

@@ -8,12 +8,13 @@
 import { euros, versCentimes, regleEffective } from "./calc.js";
 import { $, $$, txt, toast } from "../socle/ui-base.js";
 import { enEuros } from "../socle/blocs-form.js";
-import { caseACocher, creerFileEcritures } from "../socle/blocs.js";
+import { caseCycle, creerFileEcritures, brancherCoches } from "../socle/blocs.js";
+import { brancherCycles } from "../socle/blocs-cycle.js";
 import { REGLES_COURANTES, libelleRegle, detailRegle } from "./repartition.js";
 import { montantHabituel } from "./habituel.js";
 import { creerFeuilleCharge } from "./ui-charge-feuille.js";
 import { compteDeCharge, nomDuCompte } from "./compte-charge.js";
-import { preparerBascule, appliquerBascule, annulerBascule, ecrireBascule } from "./coche-ligne.js";
+import { preparerBascule, appliquerBascule, annulerBascule, ecrireBascule, valeurCourante, valeurAffichee } from "./coche-ligne.js";
 
 /** jj/mm d'une date ISO — même calcul que jourMois() de ui-mouvements.js (pas d'import croisé :
  *  deux fichiers pairs, chacun garde sa petite fonction plutôt qu'un troisième module pour trois
@@ -122,13 +123,20 @@ export function creerUiMoisCharges(api, etat, cb) {
     const fait = ligne(c.id)?.fait_le;
     // Sans montant, la case reste affichée (elle dit qu'une validation existe pour cette
     // charge) mais un tap refuse et le dit — cf. basculerLigneCharge (règle 3 du brief).
-    return `<div class="mois-charge${manque ? " a-faire" : ""}${differe ? " differe" : ""}${fait ? " fait" : ""}" data-charge="${c.id}">
-      ${caseACocher({ id: c.id, cochee: !!fait, titre: c.libelle, attr: "valider" })}
-      <button type="button" class="mc-libelle" data-reglages="${c.id}">
+    // Toute la ligne ouvre les réglages (data-id, motif brancherCoches du socle, D-024) : un
+    // petit bouton étroit autour du seul libellé laissait une bande morte à côté de la case
+    // (zone de tap élargie de `.case::before`, inset -11px) où le tap ne faisait plus rien —
+    // bug remonté par Yann après D-046. La case et le champ montant coupent la remontée du
+    // clic vers la ligne (stopPropagation), comme `.mvt[data-cocher]` ailleurs.
+    const valeur = valeurCourante(ligne(c.id));
+    const [p1] = etat.membres.map((mb) => mb.prenom);
+    return `<div class="mois-charge${manque ? " a-faire" : ""}${differe ? " differe" : ""}${fait ? " fait" : ""} cliquable" data-id="${c.id}">
+      ${caseCycle({ id: c.id, valeur: valeurAffichee(valeur), p1, titre: c.libelle })}
+      <div class="mc-libelle">
         <span class="mc-nom">${txt(c.libelle)}</span>
         <span class="mc-infos">${txt(infos)}</span>
         ${fait ? `<span class="mc-fait">✓ ${[ligne(c.id).fait_par, jourMoisCourt(fait)].filter(Boolean).join(" · ")}</span>` : ""}
-      </button>
+      </div>
       <input class="champ champ-montant${m > 0 ? " pos" : ""}${manque ? " oubli" : ""}" inputmode="decimal"
              aria-label="Montant de ce mois : ${txt(c.libelle)}"
              data-montant="${c.id}" value="${saisie(c.id) ? enEuros(m) : ""}"
@@ -169,7 +177,12 @@ export function creerUiMoisCharges(api, etat, cb) {
   }
 
   function brancher() {
+    brancherCycles($("#mois-categories"), basculerValidation);
+    brancherCoches($("#mois-categories"), null, ouvrirReglages);
     for (const el of $$("#mois-categories [data-montant]")) {
+      // Le champ montant reste dans la ligne (cliquable) : un tap dedans ne doit pas ouvrir
+      // les réglages par-dessus le clavier — coupe la remontée du clic vers `.mois-charge`.
+      el.addEventListener("click", (e) => e.stopPropagation());
       el.addEventListener("change", async () => {
         const id = Number(el.dataset.montant);
         if (!el.value.trim()) {
@@ -184,14 +197,6 @@ export function creerUiMoisCharges(api, etat, cb) {
         try { await ecrireLigne(id, { montant_centimes: versCentimes(el.value) }); }
         catch (e) { cb.echec(e); }
       });
-    }
-    for (const b of $$("#mois-categories [data-reglages]")) {
-      b.addEventListener("click", () => ouvrirReglages(Number(b.dataset.reglages)));
-    }
-    for (const el of $$("#mois-categories [data-valider]")) {
-      const agir = (e) => { e.stopPropagation(); basculerValidation(Number(el.dataset.valider)); };
-      el.addEventListener("click", agir);
-      el.addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); agir(e); } });
     }
   }
 

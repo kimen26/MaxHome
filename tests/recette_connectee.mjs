@@ -99,18 +99,31 @@ try {
   // Détail d'un mouvement + coche, si au moins un mouvement existe.
   const mouvements = await page.$$("#mvts-a-faire .mvt");
   if (mouvements.length) {
+    const idMouvement = await mouvements[0].getAttribute("data-id");
     await mouvements[0].click();
     await page.waitForSelector("#feuille:not([hidden]) .detail");
     await feuilleStable(page);
     console.log("Détail mouvement :", (await page.textContent("#feuille .detail-montant .grand")).trim());
     await page.screenshot({ path: path.join(SORTIE, "detail-mobile.png"), fullPage: true });
     await page.click("#feuille [data-basculer]");
-    await page.waitForFunction(() => document.querySelectorAll("#mvts-faits .mvt").length > 0, null, { timeout: 10000 });
+    const selecteurMouvement = `#mvts-faits .mvt[data-id="${idMouvement}"]`;
+    await page.waitForSelector(selecteurMouvement, { timeout: 10000 });
     console.log("Mouvement coché OK");
-    await page.waitForSelector("#mvts-faits .mvt .case.cochee");
-    await page.locator("#mvts-faits .mvt .case.cochee").first().click();
-    await page.waitForFunction(() => document.querySelectorAll("#mvts-faits .mvt").length === 0, null, { timeout: 10000 });
-    console.log("Coche annulée OK");
+    // Cycle de validation (D-048) : la case n'est plus un binaire fait/pas fait mais rien →
+    // un membre → l'autre → rien — autant de taps que de membres du foyer pour revenir à rien
+    // depuis N'IMPORTE QUELLE position de départ dans le cycle (fait_par vaut ici le prénom
+    // connecté, pas forcément le premier membre du cycle) : on cible CE mouvement précis par
+    // son id (d'autres mouvements peuvent déjà être « faits » en base, indépendamment de ce
+    // test), on tape jusqu'à ce qu'il quitte « faits », avec une limite de sécurité.
+    const nbMembres = (await page.evaluate(() => document.querySelectorAll("#salaires [data-revenu]").length)) || 2;
+    let taps = 0;
+    while (await page.locator(selecteurMouvement).count() > 0 && taps <= nbMembres) {
+      await page.locator(`${selecteurMouvement} [data-cycle]`).click();
+      await page.waitForTimeout(300); // écriture optimiste + réseau, comme les autres bascules du test
+      taps++;
+    }
+    await page.waitForSelector(selecteurMouvement, { state: "detached", timeout: 10000 });
+    console.log(`Cycle de validation ramené à rien OK (${taps} tap${taps > 1 ? "s" : ""})`);
   } else {
     console.log("Aucun mouvement à faire ce mois — coche non testée");
   }
@@ -123,43 +136,47 @@ try {
   console.log("Catégories :", sections.join(" | "));
   if (!sections.map((s) => s.toUpperCase()).includes("LOGEMENT")) throw new Error("catégorie Logement absente");
 
-  // Validation d'une ligne de charge (D-046) : une charge avec un montant saisi ce mois-ci
-  // (jamais « a-faire », règle 3 du brief) ; on bascule deux fois pour revenir exactement à
-  // l'état de départ (fait ou pas fait), quel qu'il soit en base réelle.
-  const ligneAvecMontant = "#mois-categories .mois-charge:not(.a-faire) [data-valider]";
+  // Validation d'une ligne de charge (D-046/D-048) : une charge avec un montant saisi ce
+  // mois-ci (jamais « a-faire », règle 3 du brief) ; la case est un CYCLE (rien → un membre →
+  // l'autre → rien, D-048) — on avance d'autant de crans que de membres du foyer pour revenir
+  // exactement à l'état de départ (même prénom validateur, ou rien), quel qu'il soit en base.
+  const ligneAvecMontant = "#mois-categories .mois-charge:not(.a-faire) [data-cycle]";
   if (await page.$(ligneAvecMontant)) {
-    const idCharge = await page.getAttribute(ligneAvecMontant, "data-valider");
-    const selecteurLigne = `#mois-categories .mois-charge[data-charge="${idCharge}"]`;
+    const idCharge = await page.getAttribute(ligneAvecMontant, "data-cycle");
+    const selecteurLigne = `#mois-categories .mois-charge[data-id="${idCharge}"]`;
     const etaitFaite = await page.locator(selecteurLigne).evaluate((el) => el.classList.contains("fait"));
+    const nbMembres = await page.evaluate(() => document.querySelectorAll("#salaires [data-revenu]").length) || 2;
 
     // api.majLigne fait un upsert (POST + Prefer: resolution=merge-duplicates), pas un update
     // (PATCH) : contrairement aux mouvements/tâches plus haut, la méthode HTTP est POST ici.
-    const attendreEcriture = (attendreNull) => page.waitForResponse((r) => ["POST", "PATCH"].includes(r.request().method())
-      && r.url().includes("/rest/v1/lignes")
-      && (r.request().postData() ?? "").includes(attendreNull ? '"fait_le":null' : '"fait_le"')
-      && (attendreNull || !(r.request().postData() ?? "").includes('"fait_le":null')), { timeout: 10000 });
-
-    const basculerEtVerifier = async (versFait) => {
-      const attente = attendreEcriture(!versFait);
-      await page.click(`${selecteurLigne} [data-valider]`);
+    const unTap = async () => {
+      // fait_le devient non-null SAUF si ce tap précis referme le cycle sur "rien" — imprévisible
+      // à l'avance sans connaître le prénom courant ; on attend simplement UNE écriture, de
+      // n'importe quel sens, avant de continuer (l'assertion forte porte sur l'état FINAL).
+      const attente = page.waitForResponse((r) => ["POST", "PATCH"].includes(r.request().method())
+        && r.url().includes("/rest/v1/lignes"), { timeout: 10000 });
+      await page.click(`${selecteurLigne} [data-cycle]`);
       const reponse = await Promise.race([attente, page.waitForTimeout(4000).then(() => null)]);
       if (!reponse) {
         const toastTexte = await page.textContent("#toast").catch(() => "");
         throw new Error(`pas d'écriture reçue (toast : « ${toastTexte}» )`);
       }
       if (reponse.status() >= 300) throw new Error("écriture de la validation refusée par la base");
-      await page.waitForSelector(versFait ? `${selecteurLigne}.fait` : `${selecteurLigne}:not(.fait)`, { timeout: 10000 });
     };
 
-    await basculerEtVerifier(!etaitFaite);
-    if (!etaitFaite) {
-      const texteValide = (await page.textContent(`${selecteurLigne} .mc-fait`)).trim();
-      if (!/^✓ .*\d{2}\/\d{2}$/.test(texteValide)) throw new Error(`texte de validation illisible : « ${texteValide} »`);
-      console.log("Ligne de charge validée :", texteValide);
-      await page.screenshot({ path: path.join(SORTIE, "ligne-charge-validee-mobile.png") });
-    }
-    await basculerEtVerifier(etaitFaite);
-    console.log(`Validation de ligne testée (état de départ : ${etaitFaite ? "faite" : "à faire"}) — remis comme avant`);
+    // Premier tap : avance d'un cran (rien -> premier membre, ou membre courant -> le suivant).
+    await unTap();
+    await page.waitForSelector(`${selecteurLigne}.fait`, { timeout: 10000 });
+    const texteValide = (await page.textContent(`${selecteurLigne} .mc-fait`)).trim();
+    if (!/^✓ .*\d{2}\/\d{2}$/.test(texteValide)) throw new Error(`texte de validation illisible : « ${texteValide} »`);
+    console.log("Ligne de charge — cycle avancé :", texteValide);
+    await page.screenshot({ path: path.join(SORTIE, "ligne-charge-validee-mobile.png") });
+    // Cycle de longueur nbMembres+1 (rien, puis chaque membre) : nbMembres taps de plus
+    // referment exactement la boucle, quel que soit l'état de départ.
+    for (let i = 1; i < nbMembres; i++) await unTap();
+    await unTap();
+    await page.waitForSelector(etaitFaite ? `${selecteurLigne}.fait` : `${selecteurLigne}:not(.fait)`, { timeout: 10000 });
+    console.log(`Cycle de validation de ligne testé (état de départ : ${etaitFaite ? "faite" : "à faire"}) — remis comme avant`);
   } else {
     console.log("Aucune ligne de charge avec montant ce mois-ci — validation non testée");
   }

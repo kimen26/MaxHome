@@ -662,3 +662,24 @@ Arbitrages :
    seule case pour mouvements, charges et « Ce mois seulement ».
 Hors périmètre : le bot ne sait pas valider une ligne de charge (seulement les mouvements).
 Dev et tests par un sous-agent Sonnet sur spec, vérifiés ici (captures 360/320, portes).
+
+## D-048 — Valider pour l'un ou l'autre, virements groupés par trajet, IBAN complet (2026-09-30)
+
+Contexte : Yann, après D-046 : le menu d'une ligne a disparu ; « si je clique 2 fois ça met
+l'action pour l'autre, comme les tâches » ; « regroupe ce qu'il y a à faire par compte vers où
+on déplace » ; « pas de RIB dans les comptes, c'est volontaire ? ».
+1. Menu disparu, cause racine : la feuille n'était branchée que sur le bouton du libellé ; la
+   zone de tap élargie de la case (::before -11px) laissait une bande morte devant. Toute la
+   ligne (hors case et champ montant) ouvre désormais la feuille.
+2. Case cycle (socle `caseCycle`, couleurs partagées avec Tâches) : rien → moi → l'autre →
+   rien, initiale dans la case + « ✓ Claudia · 30/09 » dessous. fait_le posé à la première
+   coche, montant d'un mouvement figé une seule fois. Une coche ancienne sans prénom
+   (fait_le sans fait_par) s'affiche « ✓ » vert, jamais vide ; le tap suivant va à « moi ».
+3. « Virements à faire » : un groupe par trajet (compte_de → compte_vers), total, lignes
+   repliées, une case qui coche/décoche tout le groupe ; les lignes restent cochables une à
+   une. Les charges prélevées sur le commun n'y sont pas (rien à virer).
+4. `comptes.iban` / `bic` (migration 022) : IBAN complet validé (forme + mod 97) à la saisie,
+   affiché groupé par 4, « Copier l'IBAN ». `iban_masque` gardé, recalculé.
+Données : compte « École Max » créé avec son IBAN, charge École à 910 €/mois « Toujours le
+même » et envoyée vers ce compte (octobre ; septembre inchangé).
+Dev et tests par sous-agents Sonnet sur spec ; vérification et livraison ici.

@@ -71,6 +71,23 @@
 .case.prioritaire { border-color:var(--bleu); }
 .case.cochee { background:var(--vert); border-color:var(--vert); }
 
+/* ---------- couleurs du cycle tri-état par personne (D-048) : la couleur ne suffit jamais,
+   la lettre (C/Y/CY) porte l'information — déplacées ici depuis taches.css (D-036 §CSS par
+   module) car Courses (ui-courses.js) et maintenant le Budget (charges, virements) les
+   réutilisent aussi : une seule palette pour tout le socle, jamais deux qui divergent pour
+   le même geste (D-024). `case-cycle-p1` = première personne du foyer (ambre, Claudia dans
+   le handoff), `case-cycle-p2` = la seconde (bleu, Yann), `case-cycle-deux` = fait à deux
+   (olive) — générique, aucun prénom en dur. La taille et la forme (17 px pour Tâches, 26 px
+   pour `.case`) restent au module qui les affiche. */
+.case-cycle-vide { background:#fff; border-color:var(--bordure-case); }
+.case-cycle-p1 { background:var(--claudia); border-color:var(--claudia); color:#fff; }
+.case-cycle-p2 { background:var(--bleu); border-color:var(--bleu); color:#fff; }
+.case-cycle-deux { background:var(--a-deux); border-color:var(--a-deux); color:#fff; }
+/* Coché mais SANS prénom connu (D-048 : coches d'avant D-048, ou posées par le bot) : même vert
+   que l'ancienne case binaire `.case.cochee` — jamais une case vide qui dirait « à faire » sur
+   une ligne pourtant déjà validée. */
+.case-cycle-fait { background:var(--vert); border-color:var(--vert); color:#fff; }
+
 /* ---------- pastilles et repères ---------- */
 .pastille { display:inline-block; background:var(--fond-bandeau); color:var(--texte-2); border-radius:6px; font-size:11px; padding:2px 7px; }
 .repere { font-size:12px; color:var(--texte-2); }

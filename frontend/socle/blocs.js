@@ -14,16 +14,45 @@ export function caseACocher({ id, cochee = false, titre, attr = "cocher", classe
         role="checkbox" aria-checked="${cochee}" tabindex="0" aria-label="${txt(aria)}">${cochee ? "✓" : ""}</span>`;
 }
 
+/**
+ * Case à cocher tri-état (D-048) : même forme franche que `caseACocher` (26 px), mais un
+ * tap fait tourner rien → moi → l'autre membre → rien au lieu de basculer un simple oui/non —
+ * même principe que le cycle de coche des tâches (frontend/taches/ui-taches.js : deux personnes
+ * plus « à deux »), ici à deux valeurs seulement (une charge ou un virement se valide par UNE
+ * personne, jamais « à deux »). Couleur ET lettre disent qui (jamais la couleur seule) :
+ * `case-cycle-vide/p1/p2` (socle.css). Branchée par `brancherCycles` (blocs-cycle.js) via
+ * `data-cycle` — pas `data-cocher` : un cycle à N valeurs n'est pas une simple bascule.
+ * @param valeur prénom courant, `null` (rien), ou `true` (D-048 : coché mais SANS prénom connu
+ *               — coche d'avant D-048, ou posée par le bot) — rendu en case pleine « ✓ » verte,
+ *               jamais une case vide qui mentirait sur l'état réel de la ligne. Jamais recalculé
+ *               à part, dérivé de l'état réel par le module appelant (coche-ligne.js).
+ * @param p1     premier prénom du foyer (initiale + couleur "p1" si `valeur === p1`, "p2" sinon).
+ */
+export function caseCycle({ id, valeur, p1, titre, attr = "cycle" }) {
+  const { libelle, classe } = valeur === null
+    ? { libelle: "", classe: "case-cycle-vide" }
+    : valeur === true
+      ? { libelle: "✓", classe: "case-cycle-fait" }
+      : { libelle: valeur[0].toUpperCase(), classe: valeur === p1 ? "case-cycle-p1" : "case-cycle-p2" };
+  const aria = valeur === null ? `Valider ${titre}`
+    : valeur === true ? `${titre} : validé. Tap pour changer.` : `${titre} : validé par ${valeur}. Tap pour changer.`;
+  return `<span class="case ${classe}" data-${attr}="${id}"
+        role="button" tabindex="0" aria-label="${txt(aria)}">${txt(libelle)}</span>`;
+}
+
 /** Ligne cochable (mouvement, tâche) : case à gauche, corps, colonne de droite.
  *  Variante `compacte` (D-036, fidélité maquette Courses) : 29 px, case 17 px vide, titre
  *  13 px 600, valeur mono 10 px à droite — pas de sous-ligne, pas de concaténation dans le
  *  titre. Sa case peut aussi porter la lettre d'une personne (`caseTexte`, `caseClasse`) au
  *  lieu du ✓, pour le panier (case = qui a pris l'article). N'émet aucune classe `.mvt` :
  *  c'est un gabarit distinct, stylé par le module qui l'utilise (courses.css), pas une
- *  variante du `.mvt` du Budget (D-036 §CSS par module : une règle ne vit qu'à un endroit). */
+ *  variante du `.mvt` du Budget (D-036 §CSS par module : une règle ne vit qu'à un endroit).
+ *  `cycle: { valeur, p1 }` (D-048) remplace la case ✓ binaire par la case tri-état
+ *  (`caseCycle`, `data-cycle` au lieu de `data-cocher`) — le mouvement se valide alors « pour
+ *  Claudia » / « pour Yann » comme une ligne de charge, pas un simple fait/pas fait. */
 export function ligneCoche({ id, titre, sous = "", notes = [], droite = "", pastille = null,
   cochee = false, prioritaire = false, alerte = false, compacte = false, caseTexte = "",
-  caseClasse = "", droiteMono = true }) {
+  caseClasse = "", droiteMono = true, cycle = null }) {
   if (compacte) {
     const aria = cochee ? `Annuler la coche de ${titre}` : `Marquer ${titre} comme fait`;
     const classes = ["ligne-compacte", "cliquable", cochee ? "fait" : ""].filter(Boolean).join(" ");
@@ -36,7 +65,8 @@ export function ligneCoche({ id, titre, sous = "", notes = [], droite = "", past
   }
   const classes = ["mvt", "cliquable", cochee ? "fait" : "", alerte ? "alerte" : ""].filter(Boolean).join(" ");
   return `<div class="${classes}" data-id="${id}">
-    ${caseACocher({ id, cochee, titre, classes: prioritaire ? "prioritaire" : "" })}
+    ${cycle ? caseCycle({ id, valeur: cycle.valeur, p1: cycle.p1, titre })
+      : caseACocher({ id, cochee, titre, classes: prioritaire ? "prioritaire" : "" })}
     <div class="mvt-corps">
       <span class="mvt-titre">${txt(titre)}</span>
       ${sous ? `<span class="mvt-trajet">${txt(sous)}</span>` : ""}
@@ -57,15 +87,19 @@ export const chiffres = (liste) => liste.map(({ etiquette, valeur, accent }) =>
 
 export const titreSection = (t) => `<h2 class="titre-section">${txt(t)}</h2>`;
 
-/** Branche les cases et les lignes d'une racine : `surCoche(id)`, `surLigne(id)`. */
+/** Branche les cases et les lignes d'une racine : `surCoche(id)`, `surLigne(id)`.
+ *  `[data-valider]` (charges du Budget, `attr:"valider"` de `caseACocher`) suit la même règle
+ *  que `[data-cocher]` : une seule mécanique de bascule + tap-sur-la-ligne pour tout le socle
+ *  (D-024), jamais un second branchement dupliqué par module. */
 export function brancherCoches(racine, surCoche, surLigne) {
-  for (const el of racine.querySelectorAll("[data-cocher]")) {
-    const agir = (e) => { e.stopPropagation(); surCoche(Number(el.dataset.cocher)); };
+  for (const el of racine.querySelectorAll("[data-cocher], [data-valider]")) {
+    const id = Number(el.dataset.cocher ?? el.dataset.valider);
+    const agir = (e) => { e.stopPropagation(); surCoche(id); };
     el.addEventListener("click", agir);
     el.addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); agir(e); } });
   }
   if (surLigne) {
-    for (const el of racine.querySelectorAll(".mvt[data-id], .ligne-compacte[data-id]")) {
+    for (const el of racine.querySelectorAll(".mvt[data-id], .ligne-compacte[data-id], .mois-charge[data-id]")) {
       el.addEventListener("click", () => surLigne(Number(el.dataset.id)));
     }
   }

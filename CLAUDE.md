@@ -60,6 +60,7 @@ Plan → TodoWrite → Exécution → Vérification → Commit → memory/ grav�
 |---|---|
 | `git diff --cached --name-only \| grep -Ei 'xlsx|\.env$'` doit être vide | avant chaque commit |
 | `node tests/test_calc.mjs` | tout changement du calcul budgétaire |
+| `node tests/test_iban.mjs` | tout changement de la validation/formatage IBAN |
 | `node tests/test_taches.mjs` | tout changement des tâches (échéances, parts, balance) |
 | `python -m pytest -q tests/bot/` | tout changement du bot |
 | `node tests/recette_ecrans.mjs` puis `node tests/planche_maquette.mjs` et **OUVRIR** data/captures/planche/*.png (app à gauche, maquette à droite — L-028) | tout changement UI |

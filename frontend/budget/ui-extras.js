@@ -8,9 +8,10 @@
 
 import { euros } from "./calc.js";
 import { txt, toast, confirmer } from "../socle/ui-base.js";
-import { caseACocher, creerFileEcritures } from "../socle/blocs.js";
+import { caseCycle, creerFileEcritures } from "../socle/blocs.js";
+import { brancherCycles } from "../socle/blocs-cycle.js";
 import { libelleRegle } from "./repartition.js";
-import { preparerBascule, appliquerBascule, annulerBascule, ecrireBascule } from "./coche-ligne.js";
+import { preparerBascule, appliquerBascule, annulerBascule, ecrireBascule, valeurCourante, valeurAffichee } from "./coche-ligne.js";
 
 /** jj/mm d'une date ISO — même calcul que jourMois() de ui-mouvements.js. */
 const jourMois = (iso) => {
@@ -26,8 +27,10 @@ export function creerUiExtras(api, etat, cb) {
   const ligne = (c) => {
     const m = etat.lignes[c.id]?.montant_centimes ?? 0;
     const fait = etat.lignes[c.id]?.fait_le;
+    const valeur = valeurCourante(etat.lignes[c.id]);
+    const [p1] = etat.membres.map((mb) => mb.prenom);
     return `<div class="ligne extra${fait ? " fait" : ""}" data-charge="${c.id}">
-      ${caseACocher({ id: c.id, cochee: !!fait, titre: c.libelle, attr: "valider" })}
+      ${caseCycle({ id: c.id, valeur: valeurAffichee(valeur), p1, titre: c.libelle })}
       <button type="button" class="titre" data-suppr-extra="${c.id}" title="Retirer">${txt(c.libelle)}</button>
       <span class="repere">${txt(libelleRegle(c.regle))}</span>
       ${fait ? `<span class="repere mc-fait">✓ ${[etat.lignes[c.id].fait_par, jourMois(fait)].filter(Boolean).join(" · ")}</span>` : ""}
@@ -77,11 +80,7 @@ export function creerUiExtras(api, etat, cb) {
         } catch (e) { cb.echec(e); }
       });
     }
-    for (const el of racine.querySelectorAll("[data-valider]")) {
-      const agir = (e) => { e.stopPropagation(); basculerValidation(Number(el.dataset.valider), rendre); };
-      el.addEventListener("click", agir);
-      el.addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); agir(e); } });
-    }
+    brancherCycles(racine, (id) => basculerValidation(Number(id), rendre));
   }
 
   return { html, total, brancher };

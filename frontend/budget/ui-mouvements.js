@@ -15,6 +15,8 @@ import { creerUiRegularisations } from "./ui-regularisations.js";
 import { creerUiExtras } from "./ui-extras.js";
 import { optionsRegle, detailRegle } from "./repartition.js";
 import { etatDuMois, texteAFaireVide } from "./etat-mois.js";
+import { valeurCourante, valeurAffichee, prochaineValeur } from "./coche-ligne.js";
+import { creerUiGroupesVirements } from "./ui-groupes-virements.js";
 
 const ASIDE = "#detail-pc";
 const SUGGESTIONS_AJOUT = ["Resto", "Vacances", "Cadeaux", "Santé"];
@@ -94,6 +96,8 @@ export function creerUiMouvements(api, etat, cb) {
   }
 
   // ---------- lignes de mouvement (À faire / Fait) ----------
+  const [p1] = etat.membres.map((mb) => mb.prenom);
+
   function ligneAFaire(m) {
     const r = recurrentDe(m);
     const consigne = m.consigne ?? r?.consigne ?? "";
@@ -102,6 +106,7 @@ export function creerUiMouvements(api, etat, cb) {
       alerte: enAlerte(m), // pas de pastille : le trajet dit déjà de qui part le virement (maquette)
       notes: [consigne, enAlerte(m) ? "Montant en attente : la charge liée n’a pas de montant ce mois." : null],
       droite: `<span class="mono mvt-montant">${euros(montantAffiche(m))}</span>`,
+      cycle: { valeur: valeurAffichee(valeurCourante(m)), p1 },
     });
   }
 
@@ -127,6 +132,7 @@ export function creerUiMouvements(api, etat, cb) {
       id: m.id, titre: m.titre, cochee: true, sous: m.fait_par ? `${quand} · ${m.fait_par}` : quand,
       alerte: !!ecart, notes: [ecart],
       droite: `<span class="mono mvt-montant pale">${euros(m.montant_centimes)}</span>`,
+      cycle: { valeur: valeurAffichee(valeurCourante(m)), p1 },
     });
   }
 
@@ -166,8 +172,13 @@ export function creerUiMouvements(api, etat, cb) {
       <div class="detail-actions">
         <button class="btn" data-copier="${Math.abs(aCopier / 100).toFixed(2).replace(".", ",")}"
                 title="Copier ${euros(aCopier)}">⧉</button>
-        <button class="btn ${m.fait_le ? "" : "btn-vert"} grandir" data-basculer>
-          ${m.fait_le ? "Annuler la coche" : "✓ Fait aujourd’hui"}</button>
+        ${(() => {
+          // Même cycle que la case (D-048) : ce bouton avance d'un cran, son libellé dit
+          // vers quoi — jamais un simple binaire fait/pas fait qui ne dirait plus qui valide.
+          const suivant = prochaineValeur([null, ...etat.membres.map((mb) => mb.prenom)], valeurCourante(m));
+          return `<button class="btn ${suivant === null ? "" : "btn-vert"} grandir" data-basculer>
+            ${suivant === null ? "Annuler la validation" : `✓ Valider pour ${txt(suivant)}`}</button>`;
+        })()}
       </div>
       ${r ? '<button class="btn-lien centre" data-vers-recurrents>Modifier le mouvement récurrent</button>' : ""}
     </div>`;
@@ -191,19 +202,35 @@ export function creerUiMouvements(api, etat, cb) {
       });
     },
     basculer: {
-      // Le montant se fige au moment de la coche : il est lu AVANT de poser la date,
-      // sinon montantAffiche() renvoie déjà la valeur figée de la ligne (L-008).
+      // Le montant se fige à la PREMIÈRE coche (D-048, rien → quelqu'un) : il est lu AVANT
+      // toute mutation, sinon montantAffiche() renvoie déjà la valeur figée de la ligne (L-008).
+      // Aux changements de personne suivants (quelqu'un → l'autre), il reste tel quel.
       figer: (m) => montantAffiche(m),
-      appliquer: (m, fige) => {
-        m.fait_le = m.fait_le ? null : new Date().toISOString();
-        m.fait_par = m.fait_le ? (etat.prenom ?? null) : null;
-        if (m.fait_le) m.montant_centimes = fige;
+      // `options.valeurCible`/`options.dateCible` (D-048 §3) : un groupe de virements impose
+      // LA MÊME personne ET LA MÊME date à toutes ses lignes non faites en un seul tap, au
+      // lieu du cycle indépendant par ligne (jamais un `new Date()` par ligne, qui divergerait).
+      appliquer: (m, fige, options = {}) => {
+        const courant = valeurCourante(m);
+        const suivant = options.valeurCible !== undefined
+          ? options.valeurCible : prochaineValeur([null, ...etat.membres.map((mb) => mb.prenom)], courant);
+        // Première coche = le mouvement n'était PAS coché du tout (courant null) — depuis
+        // SANS_PRENOM (D-048), fait_le existe déjà, le montant reste tel quel (déjà figé).
+        const premiereCoche = courant === null && suivant !== null;
+        m.fait_le = suivant === null ? null : (m.fait_le ?? options.dateCible ?? new Date().toISOString());
+        m.fait_par = suivant;
+        if (premiereCoche) m.montant_centimes = fige;
         return { fait_le: m.fait_le, montant_centimes: m.montant_centimes, fait_par: m.fait_par };
       },
       ecrire: (id, champs) => api.majMouvement(id, champs),
-      message: (_m, avant) => (avant.fait_le ? "Coche annulée." : "Mouvement fait."),
+      // `avant` (snapshot pré-mutation) n'a pas de notion de SANS_PRENOM (c'est fait_par tel
+      // qu'écrit en base) : `_m.fait_par` (post-mutation) dit qui valide maintenant, `null` en
+      // sortie de cycle. Le sens (annulé vs validé) se lit sur fait_le, pas sur fait_par seul.
+      message: (_m, avant) => (avant.fait_le && !_m.fait_le ? "Validation annulée." : `Validé pour ${_m.fait_par}.`),
     },
   });
+
+  // ---------- « Virements à faire » : regroupement par trajet (D-048 §3, ui-groupes-virements.js) ----------
+  const groupesVirements = creerUiGroupesVirements(api, etat, cb, { basculerMouvement: liste.basculer });
 
   // ---------- revenus (salaires + part de chacun au prorata) ----------
   function rendreSalaires() {
@@ -349,6 +376,9 @@ export function creerUiMouvements(api, etat, cb) {
 
     charges.rendre();
     rendreExtras();
+
+    $("#groupes-virements").innerHTML = groupesVirements.html();
+    groupesVirements.brancher($("#groupes-virements"));
   }
 
   $("#btn-mvt-ponctuel").addEventListener("click", formulairePonctuel);

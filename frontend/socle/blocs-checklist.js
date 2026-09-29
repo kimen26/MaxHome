@@ -4,6 +4,7 @@
 
 import { $, estPC, feuilleOuverte, fermerFeuille, toast } from "./ui-base.js";
 import { brancherCoches, marquerChoisi, ouvrirPanneau, fermerPanneau, creerFileEcritures } from "./blocs.js";
+import { brancherCycles } from "./blocs-cycle.js";
 
 /**
  * @param ecran        "#ecran-mois" : racine DOM de l'écran
@@ -34,9 +35,11 @@ export function creerCheckList({ ecran, aside, trouver, premier, htmlDetail, bra
   const fermerDetail = () => fermerPanneau(aside);
 
   /**
-   * Coche ou décoche. `figer(el)` est lu AVANT toute mutation (L-008) ; `appliquer(el, figee, options)`
-   * mute l'élément et renvoie les champs à écrire ; `ecrire(id, champs)` est l'appel API ;
-   * `message(el, avant)` le toast ; `apres()` un crochet optionnel.
+   * Coche/décoche (case ✓ binaire), ou avance d'un cran (case cycle, D-048 : `appliquer`
+   * calcule alors lui-même la valeur suivante à partir de l'état courant de l'élément — voir
+   * `ui-mouvements.js`). `figer(el)` est lu AVANT toute mutation (L-008) ; `appliquer(el, figee,
+   * options)` mute l'élément et renvoie les champs à écrire ; `ecrire(id, champs)` est l'appel
+   * API ; `message(el, avant)` le toast ; `apres()` un crochet optionnel.
    */
   async function basculer(id, options = {}) {
     const el = trouver(id);
@@ -67,6 +70,9 @@ export function creerCheckList({ ecran, aside, trouver, premier, htmlDetail, bra
   function apresRendu() {
     const racine = $(ecran);
     brancherCoches(racine, (id) => basculer(id), ouvrirDetail);
+    // Case cycle (D-048) : mêmes id que la case ✓, sélecteur disjoint (data-cycle vs
+    // data-cocher) — aucune ligne ne porte les deux, pas de double branchement possible.
+    brancherCycles(racine, (id) => basculer(Number(id)));
     if (estPC() && $(aside).hidden && !detailEnCours) {
       const p = premier();
       if (p) ouvrirDetail(p.id);

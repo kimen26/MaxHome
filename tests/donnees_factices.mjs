@@ -28,8 +28,9 @@ export const MEMBRES = [
   { prenom: "Yann", email: "yann@exemple.fr", ordre: 2 },
 ];
 
+// iban : exemple PUBLIC de la norme IBAN (fr.wikipedia.org/wiki/IBAN), jamais un vrai compte.
 export const COMPTES = [
-  { id: 1, nom: "Compte commun", titulaire: null, iban_masque: "1234", note: null, commun: true },
+  { id: 1, nom: "Compte commun", titulaire: null, iban: "FR1420041010050500013M02606", iban_masque: "1234", note: null, commun: true },
   { id: 2, nom: "Compte Claudia", titulaire: "Claudia", iban_masque: "5678", note: null, commun: false },
   { id: 3, nom: "Compte Yann", titulaire: "Yann", iban_masque: "9012", note: null, commun: false },
 ];

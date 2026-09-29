@@ -85,13 +85,43 @@ const GESTES = [
       });
       await page.waitForSelector(".detail-partage", { timeout: 3000 });
     } },
-  // Réglage d'une charge (tap sur son libellé, écran Mois) : le choix de répartition à quatre
-  // options n'apparaît que là (D-039). Feuille sur mobile, colonne de droite sur PC.
+  // Réglage d'une charge (tap n'importe où sur sa ligne, écran Mois) : le choix de répartition
+  // à quatre options n'apparaît que là (D-039). Feuille sur mobile, colonne de droite sur PC.
+  // Tap à une COORDONNÉE réelle dans le libellé (pas page.click sur le sélecteur, qui viserait
+  // son propre centre même si la zone de tap avait rétréci) : reproduit le bug remonté par
+  // Yann après D-046, où la zone de tap élargie de `.case` (::before, inset -11px) volait la
+  // bande juste à droite de la case et un bouton étroit autour du seul texte laissait un blanc
+  // mort avant le champ montant — un tap sur la ligne, hors case et hors champ, n'ouvrait plus
+  // rien nulle part sur la ligne.
   { ecran: "mois", moduleDefaut: "mois", nom: "reglage-charge",
     geste: async (page) => {
-      await page.click("#mois-categories [data-reglages]");
+      const ligne = page.locator("#mois-categories .mois-charge").first();
+      await ligne.scrollIntoViewIfNeeded();
+      const box = await ligne.boundingBox();
+      const libelle = await ligne.locator(".mc-libelle").boundingBox();
+      if (!box || !libelle) throw new Error("reglage-charge : ligne de charge introuvable.");
+      // Milieu du texte du libellé : la zone la plus probable d'un vrai tap, jamais le bord
+      // gauche (à côté de la case) ni le bord droit (à côté du champ montant).
+      await page.mouse.click(libelle.x + libelle.width / 2, box.y + box.height / 2);
       await page.waitForSelector("form.reglages", { state: "visible", timeout: 3000 });
       await page.waitForTimeout(250); // la feuille glisse en 200 ms
+    } },
+  // Même tap, mais dans le GAP entre le libellé et le champ montant (bande la plus étroite de
+  // la ligne, la plus facile à rater si un futur changement de layout la referme) : doit aussi
+  // ouvrir la feuille, puisque c'est `.mois-charge` entière qui est cliquable, pas un bouton
+  // isolé autour du texte.
+  { ecran: "mois", moduleDefaut: "mois", nom: "reglage-charge-gap",
+    geste: async (page) => {
+      const ligne = page.locator("#mois-categories .mois-charge").first();
+      await ligne.scrollIntoViewIfNeeded();
+      const box = await ligne.boundingBox();
+      const libelle = await ligne.locator(".mc-libelle").boundingBox();
+      const champ = await ligne.locator(".champ-montant").boundingBox();
+      if (!box || !libelle || !champ) throw new Error("reglage-charge-gap : ligne de charge introuvable.");
+      const xGap = (libelle.x + libelle.width + champ.x) / 2;
+      await page.mouse.click(xGap, box.y + box.height / 2);
+      await page.waitForSelector("form.reglages", { state: "visible", timeout: 3000 });
+      await page.waitForTimeout(250);
     } },
   // Même feuille ouverte depuis Réglages · Charges (toujours en feuille, même sur PC : cet
   // écran n'a pas de colonne de droite).

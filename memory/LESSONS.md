@@ -416,6 +416,10 @@ vide plutôt que la ville de repli ; le message le dit (« trouvé seulement la 
    commande qui touche aux fichiers des autres (stash, checkout ., reset). Pour un « avant »,
    `git worktree add` dans un dossier à part.
 
+3. Récidive 2026-09-30 par un SOUS-AGENT (lot E carnet V2) : `git stash` pour prouver qu'un
+   échec venait de l'autre session. Une leçon lue par la session principale n'atteint pas ses
+   agents : l'interdit (stash, checkout ., reset) s'écrit dans CHAQUE brief d'agent.
+
 ## L-044 — Un service worker va chercher le réseau dans le dos de `page.route()` (2026-09-29)
 
 Contexte : le geste « carte hors ligne » bloquait cdnjs avec `page.route()` et attendait le
@@ -425,3 +429,12 @@ cdnjs en stale-while-revalidate (D-045) ; ses requêtes partent du contexte work
 réseau neutralise d'abord le service worker (page isolée, SW désenregistré par
 `addInitScript`), sinon il teste le cache, pas la panne.**
 
+
+## L-045 — La session principale conçoit, Sonnet code : même les « petits » correctifs (2026-09-30)
+
+Yann, deux fois le même jour : « délègue en sous-agent Sonnet, t'es juste le cerveau ». J'avais
+codé moi-même (Opus) la case 26 px, le trajet « Compte de Claudia », l'icône, puis commencé
+l'enquête détaillée du menu disparu. Règle : la session principale lit juste assez pour écrire
+la spec, puis délègue le code ET les tests (`model: "sonnet"` explicite) ; elle garde la
+vérification finale (captures 360/320, portes) et la livraison (commit, push, mémoire).
+Enquête d'un bug : aussi déléguée, avec les hypothèses dans la spec.
