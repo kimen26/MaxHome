@@ -41,8 +41,6 @@ self.SW_PRECACHE = [
   "icones/icone-apple-180.png",
   "icones/icone-maskable-192.png",
   "icones/icone-maskable-512.png",
-  "icones/liste-maskable.svg",
-  "icones/liste.svg",
   "index.html",
   "manifest.webmanifest",
   "modules.js",
