@@ -17,21 +17,33 @@ const estDe = (charge) => (r) => r.mode === "charge" && r.charge_id === charge.i
 export const compteDeCharge = (charge, recurrents) =>
   recurrents.find((r) => r.actif && estDe(charge)(r))?.compte_vers ?? null;
 
-/** Existe-t-il un compte autre que le commun, où envoyer une charge ? */
-export const aAutreCompte = (comptes) => comptes.some((c) => !c.commun);
+/** Compte commun PRINCIPAL : le premier compte `commun` dans l'ordre de la liste (etat.comptes
+ *  est trié par id, api.js). Plusieurs comptes communs existent en réel (courant joint, joint
+ *  épargne, joint du crédit) : « Commun » dans le choix « va sur » désigne toujours celui-là,
+ *  les autres sont proposés comme destination au même titre qu'un compte perso ou un livret. */
+export const compteCommun = (comptes) => comptes.find((c) => c.commun) ?? null;
 
-/** Options du choix « va sur » : « Commun » (valeur vide) puis chaque compte hors commun. */
-export const optionsCompte = (comptes) =>
-  [["", "Commun"], ...comptes.filter((c) => !c.commun).map((c) => [c.id, c.nom])];
+/** Existe-t-il un compte autre que le commun principal, où envoyer une charge ? */
+export const aAutreCompte = (comptes) => {
+  const principal = compteCommun(comptes);
+  return comptes.some((c) => c !== principal);
+};
+
+/** Options du choix « va sur » : « Commun » (valeur vide) puis chaque compte hors commun
+ *  principal — y compris un compte commun secondaire (le joint épargne par ex.). */
+export const optionsCompte = (comptes) => {
+  const principal = compteCommun(comptes);
+  return [["", "Commun"], ...comptes.filter((c) => c !== principal).map((c) => [c.id, c.nom])];
+};
 
 export const nomDuCompte = (comptes, id) =>
   (id == null ? "Commun" : comptes.find((c) => c.id === id)?.nom ?? "compte inconnu");
 
-/** Compte d'où part le virement : le commun ; pour « Un seul paie », celui du payeur. */
+/** Compte d'où part le virement : le commun principal ; pour « Un seul paie », celui du payeur. */
 export function compteSource(charge, comptes) {
   const source = charge.regle === "perso"
     ? comptes.find((c) => c.titulaire === charge.payeur)
-    : comptes.find((c) => c.commun);
+    : compteCommun(comptes);
   return source?.id ?? null;
 }
 

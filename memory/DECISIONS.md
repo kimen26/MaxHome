@@ -604,3 +604,20 @@ dans une catégorie « Terminées » en bas. Arbitrages :
 3. Écran Mois : une charge terminée n'est plus proposée (ni bandeau, ni « Remplir »), mais reste
    affichée dans un mois où elle a une ligne — sinon son montant compterait sans être visible.
 Réalisé par un sous-agent Sonnet sur spec, vérifié ici (captures 320/360, recette connectée).
+
+## D-044 — Chaque déplacement d'argent se coche, avec qui l'a fait (2026-09-29)
+
+Contexte : Yann : « on coche les virements vers le compte joint, mais toutes les autres actions
+faut les cocher aussi, tous les déplacements un à un, et note qui l'a fait ». Enquête : 4 comptes
+existent désormais, dont 3 communs (courant joint, joint épargne, joint du crédit). Le choix
+« va sur » d'une charge excluait TOUS les comptes communs : impossible d'envoyer le crédit ou
+les livrets ailleurs, donc aucun virement de charge dans la liste À faire.
+Arbitrages :
+1. « Commun » = le compte commun PRINCIPAL (premier par id, `compteCommun()`), les autres
+   communs sont des destinations comme un livret. Pas de colonne « principal » : un seul usage.
+2. `mouvements.fait_par` (migration 019), posé à la coche par l'écran Mois (prénom connecté)
+   et par le bot, effacé à la décoche et par « annuler ». Coches passées : null, pas inventées.
+   Affiché « 28/09 · Yann » dans Fait et « Fait le 28/09 par Yann » dans le détail.
+3. Les récurrents « part » pointent vers le commun principal (ils avaient compte_vers null).
+Reste à faire côté données : choisir « va sur » pour chaque charge qui part ailleurs
+(Réglages · Charges) ; chacune devient alors un virement à cocher chaque mois.

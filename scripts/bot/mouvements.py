@@ -79,12 +79,14 @@ def basculer(donnees, prenom, titre, fait, resultat, lignes, annee, mois):
     cible, erreur = cibler(du_mois(donnees, annee, mois, resultat, lignes), recurrents, prenom, titre)
     if erreur:
         return None, None, erreur
-    avant = {"fait_le": cible["fait_le"], "montant_centimes": cible["montant_centimes"]}
+    avant = {"fait_le": cible["fait_le"], "montant_centimes": cible["montant_centimes"],
+             "fait_par": cible.get("fait_par")}
     if fait:
         # Le montant se fige au moment de la coche, comme dans le frontend.
         champs = {"fait_le": datetime.now(timezone.utc).isoformat(),
-                  "montant_centimes": montant_affiche(cible, recurrents, resultat, lignes)}
+                  "montant_centimes": montant_affiche(cible, recurrents, resultat, lignes),
+                  "fait_par": prenom}
     else:
-        champs = {"fait_le": None, "montant_centimes": cible["montant_centimes"]}
+        champs = {"fait_le": None, "montant_centimes": cible["montant_centimes"], "fait_par": None}
     donnees.maj_mouvement(cible["id"], champs)
     return cible, champs, None

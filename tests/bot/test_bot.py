@@ -191,6 +191,17 @@ def test_pas_fait_decoche_le_mouvement():
     assert [m for m in b.donnees.mouvements(ANNEE, MOIS) if m["fait_le"]] == []
 
 
+def test_fait_note_qui_a_coche_et_annuler_l_efface():
+    b = bot_avec_mois_peuple()
+    b.traiter_message(6433455282, "fait")
+    faits = [m for m in b.donnees.mouvements(ANNEE, MOIS) if m["fait_le"]]
+    assert len(faits) == 1
+    assert faits[0]["fait_par"] == "Yann"
+    b.traiter_message(6433455282, "annuler")
+    apres = b.donnees.mouvements(ANNEE, MOIS)
+    assert all(m["fait_par"] is None for m in apres)
+
+
 def test_annuler_une_coche_restaure_l_etat_precedent():
     b = bot_avec_mois_peuple()
     # État des occurrences juste avant la coche (elles sont créées à la volée).

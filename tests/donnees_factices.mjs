@@ -85,10 +85,11 @@ export const MOUVEMENTS_RECURRENTS = [
 
 export const MOUVEMENTS = [
   { id: 1, annee: ANNEE, mois: MOIS, recurrent_id: 1, titre: "Virement au commun — Claudia",
-    compte_de: 2, compte_vers: 1, montant_centimes: 120000, qui: "Claudia", consigne: null, fait_le: null },
+    compte_de: 2, compte_vers: 1, montant_centimes: 120000, qui: "Claudia", consigne: null,
+    fait_le: null, fait_par: null },
   { id: 2, annee: ANNEE, mois: MOIS, recurrent_id: 2, titre: "Virement au commun — Yann",
     compte_de: 3, compte_vers: 1, montant_centimes: 134000, qui: "Yann", consigne: null,
-    fait_le: new Date().toISOString() },
+    fait_le: new Date().toISOString(), fait_par: "Yann" },
 ];
 
 // ---------- module Tâches ----------

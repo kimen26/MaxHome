@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { calculer, repartir, versCentimes, montantLigne, regleEffective, montantTheorique } from "../frontend/budget/calc.js";
 import { montantHabituel, montantNote, champsDuMontant, montantInchange } from "../frontend/budget/habituel.js";
 import { detailRegle, regleBasculee, motPartage } from "../frontend/budget/repartition.js";
-import { compteDeCharge, compteSource, optionsCompte, aAutreCompte, choisirCompte } from "../frontend/budget/compte-charge.js";
+import { compteDeCharge, compteSource, optionsCompte, aAutreCompte, choisirCompte, compteCommun } from "../frontend/budget/compte-charge.js";
 import { etatDuMois, texteAFaireVide } from "../frontend/budget/etat-mois.js";
 
 // Cas réel : Comptes 2026, février. Doit TOUJOURS donner Yann -3 236,15 ±1 ct.
@@ -219,6 +219,16 @@ assert.equal(aAutreCompte(comptesT), true);
 assert.equal(compteSource(elec, comptesT), 1, "le virement part du commun");
 assert.equal(compteSource({ ...elec, regle: "perso", payeur: "Claudia" }, comptesT), 2, "un seul paie : du compte du payeur");
 assert.equal(compteSource(elec, []), null);
+
+// Plusieurs comptes communs (courant joint + joint épargne) : « Commun » = le premier de la
+// liste (id le plus petit) ; les autres comptes communs sont des destinations comme les autres.
+const secondaireCommun = { id: 4, nom: "Joint épargne", titulaire: null, commun: true };
+const comptesTMultiCommun = [...comptesT, secondaireCommun];
+assert.equal(compteCommun(comptesTMultiCommun).id, 1, "le principal reste le premier compte commun");
+assert.deepEqual(optionsCompte(comptesTMultiCommun),
+  [["", "Commun"], [2, "Compte Claudia"], [3, "Livret A"], [4, "Joint épargne"]],
+  "le commun secondaire est proposé, le principal non");
+assert.equal(aAutreCompte([comptesT[0], secondaireCommun]), true, "un commun secondaire compte comme autre compte");
 
 /** Api espionne : note chaque écriture, rend ce que rendrait Supabase. */
 function apiEspion() {

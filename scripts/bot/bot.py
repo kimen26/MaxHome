@@ -147,7 +147,8 @@ class Bot:
             self.donnees, prenom, action.get("titre"), action["fait"], resultat, lignes, annee, mois)
         if erreur:
             return erreur
-        avant = {"fait_le": cible["fait_le"], "montant_centimes": cible["montant_centimes"]}
+        avant = {"fait_le": cible["fait_le"], "montant_centimes": cible["montant_centimes"],
+                 "fait_par": cible.get("fait_par")}
         self.marquer_annulable(telegram_id, "mouvements", {"id": cible["id"]}, avant)
         return reponses.confirmation_mouvement(cible["titre"], champs["montant_centimes"], action["fait"])
 
@@ -174,7 +175,8 @@ class Bot:
             self.donnees.maj_tache(cle["id"], ancienne)
         elif table == "mouvements":
             self.donnees.maj_mouvement(cle["id"], {"fait_le": ancienne["fait_le"],
-                                                   "montant_centimes": ancienne["montant_centimes"]})
+                                                   "montant_centimes": ancienne["montant_centimes"],
+                                                   "fait_par": ancienne.get("fait_par")})
         else:
             raise RuntimeError(f"annulation non gérée pour la table {table}")
         return "Dernière écriture annulée."

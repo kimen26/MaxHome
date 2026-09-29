@@ -79,7 +79,7 @@ class DonneesFausse:
     def creer_mouvements(self, lignes):
         crees = []
         for l in lignes:
-            m = {"id": self._prochain_id_mouvement, "consigne": None, "fait_le": None, **l}
+            m = {"id": self._prochain_id_mouvement, "consigne": None, "fait_le": None, "fait_par": None, **l}
             self._prochain_id_mouvement += 1
             self._mouvements.append(m)
             crees.append(dict(m))

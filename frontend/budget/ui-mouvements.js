@@ -105,12 +105,18 @@ export function creerUiMouvements(api, etat, cb) {
     return `Coché à ${euros(m.montant_centimes)} ; le calcul donne maintenant ${euros(t)}. Décoche puis recoche pour mettre à jour.`;
   }
 
+  /** jj/mm d'une date ISO — factorisé : utilisé par la ligne « Fait » et son détail. */
+  const jourMois = (iso) => {
+    const date = new Date(iso);
+    return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+  };
+
   function ligneFaite(m) {
-    const date = new Date(m.fait_le);
-    const quand = `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+    const quand = jourMois(m.fait_le);
     const ecart = ecartFige(m);
     return ligneCoche({
-      id: m.id, titre: m.titre, cochee: true, sous: quand, alerte: !!ecart, notes: [ecart],
+      id: m.id, titre: m.titre, cochee: true, sous: m.fait_par ? `${quand} · ${m.fait_par}` : quand,
+      alerte: !!ecart, notes: [ecart],
       droite: `<span class="mono mvt-montant pale">${euros(m.montant_centimes)}</span>`,
     });
   }
@@ -130,6 +136,7 @@ export function creerUiMouvements(api, etat, cb) {
       <div class="detail-montant">
         <span class="mono grand">${euros(somme)}</span>
         <span class="sous">${txt(explication(m))}</span>
+        ${m.fait_le ? `<span class="sous">Fait le ${jourMois(m.fait_le)}${m.fait_par ? ` par ${txt(m.fait_par)}` : ""}</span>` : ""}
       </div>
       <div class="detail-trajet">
         <div class="case-compte"><span class="etiquette">De</span>
@@ -180,8 +187,9 @@ export function creerUiMouvements(api, etat, cb) {
       figer: (m) => montantAffiche(m),
       appliquer: (m, fige) => {
         m.fait_le = m.fait_le ? null : new Date().toISOString();
+        m.fait_par = m.fait_le ? (etat.prenom ?? null) : null;
         if (m.fait_le) m.montant_centimes = fige;
-        return { fait_le: m.fait_le, montant_centimes: m.montant_centimes };
+        return { fait_le: m.fait_le, montant_centimes: m.montant_centimes, fait_par: m.fait_par };
       },
       ecrire: (id, champs) => api.majMouvement(id, champs),
       message: (_m, avant) => (avant.fait_le ? "Coche annulée." : "Mouvement fait."),
