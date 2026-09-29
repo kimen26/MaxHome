@@ -49,18 +49,21 @@
 /* ---------- À faire / Fait, ligne mvt (inchangé sur le fond, densifié) ---------- */
 .carte-liste { background:#fff; border:1px solid var(--bordure); border-radius:14px; overflow:hidden; }
 .mvt {
-  display:grid; grid-template-columns:22px minmax(0,1fr) auto; gap:10px; align-items:start;
+  display:grid; grid-template-columns:28px minmax(0,1fr) auto; gap:12px; align-items:start;
   padding:8px 12px; border-bottom:1px solid var(--separateur); cursor:pointer;
 }
 .mvt:last-child { border-bottom:0; }
 .mvt.alerte { background:var(--ambre-ligne); }
 .mvt.fait { align-items:center; padding:6px 12px; }
+/* Case franche : 26 px, bord foncé (≥ 3:1 sur blanc, l'ancien gris pâle ne se voyait pas —
+   « pas de case pour valider », Yann 2026-09-29), zone de tap étendue à 48 px par ::before. */
 .mvt .case {
-  width:17px; height:17px; border:1.5px solid var(--bordure-case); border-radius:5px; background:#fff;
-  margin-top:2px; display:flex; align-items:center; justify-content:center; cursor:pointer; flex:0 0 auto;
+  position:relative; width:26px; height:26px; border:2px solid var(--texte-2); border-radius:6px; background:#fff;
+  display:flex; align-items:center; justify-content:center; cursor:pointer; flex:0 0 auto;
 }
+.mvt .case::before { content:""; position:absolute; inset:-11px; }
 .mvt .case.prioritaire { border-color:var(--bleu); }
-.mvt .case.cochee { background:var(--vert); border-color:var(--vert); color:#fff; font-size:11px; font-weight:700; margin-top:0; }
+.mvt .case.cochee { background:var(--vert); border-color:var(--vert); color:#fff; font-size:15px; font-weight:700; }
 .mvt-corps { min-width:0; display:flex; flex-direction:column; gap:2px; }
 .mvt-titre { font-size:13px; font-weight:600; }
 .mvt.fait .mvt-titre { font-weight:400; color:var(--texte-2); }

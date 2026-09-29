@@ -39,7 +39,11 @@ export function creerUiMouvements(api, etat, cb) {
   const recurrentDe = (m) => etat.recurrents.find((r) => r.id === m.recurrent_id);
   const compte = (id) => etat.comptes.find((c) => c.id === id);
   const nomCompte = (id) => compte(id)?.nom ?? null;
-  const trajet = (m) => trajetComptes(etat.comptes, m.compte_de, m.compte_vers);
+  // Le virement au commun part du compte perso de chacun, qui n'est pas en base : on nomme la
+  // personne plutôt que d'afficher « compte à définir ».
+  const trajet = (m) => (m.compte_de == null && m.qui && m.compte_vers != null
+    ? `Compte de ${m.qui} → ${nomCompte(m.compte_vers) ?? "compte à définir"}`
+    : trajetComptes(etat.comptes, m.compte_de, m.compte_vers));
   const detailCompte = (id) => {
     const c = compte(id);
     return c?.iban_masque ? `····${c.iban_masque}` : (c?.titulaire ?? "");
