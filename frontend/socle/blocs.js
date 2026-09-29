@@ -142,9 +142,12 @@ export function fermerPanneau(selecteurAside) {
 /** Choix exclusif qui se lit sans légende : chaque option porte un titre et, dessous, ce
  *  qu'elle implique (« Prorata » / « C 47 % · Y 53 % »). L'option choisie est pleine ET
  *  cochée ✓ (socle.css) — jamais la couleur seule. `options` : [{ valeur, titre, detail }] ;
- *  chaque bouton porte `data-<attr>="<valeur>"`. */
-export const choixDetaille = (options, choisi, { attr = "choix", etiquette = "" } = {}) =>
-  `<div class="choix-detaille" role="radiogroup"${etiquette ? ` aria-label="${txt(etiquette)}"` : ""}>${options.map(({ valeur, titre, detail = "" }) => {
+ *  chaque bouton porte `data-<attr>="<valeur>"`. `colonne` : une seule colonne pleine largeur
+ *  (socle.css `.choix-detaille.colonne`) au lieu de la grille auto-fit — pour des détails longs
+ *  qui ne doivent jamais se retrouver compressés à deux colonnes (ex. une adresse complète,
+ *  relecture carnet-voyage §C). */
+export const choixDetaille = (options, choisi, { attr = "choix", etiquette = "", colonne = false } = {}) =>
+  `<div class="choix-detaille${colonne ? " colonne" : ""}" role="radiogroup"${etiquette ? ` aria-label="${txt(etiquette)}"` : ""}>${options.map(({ valeur, titre, detail = "" }) => {
     const actif = valeur === choisi;
     return `<button type="button" role="radio" aria-checked="${actif}" class="choix-option${actif ? " actif" : ""}" data-${attr}="${txt(valeur)}">
       <span class="choix-titre">${txt(titre)}</span>${detail ? `<span class="choix-detail">${txt(detail)}</span>` : ""}</button>`;

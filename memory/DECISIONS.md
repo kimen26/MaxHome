@@ -621,3 +621,27 @@ Arbitrages :
 3. Les récurrents « part » pointent vers le commun principal (ils avaient compte_vers null).
 Reste à faire côté données : choisir « va sur » pour chaque charge qui part ailleurs
 (Réglages · Charges) ; chacune devient alors un virement à cocher chaque mois.
+
+## D-045 — Le carnet de voyage entre dans MaxHome : lieux, résas et pièces en base, le récit en texte (2026-09-29)
+
+Contexte : Yann veut une fiche de voyage « utile pour tout » sur le téléphone : carte, lieux
+ajoutés par l'appli ou le bot et localisés par l'IA, un topo, les réservations (qui, combien,
+code, dates) et les QR codes hébergés. Il rappelle que rien ne doit finir sur le dépôt public.
+D-037 avait laissé les 4 carnets HTML dans MaxVoyage (jamais hébergé, donc invisibles sur le
+téléphone) pour cette raison. Arbitrages (détail d'exécution : docs/briefs/carnet-voyage.md) :
+1. **Les données du carnet vivent en base, derrière la RLS**, jamais dans git : même régime que
+   les salaires. Le HTML ne migre pas tel quel ; il est converti une fois (inbox/, ignoré).
+2. **Trois listes typées et un texte**, pas un document : `voyage_lieux` (carte, jour par jour,
+   bot ligne à ligne), `voyage_resas` (code, prix en centimes, payé par), `voyage_pieces` +
+   bucket Storage privé `voyages` (URL signées), `voyages.topo` en markdown léger (prose que
+   l'IA réécrit d'un bloc). Carte, jour par jour et budget se **déduisent**, rien n'est stocké
+   deux fois. Écartés : un JSONB par voyage (bot et appli écrivent le même document, pas de
+   requête « prochaine résa ») ; le HTML en base (non éditable au téléphone).
+3. **Carte Leaflet chargée à la demande (cdnjs), tuiles OSM** — ce qu'utilisaient déjà les
+   carnets. Géocodage Nominatim (gratuit, sans clé, 1 requête/s). L'IA (Claude haiku par le CLI
+   local du bot, D-011) n'intervient qu'en second recours pour localiser, et pour réécrire le
+   topo : zéro coût d'API.
+4. **Hors ligne à l'aéroport** : les pièces d'un voyage proche (≤ 14 jours) ou en cours sont
+   copiées dans Cache Storage à l'ouverture de la fiche.
+5. Heures des résas en heure locale du lieu, sans fuseau (`timestamp`) : un vol affiche l'heure
+   du billet, pas l'heure de Paris convertie.

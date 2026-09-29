@@ -82,3 +82,141 @@
 /* ================= Réglages · Voyages ================= */
 #liste-voyages { margin-top:10px; }
 #form-voyage { margin-top:10px; }
+
+/* ================= Onglet Voyages : liste ================= */
+#voyages-liste-corps { display:flex; flex-direction:column; gap:10px; margin-top:10px; }
+.voyages-cartes { display:flex; flex-direction:column; gap:8px; }
+.carte-voyage {
+  display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%;
+  min-height:56px; padding:10px 12px; border:1px solid var(--bordure); border-radius:11px;
+  background:#fff; text-align:left; cursor:pointer; border-bottom:0;
+}
+.cv-corps { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.cv-titre { font-size:15px; font-weight:600; }
+.cv-sous, .cv-compte { font-size:12px; color:var(--texte-2); }
+.cv-quand { flex:0 0 auto; font-size:12px; font-weight:600; color:var(--bleu); text-align:right; white-space:nowrap; }
+.carte-voyages-passes .ct-liste, .carte-voyages-passes > div:last-child { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+/* Repli « Passés » : même patron que la carte « Terminées » du Budget (ui-charges-ajout.js),
+   dupliqué en CSS car propre à ce module (D-036 §CSS par module). */
+.carte-voyages-passes .ct-entete {
+  display:flex; justify-content:space-between; align-items:center; width:100%; min-height:44px;
+  border:0; background:none; cursor:pointer; font-size:13px; font-weight:600; color:var(--texte);
+}
+.carte-voyages-passes .ct-voir { color:var(--bleu); font-weight:600; }
+
+/* ================= Fiche voyage (feuille plein écran du socle) ================= */
+.fiche-voyage { gap:16px; }
+.fiche-tete { display:flex; flex-direction:column; gap:2px; }
+.fiche-tete .btn-lien { align-self:flex-start; padding:4px 0 8px; }
+.fiche-tete h2 { font-size:19px; margin:0; }
+.fiche-decompte { align-self:flex-start; margin-top:4px; font-size:12px; font-weight:600; color:var(--bleu); background:var(--bleu-clair); border-radius:999px; padding:3px 10px; }
+
+/* ---- Réservations ---- */
+.ligne-resa { display:flex; flex-direction:column; gap:4px; padding:10px 4px; border-bottom:1px solid var(--separateur); }
+.ligne-resa:last-child { border-bottom:0; }
+.ligne-resa.annulee { opacity:.7; }
+.lr-tete { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.lr-type { font-size:12px; font-weight:600; color:var(--texte-2); }
+.lr-titre { font-size:15px; font-weight:600; flex:1; min-width:0; }
+/* Lien texte, mais zone tactile réelle ≥ 48x48 (relecture §D) : le padding l'agrandit, pas le
+   texte — measurable par getBoundingClientRect dans la recette. */
+.lr-modifier { margin-left:auto; font-size:12px; min-width:48px; min-height:48px; padding:8px 12px; display:inline-flex; align-items:center; justify-content:center; }
+.lr-quand, .lr-prestataire { font-size:12px; color:var(--texte-2); }
+.lr-bas { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:2px; flex-wrap:wrap; }
+/* Code de résa : gros, chasse fixe (mono), tap = copie + toast (ui-fiche-resas.js). */
+.lr-code {
+  font-family:var(--mono); font-size:17px; font-weight:700; letter-spacing:.04em; color:var(--bleu);
+  background:var(--bleu-clair); border:0; border-radius:8px; padding:6px 12px; min-height:44px; cursor:pointer;
+}
+.lr-droite { display:flex; flex-direction:column; align-items:flex-end; gap:2px; font-size:12px; }
+.lr-prix { font-size:14px; }
+.lr-payeur { color:var(--texte-2); }
+.lr-payeur.alerte { color:var(--ambre-texte); font-weight:600; }
+.lr-annulee-badge { align-self:flex-start; font-size:11px; font-weight:600; color:var(--rouge); background:var(--rouge-fond); border-radius:6px; padding:2px 7px; }
+/* Pied des résas en carte lisible (relecture §G) : une ligne par personne, montant aligné à
+   droite, « Pas encore payé » en toutes lettres — plus une ligne condensée « Total … / Yann … /
+   240,00 € non payé » qui se relit deux fois pour se comprendre. */
+.lr-pied {
+  display:flex; flex-direction:column; gap:4px; margin-top:8px; padding:10px 12px;
+  border:1px solid var(--bordure); border-radius:10px; background:var(--fond-bandeau);
+}
+.lr-pied-ligne { display:flex; align-items:baseline; justify-content:space-between; gap:10px; min-height:20px; font-size:13px; color:var(--texte-2); }
+.lr-pied-ligne span:last-child { text-align:right; }
+.lr-pied-total { font-size:15px; font-weight:700; color:var(--texte); }
+.lr-pied-alerte { color:var(--ambre-texte); font-weight:600; }
+.lr-actions { display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+
+/* ---- Pièces (vignettes + plein écran) ---- */
+.lr-pieces { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+.piece-vignette {
+  display:flex; flex-direction:column; align-items:center; gap:3px; width:64px; min-height:48px;
+  border:1px solid var(--bordure); border-radius:10px; background:#fff; padding:6px 4px; cursor:pointer;
+}
+.piece-icone { font-size:20px; line-height:1; }
+/* Le nom passe à la ligne, jamais tronqué (relecture §E : « Billet-avio… » illisible) —
+   word-break sur les mots longs sans espace (noms de fichiers), pas de line-clamp (interdit,
+   règle mobile-parents : un conteneur de texte ne doit jamais couper son contenu). */
+.piece-nom { font-size:10px; color:var(--texte-2); text-align:center; overflow-wrap:break-word; word-break:break-word; max-width:100%; }
+.piece-plein-ecran {
+  position:fixed; inset:0; z-index:60; background:#fff; display:flex; align-items:center;
+  justify-content:center; padding:16px;
+}
+.piece-plein-ecran img { width:100%; max-width:100%; height:auto; }
+.piece-plein-fermer {
+  position:fixed; top:calc(12px + env(safe-area-inset-top, 0px)); right:12px; min-height:48px; min-width:48px;
+  border:0; border-radius:10px; background:var(--texte); color:#fff; font-weight:600; padding:0 16px; cursor:pointer;
+}
+
+/* ---- Carte ---- */
+.fiche-carte { display:flex; flex-direction:column; gap:8px; }
+.carte-cadre { width:100%; min-height:220px; border-radius:11px; overflow:hidden; border:1px solid var(--bordure); background:var(--fond-bandeau); }
+/* Leaflet a besoin d'une hauteur explicite sur son conteneur (pas de hauteur intrinsèque) :
+   min-height ci-dessus suffit, .leaflet-container hérite de 100% (CSS de la librairie). */
+.leaflet-container { min-height:220px; }
+.carte-indisponible { padding:16px; text-align:center; color:var(--texte-2); font-size:13px; }
+.carte-legende { display:flex; flex-wrap:wrap; gap:6px 12px; }
+.carte-legende-item { display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--texte-2); }
+.carte-legende-puce { width:10px; height:10px; border-radius:50%; flex:none; }
+.carte-marqueur span { display:block; width:16px; height:16px; border-radius:50%; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,.4); }
+
+/* ---- Lieux ---- */
+.fiche-lieux { display:flex; flex-direction:column; gap:10px; }
+.lieux-groupe { display:flex; flex-direction:column; gap:2px; }
+/* Pas de text-transform:capitalize (mettait une majuscule à CHAQUE mot : « Lundi 28
+   Septembre », « Sans Date » — relecture carnet-voyage §H) : la casse vient déjà du texte
+   posé par ui-fiche-lieux.js (formatJour, « Sans date »), une seule majuscule initiale. */
+.lieux-groupe-titre { font-size:13px; font-weight:600; color:var(--texte-2); margin:6px 0 2px; }
+.ligne-lieu { display:flex; align-items:center; gap:8px; min-height:48px; padding:2px 0; border-bottom:1px solid var(--separateur); }
+.ligne-lieu:last-child { border-bottom:0; }
+.ligne-lieu.ecarte { opacity:.6; }
+/* min-height 44 px directement (pas seulement via .cible44, dont le ::before agrandit la
+   zone tapable sans agrandir la case visuelle) : ce bouton EST la case tapable, elle doit
+   être grande pour de vrai, pas juste invisible-étendue. */
+/* Largeur FIXE (pas seulement min-height) : les trois libellés (Idée, Prévu, Fait) doivent
+   occuper le même espace pour que les noms de lieux démarrent tous sur la même verticale
+   (relecture carnet-voyage §H) — 68 px tient « Prévu » à 320 px sans jamais le tronquer. */
+.lieu-statut {
+  flex:0 0 auto; width:68px; min-height:44px; padding:0 6px; border:1.5px solid var(--bordure); border-radius:999px;
+  background:#fff; font-size:11px; font-weight:600; color:var(--texte-2); cursor:pointer; text-align:center;
+}
+.ligne-lieu[data-lieu] .lieu-statut { color:var(--bleu); border-color:var(--bleu); }
+.lieu-corps { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; min-height:44px; justify-content:center; border:0; background:none; text-align:left; cursor:pointer; padding:0; }
+.lieu-nom { font-size:14px; font-weight:600; overflow-wrap:anywhere; }  /* passe à la ligne, jamais tronqué (mobile-parents) */
+.lieu-categorie { display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--texte-2); }
+.lieu-puce { width:8px; height:8px; border-radius:50%; flex:none; }
+.lieu-alocaliser { flex:0 0 auto; font-size:11px; font-weight:600; color:var(--ambre-texte); background:var(--ambre-fond); border-radius:6px; padding:2px 7px; }
+/* ---- Recherche de position (formulaire + Lieu, choixDetaille du socle, relecture §C) ---- */
+.lieu-position { display:flex; flex-direction:column; gap:6px; }
+.lieu-position-titre { font-size:13px; font-weight:600; color:var(--texte-2); }
+.lieu-position-chercher { align-self:flex-start; padding:2px 0 6px; }
+#lieu-resultats-recherche:empty { display:none; }
+
+/* ---- Topo ---- */
+.fiche-topo { display:flex; flex-direction:column; gap:8px; }
+.topo-rendu { font-size:14px; line-height:1.5; }
+.topo-rendu h3 { font-size:16px; margin:10px 0 4px; }
+.topo-rendu h4 { font-size:14px; margin:8px 0 4px; }
+.topo-rendu ul { margin:4px 0; padding-left:20px; }
+.topo-rendu p { margin:0 0 8px; }
+.topo-rendu a { color:var(--bleu); }
+#topo-edition { min-height:180px; }

@@ -21,10 +21,13 @@
 //      échoue normalement (pas de repli cache) : c'est à l'app de gérer l'état
 //      hors ligne, pas au worker de mentir sur les données.
 //
-//   3. Google Fonts (fonts.googleapis.com, fonts.gstatic.com) —
-//      STALE-WHILE-REVALIDATE : autant profiter du cache pour un affichage
-//      instantané en rayon, la police ne change quasiment jamais donc le
-//      risque de fraîcheur est nul.
+//   3. Google Fonts (fonts.googleapis.com, fonts.gstatic.com) et cdnjs.cloudflare.com
+//      (Leaflet — carte de la fiche voyage) — STALE-WHILE-REVALIDATE : ce sont des
+//      bibliothèques figées par version exacte dans l'URL, jamais republiées sous le
+//      même chemin ; autant profiter du cache pour un affichage instantané, le risque
+//      de fraîcheur est nul. Les TUILES de carte (tile.openstreetmap.org) restent hors
+//      de cette règle : NON interceptées (réseau seul, cf. bloc 4) — ce sont des images
+//      changeantes, sans borne de volume raisonnable à mettre en cache.
 //
 //   4. Le reste (JS/CSS non précachés, pages non listées) — NETWORK-FIRST
 //      avec repli cache si présent.
@@ -40,6 +43,7 @@ importScripts("./sw-version.js", "./sw-precache.js");
 const VERSION = self.SW_VERSION || "dev";
 const SHELL_CACHE = `maxhome-shell-${VERSION}`;
 const FONTS_CACHE = "maxhome-fonts";
+const CDNJS_CACHE = "maxhome-cdnjs";
 const PRECACHE_LIST = self.SW_PRECACHE || [];
 
 self.addEventListener("install", (event) => {
@@ -137,5 +141,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 4. Tout autre tiers (CDN Supabase JS, etc.) : laissé au navigateur, pas d'interception.
+  // 3bis. cdnjs (Leaflet, versionné dans l'URL) → stale-while-revalidate, même logique.
+  if (url.hostname === "cdnjs.cloudflare.com") {
+    event.respondWith(staleWhileRevalidate(request, CDNJS_CACHE));
+    return;
+  }
+
+  // 4. Tout autre tiers (CDN Supabase JS, tuiles OSM, etc.) : laissé au navigateur, pas
+  //    d'interception — les tuiles de carte ne doivent jamais entrer dans un cache borné.
 });

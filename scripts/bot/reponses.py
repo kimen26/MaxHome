@@ -1,5 +1,6 @@
 """Formatage des réponses du bot — aucune logique métier ici."""
 import unicodedata
+from datetime import datetime
 
 MOIS_NOMS = ["", "janvier", "février", "mars", "avril", "mai", "juin", "juillet",
              "août", "septembre", "octobre", "novembre", "décembre"]
@@ -207,6 +208,12 @@ AIDE = """Commandes :
   mois
   annuler
   aide
+  voyage <nom> · voyages
+  lieu <voyage> <nom du lieu>
+  localise <voyage>
+  topo <voyage>
+  résa <en langage libre>
+  photo/PDF avec légende = nom du voyage
 Mois : "en août", "août 2026", "08/2026". Défaut : mois courant."""
 
 
@@ -220,3 +227,108 @@ def non_compris():
 
 def proposer_copie(mois_vide_nom, mois_source_nom):
     return f"{mois_vide_nom.capitalize()} est vide. Démarrer depuis {mois_source_nom} ? oui/non"
+
+
+# ---------- module Voyages (carnet, D-045) ----------
+MOTS_TYPE_RESA = {
+    "vol": "✈️ Vol", "train": "🚆 Train", "logement": "🏠 Logement",
+    "voiture": "🚗 Voiture", "activite": "🎟️ Activité", "autre": "📌",
+}
+MOTS_CATEGORIE_LIEU = {
+    "a_voir": "à voir", "activite": "activité", "logement": "logement",
+    "resto": "resto", "transport": "transport", "autre": "autre",
+}
+
+
+def _date_heure(iso):
+    """« 10/04 12:10 » à partir d'un timestamp ISO sans fuseau, ou « ? » si absent."""
+    if not iso:
+        return "?"
+    try:
+        dt = datetime.fromisoformat(iso)
+        return dt.strftime("%d/%m %H:%M")
+    except ValueError:
+        return iso[:16]
+
+
+def _ligne_resa(r):
+    mot = MOTS_TYPE_RESA.get(r["type"], "📌")
+    prix = f" · {euros(r['prix_centimes'])}" if r.get("prix_centimes") is not None else ""
+    paye = f" · payé par {r['paye_par']}" if r.get("paye_par") else ""
+    code = f" · {r['code']}" if r.get("code") else ""
+    return f"  {mot} {r['titre']} — {_date_heure(r.get('debut'))}{code}{prix}{paye}"
+
+
+def _ligne_lieu(l):
+    cat = MOTS_CATEGORIE_LIEU.get(l["categorie"], l["categorie"])
+    return f"  {l['nom']} ({cat})"
+
+
+def fiche_voyage(voyage, resas, lieux_du_jour_ou_prochains, jour_aujourdhui):
+    lignes = [f"{voyage['titre']} — {voyage.get('lieu') or '?'}"]
+    if resas:
+        lignes.append("Réservations :")
+        for r in resas:
+            lignes.append(_ligne_resa(r))
+    else:
+        lignes.append("Aucune réservation.")
+    if lieux_du_jour_ou_prochains:
+        titre_bloc = "Lieux du jour :" if any(l.get("jour") == jour_aujourdhui for l in lieux_du_jour_ou_prochains) \
+            else "Prochains lieux prévus :"
+        lignes.append(titre_bloc)
+        for l in lieux_du_jour_ou_prochains:
+            lignes.append(_ligne_lieu(l))
+    return "\n".join(lignes)
+
+
+def liste_voyages(voyages_avec_delai):
+    """`voyages_avec_delai` : [(voyage, n_jours)], déjà triés."""
+    if not voyages_avec_delai:
+        return "Aucun voyage à venir."
+    lignes = ["Voyages à venir :"]
+    for v, n in voyages_avec_delai:
+        delai = "aujourd'hui" if n == 0 else f"dans {n} jour{'s' if n > 1 else ''}"
+        lignes.append(f"  {v['titre']} — {v.get('lieu') or '?'} ({delai})")
+    return "\n".join(lignes)
+
+
+def lieu_ajoute(nom_lieu, lieu):
+    if lieu.get("lat") is not None:
+        return f"« {nom_lieu} » ajouté : {lieu['adresse']}"
+    return f"« {nom_lieu} » ajouté sans position (introuvable sur la carte)."
+
+
+def localisation_resultat(n_localises, restants):
+    base = f"{pluriel(n_localises, 'lieu')} localisé{'s' if n_localises > 1 else ''}"
+    if not restants:
+        return f"{base}, aucun restant."
+    return f"{base}, {pluriel(len(restants), 'lieu')} restent sans position : {', '.join(restants)}."
+
+
+def recap_resa(resa):
+    prix = euros(resa["prix_centimes"]) if resa.get("prix_centimes") is not None else "?"
+    lignes = [
+        f"Réservation pour {resa['voyage_titre']} :",
+        f"  {MOTS_TYPE_RESA.get(resa['type'], '📌')} {resa['titre']}",
+        f"  {_date_heure(resa.get('debut'))}" + (f" → {_date_heure(resa['fin'])}" if resa.get("fin") else ""),
+    ]
+    if resa.get("prestataire"):
+        lignes.append(f"  Prestataire : {resa['prestataire']}")
+    if resa.get("code"):
+        lignes.append(f"  Code : {resa['code']}")
+    lignes.append(f"  Prix : {prix}" + (f" · payé par {resa['paye_par']}" if resa.get("paye_par") else ""))
+    lignes.append("Enregistrer ? oui/non")
+    return "\n".join(lignes)
+
+
+def resa_enregistree(resa):
+    return f"Réservation « {resa['titre']} » enregistrée pour {resa.get('voyage_titre', '')}."
+
+
+def topo_propose(texte):
+    apercu = texte if len(texte) <= 1500 else texte[:1497] + "..."
+    return f"{apercu}\n\nEnregistrer ce topo ? oui/non"
+
+
+def piece_rangee(nom_voyage):
+    return f"Billet rangé dans {nom_voyage}."

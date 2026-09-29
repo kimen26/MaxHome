@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { paques, feries, grilleMois, evenementsDuMois, prochaines, nbJours, formatPeriode, relatif,
   couvre, chevauche } from "../frontend/agenda/calendrier.js";
 import { parserVacances, chargerVacances, jourParis, cleCache, TTL_CACHE_MS } from "../frontend/agenda/vacances.js";
+import { lieuxParJour, totauxResas, joursAvant, CATEGORIES_LIEU, TYPES_RESA } from "../frontend/agenda/carnet.js";
+import { rendreTopo } from "../frontend/agenda/topo.js";
 
 // ---------- Pâques et fériés ----------
 assert.equal(paques(2026), "2026-04-05");
@@ -124,5 +126,65 @@ await assert.rejects(() => chargerVacances("Zone Z", { fetchFn: fetchOk, stockag
 const stCasse = stockageMemoire({ [cleCache("Zone C")]: "{pas du json" });
 const r7 = await chargerVacances("Zone C", { fetchFn: fetchOk, stockage: stCasse, maintenant: t0 });
 assert.equal(r7.periodes.length, 2);
+
+// ---------- carnet de voyage : catégories et types ----------
+assert.equal(CATEGORIES_LIEU.length, 6);
+assert.ok(CATEGORIES_LIEU.every((c) => /^#[0-9a-f]{6}$/i.test(c.couleur)), "couleurs hexa");
+assert.deepEqual(new Set(CATEGORIES_LIEU.map((c) => c.valeur)),
+  new Set(["a_voir", "activite", "logement", "resto", "transport", "autre"]));
+assert.equal(TYPES_RESA.length, 6);
+assert.ok(TYPES_RESA.every((t) => t.emoji && t.libelle));
+
+// ---------- carnet de voyage : lieuxParJour ----------
+const lieux = [
+  { id: 1, nom: "Zoo", jour: "2026-10-18", ordre: 1 },
+  { id: 2, nom: "Aquarium", jour: "2026-10-18", ordre: 0 },
+  { id: 3, nom: "Hôtel", jour: null, ordre: 0 },
+  { id: 4, nom: "Marché", jour: "2026-10-17", ordre: 0 },
+  { id: 5, nom: "Ancien château", jour: null, ordre: 0 },
+];
+const groupes = lieuxParJour(lieux);
+assert.deepEqual(groupes.map((g) => g.jour), ["2026-10-17", "2026-10-18", null], "jours croissants puis sans date");
+assert.deepEqual(groupes[1].lieux.map((l) => l.nom), ["Aquarium", "Zoo"], "tri par ordre puis nom dans un jour");
+assert.deepEqual(groupes[2].lieux.map((l) => l.nom), ["Ancien château", "Hôtel"], "sans date : tri par nom (même ordre)");
+assert.deepEqual(lieuxParJour([]), [], "aucun lieu : aucun groupe");
+
+// ---------- carnet de voyage : totauxResas ----------
+const membres = [{ prenom: "Yann" }, { prenom: "Claudia" }];
+const resas = [
+  { type: "vol", titre: "Aller", prix_centimes: 20000, paye_par: "Yann", statut: "reserve" },
+  { type: "logement", titre: "Hôtel", prix_centimes: 15000, paye_par: "Claudia", statut: "reserve" },
+  { type: "activite", titre: "Musée", prix_centimes: 5000, paye_par: null, statut: "reserve" },
+  { type: "train", titre: "Annulé", prix_centimes: 9999, paye_par: "Yann", statut: "annule" },
+];
+const totaux = totauxResas(resas, membres);
+assert.equal(totaux.total, 40000, "la résa annulée est exclue du total");
+assert.deepEqual(totaux.parPrenom, { Yann: 20000, Claudia: 15000 });
+assert.equal(totaux.nonPaye, 5000, "non payé compté à part, jamais fondu dans parPrenom");
+assert.deepEqual(totauxResas([], membres), { total: 0, parPrenom: { Yann: 0, Claudia: 0 }, nonPaye: 0 });
+
+// ---------- carnet de voyage : joursAvant ----------
+assert.equal(joursAvant({ debut: "2026-10-17", fin: "2026-10-25" }, "2026-10-05"), 12);
+assert.equal(joursAvant({ debut: "2026-10-17", fin: "2026-10-25" }, "2026-10-17"), "en cours");
+assert.equal(joursAvant({ debut: "2026-10-17", fin: "2026-10-25" }, "2026-10-20"), "en cours");
+assert.equal(joursAvant({ debut: "2026-10-17", fin: "2026-10-25" }, "2026-10-25"), "en cours");
+assert.equal(joursAvant({ debut: "2026-10-17", fin: "2026-10-25" }, "2026-10-26"), "passé");
+
+// ---------- topo : rendu markdown léger, sûr ----------
+assert.equal(rendreTopo(""), "");
+assert.equal(rendreTopo(null), "");
+assert.equal(rendreTopo("## Titre"), "<h3>Titre</h3>");
+assert.equal(rendreTopo("### Sous-titre"), "<h4>Sous-titre</h4>");
+assert.equal(rendreTopo("- Un\n- Deux"), "<ul><li>Un</li><li>Deux</li></ul>");
+assert.equal(rendreTopo("Du **gras** ici"), "<p>Du <strong>gras</strong> ici</p>");
+assert.equal(rendreTopo("[Carte](https://maps.example/x)"),
+  '<p><a href="https://maps.example/x" target="_blank" rel="noopener">Carte</a></p>');
+assert.equal(rendreTopo("Para un.\n\nPara deux."), "<p>Para un.</p><p>Para deux.</p>");
+assert.equal(rendreTopo("Ligne un\nLigne deux"), "<p>Ligne un<br>Ligne deux</p>", "même paragraphe, retour à la ligne simple");
+// XSS : le HTML brut est neutralisé avant toute transformation.
+assert.equal(rendreTopo("<script>alert(1)</script>"), "<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>");
+assert.equal(rendreTopo("[x](javascript:alert(1))"), "<p>[x](javascript:alert(1))</p>", "schéma non http(s) : reste du texte, jamais un lien");
+assert.equal(rendreTopo('<img src=x onerror="alert(1)">'), "<p>&lt;img src=x onerror=&quot;alert(1)&quot;&gt;</p>");
+assert.equal(rendreTopo("## <b>Titre</b> **gras**"), "<h3>&lt;b&gt;Titre&lt;/b&gt; <strong>gras</strong></h3>", "titre : HTML échappé, gras transformé");
 
 console.log("test_agenda OK");

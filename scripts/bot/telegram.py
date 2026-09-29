@@ -36,3 +36,18 @@ class Telegram:
         if not rep.get("ok"):
             raise RuntimeError(f"sendMessage échoué : {rep}")
         return rep["result"]
+
+    def telecharger_fichier(self, file_id, timeout=60):
+        """getFile puis téléchargement du binaire. Retourne (contenu, chemin_telegram)."""
+        rep = self._appel("getFile", {"file_id": file_id}, timeout=timeout)
+        if not rep.get("ok"):
+            raise RuntimeError(f"getFile échoué : {rep}")
+        chemin = rep["result"]["file_path"]
+        url = f"{API}/file/bot{self._base.split('/bot', 1)[1]}/{chemin}"
+        req = urllib.request.Request(url, method="GET")
+        req.add_header("User-Agent", "maxhome-bot/1.0")
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return r.read(), chemin
+        except urllib.error.HTTPError as e:
+            raise RuntimeError(f"téléchargement fichier -> {e.code}") from e

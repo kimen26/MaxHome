@@ -10,6 +10,7 @@ import courses as courses_mod
 import mouvements
 import reponses
 import taches as taches_mod
+import voyages as voyages_mod
 
 # ---------- module Budget ----------
 def budget(bot, telegram_id, prenom, action, annee, mois):
@@ -102,3 +103,100 @@ def courses(bot, telegram_id, prenom, action):
     if a == "courses_liste":
         return reponses.liste_courses(bot.donnees.courses())
     return None
+
+
+# ---------- module Voyages (carnet, D-045) ----------
+def voyages(bot, telegram_id, prenom, action, texte_brut=None):
+    """Retourne le texte à envoyer, ou None si l'action ne la concerne pas.
+
+    `topo` et `resa_libre` ne CHANGENT rien ici : ils préparent une confirmation oui/non
+    posée dans bot.etats[telegram_id]["attente_voyage"], vidée par bot.py::gerer_attente_voyage.
+    """
+    a = action["action"]
+
+    if a == "voyages":
+        vs = voyages_mod.voyages_a_venir(bot.donnees.voyages(), date.today())
+        avec_delai = [(v, (date_iso_en_date(v["debut"]) - date.today()).days) for v in vs]
+        return reponses.liste_voyages(avec_delai)
+
+    if a == "voyage":
+        voyage, proches = voyages_mod.trouver_voyage(action["nom"], bot.donnees.voyages())
+        if not voyage:
+            return _voyage_introuvable(action["nom"], proches)
+        resas = bot.donnees.resas_voyage(voyage["id"])
+        lieux = bot.donnees.lieux_voyage(voyage["id"])
+        aujourdhui = date.today().isoformat()
+        du_jour = [l for l in lieux if l.get("jour") == aujourdhui]
+        cible = du_jour if du_jour else [l for l in lieux if l.get("jour") and l["jour"] >= aujourdhui][:5]
+        return reponses.fiche_voyage(voyage, resas, cible, aujourdhui)
+
+    if a == "lieu":
+        voyage, suite_ou_proches = voyages_mod.separer_voyage_et_reste(action["reste"], bot.donnees.voyages())
+        if not voyage:
+            proches = suite_ou_proches
+            return (f"Voyage introuvable. Proches : {', '.join(proches)}." if proches
+                    else "Voyage introuvable.")
+        nom_lieu = suite_ou_proches
+        if not nom_lieu:
+            return "Format : `lieu <voyage> <nom du lieu>`."
+        lieu = voyages_mod.ajouter_lieu(bot.donnees, voyage, nom_lieu, prenom)
+        bot.marquer_annulable(telegram_id, "voyage_lieux", {"id": lieu["id"]}, None)
+        return reponses.lieu_ajoute(nom_lieu, lieu)
+
+    if a == "localise":
+        voyage, proches = voyages_mod.trouver_voyage(action["voyage"], bot.donnees.voyages())
+        if not voyage:
+            return _voyage_introuvable(action["voyage"], proches)
+        n, restants = voyages_mod.localiser_manquants(bot.donnees, voyage)
+        return reponses.localisation_resultat(n, restants)
+
+    if a == "topo":
+        voyage, proches = voyages_mod.trouver_voyage(action["voyage"], bot.donnees.voyages())
+        if not voyage:
+            return _voyage_introuvable(action["voyage"], proches)
+        texte = voyages_mod.reecrire_topo(bot.donnees, voyage)
+        if not texte:
+            return "Le topo n'a pas pu être réécrit (assistant indisponible)."
+        bot.etats.setdefault(telegram_id, {})["attente_voyage"] = {"type": "topo", "voyage_id": voyage["id"], "texte": texte}
+        return reponses.topo_propose(texte)
+
+    if a == "resa_libre":
+        vs = bot.donnees.voyages()
+        interp = voyages_mod.extraire_resa(texte_brut or "", vs, bot.membres)
+        if interp.get("action") == "inconnu" or not interp.get("titre"):
+            return "Je n'ai pas compris la réservation. Précise voyage, type, titre, date, prix, payeur."
+        resa, erreur = voyages_mod.valider_resa(interp, vs, bot.membres)
+        if erreur:
+            return erreur
+        bot.etats.setdefault(telegram_id, {})["attente_voyage"] = {"type": "resa", "resa": resa}
+        return reponses.recap_resa(resa)
+
+    return None
+
+
+def _voyage_introuvable(nom, proches):
+    base = f"Aucun voyage ne correspond à « {nom} »."
+    return f"{base} Proches : {', '.join(proches)}." if proches else base
+
+
+def date_iso_en_date(iso):
+    if not iso:
+        return date.max
+    return date.fromisoformat(iso[:10])
+
+
+def confirmer_voyage(bot, telegram_id, prenom, oui):
+    """Traite la réponse oui/non à une attente_voyage (topo ou résa). Vide l'attente."""
+    etat = bot.etats.get(telegram_id, {}).pop("attente_voyage", None)
+    if not etat:
+        return None
+    if not oui:
+        return "OK, rien fait."
+    if etat["type"] == "topo":
+        voyages_mod.enregistrer_topo(bot.donnees, etat["voyage_id"], etat["texte"])
+        return "Topo enregistré."
+    if etat["type"] == "resa":
+        cree = voyages_mod.inserer_resa(bot.donnees, etat["resa"], prenom)
+        bot.marquer_annulable(telegram_id, "voyage_resas", {"id": cree["id"]}, None)
+        return reponses.resa_enregistree(etat["resa"])
+    raise RuntimeError(f"attente_voyage de type inconnu : {etat['type']}")

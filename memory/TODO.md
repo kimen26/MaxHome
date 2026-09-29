@@ -255,3 +255,13 @@ répétable oui/non, sa liste de tâches découpée. Arbitrages : D-041._
       « au besoin » (Todo) — le dire si une carte Nuit quotidienne convient mieux.
 - [ ] Étagère, garage, cadres désactivés (absents de la liste relue) : les recréer si oubli.
 - [ ] Bot Telegram : ne sait pas choisir une variante ni faire « +1 » (défaut : première variante).
+
+## Lane J — Carnet de voyage (2026-09-29, D-045)
+- [x] Base (020), import des 4 carnets, écrans Agenda › Voyages, bot, recettes.
+- [ ] Déployer (push) et redémarrer la tâche planifiée du bot, après accord de Yann.
+- [ ] Yann : renseigner « payé par » sur les résas importées (toutes « pas encore payé »).
+- [ ] recette_voyage_reel a échoué 2 fois sur 6 juste après d'autres recettes, cause non trouvée
+      (port fixe 8767 ? connexion lente ?) — sortie d'erreur à capturer au prochain échec.
+- [ ] Déconnexion : vider le cache `maxhome-pieces` (billets restés sur l'appareil).
+- [ ] Plus tard, si demandé : une résa payée → « ajouter au mois » dans le Budget.
+

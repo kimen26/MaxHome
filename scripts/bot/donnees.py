@@ -130,3 +130,78 @@ class Donnees:
     def inscrire_telegram(self, telegram_id, prenom):
         self._appel("POST", "telegram_membres", {"telegram_id": telegram_id, "prenom": prenom},
                     {"Prefer": "resolution=merge-duplicates"})
+
+    # ---------- module Voyages (carnet, D-045) ----------
+    def voyages(self):
+        return self._appel("GET", "voyages?select=*&order=debut")
+
+    def voyage(self, id_):
+        r = self._appel("GET", f"voyages?id=eq.{id_}&select=*")
+        return r[0] if r else None
+
+    def lieux_voyage(self, voyage_id):
+        return self._appel("GET", f"voyage_lieux?voyage_id=eq.{voyage_id}&select=*&order=jour,ordre,id")
+
+    def resas_voyage(self, voyage_id):
+        return self._appel("GET",
+            f"voyage_resas?voyage_id=eq.{voyage_id}&statut=neq.annule&select=*&order=debut")
+
+    def creer_lieu(self, champs):
+        r = self._appel("POST", "voyage_lieux", champs, {"Prefer": "return=representation"})
+        return r[0]
+
+    def maj_lieu(self, id_, champs):
+        r = self._appel("PATCH", f"voyage_lieux?id=eq.{id_}", champs, {"Prefer": "return=representation"})
+        if not r:
+            raise RuntimeError(f"lieu {id_} introuvable")
+        return r[0]
+
+    def creer_resa(self, champs):
+        r = self._appel("POST", "voyage_resas", champs, {"Prefer": "return=representation"})
+        return r[0]
+
+    def maj_resa(self, id_, champs):
+        r = self._appel("PATCH", f"voyage_resas?id=eq.{id_}", champs, {"Prefer": "return=representation"})
+        if not r:
+            raise RuntimeError(f"résa {id_} introuvable")
+        return r[0]
+
+    def supprimer_lieu(self, id_):
+        self._appel("DELETE", f"voyage_lieux?id=eq.{id_}")
+
+    def maj_voyage(self, id_, champs):
+        r = self._appel("PATCH", f"voyages?id=eq.{id_}", champs, {"Prefer": "return=representation"})
+        if not r:
+            raise RuntimeError(f"voyage {id_} introuvable")
+        return r[0]
+
+    def creer_piece(self, champs):
+        r = self._appel("POST", "voyage_pieces", champs, {"Prefer": "return=representation"})
+        return r[0]
+
+    # ---------- Storage (bucket privé « voyages ») ----------
+    def upload_stockage(self, chemin, contenu_binaire, type_mime):
+        """PUT direct sur l'API Storage (pas du PostgREST : base différente)."""
+        url = self._base.replace("/rest/v1", "") + f"/storage/v1/object/voyages/{chemin}"
+        req = urllib.request.Request(url, data=contenu_binaire, method="POST")
+        req.add_header("apikey", self._entetes["apikey"])
+        req.add_header("Authorization", self._entetes["Authorization"])
+        req.add_header("Content-Type", type_mime or "application/octet-stream")
+        req.add_header("User-Agent", "maxhome-bot/1.0")
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                r.read()
+        except urllib.error.HTTPError as e:
+            raise RuntimeError(f"storage upload {chemin} -> {e.code}: {e.read().decode()[:300]}") from e
+
+    def supprimer_stockage(self, chemin):
+        url = self._base.replace("/rest/v1", "") + f"/storage/v1/object/voyages/{chemin}"
+        req = urllib.request.Request(url, method="DELETE")
+        req.add_header("apikey", self._entetes["apikey"])
+        req.add_header("Authorization", self._entetes["Authorization"])
+        req.add_header("User-Agent", "maxhome-bot/1.0")
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                r.read()
+        except urllib.error.HTTPError as e:
+            raise RuntimeError(f"storage delete {chemin} -> {e.code}: {e.read().decode()[:300]}") from e

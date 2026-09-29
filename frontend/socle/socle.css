@@ -39,6 +39,12 @@
    L'option choisie est pleine bleue ET cochée ✓ ; 48 px de haut ; un libellé trop long passe
    à la ligne, il n'est jamais rogné (D-039). ---------- */
 .choix-detaille { display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:8px; }
+/* `justify-items:stretch` est la valeur par défaut de la grille, mais un `<button>` garde sa
+   largeur intrinsèque (feuille UA) tant qu'aucune largeur explicite ne le force à remplir sa
+   cellule — d'où des options centrées, de largeurs inégales, observées en colonne (relecture
+   carnet-voyage §H). `width:100%` explicite plutôt que de compter sur le stretch implicite. */
+.choix-detaille.colonne { grid-template-columns:1fr; }
+.choix-detaille.colonne .choix-option { width:100%; }
 .choix-option {
   display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:2px;
   min-height:48px; padding:6px 12px; text-align:left; cursor:pointer; min-width:0;

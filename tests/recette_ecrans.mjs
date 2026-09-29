@@ -14,6 +14,43 @@ const SORTIE = path.resolve("data/captures/ecrans");
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
 const LARGEURS = [320, 360, 1200]; // non-régression, conception, desktop (règle mobile-parents.md)
 
+// Stub Leaflet minimal (frontend/agenda/carte.js n'a besoin que de L.map/tileLayer/marker/
+// divIcon/featureGroup) : pose un conteneur `.leaflet-container` visible, sans vraie tuile ni
+// vraie carte — la recette hors ligne ne doit JAMAIS toucher le vrai cdnjs (voir page.route
+// plus bas). `getBounds().pad()` suffisant pour fitBounds sur ≥ 2 marqueurs.
+const STUB_LEAFLET_JS = `
+window.L = {
+  map: (el) => {
+    el.classList.add("leaflet-container");
+    return {
+      setView() { return this; },
+      fitBounds() { return this; },
+    };
+  },
+  tileLayer: () => ({ addTo: () => ({}) }),
+  divIcon: (opts) => ({ __html: opts.html }),
+  marker: (latlng) => ({
+    addTo() { return this; },
+    bindPopup() { return this; },
+    getLatLng: () => ({ lat: latlng[0], lng: latlng[1] }),
+  }),
+  featureGroup: (marqueurs) => ({
+    getBounds: () => ({ pad: () => ({ __marqueurs: marqueurs.length }) }),
+  }),
+};
+`;
+
+/** Ferme le plein écran custom de ui-piece-plein-ecran.js s'il traîne (laissé ouvert par le
+ *  geste voyage-qr-plein-ecran) : ce n'est pas `#feuille` du socle, donc invisible à la
+ *  fermeture générique entre deux gestes plus bas — même prudence que L-018. Idempotent, sans
+ *  effet si rien n'est ouvert. */
+async function fermerPieceOrpheline(page) {
+  if (await page.locator(".piece-plein-ecran").count()) {
+    await page.click(".piece-plein-fermer");
+    await page.waitForSelector(".piece-plein-ecran", { state: "hidden", timeout: 3000 });
+  }
+}
+
 // Les feuilles modales ne s'ouvrent que par un geste : on les visite explicitement, sinon
 // elles échappent à toute capture et la recette valide des écrans qu'elle n'a jamais vus.
 // Plusieurs feuilles par largeur : chacune est refermée par un clic DOM direct sur le voile
@@ -102,6 +139,116 @@ const GESTES = [
       await page.click("#charges-ref-corps [data-plier-terminees]");
       await page.waitForSelector("#charges-ref-corps .ct-liste:not([hidden])", { timeout: 3000 });
     } },
+  // ---------- carnet de voyage (D-045, lot C) ----------
+  // Fiche complète du voyage 1 (« Week-end à la mer », en cours) : en-tête, Réservations
+  // (code, prix, pièce), Carte (Leaflet réel, cdnjs non bloqué ici), Lieux, Topo.
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-fiche",
+    geste: async (page) => {
+      await page.click('#voyages-liste-corps [data-voyage="1"]');
+      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+      // La carte se peuple après coup (Leaflet chargé à la demande) : on lui laisse le temps.
+      await page.waitForSelector(".leaflet-container, .carte-indisponible", { timeout: 8000 }).catch(() => {});
+      await page.waitForTimeout(200);
+      // « Modifier » d'une résa : lien texte, mais zone tactile réelle ≥ 48x48 (relecture §D) —
+      // mesurée, pas devinée à l'œil sur une capture.
+      const boite = await page.locator("#fiche-resas-corps .lr-modifier").first().boundingBox();
+      if (!boite || boite.width < 48 || boite.height < 48) {
+        throw new Error(`« Modifier » d'une résa : zone tactile ${boite ? `${Math.round(boite.width)}x${Math.round(boite.height)}` : "introuvable"}, attendu ≥ 48x48`);
+      }
+    } },
+  // La fiche défile : Réservations (capturée ci-dessus, en haut de la feuille plein écran) puis
+  // Lieux, Topo — chacune capturée séparément (relecture §B, une feuille plein écran ne montre
+  // plus tout d'un coup). La section Carte avec de VRAIES tuiles a son propre geste, isolé dans
+  // sa propre page (voir captureCarteReelle plus bas) : Leaflet mémorise sa promesse de
+  // chargement (carte.js::promesseChargement) — une fois le vrai script chargé, cette page ne
+  // reviendrait plus jamais au stub, ce qui casserait le geste voyage-carte-hors-ligne s'ils
+  // partageaient la même page.
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-fiche-lieux",
+    geste: async (page) => {
+      await page.click('#voyages-liste-corps [data-voyage="1"]');
+      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+      await page.waitForSelector(".leaflet-container, .carte-indisponible", { timeout: 8000 }).catch(() => {});
+      await page.evaluate(() => document.querySelector("#fiche-lieux-corps")?.scrollIntoView({ block: "start" }));
+      await page.waitForTimeout(150);
+    } },
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-fiche-topo",
+    geste: async (page) => {
+      await page.click('#voyages-liste-corps [data-voyage="1"]');
+      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+      await page.waitForSelector(".leaflet-container, .carte-indisponible", { timeout: 8000 }).catch(() => {});
+      await page.evaluate(() => document.querySelector("#fiche-topo-corps")?.scrollIntoView({ block: "start" }));
+      await page.waitForTimeout(150);
+    } },
+  // Pièce (billet du vol) ouverte en plein écran fond blanc, bouton Fermer 48 px.
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-qr-plein-ecran",
+    geste: async (page) => {
+      await page.click('#voyages-liste-corps [data-voyage="1"]');
+      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+      await page.click('#fiche-resas-corps [data-ouvrir-piece]');
+      await page.waitForSelector(".piece-plein-ecran img", { timeout: 5000 });
+    } },
+  // + Lieu, résultats de géocodage bouchonnés (page.route sur nominatim) : trois propositions
+  // à choisir, sans toucher au vrai réseau (politique d'usage OSM respectée par construction).
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-ajout-lieu",
+    geste: async (page) => {
+      // Le geste précédent (voyage-qr-plein-ecran) laisse un plein écran custom ouvert : ce
+      // n'est pas `#feuille` du socle, la boucle générique qui referme les feuilles après
+      // chaque geste ne le connaît pas et ne le referme pas — sans ce nettoyage l'overlay
+      // opaque masque tout ce geste-ci (L-018 : fermer explicitement, jamais supposer parti).
+      await fermerPieceOrpheline(page);
+      await page.route("**/nominatim.openstreetmap.org/**", (route) => route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify([
+          { display_name: "Aquarium de La Rochelle, 17000 La Rochelle", lat: "46.1556", lon: "-1.1511", type: "attraction" },
+          { display_name: "Aquarium de Trouville, 14360 Trouville-sur-Mer", lat: "49.3707", lon: "0.0814", type: "attraction" },
+        ]),
+      }));
+      await page.click('#voyages-liste-corps [data-voyage="1"]');
+      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+      await page.click("#fiche-lieux-corps [data-nouveau-lieu]");
+      await page.waitForSelector("#feuille [data-form-lieu]", { timeout: 5000 });
+      await page.fill('#feuille [data-form-lieu] [name="nom"]', "Aquarium de Trouville");
+      await page.click("#feuille [data-form-lieu] [data-chercher-position]");
+      await page.waitForSelector("#feuille #lieu-resultats-recherche .choix-detaille", { timeout: 5000 });
+      await page.waitForTimeout(150);
+    } },
+  // Retour sur la fiche après un sous-écran (relecture : « + Lieu » etc. remplaçaient la fiche
+  // par la LISTE des voyages au lieu d'y revenir, D-045). + Lieu -> Ajouter doit laisser
+  // [data-fiche-voyage] visible avec le nouveau lieu dans la liste ; + Réservation -> Annuler
+  // (voile) doit aussi laisser la fiche visible, pas la liste.
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-retour-fiche",
+    geste: async (page) => {
+      await page.route("**/nominatim.openstreetmap.org/**", (route) => route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify([{ display_name: "Phare de Biarritz, 64200 Biarritz", lat: "43.4832", lon: "-1.5586", type: "attraction" }]),
+      }));
+      await page.click('#voyages-liste-corps [data-voyage="1"]');
+      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+      await page.waitForSelector(".leaflet-container, .carte-indisponible", { timeout: 8000 }).catch(() => {});
+      // + Lieu, nom, Sans position (le premier résultat proposé), Ajouter.
+      await page.click("#fiche-lieux-corps [data-nouveau-lieu]");
+      await page.waitForSelector("#feuille [data-form-lieu]", { timeout: 5000 });
+      await page.fill('#feuille [data-form-lieu] [name="nom"]', "Phare de Biarritz");
+      await page.click("#feuille [data-form-lieu] [data-chercher-position]");
+      await page.waitForSelector("#feuille #lieu-resultats-recherche .choix-detaille", { timeout: 5000 });
+      await page.click('#feuille #lieu-resultats-recherche [data-resultat="__sans_position__"]');
+      await page.click('#feuille [data-form-lieu] button[type="submit"]');
+      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+      const lieuAjoute = await page.locator('#fiche-lieux-corps .lieu-nom', { hasText: "Phare de Biarritz" }).count();
+      if (!lieuAjoute) throw new Error("voyage-retour-fiche : le nouveau lieu n'apparaît pas dans la liste des lieux après Ajouter.");
+      // + Réservation, puis fermeture par le voile (équivalent d'Annuler) : la fiche doit rester visible.
+      await page.click("#fiche-resas-corps [data-nouvelle-resa]");
+      await page.waitForSelector("#feuille [data-form-resa]", { timeout: 5000 });
+      await page.evaluate(() => document.querySelector("#feuille-fond").click());
+      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+      await page.waitForTimeout(150);
+    } },
+  // « Carte hors ligne » (capture voyage-carte-hors-ligne) est traitée par sa PROPRE page —
+  // voir captureCarteHorsLigne plus bas — pour la même raison que voyage-fiche-carte : une fois
+  // qu'un geste PRÉCÉDENT dans la même page a chargé Leaflet avec succès (même le stub),
+  // carte.js::chargerLeaflet() mémorise `window.L` et ne retente plus JAMAIS le réseau — bloquer
+  // cdnjs après coup ne fait plus rien, le geste attendrait indéfiniment son message d'erreur
+  // (jamais dans le tableau GESTES générique, qui partage une seule page par largeur).
 ];
 
 // ---------- 1. écrans à visiter, lus depuis les descripteurs (pas de liste en dur) ----------
@@ -166,6 +313,7 @@ const TABLES = {
   courses_rayons: "RAYONS", courses: "COURSES", repas: "REPAS", repas_ingredients: "REPAS_INGREDIENTS",
   courses_classiques: "COURSES_CLASSIQUES",
   voyages: "VOYAGES", parametres: "PARAMETRES",
+  voyage_lieux: "VOYAGE_LIEUX", voyage_resas: "VOYAGE_RESAS", voyage_pieces: "VOYAGE_PIECES",
 };
 
 /** Construit le script de bouchon : un thenable qui imite from().select().eq()... et
@@ -275,6 +423,35 @@ function scriptBouchon(donnees) {
       return q;
     }
 
+    // Storage bouchonné : un seul bucket utilisé (« voyages »), objets tenus en mémoire par
+    // chemin. La pièce factice (VOYAGE_PIECES) est préchargée avec le petit PNG en data:, pour
+    // que urlPiece()/le cache hors ligne aient un vrai contenu à servir sans réseau.
+    window.__bouchonStorage = { "1/billet-avion.png": ${JSON.stringify(donnees.PIECE_QR_PNG_DATA_URL ?? "")} };
+
+    function storageBucket(bucket) {
+      return {
+        async upload(chemin, fichier) {
+          const lecteur = new FileReader();
+          const dataUrl = await new Promise((resolve, reject) => {
+            lecteur.onload = () => resolve(lecteur.result);
+            lecteur.onerror = () => reject(lecteur.error);
+            lecteur.readAsDataURL(fichier);
+          });
+          window.__bouchonStorage[chemin] = dataUrl;
+          return { data: { path: chemin }, error: null };
+        },
+        async remove(chemins) {
+          for (const c of chemins) delete window.__bouchonStorage[c];
+          return { data: null, error: null };
+        },
+        async createSignedUrl(chemin) {
+          const dataUrl = window.__bouchonStorage[chemin];
+          if (!dataUrl) return { data: null, error: new Error("objet introuvable : " + chemin) };
+          return { data: { signedUrl: dataUrl }, error: null };
+        },
+      };
+    }
+
     window.__bouchonTables = {};
     window.supabase = {
       createClient: () => ({
@@ -290,6 +467,7 @@ function scriptBouchon(donnees) {
           },
         },
         from: (nom) => requete(nom),
+        storage: { from: (bucket) => storageBucket(bucket) },
       }),
     };
   })();`;
@@ -430,6 +608,16 @@ try {
       if (url.includes("supabase") || url.includes("fonts.g")) return route.abort();
       return route.continue();
     });
+    // Leaflet (cdnjs, frontend/agenda/carte.js) : stub minimal servi localement, jamais le
+    // vrai réseau — la recette reste 100 % hors ligne, y compris pour la fiche voyage. Assez
+    // de la surface Leaflet pour que carte.js s'exécute et pose un conteneur `.leaflet-container`
+    // repérable (aucune vraie tuile, aucune vraie carte : ce n'est pas ce que la recette teste).
+    // Le geste « voyage-carte-hors-ligne » réenregistre une route qui abort spécifiquement
+    // cdnjs (Playwright prend la dernière route enregistrée), simulant l'indisponibilité.
+    await page.route("**/cdnjs.cloudflare.com/ajax/libs/leaflet/**/leaflet.min.css", (route) =>
+      route.fulfill({ status: 200, contentType: "text/css", body: ".leaflet-container{min-height:220px}" }));
+    await page.route("**/cdnjs.cloudflare.com/ajax/libs/leaflet/**/leaflet.min.js", (route) =>
+      route.fulfill({ status: 200, contentType: "text/javascript", body: STUB_LEAFLET_JS }));
     await page.addInitScript(scriptBouchon(DONNEES));
 
     await page.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
@@ -479,11 +667,25 @@ try {
         await aller(page, ecran, moduleDefaut);
         await geste(page);
         await capturer(page, nom, largeur, erreursPage);
+        // Un geste peut laisser le plein écran custom d'une pièce ouvert (voyage-qr-plein-ecran) :
+        // il n'est pas `#feuille`, mais son overlay `position:fixed` intercepte quand même tout
+        // clic sur la feuille en dessous (« ← Voyages » y compris) — le fermer AVANT tout le reste.
+        await fermerPieceOrpheline(page);
         // Un geste peut ouvrir une feuille (détail d'une tâche sur mobile) : la refermer, sinon
         // son voile intercepte le geste suivant — même règle que la boucle des feuilles (L-018).
-        if (await page.locator("#feuille:not([hidden])").count()) {
-          await page.evaluate(() => document.getElementById("feuille-fond").click());
-          await page.waitForSelector("#feuille", { state: "hidden", timeout: 5000 });
+        // Un formulaire de la fiche voyage (Lieu/Résa/Billet) fermé par le voile ROUVRE la fiche
+        // (revenirALaFiche, brief carnet-voyage) : #feuille repasse donc par `hidden` un instant
+        // TROP BREF pour qu'un waitForSelector(state:"hidden") l'observe de façon fiable — on
+        // attend un état STABLE à la place (fermée pour de bon, OU rouverte sur la fiche elle-
+        // même) en repollant après chaque clic, jusqu'à ce que cet état stable soit atteint.
+        for (let tentative = 0; tentative < 4; tentative++) {
+          const ficheVisible = await page.locator("#feuille [data-fiche-voyage]").count();
+          if (ficheVisible) await page.click("#feuille [data-retour-voyages]");
+          else if (await page.locator("#feuille:not([hidden])").count()) {
+            await page.evaluate(() => document.getElementById("feuille-fond").click());
+          } else break; // déjà fermée
+          await page.waitForTimeout(200); // laisse fermerFeuille + un éventuel onFermer async se dérouler
+          if (!(await page.locator("#feuille:not([hidden])").count())) break; // fermée pour de bon
         }
       } catch (e) {
         ecransCasses.push(`${nom} @ ${largeur}px : ${e.message.split("\n")[0]}`);
@@ -493,10 +695,104 @@ try {
     }
     erreurs.push(...erreursPage.map((m) => `${largeur}px: ${m}`));
     await page.close();
+
+    // ---------- carte réelle (relecture §B) : page à part, réseau réel vers cdnjs + tuiles ----
+    const erreursCarte = await captureCarteReelle(navigateur, PORT, largeur);
+    erreurs.push(...erreursCarte.map((m) => `${largeur}px: ${m}`));
+
+    // ---------- carte hors ligne : page à part, cdnjs bloqué DÈS LE DÉPART ----------
+    const erreursHorsLigne = await captureCarteHorsLigne(navigateur, PORT, largeur);
+    erreurs.push(...erreursHorsLigne.map((m) => `${largeur}px: ${m}`));
   }
 } finally {
   await navigateur.close();
   serveur.close();
+}
+
+/** Capture voyage-fiche-carte : seul endroit de toute la recette où le réseau réel part vers
+ *  cdnjs (le vrai Leaflet) et tile.openstreetmap.org (les vraies tuiles) — page dédiée, jamais
+ *  réutilisée pour autre chose, pour ne polluer ni le stub Leaflet des autres pages ni leur
+ *  promesse de chargement mémorisée (carte.js). Bloque toujours supabase/fonts, comme partout
+ *  ailleurs dans la recette (relecture §B). */
+async function captureCarteReelle(navigateur, port, largeur) {
+  const page = await navigateur.newPage({ viewport: { width: largeur, height: 900 } });
+  const erreursPage = [];
+  const attendue = (texte) => texte.includes("net::ERR_FAILED");
+  page.on("console", (m) => { if (m.type() === "error" && !attendue(m.text())) erreursPage.push(m.text()); });
+  page.on("pageerror", (e) => erreursPage.push(e.message));
+  await page.route("**/*", (route) => {
+    const url = route.request().url();
+    if (url.includes("supabase") || url.includes("fonts.g")) return route.abort();
+    return route.continue();
+  });
+  await page.addInitScript(scriptBouchon(DONNEES));
+  try {
+    await page.goto(`http://localhost:${port}/`, { waitUntil: "networkidle" });
+    await page.waitForSelector("#app:not([hidden])", { timeout: 10000 });
+    await aller(page, "voyages-liste", "agenda-mois");
+    await page.click('#voyages-liste-corps [data-voyage="1"]');
+    await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+    await page.waitForSelector(".leaflet-container", { timeout: 15000 });
+    // Vraies tuiles chargées : au moins une image de tuile posée par Leaflet.
+    await page.waitForSelector(".leaflet-tile-loaded, .leaflet-tile", { timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(800);
+    await page.evaluate(() => document.querySelector("#fiche-carte-corps")?.scrollIntoView({ block: "start" }));
+    await page.waitForTimeout(150);
+    await capturer(page, "voyage-fiche-carte", largeur, erreursPage);
+  } catch (e) {
+    ecransCasses.push(`voyage-fiche-carte @ ${largeur}px : ${e.message.split("\n")[0]}`);
+  } finally {
+    await page.close();
+  }
+  return erreursPage;
+}
+
+/** Capture voyage-carte-hors-ligne : cdnjs bloqué DÈS LE PREMIER chargement de la page (pas
+ *  après coup) — carte.js::chargerLeaflet() mémorise sa promesse dans `promesseChargement` : une
+ *  fois `window.L` posé avec succès (même par le stub), plus AUCUN blocage ultérieur de cdnjs
+ *  ne fait revenir l'erreur, car le script n'est jamais rechargé. Cette page-ci n'exécute donc
+ *  jamais le stub Leaflet : cdnjs est bloqué avant même le premier clic sur la fiche, pour que
+ *  `chercherLeaflet()` échoue réellement et affiche « Carte indisponible hors ligne ».
+ *  Le SERVICE WORKER de l'app (frontend/sw.js) fait lui-même du `stale-while-revalidate` pour
+ *  cdnjs.cloudflare.com (cache `maxhome-cdnjs`) : son `fetch()` s'exécute dans le contexte du
+ *  worker, jamais intercepté par `page.route()` (qui ne voit que les requêtes de la PAGE) — le
+ *  SW allait donc chercher et servir le vrai Leaflet malgré le blocage, contournant tout. On
+ *  empêche son enregistrement pour cette page précise (index.html ne fait alors plus AUCUNE
+ *  requête réseau invisible à `page.route`), seul moyen de faire échouer réellement le
+ *  chargement de Leaflet ici. */
+async function captureCarteHorsLigne(navigateur, port, largeur) {
+  const page = await navigateur.newPage({ viewport: { width: largeur, height: 900 } });
+  const erreursPage = [];
+  // "SW désactivé…" et "Chargement de Leaflet impossible" sont les CONSÉQUENCES directes et
+  // volontaires de ce geste (SW coupé et cdnjs bloqué exprès, ci-dessous) : l'app les logge
+  // correctement en erreur (cause jamais avalée en silence), mais ce n'est pas une vraie casse
+  // à faire échouer la recette — même logique que net::ERR_FAILED pour les CDN coupés partout.
+  const attendue = (texte) => texte.includes("net::ERR_FAILED")
+    || texte.includes("SW désactivé pour ce geste")
+    || texte.includes("Chargement de Leaflet impossible");
+  page.on("console", (m) => { if (m.type() === "error" && !attendue(m.text())) erreursPage.push(m.text()); });
+  page.on("pageerror", (e) => erreursPage.push(e.message));
+  await page.addInitScript(() => { navigator.serviceWorker.register = () => Promise.reject(new Error("SW désactivé pour ce geste")); });
+  await page.route("**/*", (route) => {
+    const url = route.request().url();
+    if (url.includes("supabase") || url.includes("fonts.g") || url.includes("cdnjs.cloudflare.com")) return route.abort();
+    return route.continue();
+  });
+  await page.addInitScript(scriptBouchon(DONNEES));
+  try {
+    await page.goto(`http://localhost:${port}/`, { waitUntil: "networkidle" });
+    await page.waitForSelector("#app:not([hidden])", { timeout: 10000 });
+    await aller(page, "voyages-liste", "agenda-mois");
+    await page.click('#voyages-liste-corps [data-voyage="1"]');
+    await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+    await page.waitForSelector("#fiche-carte-corps .carte-indisponible", { timeout: 8000 });
+    await capturer(page, "voyage-carte-hors-ligne", largeur, erreursPage);
+  } catch (e) {
+    ecransCasses.push(`voyage-carte-hors-ligne @ ${largeur}px : ${e.message.split("\n")[0]}`);
+  } finally {
+    await page.close();
+  }
+  return erreursPage;
 }
 
 async function capturer(page, ecran, largeur, erreursPage) {

@@ -234,3 +234,14 @@ _État courant. Réécrit en fin de session, jamais un journal._
   du bouchon `insert` absent côté Tâches (autre session, D-041) — pas du Budget.
 - 2026-09-28 (nuit) : **ajouter / terminer une charge** (D-043) dans Réglages · Charges, carte
   « Terminées » repliée en bas. Portes : test_calc, recette écrans (90 captures), recette connectée.
+- 2026-09-29 : **le carnet de voyage entre dans MaxHome** (D-045, brief docs/briefs/carnet-voyage.md).
+  Migration 020 (`voyage_lieux`, `voyage_resas`, `voyage_pieces`, `voyages.topo`, bucket Storage
+  privé `voyages`) appliquée deux fois, anonyme vérifié à vide. Les 4 carnets MaxVoyage convertis
+  (inbox/voyages/, ignoré) et importés : 69 lieux, 12 résas, 4 topos. Agenda › Voyages : liste,
+  fiche plein écran (résas avec code à copier et billets/QR, carte Leaflet + OSM, lieux par jour,
+  topo), ajout de lieu géocodé (Nominatim), pièces copiées hors ligne ≤ 14 j avant départ. Bot :
+  `voyages`, `voyage`, `lieu`, `localise`, `topo`, résa en langage libre, photo + légende = billet.
+  Portes : test_agenda, recette écrans (114), recette connectée, recette_voyage_reel (lecture
+  seule, fiche Malaga réelle regardée), 181 bot. recette_token rouge : bouchon `insert` côté
+  Tâches (autre session), pas le carnet.
+

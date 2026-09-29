@@ -155,25 +155,41 @@ export function brancherNavigation(onChange) {
 
 // ---------- feuille mobile ----------
 let confirmationEnAttente = null;
+// Rappel posé par la feuille COURANTE, si elle en a un : appelé quand elle se ferme par
+// N'IMPORTE QUELLE voie — voile, Échap, ou fermerFeuille() explicite (ex. Enregistrer/Retirer/
+// Écarter) — jamais dupliqué à chaque point de fermeture (fiche voyage, brief carnet-voyage :
+// après un formulaire de lieu/résa, on revient sur la fiche, pas sur la liste des voyages).
+let onFermerFeuille = null;
 
-export function ouvrirFeuille(html) {
+/** `pleinEcran` : la feuille occupe tout l'écran sous la barre d'état, sans bande de contenu
+ *  visible derrière (D-045, relecture carnet-voyage §A) — pour un détail qui EST un écran
+ *  (fiche voyage), pas pour un formulaire court qu'on veut voir flotter au-dessus du reste.
+ *  `onFermer` : rappel appelé une fois quand CETTE feuille se ferme, quelle que soit la voie
+ *  (bouton, voile, Échap) — remplace le rappel d'une feuille précédente, jamais cumulé. */
+export function ouvrirFeuille(html, { pleinEcran = false, onFermer = null } = {}) {
   brancherFeuille();
   $("#feuille-corps").innerHTML = html;
   $("#feuille-fond").hidden = false;
   const f = $("#feuille");
   f.classList.add("entrante");
+  f.classList.toggle("pleine", pleinEcran);
   f.hidden = false;
+  onFermerFeuille = onFermer;
   requestAnimationFrame(() => f.classList.remove("entrante"));
 }
 
 export function fermerFeuille() {
   $("#feuille").hidden = true;
+  $("#feuille").classList.remove("pleine");
   $("#feuille-fond").hidden = true;
   $("#feuille-corps").innerHTML = "";
   // Une confirmation fermée par le fond ou Échap vaut « non ».
   const attente = confirmationEnAttente;
   confirmationEnAttente = null;
   attente?.(false);
+  const rappel = onFermerFeuille;
+  onFermerFeuille = null;
+  rappel?.();
 }
 
 export const feuilleOuverte = () => !$("#feuille").hidden;
@@ -189,22 +205,31 @@ function brancherFeuille() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") fermerFeuille(); });
 }
 
-/** Confirmation en feuille, à la place de confirm() : résout true si l'utilisateur confirme. */
+/** Confirmation en feuille, à la place de confirm() : résout true si l'utilisateur confirme.
+ *  Réutilise la feuille unique par-dessus celle de l'appelant (ex. formulaire Lieu) : son
+ *  `onFermer` est préservé pendant la confirmation puis restauré si elle est annulée (voile,
+ *  Échap, ou « Annuler ») — sinon un « Retirer » annulé perdrait le retour vers la fiche que le
+ *  formulaire avait posé (D-036 esprit : une seule feuille, jamais deux rappels qui s'écrasent). */
 export function confirmer(texte, { ok = "Confirmer", danger = true } = {}) {
   return new Promise((resolve) => {
+    const rappelAppelant = onFermerFeuille;
     ouvrirFeuille(`<div class="pile confirmation">
       <p class="texte-confirmation">${txt(texte)}</p>
       <div class="detail-actions">
         <button type="button" class="btn grandir" data-annuler>Annuler</button>
         <button type="button" class="btn grandir ${danger ? "btn-rouge" : "btn-bleu"}" data-ok>${txt(ok)}</button>
-      </div></div>`);
+      </div></div>`, { onFermer: rappelAppelant });
     confirmationEnAttente = resolve;
     $("#feuille-corps [data-ok]").addEventListener("click", () => {
       confirmationEnAttente = null;
+      onFermerFeuille = null; // la confirmation elle-même ne doit pas redéclencher le rappel
       fermerFeuille();
       resolve(true);
     });
-    $("#feuille-corps [data-annuler]").addEventListener("click", fermerFeuille);
+    $("#feuille-corps [data-annuler]").addEventListener("click", () => {
+      resolve(false);
+      fermerFeuille(); // annulé : onFermer(rappelAppelant) s'exécute -> retour au formulaire
+    });
   });
 }
 

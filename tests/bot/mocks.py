@@ -5,7 +5,7 @@ class DonneesFausse:
     """Reproduit la surface de scripts/bot/donnees.py::Donnees, en mémoire."""
 
     def __init__(self, membres=None, charges=None, telegram_membres=None, recurrents=None,
-                 taches_recurrentes=None):
+                 taches_recurrentes=None, voyages=None):
         self._membres = membres or [{"prenom": "Yann", "ordre": 1}, {"prenom": "Claudia", "ordre": 2}]
         self._charges = charges or []
         self._telegram_membres = telegram_membres or {6433455282: "Yann"}
@@ -22,6 +22,14 @@ class DonneesFausse:
         self._prochain_id_charge = 1000
         self._prochain_id_ajustement = 1
         self._prochain_id_mouvement = 1
+        self._voyages = voyages if voyages is not None else []
+        self._lieux = []
+        self._resas = []
+        self._pieces = []
+        self._stockage = {}  # chemin -> (contenu, type_mime)
+        self._prochain_id_lieu = 1
+        self._prochain_id_resa = 1
+        self._prochain_id_piece = 1
 
     # ---------- lecture ----------
     def membre_telegram(self, telegram_id):
@@ -135,6 +143,69 @@ class DonneesFausse:
 
     def supprimer_taches(self, ids):
         self._taches = [t for t in self._taches if t["id"] not in set(ids)]
+
+    # ---------- module Voyages (carnet, D-045) ----------
+    def voyages(self):
+        return [dict(v) for v in self._voyages]
+
+    def voyage(self, id_):
+        return next((dict(v) for v in self._voyages if v["id"] == id_), None)
+
+    def lieux_voyage(self, voyage_id):
+        return [dict(l) for l in self._lieux if l["voyage_id"] == voyage_id]
+
+    def resas_voyage(self, voyage_id):
+        return [dict(r) for r in self._resas
+                if r["voyage_id"] == voyage_id and r.get("statut") != "annule"]
+
+    def creer_lieu(self, champs):
+        l = {"id": self._prochain_id_lieu, "lat": None, "lng": None, "adresse": None,
+             "jour": None, "ordre": 0, "note": None, "lien": None, **champs}
+        self._prochain_id_lieu += 1
+        self._lieux.append(l)
+        return dict(l)
+
+    def maj_lieu(self, id_, champs):
+        for l in self._lieux:
+            if l["id"] == id_:
+                l.update(champs)
+                return dict(l)
+        raise RuntimeError(f"lieu {id_} introuvable")
+
+    def supprimer_lieu(self, id_):
+        self._lieux = [l for l in self._lieux if l["id"] != id_]
+
+    def creer_resa(self, champs):
+        r = {"id": self._prochain_id_resa, "statut": "reserve", **champs}
+        self._prochain_id_resa += 1
+        self._resas.append(r)
+        return dict(r)
+
+    def maj_resa(self, id_, champs):
+        for r in self._resas:
+            if r["id"] == id_:
+                r.update(champs)
+                return dict(r)
+        raise RuntimeError(f"résa {id_} introuvable")
+
+    def maj_voyage(self, id_, champs):
+        for v in self._voyages:
+            if v["id"] == id_:
+                v.update(champs)
+                return dict(v)
+        raise RuntimeError(f"voyage {id_} introuvable")
+
+    def creer_piece(self, champs):
+        p = {"id": self._prochain_id_piece, **champs}
+        self._prochain_id_piece += 1
+        self._pieces.append(p)
+        return dict(p)
+
+    def upload_stockage(self, chemin, contenu_binaire, type_mime):
+        self._stockage[chemin] = (contenu_binaire, type_mime)
+
+    def supprimer_stockage(self, chemin):
+        self._stockage.pop(chemin, None)
 
 
 def recurrents_part(membres):

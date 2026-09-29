@@ -23,6 +23,7 @@ import libre  # noqa: E402
 import mouvements  # noqa: E402
 import taches as taches_mod  # noqa: E402
 import reponses  # noqa: E402
+import voyages as voyages_mod  # noqa: E402
 from donnees import Donnees  # noqa: E402
 from telegram import Telegram  # noqa: E402
 
@@ -177,12 +178,17 @@ class Bot:
             self.donnees.maj_mouvement(cle["id"], {"fait_le": ancienne["fait_le"],
                                                    "montant_centimes": ancienne["montant_centimes"],
                                                    "fait_par": ancienne.get("fait_par")})
+        elif table == "voyage_lieux":
+            self.donnees.supprimer_lieu(cle["id"])  # toujours une création fraîche
+        elif table == "voyage_resas":
+            self.donnees.maj_resa(cle["id"], {"statut": "annule"})  # traçable, jamais un DELETE
         else:
             raise RuntimeError(f"annulation non gérée pour la table {table}")
         return "Dernière écriture annulée."
 
     # Actions qui ne portent sur aucun mois : la proposition de copie ne s'y applique pas.
-    SANS_MOIS = ("taches", "balance", "courses_liste", "course_ajout")
+    SANS_MOIS = ("taches", "balance", "courses_liste", "course_ajout",
+                 "voyages", "voyage", "lieu", "localise", "topo", "resa_libre")
 
     def traiter_action(self, telegram_id, prenom, action, texte_brut):
         """Aiguille vers le module concerné. Retourne le texte à envoyer, ou None."""
@@ -203,7 +209,9 @@ class Bot:
             return "Utilise `/inscrire <ton id> <prenom>` envoyé par Yann pour t'inscrire."
 
         if a in self.SANS_MOIS:
-            return actions.taches(self, telegram_id, prenom, action) or actions.courses(self, telegram_id, prenom, action)
+            return (actions.taches(self, telegram_id, prenom, action)
+                    or actions.courses(self, telegram_id, prenom, action)
+                    or actions.voyages(self, telegram_id, prenom, action, texte_brut))
 
         annee, mois = action.get("annee"), action.get("mois")
         copie = self.proposer_copie_si_mois_vide(telegram_id, action, annee, mois)
@@ -253,6 +261,10 @@ class Bot:
         rep_attente = self.gerer_attente(telegram_id, prenom, texte_brut)
         if rep_attente is not None:
             return rep_attente
+
+        norm = reponses.normaliser(texte_brut.strip())
+        if norm in ("oui", "non") and self.etats.get(telegram_id, {}).get("attente_voyage"):
+            return actions.confirmer_voyage(self, telegram_id, prenom, norm == "oui")
 
         annee_c, mois_c = self.mois_courant()
         action = commandes.interpreter(texte_brut, self.membres, self.charges, annee_c, mois_c)
@@ -325,6 +337,13 @@ class Bot:
                     "annee": annee, "mois": mois}
         return {"action": "erreur", "message": "Action libre non prise en charge."}
 
+    def traiter_piece(self, telegram_id, msg):
+        """Photo ou document PDF, légendé du nom d'un voyage. Aiguille vers voyages.py."""
+        prenom = self.donnees.membre_telegram(telegram_id)
+        if not prenom:
+            return reponses.inconnu()
+        return voyages_mod.traiter_piece(self.donnees, self.telegram, prenom, msg)
+
     def boucle(self):
         offset = 0
         self.log.info("bot démarré")
@@ -338,16 +357,26 @@ class Bot:
             for u in updates:
                 offset = u["update_id"] + 1
                 msg = u.get("message")
-                if not msg or "text" not in msg:
+                if not msg:
                     continue
                 chat_id = msg["chat"]["id"]
                 telegram_id = msg["from"]["id"]
-                texte = msg["text"]
-                try:
-                    reponse = self.traiter_message(telegram_id, texte)
-                except Exception:
-                    self.log.exception("erreur non gérée")
-                    reponse = "Erreur interne, réessaie."
+                if "text" in msg:
+                    try:
+                        reponse = self.traiter_message(telegram_id, msg["text"])
+                    except Exception:
+                        self.log.exception("erreur non gérée")
+                        reponse = "Erreur interne, réessaie."
+                elif "photo" in msg or "document" in msg:
+                    try:
+                        reponse = self.traiter_piece(telegram_id, msg)
+                    except Exception:
+                        self.log.exception("erreur traitement pièce jointe")
+                        reponse = "Erreur interne, réessaie."
+                else:
+                    continue
+                if reponse is None:
+                    continue
                 try:
                     self.telegram.envoyer(chat_id, reponse)
                 except Exception:

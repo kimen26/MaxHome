@@ -6,6 +6,8 @@
 // Le format de chaque table suit exactement les colonnes lues par frontend/socle/api.js
 // (voir supabase/migrations/*.sql pour le schéma).
 
+import { genererQrFactice, genererQrFactieDataUrl } from "./qr_factice.mjs";
+
 const AUJOURDHUI = new Date();
 // Date LOCALE, jamais toISOString() : passé 22h en été, l'UTC est déjà au lendemain et toutes
 // les échéances factices glisseraient d'un jour — la recette virerait au rouge le soir sans
@@ -314,13 +316,61 @@ export const REPAS_INGREDIENTS = [
 // un cache de vacances scolaires (même forme que frontend/agenda/vacances.js) pour ne toucher
 // AUCUN réseau pendant la recette.
 export const VOYAGES = [
-  { id: 1, titre: "Week-end à la mer", lieu: "Normandie", debut: ilYA(1), fin: ilYA(-1), note: "Train de 9 h", cree_par: "Yann", cree_le: ilYA(30) },
+  { id: 1, titre: "Week-end à la mer", lieu: "Normandie", debut: ilYA(1), fin: ilYA(-1), note: "Train de 9 h", cree_par: "Yann", cree_le: ilYA(30),
+    topo: "## À savoir\nLe **camping** ferme à 22 h. Prévoir des bottes si marée haute.\n\n- Marché le dimanche matin\n- [Météo locale](https://meteo.example/normandie)",
+    topo_le: ilYA(2) },
   { id: 2, titre: "Ski en famille", lieu: "Le Lioran", debut: ilYA(-40), fin: ilYA(-47), note: null, cree_par: "Claudia", cree_le: ilYA(10) },
 ];
 export const PARAMETRES = [{ cle: "zone", valeur: "Zone C" }];
 export const VACANCES_CACHE = [
   { titre: "Vacances d'exemple", zone: "Zone C", debut: ilYA(-10), fin: ilYA(-25), anneeScolaire: `${ANNEE}-${ANNEE + 1}` },
   { titre: "Vacances suivantes", zone: "Zone C", debut: ilYA(-70), fin: ilYA(-85), anneeScolaire: `${ANNEE}-${ANNEE + 1}` },
+];
+
+// ---------- module Agenda : carnet de voyage (voyage 1, « Week-end à la mer ») ----------
+// 3 résas : vol avec code (payé par Yann), logement (sans payeur — teste « non payé »),
+// voiture (annulée — exclue des totaux, carnet.js::totauxResas).
+export const VOYAGE_RESAS = [
+  { id: 1, voyage_id: 1, type: "vol", titre: "Aller Paris → Deauville", debut: `${ilYA(1)}T07:30:00`, fin: `${ilYA(1)}T08:45:00`,
+    prestataire: "Air Littoral", code: "XR7K2P", prix_centimes: 8900, paye_par: "Yann", statut: "reserve",
+    lieu_id: null, note: null, cree_par: "Yann", cree_le: ilYA(30) },
+  { id: 2, voyage_id: 1, type: "logement", titre: "Gîte les Embruns", debut: `${ilYA(1)}T15:00:00`, fin: `${ilYA(-1)}T10:00:00`,
+    prestataire: "Gîtes de France", code: null, prix_centimes: 24000, paye_par: null, statut: "reserve",
+    lieu_id: null, note: "Code boîte à clés envoyé par SMS la veille.", cree_par: "Yann", cree_le: ilYA(28) },
+  { id: 3, voyage_id: 1, type: "voiture", titre: "Location voiture gare", debut: `${ilYA(1)}T09:00:00`, fin: `${ilYA(-1)}T18:00:00`,
+    prestataire: "Europcar", code: "LOC4419", prix_centimes: 6500, paye_par: "Claudia", statut: "annule",
+    lieu_id: null, note: "Annulée : covoiturage avec les Martin finalement.", cree_par: "Claudia", cree_le: ilYA(20) },
+];
+
+// 8 lieux : 2 sans position (« à localiser »), 3 datés sur 2 jours différents, le reste sans
+// date. Catégories variées pour peupler la légende de la carte (carnet.js::CATEGORIES_LIEU).
+export const VOYAGE_LIEUX = [
+  { id: 1, voyage_id: 1, nom: "Plage de Deauville", categorie: "a_voir", statut: "prevu", jour: ilYA(1), ordre: 1,
+    lat: 49.3573, lng: 0.0708, adresse: "Plage de Deauville, 14800 Deauville", note: "Planches en bois célèbres.", lien: null, cree_par: "Yann", cree_le: ilYA(29) },
+  { id: 2, voyage_id: 1, nom: "Marché de Deauville", categorie: "a_voir", statut: "idee", jour: ilYA(1), ordre: 2,
+    lat: 49.3565, lng: 0.0721, adresse: "Marché, place Morny, 14800 Deauville", note: null, lien: null, cree_par: "Yann", cree_le: ilYA(29) },
+  { id: 3, voyage_id: 1, nom: "Restaurant Le Ponton", categorie: "resto", statut: "prevu", jour: ilYA(0), ordre: 1,
+    lat: 49.3601, lng: 0.0755, adresse: "Le Ponton, quai de la Marine, 14800 Deauville", note: "Réserver pour 19 h 30.", lien: null, cree_par: "Claudia", cree_le: ilYA(15) },
+  { id: 4, voyage_id: 1, nom: "Gîte les Embruns", categorie: "logement", statut: "prevu", jour: null, ordre: 0,
+    lat: 49.3540, lng: 0.0690, adresse: "12 rue des Embruns, 14800 Deauville", note: null, lien: null, cree_par: "Yann", cree_le: ilYA(28) },
+  { id: 5, voyage_id: 1, nom: "Gare de Deauville", categorie: "transport", statut: "fait", jour: null, ordre: 0,
+    lat: 49.3465, lng: 0.0819, adresse: "Gare de Deauville-Trouville", note: null, lien: null, cree_par: "Yann", cree_le: ilYA(30) },
+  { id: 6, voyage_id: 1, nom: "Aquarium de Trouville", categorie: "activite", statut: "idee", jour: null, ordre: 0,
+    lat: null, lng: null, adresse: null, note: "À localiser : deux communes portent ce nom.", lien: null, cree_par: "Claudia", cree_le: ilYA(12) },
+  { id: 7, voyage_id: 1, nom: "Vieille ville", categorie: "a_voir", statut: "idee", jour: null, ordre: 0,
+    lat: null, lng: null, adresse: null, note: null, lien: null, cree_par: "Claudia", cree_le: ilYA(11) },
+  { id: 8, voyage_id: 1, nom: "Cabane à huîtres oubliée", categorie: "resto", statut: "ecarte", jour: null, ordre: 0,
+    lat: 49.3610, lng: 0.0740, adresse: "Cabane à huîtres, Deauville", note: "Fermée hors saison.", lien: null, cree_par: "Yann", cree_le: ilYA(9) },
+];
+
+// Une pièce image qui RESSEMBLE à un QR (damier 21x21 + 3 carrés de repérage, tests/qr_factice.mjs),
+// servie en data: par le bouchon Storage — jamais un vrai QR encodé, la recette ne scanne rien,
+// mais assez pour juger si une vignette/un plein écran affiche un QR lisible (relecture §F : un
+// carré noir uniforme ne permettait pas de juger l'affichage).
+export const PIECE_QR_PNG_DATA_URL = genererQrFactieDataUrl();
+export const VOYAGE_PIECES = [
+  { id: 1, voyage_id: 1, resa_id: 1, nom: "Billet-avion.png", chemin: "1/billet-avion.png", type_mime: "image/png",
+    taille: genererQrFactice().length, cree_par: "Yann", cree_le: ilYA(30) },
 ];
 
 export const COURSES_CLASSIQUES = [

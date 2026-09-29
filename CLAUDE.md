@@ -8,7 +8,7 @@ discussion « c'est toujours moi » n'ait plus lieu d'être. Quatre modules, un 
 | **Budget** | salaires et charges du mois, qui verse quoi au commun, ce qui reste | Ce mois · Charges · Stats · Récurrents · Comptes · Vue annuelle |
 | **Tâches** | qui fait quoi à la maison, en parts (0,5 · 1 · 2 · 3 · 5 · 8) | Jour · Semaine · Réglages |
 | **Courses** | une liste commune, cochable dans l'ordre du magasin | Liste · Magasin |
-| **Agenda** | voyages, vacances scolaires de notre zone, jours fériés, sur un calendrier | Mois · Vacances · Voyages |
+| **Agenda** | voyages (carnet : résas, billets/QR, carte, lieux, topo), vacances scolaires de notre zone, jours fériés | Mois · Vacances · Voyages (liste + fiche) |
 
 En prod sur https://kimen26.github.io/MaxHome/ (Supabase `maxhome`), plus un bot Telegram
 `@BudgetCYM_bot` qui sert les trois modules. Le budget remplace un classeur Excel de 4 feuilles.
@@ -22,6 +22,7 @@ En prod sur https://kimen26.github.io/MaxHome/ (Supabase `maxhome`), plus un bot
 | tâche · ménage · parts · temps · créneau · étape · obligatoire · à deux · balance | TÂCHES | frontend/taches/taches.js + rythme.js + scripts/bot/taches.py |
 | courses · liste · rayon | COURSES | frontend/courses/ui-courses.js + scripts/bot/courses.py |
 | agenda · voyage · vacances · zone · férié · calendrier | AGENDA | frontend/agenda/calendrier.js + vacances.js + mod-agenda.js |
+| carnet · lieu · résa · réservation · billet · QR · carte · topo | VOYAGE | docs/briefs/carnet-voyage.md + frontend/agenda/carnet.js + ui-fiche-voyage.js + scripts/bot/voyages.py |
 | bot · Telegram · commande · rappel | BOT | scripts/bot/commandes.py + bot.py |
 | module · descripteur · nouveau module · arborescence · socle | ARCHI | docs/architecture.md + frontend/modules.js |
 | base · auth · Supabase · RLS · partage · sécurité | DATA | docs/architecture.md |
@@ -68,6 +69,7 @@ Plan → TodoWrite → Exécution → Vérification → Commit → memory/ grav�
 | `node tests/recette_token.mjs` (jeton refusé puis rafraîchi) | tout changement de `surChangement` / `demarrer()` / gestion d'erreur |
 | `node tests/recette_mise_a_jour.mjs` (déploiement simulé : l'app se recharge seule, jamais en saisie) | tout changement de `sw.js`, de son enregistrement dans index.html, de `gen-sw-version.mjs` |
 | `node tests/recette_connectee.mjs` (login réel + RLS) | tout changement schéma/RLS/app.js |
+| `node tests/recette_voyage_reel.mjs` (login réel, LECTURE SEULE, fiche Malaga capturée dans data/captures/reel/) | tout changement de la fiche voyage |
 
 Une capture se REGARDE, un log vert ne prouve rien (L-009). « Captures produites » est un
 résultat de script ; « écran conforme » est un jugement porté sur une image — les deux ne se

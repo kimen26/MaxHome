@@ -4,7 +4,16 @@ Timeout 60 s. Si claude échoue ou n'est pas installé : ne jamais planter la bo
 retourner {"action": "inconnu"}.
 """
 import json
+import re
 import subprocess
+
+_RE_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.MULTILINE)
+
+
+def _sans_fences(texte):
+    """Malgré la consigne « sans texte autour », le modèle encadre parfois sa réponse de
+    ```json ... ``` : on l'enlève avant de parser, plutôt que d'échouer silencieusement."""
+    return _RE_FENCE.sub("", texte).strip()
 
 PROMPT_SYSTEME = """Tu es l'interpréteur d'un bot budget familial. Réponds UNIQUEMENT en JSON, une seule ligne, sans texte autour.
 Actions possibles :
@@ -46,7 +55,39 @@ def interpreter(message, libelles, mois_courant, timeout=60):
         # `claude --output-format json` enveloppe la réponse dans un champ "result".
         brut = enveloppe.get("result", enveloppe) if isinstance(enveloppe, dict) else enveloppe
         if isinstance(brut, str):
-            brut = json.loads(brut)
+            brut = json.loads(_sans_fences(brut))
+        return brut
+    except (json.JSONDecodeError, AttributeError, TypeError):
+        return {"action": "inconnu"}
+
+
+PROMPT_RESA = """Tu extrais une réservation de voyage depuis un message en langage libre. Réponds UNIQUEMENT en JSON, une seule ligne, sans texte autour.
+Schéma : {{"voyage":"...","type":"vol|train|logement|voiture|activite|autre","titre":"...","debut":"AAAA-MM-JJ HH:MM"|null,"fin":"AAAA-MM-JJ HH:MM"|null,"prestataire":"..."|null,"code":"..."|null,"prix_centimes":12345|null,"paye_par":"..."|null}}
+"prix_centimes" est le prix en centimes d'euro entiers (578,35 € -> 57835), null si absent.
+"debut"/"fin" : heure LOCALE du lieu, sans fuseau, null si absente. Année par défaut : l'année courante si absente du message.
+Voyages existants : {voyages}
+Membres du foyer : {membres}
+Message : {message}"""
+
+
+def interpreter_resa(message, voyages, membres, timeout=60):
+    prompt = PROMPT_RESA.format(
+        voyages=", ".join(voyages), membres=", ".join(membres), message=message,
+    )
+    try:
+        r = subprocess.run(
+            ["claude", "-p", prompt, "--model", "haiku", "--output-format", "json"],
+            capture_output=True, text=True, timeout=timeout,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return {"action": "inconnu"}
+    if r.returncode != 0:
+        return {"action": "inconnu"}
+    try:
+        enveloppe = json.loads(r.stdout)
+        brut = enveloppe.get("result", enveloppe) if isinstance(enveloppe, dict) else enveloppe
+        if isinstance(brut, str):
+            brut = json.loads(_sans_fences(brut))
         return brut
     except (json.JSONDecodeError, AttributeError, TypeError):
         return {"action": "inconnu"}

@@ -111,6 +111,13 @@ main { padding:8px 12px calc(var(--barre-basse) + 84px); }
 }
 .feuille.entrante { transform:translateY(100%); }
 .feuille-titre { font-size:17px; margin-bottom:4px; }
+/* Variante plein écran (D-045, relecture carnet-voyage §A) : occupe tout l'écran sous la
+   barre d'état, pas de coin arrondi ni de bande de contenu grisé derrière — pour un détail
+   qui EST un écran (fiche voyage), toutes largeurs. */
+.feuille.pleine {
+  top:0; height:100vh; max-height:none; border-radius:0;
+  padding:calc(15px + env(safe-area-inset-top, 0px)) 13px calc(18px + env(safe-area-inset-bottom, 0px));
+}
 
 /* ---------- toast ---------- */
 #toast {

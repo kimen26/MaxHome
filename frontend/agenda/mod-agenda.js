@@ -1,9 +1,12 @@
 // Module Agenda : le calendrier du foyer — voyages, vacances scolaires de notre zone, jours
-// fériés. Trois écrans : Mois (grille), Vacances (par zone), Réglages · Voyages (CRUD).
+// fériés. Quatre écrans : Mois (grille), Vacances (par zone), Voyages (liste + fiche carnet),
+// Réglages · Voyages (CRUD titre/dates).
 
 import { creerUiAgenda } from "./ui-agenda.js";
 import { creerUiVacances } from "./ui-vacances.js";
 import { creerUiVoyages } from "./ui-voyages.js";
+import { creerUiVoyagesListe } from "./ui-voyages-liste.js";
+import { creerFicheVoyage } from "./ui-fiche-voyage.js";
 import { chargerVacances, ZONE_DEFAUT } from "./vacances.js";
 import { jourIso, prochaines, relatif } from "./calendrier.js";
 
@@ -11,15 +14,17 @@ const auj = () => jourIso(new Date());
 
 export default {
   cle: "agenda", nom: "Agenda", defaut: "agenda-mois", avecMois: false,
-  onglets: [["agenda-mois", "Mois"], ["vacances", "Vacances"]],
+  onglets: [["agenda-mois", "Mois"], ["vacances", "Vacances"], ["voyages-liste", "Voyages"]],
   reglages: [["voyages", "Voyages"]],
   // `agenda` = mois affiché par la grille (indépendant du sélecteur de mois du Budget : on
   // regarde souvent l'agenda à plusieurs mois, le budget au mois courant).
   // `vacances` = périodes de la zone du foyer ; `vacancesParZone` = cache mémoire par zone
-  // pour l'écran Vacances, qui compare les zones sans recharger.
+  // pour l'écran Vacances, qui compare les zones sans recharger. `voyageCompte` = { lieux,
+  // resas } par voyage_id, pour la carte de l'écran Voyages (« n résas · n lieux »).
   etatInitial: {
     voyages: [], parametres: [], zone: ZONE_DEFAUT, vacances: [], vacancesPerimees: false,
-    vacancesParZone: {}, agenda: { annee: new Date().getFullYear(), mois: new Date().getMonth() + 1 },
+    vacancesParZone: {}, voyageCompte: {},
+    agenda: { annee: new Date().getFullYear(), mois: new Date().getMonth() + 1 },
   },
   referentiels: (api) => ({ parametres: api.parametres() }),
 
@@ -47,21 +52,31 @@ export default {
     const mois = creerUiAgenda(api, etat, cb);
     const vac = creerUiVacances(api, etat, cb, { vacancesDe, changerZone, rendreMois: mois.rendre });
     const voyages = creerUiVoyages(api, etat, cb, { rendreMois: mois.rendre });
+    const fiche = creerFicheVoyage(api, etat, cb);
+    const listeVoyages = creerUiVoyagesListe(api, etat, cb, { ouvrirFiche: fiche.ouvrir });
 
     return {
-      ecrans: { "agenda-mois": mois.rendre, vacances: vac.rendre, voyages: voyages.rendre },
+      ecrans: { "agenda-mois": mois.rendre, vacances: vac.rendre, voyages: voyages.rendre, "voyages-liste": listeVoyages.rendre },
       async charger() {
         etat.zone = lireZone();
         // Les voyages viennent de la base ; les vacances d'une API publique. Si celle-ci
         // manque et qu'aucun cache n'existe, l'écran Mois montre quand même voyages et fériés :
         // l'erreur est signalée (bandeau) sans vider tout l'écran.
-        const [voyages, vacances] = await Promise.all([
+        const [voyages, vacances, compteurs] = await Promise.all([
           api.voyages(),
           vacancesDe(etat.zone).catch((e) => { cb.echec(e); return { periodes: [], perime: false }; }),
+          api.voyageCompteurs().catch((e) => { cb.echec(e); return { lieux: [], resas: [] }; }),
         ]);
         etat.voyages = voyages;
         etat.vacances = vacances.periodes;
         etat.vacancesPerimees = vacances.perime;
+        etat.voyageCompte = {};
+        for (const v of voyages) {
+          etat.voyageCompte[v.id] = {
+            lieux: compteurs.lieux.filter((l) => l.voyage_id === v.id).length,
+            resas: compteurs.resas.filter((r) => r.voyage_id === v.id).length,
+          };
+        }
       },
       resume() {
         const a = auj();

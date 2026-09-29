@@ -119,6 +119,60 @@ export function creerApi(sb) {
     /** Une ligne par clé ; `.select().single()` obligatoire, l'appelant réutilise la ligne (L-025). */
     majParametre: (cle, valeur) => sb.from("parametres").upsert({ cle, valeur }).select().single().then(rendre),
 
+    // ---------- module Agenda : carnet de voyage ----------
+    voyageLieux: (voyageId) => sb.from("voyage_lieux").select("*").eq("voyage_id", voyageId).order("jour").order("ordre").order("id").then(rendre),
+    creerLieu: (champs) => sb.from("voyage_lieux").insert(champs).select().single().then(rendre),
+    majLieu: (id, champs) => sb.from("voyage_lieux").update(champs).eq("id", id).then(rendre),
+    supprimerLieu: (id) => sb.from("voyage_lieux").delete().eq("id", id).then(rendre),
+
+    /** `voyage_id` de chaque lieu et résa, tous voyages confondus : de quoi compter « n résas ·
+     *  n lieux » sur chaque carte de la liste sans charger le détail de chaque voyage. */
+    async voyageCompteurs() {
+      const [lieux, resas] = await Promise.all([
+        sb.from("voyage_lieux").select("voyage_id").then(rendre),
+        sb.from("voyage_resas").select("voyage_id").then(rendre),
+      ]);
+      return { lieux, resas };
+    },
+
+    voyageResas: (voyageId) => sb.from("voyage_resas").select("*").eq("voyage_id", voyageId).order("debut").order("id").then(rendre),
+    creerResa: (champs) => sb.from("voyage_resas").insert(champs).select().single().then(rendre),
+    majResa: (id, champs) => sb.from("voyage_resas").update(champs).eq("id", id).then(rendre),
+    supprimerResa: (id) => sb.from("voyage_resas").delete().eq("id", id).then(rendre),
+
+    voyagePieces: (voyageId) => sb.from("voyage_pieces").select("*").eq("voyage_id", voyageId).order("cree_le").then(rendre),
+    /** Dépose un fichier dans le bucket privé `voyages` puis sa ligne ; si l'insert échoue,
+     *  retire l'objet déjà uploadé pour ne jamais laisser un fichier orphelin (cause racine,
+     *  pas de fuite silencieuse). Chemin : <voyage_id>/<uuid>.<extension>. */
+    async deposerPiece(voyageId, fichier, resaId) {
+      const extension = fichier.name.includes(".") ? fichier.name.split(".").pop() : "bin";
+      const chemin = `${voyageId}/${crypto.randomUUID()}.${extension}`;
+      const { error: erreurUpload } = await sb.storage.from("voyages").upload(chemin, fichier, { contentType: fichier.type });
+      if (erreurUpload) throw erreurUpload;
+      try {
+        return await sb.from("voyage_pieces").insert({
+          voyage_id: voyageId, resa_id: resaId ?? null, nom: fichier.name, chemin,
+          type_mime: fichier.type, taille: fichier.size,
+        }).select().single().then(rendre);
+      } catch (erreur) {
+        await sb.storage.from("voyages").remove([chemin]);
+        throw erreur;
+      }
+    },
+    /** URL signée, courte (1 h) : le bucket est privé, jamais d'URL publique (D-045). */
+    async urlPiece(chemin) {
+      const { data, error } = await sb.storage.from("voyages").createSignedUrl(chemin, 3600);
+      if (error) throw error;
+      return data.signedUrl;
+    },
+    async supprimerPiece(piece) {
+      const { error } = await sb.storage.from("voyages").remove([piece.chemin]);
+      if (error) throw error;
+      return sb.from("voyage_pieces").delete().eq("id", piece.id).then(rendre);
+    },
+    /** Écrit le topo (résumé markdown léger) et horodate la réécriture. */
+    majTopo: (voyageId, topo) => sb.from("voyages").update({ topo, topo_le: new Date().toISOString() }).eq("id", voyageId).then(rendre),
+
     // ---------- module Tâches ----------
     tachesRec: () => sb.from("taches_recurrentes").select("*").order("ordre").order("id").then(rendre),
     /** Tâches non faites (quelle que soit leur date) et tâches depuis `depuis` (AAAA-MM-JJ). */

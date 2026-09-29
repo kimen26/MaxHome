@@ -386,3 +386,42 @@ sont figés à 50/50, salaires encore vides. Deux semaines plus tard Yann saisit
 l'app lui dit « tout est viré ». **Une écriture de recette sur la base réelle se fait sur un mois
 passé (février 2026 pour recette_connectee), se défait dans le même script, et toute session qui
 coche à la main pour tester décoche avant de clore.**
+
+## L-042 — Un repli Claude sur un géocodage raté peut localiser un lieu inventé sur le centre-ville (2026-09-29)
+
+Contexte : preuve en direct de `localise` (bot voyages, D-045) sur un lieu totalement bidon
+(« Zzqx introuvable ») : Nominatim échoue, Claude (haiku) propose alors « Lyon, France » (repli
+sur la destination du voyage faute de nom reconnaissable) et Nominatim la géocode aussitôt — le
+lieu se retrouve avec une position au centre-ville plutôt que resté « à localiser ». Comportement
+conforme au brief (une seule tentative de repli) mais résultat trompeur pour l'utilisateur : rien
+ne distingue un lieu vraiment trouvé d'un lieu retombé sur la ville entière. **Un repli LLM sur
+un géocodage raté doit pouvoir répondre « je ne sais pas », pas seulement une meilleure requête ;
+si la coordonnée retournée est proche du centroïde de la destination du voyage, la traiter comme
+un échec plutôt qu'un succès.** Non corrigé ici (hors lot bot D, écran de revue humaine à
+prévoir côté app) — à reprendre si les lieux « localisés à tort » deviennent visibles en usage.
+Corrigé : un résultat Nominatim trop vague (addresstype ville/région/pays ou place_rank < 20,
+sauf si le nom cherché désigne cette ville) est rejeté comme un échec ; le prompt Claude répond
+vide plutôt que la ville de repli ; le message le dit (« trouvé seulement la ville »).
+
+## L-043 — Une case qui ne se voit pas est une case absente ; jamais `git stash` dans l'arbre partagé (2026-09-29)
+
+1. Yann : « pas de case pour valider les virements ». La case existait (17 px, bord #9aa6b4,
+   ~2,5:1 sur blanc) : sur téléphone elle passait pour absente. Une commande tactile se
+   vérifie à 360 px contre la règle parents (≥ 24 px visible, 48 px de tap, bord ≥ 3:1), pas
+   en constatant qu'elle est dans le DOM. Corrigé : 26 px, bord --texte-2, ::before à 48 px.
+2. Pour comparer une recette « avant/après », j'ai fait `git stash` / `git stash pop` : ça a
+   retiré un instant le travail en cours d'une AUTRE session (carnet de voyage) et aussi ma
+   propre modif — la série de captures produite ne montrait donc pas mon changement. Le pop
+   est passé sans conflit, par chance. Même famille que L-038 : dans l'arbre partagé, aucune
+   commande qui touche aux fichiers des autres (stash, checkout ., reset). Pour un « avant »,
+   `git worktree add` dans un dossier à part.
+
+## L-044 — Un service worker va chercher le réseau dans le dos de `page.route()` (2026-09-29)
+
+Contexte : le geste « carte hors ligne » bloquait cdnjs avec `page.route()` et attendait le
+message « Carte indisponible » : timeout à chaque largeur. Le service worker de l'app met
+cdnjs en stale-while-revalidate (D-045) ; ses requêtes partent du contexte worker, que
+`page.route()` n'intercepte pas — Leaflet arrivait quand même. **Un test qui simule une panne
+réseau neutralise d'abord le service worker (page isolée, SW désenregistré par
+`addInitScript`), sinon il teste le cache, pas la panne.**
+

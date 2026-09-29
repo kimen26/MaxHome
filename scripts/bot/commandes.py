@@ -117,6 +117,28 @@ def interpreter(texte_brut, prenoms, charges, annee_courante, mois_courant):
         return {"action": "course_ajout", "libelle": libelle}
     if sans_mois in ("taches", "tache", "todo"):
         return {"action": "taches"}
+
+    # ---------- module Voyages (carnet, D-045) ----------
+    if sans_mois in ("voyages",):
+        return {"action": "voyages"}
+    m = re.match(r"^voyage\s+(.+)$", sans_mois)
+    if m:
+        return {"action": "voyage", "nom": m.group(1).strip()}
+    m = re.match(r"^lieu\s+(.+)$", sans_mois)
+    if m:
+        # Le voyage peut être multi-mots (« Test bot ZZZ ») : la séparation exacte
+        # voyage / nom du lieu se fait dans voyages.py, seul à connaître la liste des voyages.
+        return {"action": "lieu", "reste": m.group(1).strip()}
+    m = re.match(r"^localise\s+(.+)$", sans_mois)
+    if m:
+        return {"action": "localise", "voyage": m.group(1).strip()}
+    m = re.match(r"^topo\s+(.+)$", sans_mois)
+    if m:
+        return {"action": "topo", "voyage": m.group(1).strip()}
+    if re.match(r"^r[ée]sa\b", sans_mois) or re.match(r"^r[ée]servation\b", sans_mois):
+        # Grammaire déterministe insuffisante pour la résa (langage libre) : signale à bot.py
+        # de passer par le repli dédié (voyages.extraire_resa), sans consommer le texte brut.
+        return {"action": "resa_libre"}
     if sans_mois in ("balance", "equilibre"):
         return {"action": "balance", "jours": 7}
     m = re.match(r"^balance\s+(\d{1,3})\s*(?:j|jours?)?$", sans_mois)
