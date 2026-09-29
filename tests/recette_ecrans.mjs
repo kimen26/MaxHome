@@ -405,7 +405,7 @@ function scriptBouchon(donnees) {
           // (« Remplir avec les montants habituels » écrit tout le mois d'un coup).
           const unePasse = (champs) => {
             const table = window.__bouchonTables[nomTable];
-            const cles = Object.keys(champs).filter((k) => !k.includes("montant") && k !== "fait_le");
+            const cles = Object.keys(champs).filter((k) => !k.includes("montant") && k !== "fait_le" && k !== "fait_par");
             const i = table.findIndex((l) => cles.every((k) => l[k] === champs[k]));
             if (i === -1) { const cree = { id: prochainId(), ...champs }; window.__bouchonTables[nomTable] = [...table, cree]; return cree; }
             window.__bouchonTables[nomTable] = table.map((l, k) => k === i ? { ...l, ...champs } : l);

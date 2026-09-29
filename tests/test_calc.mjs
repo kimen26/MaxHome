@@ -4,6 +4,7 @@ import { montantHabituel, montantNote, champsDuMontant, montantInchange } from "
 import { detailRegle, regleBasculee, motPartage } from "../frontend/budget/repartition.js";
 import { compteDeCharge, compteSource, optionsCompte, aAutreCompte, choisirCompte, compteCommun } from "../frontend/budget/compte-charge.js";
 import { etatDuMois, texteAFaireVide } from "../frontend/budget/etat-mois.js";
+import { champsBascule, champsMouvementLie, preparerBascule, appliquerBascule, annulerBascule, ecrireBascule } from "../frontend/budget/coche-ligne.js";
 
 // Cas réel : Comptes 2026, février. Doit TOUJOURS donner Yann -3 236,15 ±1 ct.
 const chargesFevrier = [
@@ -132,9 +133,11 @@ assert.equal(detailRegle("cle", etatDetail, { cle_pct: 60 }), "Y 60 % · C 40 %"
 assert.equal(detailRegle("perso", etatDetail, { payeur: "Claudia" }), "payé par Claudia");
 assert.throws(() => detailRegle("??", etatDetail), /inconnue/);
 
-// État du mois (D-042) : salaire, puis charge sans montant, puis virement — jamais « tout est
-// fait » tant qu'un salaire ou une charge manque (septembre 2026 : deux virements cochés avant
-// la saisie des salaires faisaient dire « Tout est viré »).
+// État du mois (D-042) : salaire, puis charge sans montant, puis validation (virement ou ligne
+// de charge) — jamais « tout est fait » tant qu'un salaire ou une charge manque (septembre
+// 2026 : deux virements cochés avant la saisie des salaires faisaient dire « Tout est viré »).
+// D-046 (Yann 2026-09-29) : chaque ligne de charge se valide aussi, une à une — « à faire »
+// compte donc les mouvements non faits ET les lignes de charge saisies non validées.
 const moisComplet = {
   mois: 9, membres: [{ prenom: "Yann" }, { prenom: "Claudia" }],
   revenus: { Yann: 280000, Claudia: 250000 },
@@ -142,12 +145,18 @@ const moisComplet = {
     { id: 1, actif: true, ponctuel: false }, { id: 2, actif: true, ponctuel: false },
     { id: 3, actif: false, ponctuel: false }, { id: 4, actif: true, ponctuel: true },
   ],
-  lignes: { 1: { montant_centimes: -1000 }, 2: { montant_centimes: 0 } }, // 0 saisi = rempli
+  // Les deux lignes de charges actives sont déjà validées ; « 0 saisi » compte comme rempli
+  // (règle inchangée de ui-mois-charges.js::saisie).
+  lignes: {
+    1: { montant_centimes: -1000, fait_le: "2026-09-13T10:00:00Z", fait_par: "Yann" },
+    2: { montant_centimes: 0, fait_le: "2026-09-13T10:00:00Z", fait_par: null },
+  },
   mouvements: [{ id: 1, fait_le: "2026-09-13T10:00:00Z" }, { id: 2, fait_le: "2026-09-13T10:00:00Z" }],
+  recurrents: [],
 };
 const fait = etatDuMois(moisComplet);
 assert.equal(fait.statut, "fait", "charge inactive et ponctuelle sans ligne ne manquent pas");
-assert.equal(fait.phrase, "Tout est viré pour septembre");
+assert.equal(fait.phrase, "Tout est validé pour septembre");
 assert.equal(texteAFaireVide(fait), "Tout est fait pour ce mois.");
 
 const unSalaire = etatDuMois({ ...moisComplet, revenus: { Yann: 280000, Claudia: 0 } });
@@ -160,19 +169,35 @@ assert.equal(deuxSalaires.phrase, "Salaires à noter", "le salaire passe avant l
 const chargesVides = etatDuMois({ ...moisComplet, lignes: {} });
 assert.equal(chargesVides.statut, "charges");
 assert.equal(chargesVides.phrase, "2 charges à remplir");
-assert.equal(etatDuMois({ ...moisComplet, lignes: { 1: { montant_centimes: -1000 } } }).phrase, "1 charge à remplir");
+assert.equal(etatDuMois({ ...moisComplet, lignes: { 1: moisComplet.lignes[1] } }).phrase, "1 charge à remplir");
 assert.ok(!texteAFaireVide(chargesVides).includes("Tout est fait"), "jamais « tout est fait » avec une charge vide");
 
+// Un mouvement non fait à valider.
 const aVirer = etatDuMois({ ...moisComplet, mouvements: [{ id: 1, fait_le: null }, { id: 2, fait_le: "2026-09-13T10:00:00Z" }] });
 assert.equal(aVirer.statut, "virements");
-assert.equal(aVirer.phrase, "1 virement à faire en septembre");
-assert.equal(etatDuMois({ ...moisComplet, mouvements: [{ fait_le: null }, { fait_le: null }] }).phrase, "2 virements à faire en septembre");
+assert.equal(aVirer.phrase, "1 à valider en septembre");
+assert.equal(etatDuMois({ ...moisComplet, mouvements: [{ fait_le: null }, { fait_le: null }] }).phrase, "2 à valider en septembre");
 
-const sansMouvement = etatDuMois({ ...moisComplet, mouvements: [] });
+// Une ligne de charge saisie mais non validée compte aussi, même si tous les mouvements sont faits.
+const ligneAValider = etatDuMois({ ...moisComplet,
+  lignes: { ...moisComplet.lignes, 1: { montant_centimes: -1000, fait_le: null, fait_par: null } } });
+assert.equal(ligneAValider.statut, "virements");
+assert.equal(ligneAValider.phrase, "1 à valider en septembre");
+assert.equal(texteAFaireVide(ligneAValider), "Reste 1 à valider dans les catégories.",
+  "la carte À faire vide ne dit jamais « tout est fait » s'il reste une ligne à valider");
+
+// Un mouvement en mode "charge" n'est plus compté comme mouvement (sa case est sur sa ligne) ;
+// tant que sa ligne est validée, il ne pèse pas deux fois dans « à faire ».
+const modeChargeOk = etatDuMois({ ...moisComplet,
+  mouvements: [{ id: 3, recurrent_id: 9, fait_le: null }],
+  recurrents: [{ id: 9, mode: "charge", charge_id: 1 }] });
+assert.equal(modeChargeOk.statut, "fait", "mouvement mode charge exclu, sa ligne est déjà validée");
+
+const sansMouvement = etatDuMois({ ...moisComplet, mouvements: [], lignes: {}, charges: [] });
 assert.equal(sansMouvement.statut, "aucun");
 assert.equal(sansMouvement.phrase, "Aucun virement prévu");
 assert.equal(texteAFaireVide(sansMouvement), "Aucun virement prévu. Ajoute les virements dans Réglages · Comptes.");
-assert.equal(texteAFaireVide(etatDuMois({ ...moisComplet, mouvements: [], revenus: {} })),
+assert.equal(texteAFaireVide(etatDuMois({ ...moisComplet, mouvements: [], lignes: {}, charges: [], revenus: {} })),
   "Aucun virement prévu. Ajoute les virements dans Réglages · Comptes.", "sans virement, la carte le dit même si un salaire manque");
 
 // ---------- Réglages · Charges en rangées (D-042) ----------
@@ -295,5 +320,94 @@ const etatT = (recurrents = [], mouvements = []) => ({ comptes: comptesT, recurr
   assert.equal(api.appels[0][1].compte_de, 2);
 }
 await assert.rejects(() => choisirCompte(apiEspion(), etatT(), elec, 99), /introuvable/);
+
+// ---------- Validation ligne à ligne (D-046, coche-ligne.js) ----------
+{
+  const c = champsBascule(false, "Yann");
+  assert.equal(c.fait_par, "Yann");
+  assert.ok(c.fait_le && !Number.isNaN(Date.parse(c.fait_le)), "fait_le est une date ISO valide");
+}
+assert.equal(champsBascule(false, null).fait_par, null, "sans prénom connecté : fait_par reste null");
+assert.deepEqual(champsBascule(true, "Yann"), { fait_le: null, fait_par: null }, "décoche : les deux à null, peu importe le prénom");
+
+// Sans mouvement lié (pas de récurrent en mode charge pour cette charge) : rien à écrire côté mouvements.
+const etatSansLien = { charges: [{ id: 1, libelle: "Alimentation" }], recurrents: [], mouvements: [] };
+assert.equal(champsMouvementLie(etatSansLien, 1, { fait_le: "2026-09-29T10:00:00Z", fait_par: "Yann" }), null);
+
+// Charge envoyée vers un compte (mode "charge") : coche => mouvement lié figé au montant
+// théorique de calc.js::montantTheorique (règle 5 du brief). Décoche => fait_le/fait_par à null.
+const etatAvecLien = {
+  charges: [{ id: 1, libelle: "Crédit" }],
+  recurrents: [{ id: 9, mode: "charge", charge_id: 1, actif: true }],
+  mouvements: [{ id: 40, recurrent_id: 9, montant_centimes: -100000, fait_le: null, fait_par: null }],
+  lignes: { 1: { montant_centimes: -125000 } },
+};
+const lieCoche = champsMouvementLie(etatAvecLien, 1, { fait_le: "2026-09-29T10:00:00Z", fait_par: "Yann" });
+assert.deepEqual(lieCoche, { id: 40, champs: { fait_le: "2026-09-29T10:00:00Z", fait_par: "Yann", montant_centimes: -125000 } },
+  "le mouvement lié se fige au montant théorique de la charge, pas à son ancien montant");
+const lieDecoche = champsMouvementLie(etatAvecLien, 1, { fait_le: null, fait_par: null });
+assert.deepEqual(lieDecoche, { id: 40, champs: { fait_le: null, fait_par: null } });
+
+// Récurrent en mode charge mais SANS mouvement créé ce mois-ci : rien à écrire (pas d'erreur).
+assert.equal(champsMouvementLie({ ...etatAvecLien, mouvements: [] }, 1, { fait_le: "x", fait_par: "Yann" }), null);
+
+// preparerBascule refuse sans montant saisi (règle 3 du brief) — rien à muter, rien à écrire.
+const etatSansMontant = { charges: [{ id: 1, libelle: "Assurance" }], lignes: {}, recurrents: [], mouvements: [], prenom: "Yann" };
+const refus = preparerBascule(etatSansMontant, 1);
+assert.equal(refus.ok, false);
+assert.equal(refus.message, "Saisis d'abord le montant de Assurance.");
+
+// Cycle complet préparer → appliquer (optimiste) → écrire, avec un mouvement lié.
+{
+  const appels = [];
+  const api = {
+    majLigne: async (a, m, id, champs) => { appels.push(["majLigne", id, champs]); },
+    majMouvement: async (id, champs) => { appels.push(["majMouvement", id, champs]); },
+  };
+  const etat = {
+    annee: 2026, mois: 9, prenom: "Yann",
+    charges: [{ id: 1, libelle: "Crédit" }],
+    recurrents: [{ id: 9, mode: "charge", charge_id: 1, actif: true }],
+    mouvements: [{ id: 40, recurrent_id: 9, montant_centimes: -100000, fait_le: null, fait_par: null }],
+    lignes: { 1: { montant_centimes: -125000, regle: null } },
+  };
+  const prep = preparerBascule(etat, 1);
+  assert.equal(prep.ok, true);
+  assert.equal(prep.message, "Validé.");
+  appliquerBascule(etat, 1, prep);
+  assert.ok(etat.lignes[1].fait_le, "mutation optimiste immédiate, avant l'écriture réseau");
+  assert.equal(etat.lignes[1].fait_par, "Yann");
+  assert.equal(etat.mouvements[0].fait_le, etat.lignes[1].fait_le, "mouvement lié basculé pareil");
+  assert.equal(etat.mouvements[0].montant_centimes, -125000, "figé au montant théorique de la charge");
+  await ecrireBascule(api, etat, 1, prep);
+  assert.deepEqual(appels, [
+    ["majLigne", 1, prep.champsLigne],
+    ["majMouvement", 40, prep.mouvementLie.champs],
+  ]);
+
+  // Décoche : mouvement lié remis à fait_le/fait_par null.
+  const prep2 = preparerBascule(etat, 1);
+  assert.equal(prep2.message, "Validation annulée.");
+  appliquerBascule(etat, 1, prep2);
+  assert.equal(etat.lignes[1].fait_le, null);
+  assert.equal(etat.mouvements[0].fait_le, null);
+}
+
+// Rollback : preparerBascule + appliquerBascule, puis annulerBascule restaure exactement l'avant.
+{
+  const etat = {
+    annee: 2026, mois: 9, prenom: "Claudia",
+    charges: [{ id: 1, libelle: "Électricité" }],
+    recurrents: [],
+    mouvements: [],
+    lignes: { 1: { montant_centimes: -9000, regle: null } },
+  };
+  const avantLigne = { ...etat.lignes[1] };
+  const prep = preparerBascule(etat, 1);
+  const restaure = appliquerBascule(etat, 1, prep);
+  assert.notEqual(etat.lignes[1].fait_le, null, "muté");
+  annulerBascule(etat, 1, restaure, prep.mouvementLie);
+  assert.deepEqual(etat.lignes[1], avantLigne, "rollback exact après échec réseau simulé");
+}
 
 console.log("test_calc OK");

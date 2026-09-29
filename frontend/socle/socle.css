@@ -58,6 +58,19 @@
 .choix-option.actif .choix-detail { color:#fff; }
 .choix-option.actif .choix-titre::before { content:"✓ "; }
 
+/* ---------- case à cocher franche (blocs.js caseACocher) : 26 px, bord ≥ 3:1 sur blanc,
+   coche verte ✓, zone de tap étendue à 48 px par ::before. Partagée par `.mvt` (mouvement) et
+   toute ligne d'un module qui valide un élément un par un (ligne de charge du Budget) — une
+   seule règle, jamais deux cases qui divergent visuellement pour le même geste (D-024). */
+.case {
+  position:relative; width:26px; height:26px; border:2px solid var(--texte-2); border-radius:6px; background:#fff;
+  display:flex; align-items:center; justify-content:center; cursor:pointer; flex:0 0 auto;
+  font-size:15px; font-weight:700; color:#fff;
+}
+.case::before { content:""; position:absolute; inset:-11px; }
+.case.prioritaire { border-color:var(--bleu); }
+.case.cochee { background:var(--vert); border-color:var(--vert); }
+
 /* ---------- pastilles et repères ---------- */
 .pastille { display:inline-block; background:var(--fond-bandeau); color:var(--texte-2); border-radius:6px; font-size:11px; padding:2px 7px; }
 .repere { font-size:12px; color:var(--texte-2); }
@@ -82,7 +95,7 @@
 .ligne { display:flex; align-items:center; gap:6px; min-height:27px; padding:0 8px; border-bottom:1px solid var(--separateur); background:#fff; }
 .ligne:last-child { border-bottom:0; }
 .ligne.a-faire { background:var(--ambre-ligne); }
-.ligne .case { width:17px; height:17px; flex:none; border-radius:5px; border:1.5px solid var(--bordure-case); background:#fff; }
+.ligne .case { flex:none; }
 .ligne .point { width:4px; height:4px; border-radius:2px; flex:none; }
 .ligne .titre { flex:1; min-width:0; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ligne .valeur { font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:10px; flex:none; }

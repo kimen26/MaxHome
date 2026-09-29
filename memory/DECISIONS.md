@@ -645,3 +645,20 @@ téléphone) pour cette raison. Arbitrages (détail d'exécution : docs/briefs/c
    copiées dans Cache Storage à l'ouverture de la fiche.
 5. Heures des résas en heure locale du lieu, sans fuseau (`timestamp`) : un vol affiche l'heure
    du billet, pas l'heure de Paris convertie.
+
+## D-046 — Chaque ligne du mois se valide dans sa catégorie (2026-09-29)
+
+Contexte : Yann, capture du téléphone à l'appui : « c'est TOUTES les lignes qui doivent se faire
+valider, laisse-les dans leur catégorie, ajoute la case et le nom quand c'est fait avec la date ».
+Arbitrages :
+1. La coche vit sur la ligne du mois (`lignes.fait_le`, `lignes.fait_par`, migration 021), pas
+   sur la charge : chaque mois se revalide. Affichée « ✓ Yann · 29/09 », décochable.
+2. Pas de montant saisi, pas de validation (toast « Saisis d'abord le montant »).
+3. Une charge envoyée vers un autre compte (récurrent mode charge) : sa ligne porte LA case et
+   dit « va sur <compte> » ; son mouvement sort de la carte À faire mais reste en base, coché
+   en même temps (montant figé) pour que le bot et le rappel Telegram restent justes.
+4. L'état du mois compte les lignes non validées : « N à valider », « Tout est validé ».
+5. Case commune `.case` (socle.css, 26 px, tap 48 px) + `caseACocher()` dans blocs.js : une
+   seule case pour mouvements, charges et « Ce mois seulement ».
+Hors périmètre : le bot ne sait pas valider une ligne de charge (seulement les mouvements).
+Dev et tests par un sous-agent Sonnet sur spec, vérifiés ici (captures 360/320, portes).

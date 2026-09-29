@@ -50,7 +50,7 @@ export default {
           api.mois(etat.annee, etat.mois), api.mois(aPrec, mPrec), api.derniersMontants(),
         ]);
         etat.lignes = Object.fromEntries(courant.lignes.map((l) =>
-          [l.charge_id, { montant_centimes: l.montant_centimes, regle: l.regle }]));
+          [l.charge_id, { montant_centimes: l.montant_centimes, regle: l.regle, fait_le: l.fait_le, fait_par: l.fait_par }]));
         etat.revenus = Object.fromEntries(etat.membres.map((m) => [m.prenom, 0]));
         for (const r of courant.revenus) etat.revenus[r.prenom] = r.montant_centimes;
         etat.ajustements = courant.ajustements;

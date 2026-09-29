@@ -123,6 +123,47 @@ try {
   console.log("Catégories :", sections.join(" | "));
   if (!sections.map((s) => s.toUpperCase()).includes("LOGEMENT")) throw new Error("catégorie Logement absente");
 
+  // Validation d'une ligne de charge (D-046) : une charge avec un montant saisi ce mois-ci
+  // (jamais « a-faire », règle 3 du brief) ; on bascule deux fois pour revenir exactement à
+  // l'état de départ (fait ou pas fait), quel qu'il soit en base réelle.
+  const ligneAvecMontant = "#mois-categories .mois-charge:not(.a-faire) [data-valider]";
+  if (await page.$(ligneAvecMontant)) {
+    const idCharge = await page.getAttribute(ligneAvecMontant, "data-valider");
+    const selecteurLigne = `#mois-categories .mois-charge[data-charge="${idCharge}"]`;
+    const etaitFaite = await page.locator(selecteurLigne).evaluate((el) => el.classList.contains("fait"));
+
+    // api.majLigne fait un upsert (POST + Prefer: resolution=merge-duplicates), pas un update
+    // (PATCH) : contrairement aux mouvements/tâches plus haut, la méthode HTTP est POST ici.
+    const attendreEcriture = (attendreNull) => page.waitForResponse((r) => ["POST", "PATCH"].includes(r.request().method())
+      && r.url().includes("/rest/v1/lignes")
+      && (r.request().postData() ?? "").includes(attendreNull ? '"fait_le":null' : '"fait_le"')
+      && (attendreNull || !(r.request().postData() ?? "").includes('"fait_le":null')), { timeout: 10000 });
+
+    const basculerEtVerifier = async (versFait) => {
+      const attente = attendreEcriture(!versFait);
+      await page.click(`${selecteurLigne} [data-valider]`);
+      const reponse = await Promise.race([attente, page.waitForTimeout(4000).then(() => null)]);
+      if (!reponse) {
+        const toastTexte = await page.textContent("#toast").catch(() => "");
+        throw new Error(`pas d'écriture reçue (toast : « ${toastTexte}» )`);
+      }
+      if (reponse.status() >= 300) throw new Error("écriture de la validation refusée par la base");
+      await page.waitForSelector(versFait ? `${selecteurLigne}.fait` : `${selecteurLigne}:not(.fait)`, { timeout: 10000 });
+    };
+
+    await basculerEtVerifier(!etaitFaite);
+    if (!etaitFaite) {
+      const texteValide = (await page.textContent(`${selecteurLigne} .mc-fait`)).trim();
+      if (!/^✓ .*\d{2}\/\d{2}$/.test(texteValide)) throw new Error(`texte de validation illisible : « ${texteValide} »`);
+      console.log("Ligne de charge validée :", texteValide);
+      await page.screenshot({ path: path.join(SORTIE, "ligne-charge-validee-mobile.png") });
+    }
+    await basculerEtVerifier(etaitFaite);
+    console.log(`Validation de ligne testée (état de départ : ${etaitFaite ? "faite" : "à faire"}) — remis comme avant`);
+  } else {
+    console.log("Aucune ligne de charge avec montant ce mois-ci — validation non testée");
+  }
+
   // Réglages · Charges : la référence par charge, et le cycle de règle par défaut. Le bouton
   // « Réglages » de la barre basse ouvre toujours le premier écran de réglages, tous modules
   // confondus (Parts, module Tâches) : on y entre par lui, puis par le segmenté synthétique.

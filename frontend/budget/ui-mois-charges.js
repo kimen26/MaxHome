@@ -8,9 +8,20 @@
 import { euros, versCentimes, regleEffective } from "./calc.js";
 import { $, $$, txt, toast } from "../socle/ui-base.js";
 import { enEuros } from "../socle/blocs-form.js";
+import { caseACocher, creerFileEcritures } from "../socle/blocs.js";
 import { REGLES_COURANTES, libelleRegle, detailRegle } from "./repartition.js";
 import { montantHabituel } from "./habituel.js";
 import { creerFeuilleCharge } from "./ui-charge-feuille.js";
+import { compteDeCharge, nomDuCompte } from "./compte-charge.js";
+import { preparerBascule, appliquerBascule, annulerBascule, ecrireBascule } from "./coche-ligne.js";
+
+/** jj/mm d'une date ISO — même calcul que jourMois() de ui-mouvements.js (pas d'import croisé :
+ *  deux fichiers pairs, chacun garde sa petite fonction plutôt qu'un troisième module pour trois
+ *  lignes). */
+const jourMoisCourt = (iso) => {
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
 
 export const CATEGORIES = ["Logement", "Max", "Épargne", "Alimentation", "Impôts", "Banque", "Autre"];
 
@@ -101,14 +112,22 @@ export function creerUiMoisCharges(api, etat, cb) {
     // règle rare dit aussi la part de chacun : « Clé fixe » seul ne dit pas qui paie quoi.
     const nomRegle = REGLES_COURANTES.includes(regle)
       ? libelleRegle(regle) : `${libelleRegle(regle)} (${detailRegle(regle, etat, c)})`;
+    const compteId = compteDeCharge(c, etat.recurrents);
     const infos = [
       `${nomRegle}${regle !== c.regle ? " ce mois" : ""}`,
       manque ? "à saisir" : "",
       differe ? `habituel ${euros(hab)}` : "",
+      compteId != null ? `va sur ${nomDuCompte(etat.comptes, compteId)}` : "",
     ].filter(Boolean).join(" · ");
-    return `<div class="mois-charge${manque ? " a-faire" : ""}${differe ? " differe" : ""}" data-charge="${c.id}">
+    const fait = ligne(c.id)?.fait_le;
+    // Sans montant, la case reste affichée (elle dit qu'une validation existe pour cette
+    // charge) mais un tap refuse et le dit — cf. basculerLigneCharge (règle 3 du brief).
+    return `<div class="mois-charge${manque ? " a-faire" : ""}${differe ? " differe" : ""}${fait ? " fait" : ""}" data-charge="${c.id}">
+      ${caseACocher({ id: c.id, cochee: !!fait, titre: c.libelle, attr: "valider" })}
       <button type="button" class="mc-libelle" data-reglages="${c.id}">
-        <span class="mc-nom">${txt(c.libelle)}</span><span class="mc-infos">${txt(infos)}</span>
+        <span class="mc-nom">${txt(c.libelle)}</span>
+        <span class="mc-infos">${txt(infos)}</span>
+        ${fait ? `<span class="mc-fait">✓ ${[ligne(c.id).fait_par, jourMoisCourt(fait)].filter(Boolean).join(" · ")}</span>` : ""}
       </button>
       <input class="champ champ-montant${m > 0 ? " pos" : ""}${manque ? " oubli" : ""}" inputmode="decimal"
              aria-label="Montant de ce mois : ${txt(c.libelle)}"
@@ -125,6 +144,28 @@ export function creerUiMoisCharges(api, etat, cb) {
       cb.recalculer();
       cb.rendreMois();
     } catch (e) { cb.echec(e); }
+  }
+
+  // Une charge à la fois : deux taps rapprochés sur la même case (coche puis décoche) doivent
+  // écrire dans l'ordre, pas partir en parallèle (creerFileEcritures, blocs.js).
+  const enFileValidation = creerFileEcritures();
+
+  async function basculerValidation(chargeId) {
+    const prep = preparerBascule(etat, chargeId);
+    if (!prep.ok) { toast(prep.message, true); return; }
+    // Optimiste : on mute et on rend AVANT l'écriture réseau, comme ecrireLigne/remplir.
+    const restaure = appliquerBascule(etat, chargeId, prep);
+    cb.recalculer();
+    cb.rendreMois();
+    try {
+      await enFileValidation(chargeId, () => ecrireBascule(api, etat, chargeId, prep));
+      toast(prep.message);
+    } catch (e) {
+      annulerBascule(etat, chargeId, restaure, prep.mouvementLie);
+      cb.recalculer();
+      cb.rendreMois();
+      cb.echec(e);
+    }
   }
 
   function brancher() {
@@ -146,6 +187,11 @@ export function creerUiMoisCharges(api, etat, cb) {
     }
     for (const b of $$("#mois-categories [data-reglages]")) {
       b.addEventListener("click", () => ouvrirReglages(Number(b.dataset.reglages)));
+    }
+    for (const el of $$("#mois-categories [data-valider]")) {
+      const agir = (e) => { e.stopPropagation(); basculerValidation(Number(el.dataset.valider)); };
+      el.addEventListener("click", agir);
+      el.addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); agir(e); } });
     }
   }
 

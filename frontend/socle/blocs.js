@@ -3,6 +3,17 @@
 
 import { $, txt, estPC, ouvrirFeuille, fermerFeuille, feuilleOuverte } from "./ui-base.js";
 
+/** Case à cocher franche (26 px, bord ≥ 3:1, zone de tap 48 px via ::before, D-024/D-042) :
+ *  partagée par `ligneCoche` (mouvements) et toute ligne d'un module qui a besoin de LA MÊME
+ *  case ailleurs qu'un `.mvt` (ex. ligne de charge du Budget, ui-mois-charges.js) — une seule
+ *  définition, un seul style (.case dans socle.css), jamais deux gabarits qui divergent.
+ *  `attr` : nom du data-attribut porteur de l'id (`cocher` par défaut, ex. `charge` ailleurs). */
+export function caseACocher({ id, cochee = false, titre, attr = "cocher", classes = "" }) {
+  const aria = cochee ? `Annuler la validation de ${titre}` : `Valider ${titre}`;
+  return `<span class="case${cochee ? " cochee" : ""}${classes ? ` ${txt(classes)}` : ""}" data-${attr}="${id}"
+        role="checkbox" aria-checked="${cochee}" tabindex="0" aria-label="${txt(aria)}">${cochee ? "✓" : ""}</span>`;
+}
+
 /** Ligne cochable (mouvement, tâche) : case à gauche, corps, colonne de droite.
  *  Variante `compacte` (D-036, fidélité maquette Courses) : 29 px, case 17 px vide, titre
  *  13 px 600, valeur mono 10 px à droite — pas de sous-ligne, pas de concaténation dans le
@@ -24,10 +35,8 @@ export function ligneCoche({ id, titre, sous = "", notes = [], droite = "", past
     </div>`;
   }
   const classes = ["mvt", "cliquable", cochee ? "fait" : "", alerte ? "alerte" : ""].filter(Boolean).join(" ");
-  const aria = cochee ? `Annuler la coche de ${titre}` : `Marquer ${titre} comme fait`;
   return `<div class="${classes}" data-id="${id}">
-    <span class="case${cochee ? " cochee" : ""}${prioritaire ? " prioritaire" : ""}" data-cocher="${id}"
-          role="checkbox" aria-checked="${cochee}" tabindex="0" aria-label="${txt(aria)}">${cochee ? "✓" : ""}</span>
+    ${caseACocher({ id, cochee, titre, classes: prioritaire ? "prioritaire" : "" })}
     <div class="mvt-corps">
       <span class="mvt-titre">${txt(titre)}</span>
       ${sous ? `<span class="mvt-trajet">${txt(sous)}</span>` : ""}

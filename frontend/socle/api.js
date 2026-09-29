@@ -23,7 +23,7 @@ export function creerApi(sb) {
 
     async mois(annee, mois) {
       const [lignes, revenus, ajustements, mouvements] = await Promise.all([
-        filtre(sb.from("lignes").select("charge_id,montant_centimes,regle"), annee, mois).then(rendre),
+        filtre(sb.from("lignes").select("charge_id,montant_centimes,regle,fait_le,fait_par"), annee, mois).then(rendre),
         filtre(sb.from("revenus").select("prenom,montant_centimes"), annee, mois).then(rendre),
         filtre(sb.from("ajustements").select("*"), annee, mois).then(rendre),
         filtre(sb.from("mouvements").select("*").order("id"), annee, mois).then(rendre),

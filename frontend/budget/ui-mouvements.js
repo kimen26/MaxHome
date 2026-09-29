@@ -12,7 +12,8 @@ import { creerCheckList } from "../socle/blocs-checklist.js";
 import { champ, select, membresOptions, lire } from "../socle/blocs-form.js";
 import { creerUiMoisCharges } from "./ui-mois-charges.js";
 import { creerUiRegularisations } from "./ui-regularisations.js";
-import { optionsRegle, detailRegle, libelleRegle } from "./repartition.js";
+import { creerUiExtras } from "./ui-extras.js";
+import { optionsRegle, detailRegle } from "./repartition.js";
 import { etatDuMois, texteAFaireVide } from "./etat-mois.js";
 
 const ASIDE = "#detail-pc";
@@ -48,8 +49,12 @@ export function creerUiMouvements(api, etat, cb) {
     const c = compte(id);
     return c?.iban_masque ? `····${c.iban_masque}` : (c?.titulaire ?? "");
   };
-  const aFaire = () => etat.mouvements.filter((m) => !m.fait_le);
-  const faits = () => etat.mouvements.filter((m) => m.fait_le);
+  // Un mouvement dont le récurrent est en mode "charge" (crédit immo → Caisse Épargne Joint,
+  // par ex.) ne s'affiche plus ici : sa case, c'est désormais celle de sa ligne de charge
+  // (ui-mois-charges.js, D-046). Il reste en base pour le bot et le rappel Telegram.
+  const modeCharge = (m) => recurrentDe(m)?.mode === "charge";
+  const aFaire = () => etat.mouvements.filter((m) => !m.fait_le && !modeCharge(m));
+  const faits = () => etat.mouvements.filter((m) => m.fait_le && !modeCharge(m));
 
   const cbCharges = { ...cb, rendreMois: () => rendre() };
   const charges = creerUiMoisCharges(api, etat, cbCharges);
@@ -223,44 +228,16 @@ export function creerUiMouvements(api, etat, cb) {
     }
   }
 
-  // ---------- « Ce mois seulement » : charges ponctuelles (charges.ponctuel = true) ----------
-  // Une ligne de ce mois EST une charge comme les autres pour le calcul (elle entre dans
-  // totalCommun, réduit le reste de chacun) : `ponctuel` ne sert qu'à la afficher ici plutôt
-  // que dans les catégories, et à ne pas lui proposer de référence d'un mois sur l'autre.
-  const ponctuelles = () => etat.charges.filter((c) => c.ponctuel && c.actif !== false);
-
-  const ligneExtra = (c) => {
-    const m = etat.lignes[c.id]?.montant_centimes ?? 0;
-    return `<div class="ligne" data-charge="${c.id}">
-      <button type="button" class="titre" data-suppr-extra="${c.id}" title="Retirer">${txt(c.libelle)}</button>
-      <span class="repere">${txt(libelleRegle(c.regle))}</span>
-      <span class="mono valeur">${euros(m)}</span>
-    </div>`;
-  };
-
+  // ---------- « Ce mois seulement » : charges ponctuelles + régularisations (ui-extras.js) ----------
+  const extras = creerUiExtras(api, etat, cb);
   const regularisations = creerUiRegularisations(api, etat, cb);
 
   function rendreExtras() {
-    const extras = ponctuelles();
-    const total = extras.reduce((s, c) => s + (etat.lignes[c.id]?.montant_centimes ?? 0), 0);
-    $("#ce-mois-tete-total").textContent = euros(total);
+    $("#ce-mois-tete-total").textContent = euros(extras.total());
     // Charges ponctuelles puis régularisations entre nous : les deux ne valent que ce mois-ci.
-    $("#ajustements").innerHTML = extras.map(ligneExtra).join("") + regularisations.html();
+    $("#ajustements").innerHTML = extras.html() + regularisations.html();
+    extras.brancher($("#ajustements"), rendre);
     regularisations.brancher($("#ajustements"), rendre);
-    for (const b of $$("#ajustements [data-suppr-extra]")) {
-      b.addEventListener("click", async () => {
-        const id = Number(b.dataset.supprExtra);
-        if (!(await confirmer("Retirer cette ligne ?", { ok: "Retirer" }))) return;
-        try {
-          await api.majCharge(id, { actif: false });
-          etat.charges.find((c) => c.id === id).actif = false;
-          delete etat.lignes[id];
-          cb.recalculer();
-          rendre();
-          toast("Ligne retirée.");
-        } catch (e) { cb.echec(e); }
-      });
-    }
   }
 
   // ---------- feuille « Ligne de ce mois » (FAB) ----------

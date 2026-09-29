@@ -63,9 +63,18 @@ const MONTANT_DU_MOIS = { 1: -125000, 7: -8640 }; // Crédit immobilier ≠ réf
 // Impôts : pas encore saisi ce mois. Ancienne box internet : terminée AVANT ce mois, sans ligne
 // (D-043) — c'est la seule façon qu'elle n'apparaisse nulle part sur l'écran Mois.
 const SANS_MONTANT = new Set([4, 8]);
-export const LIGNES = CHARGES.filter((c) => !SANS_MONTANT.has(c.id)).map((c) => ({
-  annee: ANNEE, mois: MOIS, charge_id: c.id, montant_centimes: MONTANT_DU_MOIS[c.id] ?? c.montant_defaut, regle: null,
-}));
+// Validation ligne à ligne (D-046) : Crédit et Électricité déjà validées (l'un par Yann, l'autre
+// sans prénom — un vieux mois importé, fait_par null), Alimentation et Assurance encore à
+// valider, Crèche laissée à valider aussi. Les deux états (fait / à faire) doivent apparaître
+// sur la capture (L-009 : une capture se regarde).
+const VALIDEES = { 1: ["Yann", ilYA(2)], 2: [null, ilYA(5)] };
+export const LIGNES = CHARGES.filter((c) => !SANS_MONTANT.has(c.id)).map((c) => {
+  const [fait_par, quand] = VALIDEES[c.id] ?? [];
+  return {
+    annee: ANNEE, mois: MOIS, charge_id: c.id, montant_centimes: MONTANT_DU_MOIS[c.id] ?? c.montant_defaut,
+    regle: null, fait_le: quand ? `${quand}T09:00:00` : null, fait_par: quand ? fait_par : null,
+  };
+});
 
 export const REVENUS = [
   { annee: ANNEE, mois: MOIS, prenom: "Claudia", montant_centimes: 250000 },
@@ -83,6 +92,13 @@ export const MOUVEMENTS_RECURRENTS = [
   { id: 2, titre: "Virement au commun — Yann", compte_de: 3, compte_vers: 1, mode: "part",
     montant_centimes: null, charge_id: null, prenom_part: "Yann", qui: "Yann", jour: 5,
     consigne: null, ordre: 2, actif: true },
+  // Charge envoyée directement vers un autre compte (règle 5 du brief D-046) : le Crédit
+  // immobilier ne passe pas par le commun, il part chaque mois vers le compte de Yann. Sa case
+  // est désormais celle de la ligne de charge (ui-mois-charges.js) : ce mouvement ne s'affiche
+  // plus dans À faire / Fait, mais reste en base pour le bot et le rappel Telegram.
+  { id: 3, titre: "Crédit immobilier → Compte Yann", compte_de: 1, compte_vers: 3, mode: "charge",
+    montant_centimes: null, charge_id: 1, prenom_part: null, qui: null, jour: 5,
+    consigne: null, ordre: 3, actif: true },
 ];
 
 export const MOUVEMENTS = [
@@ -92,6 +108,11 @@ export const MOUVEMENTS = [
   { id: 2, annee: ANNEE, mois: MOIS, recurrent_id: 2, titre: "Virement au commun — Yann",
     compte_de: 3, compte_vers: 1, montant_centimes: 134000, qui: "Yann", consigne: null,
     fait_le: new Date().toISOString(), fait_par: "Yann" },
+  // Mouvement du récurrent en mode "charge" : validé en même temps que sa ligne (LIGNES,
+  // charge_id 1), montant figé au moment de la coche, comme le ferait coche-ligne.js en vrai.
+  { id: 3, annee: ANNEE, mois: MOIS, recurrent_id: 3, titre: "Crédit immobilier → Compte Yann",
+    compte_de: 1, compte_vers: 3, montant_centimes: -125000, qui: null, consigne: null,
+    fait_le: `${ilYA(2)}T09:00:00`, fait_par: "Yann" },
 ];
 
 // ---------- module Tâches ----------
