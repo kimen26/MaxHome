@@ -8,6 +8,14 @@ import urllib.request
 
 API = "https://api.telegram.org"
 
+def est_reseau_transitoire(exc):
+    """Timeout, coupure, DNS, ou HTTP 5xx/429 de Telegram : la boucle de polling (bot.py)
+    doit réessayer au lieu de mourir. Un HTTPError 4xx (hors 429) reste une erreur de
+    requête, pas un aléa réseau : pas transitoire, remonte tel quel."""
+    if isinstance(exc, urllib.error.HTTPError):
+        return exc.code == 429 or exc.code >= 500
+    return isinstance(exc, (TimeoutError, ConnectionError, OSError, urllib.error.URLError))
+
 
 class Telegram:
     def __init__(self, token):

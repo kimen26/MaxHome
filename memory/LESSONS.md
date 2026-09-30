@@ -444,3 +444,12 @@ Enquête d'un bug : aussi déléguée, avec les hypothèses dans la spec.
 L'agent d'audit du bot a lancé l'audit « en arrière-plan » puis a terminé son tour avec
 « je reviens dès qu'il a terminé » : rapport vide, relance nécessaire. Toute spec de sous-agent
 se termine par « fais-le toi-même, sans agent ni tâche d'arrière-plan, et rends le rapport ».
+
+## L-047 — Le bot a été muet 14 jours sans que personne le voie (2026-09-30)
+
+Du 16/09 au 30/09 le bot ne tournait pas : le PowerShell racine (start_bot.ps1, lancé par le
+raccourci de session) a été interrompu (^C dans data/bot_process.log) ; sa boucle de relance
+ne peut rien contre sa propre mort, et la tâche planifiée est interdite sur cette machine
+(D-031). Découvert par hasard en voulant le redémarrer. Désormais : avant de livrer un
+changement du bot, vérifier qu'un python bot.py tourne ; le polling survit aux coupures
+réseau (backoff 5 → 60 s). Reste ouvert : aucune alerte quand le bot est mort.

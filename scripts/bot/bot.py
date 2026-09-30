@@ -28,13 +28,15 @@ import taches as taches_mod  # noqa: E402
 import reponses  # noqa: E402
 import voyages as voyages_mod  # noqa: E402
 from donnees import Donnees  # noqa: E402
-from telegram import Telegram  # noqa: E402
+from telegram import Telegram, est_reseau_transitoire  # noqa: E402
 
 DATA = RACINE / "data"
 DATA.mkdir(exist_ok=True)
 CALC_CLI = RACINE / "scripts" / "bot" / "calc_cli.mjs"
 
 ATTENTE_MINUTES = 10
+PAUSE_RESEAU_MIN_S = 5
+PAUSE_RESEAU_MAX_S = 60
 
 
 def configurer_journal():
@@ -329,16 +331,27 @@ class Bot:
             return reponses.inconnu()
         return voyages_mod.traiter_piece(self.donnees, self.telegram, prenom, msg)
 
-    def boucle(self):
+    def boucle(self, max_iterations=None):
+        """`max_iterations` borne le nombre de passages (tests hors ligne) ; None = infini (prod)."""
         offset = 0
+        pause_reseau = PAUSE_RESEAU_MIN_S
         self.log.info("bot démarré")
-        while True:
+        iterations = 0
+        while max_iterations is None or iterations < max_iterations:
+            iterations += 1
             try:
                 updates = self.telegram.get_updates(offset)
-            except Exception:
-                self.log.exception("getUpdates échoué, pause 5 s")
-                time.sleep(5)
+            except Exception as exc:
+                if est_reseau_transitoire(exc):
+                    self.log.warning("getUpdates : réseau indisponible (%s), pause %ds",
+                                      type(exc).__name__, pause_reseau)
+                    time.sleep(pause_reseau)
+                    pause_reseau = min(pause_reseau * 2, PAUSE_RESEAU_MAX_S)
+                else:
+                    self.log.exception("getUpdates : erreur inattendue, pause %ds", PAUSE_RESEAU_MIN_S)
+                    time.sleep(PAUSE_RESEAU_MIN_S)
                 continue
+            pause_reseau = PAUSE_RESEAU_MIN_S  # un getUpdates réussi remet le backoff à zéro
             for u in updates:
                 offset = u["update_id"] + 1
                 msg = u.get("message")

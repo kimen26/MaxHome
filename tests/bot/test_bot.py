@@ -4,6 +4,7 @@ bot.Bot.__init__ touche le réseau (lit_env, cles, Donnees, Telegram) : on const
 l'instance sans passer par __init__ et on injecte les doublures de mocks.py.
 """
 import logging
+import socket
 
 import bot as bot_mod
 from mocks import DonneesFausse
@@ -243,3 +244,79 @@ def test_fait_sans_recurrent_part_pour_l_expediteur():
     rep = b.traiter_message(6433455282, "fait")
     assert "Aucun virement au commun" in rep
     assert [m for m in b.donnees.mouvements(ANNEE, MOIS) if m["fait_le"]] == []
+
+
+# ---------- boucle() : résilience réseau et erreurs de traitement (L-016 régression bot mort) ----------
+
+class TelegramScripte:
+    """Faux Telegram dont get_updates rejoue une séquence d'événements programmés :
+    une exception à lever, ou une liste d'updates à retourner. envoyer() capture."""
+
+    def __init__(self, evenements):
+        self._evenements = list(evenements)
+        self.envoyes = []
+        self.appels_get_updates = 0
+
+    def get_updates(self, offset, timeout=50):
+        self.appels_get_updates += 1
+        evt = self._evenements.pop(0)
+        if isinstance(evt, BaseException):
+            raise evt
+        return evt
+
+    def envoyer(self, chat_id, texte):
+        self.envoyes.append((chat_id, texte))
+        return {"message_id": len(self.envoyes)}
+
+
+def message(update_id, texte, telegram_id=6433455282, chat_id=111):
+    return {"update_id": update_id,
+            "message": {"chat": {"id": chat_id}, "from": {"id": telegram_id}, "text": texte}}
+
+
+def test_boucle_timeout_reseau_ne_propage_pas_et_reessaie(monkeypatch):
+    """Un TimeoutError pendant getUpdates (le crash réel du 2026-09-16, data/bot.log) est
+    rattrapé, journalisé, et la boucle retente — jamais d'exception qui tue le process."""
+    pauses = []
+    monkeypatch.setattr(bot_mod.time, "sleep", lambda s: pauses.append(s))
+    b = nouveau_bot(revenus_precedent={"Yann": 1, "Claudia": 1})
+    b.telegram = TelegramScripte([socket.timeout("the read operation timed out"), []])
+    b.boucle(max_iterations=2)  # ne lève rien : c'est la preuve du correctif
+    assert b.telegram.appels_get_updates == 2
+    assert pauses == [5]  # backoff initial, jamais de sleep sur l'itération réussie
+
+
+def test_boucle_timeouts_reseau_repetes_backoff_croissant_borne(monkeypatch):
+    pauses = []
+    monkeypatch.setattr(bot_mod.time, "sleep", lambda s: pauses.append(s))
+    b = nouveau_bot(revenus_precedent={"Yann": 1, "Claudia": 1})
+    b.telegram = TelegramScripte([TimeoutError("timed out")] * 5)
+    b.boucle(max_iterations=5)
+    assert pauses == [5, 10, 20, 40, 60]  # double à chaque fois, borné à PAUSE_RESEAU_MAX_S
+
+
+def test_boucle_erreur_programmation_dans_un_message_n_arrete_pas_les_suivants():
+    """Une exception de traitement (TypeError/KeyError...) sur UN message est journalisée et
+    répond une excuse, mais le message suivant du même lot est bien traité (pas de mort de boucle)."""
+    b = bot_avec_mois_peuple()
+    # "fait" sur un titre bidon très long ne lève rien normalement ; on force une exception
+    # en cassant traiter_message pour le premier appel seulement.
+    appels = {"n": 0}
+    original = b.traiter_message
+
+    def traiter_qui_casse_une_fois(telegram_id, texte):
+        appels["n"] += 1
+        if appels["n"] == 1:
+            raise KeyError("champ manquant")
+        return original(telegram_id, texte)
+
+    b.traiter_message = traiter_qui_casse_une_fois
+    b.telegram = TelegramScripte([
+        [message(1, "bilan"), message(2, "aide")],
+        [],
+    ])
+    b.boucle(max_iterations=2)
+    # Le message 1 (cassé) a reçu l'excuse, le message 2 a bien été traité normalement.
+    assert len(b.telegram.envoyes) == 2
+    assert "erreur interne" in b.telegram.envoyes[0][1].lower()
+    assert "Commandes" in b.telegram.envoyes[1][1]
