@@ -699,3 +699,22 @@ on déplace » ; « pas de RIB dans les comptes, c'est volontaire ? ».
 Données : compte « École Max » créé avec son IBAN, charge École à 910 €/mois « Toujours le
 même » et envoyée vers ce compte (octobre ; septembre inchangé).
 Dev et tests par sous-agents Sonnet sur spec ; vérification et livraison ici.
+
+## D-049 — Le bot rattrape l'app : valider une ligne, « à virer », rappel honnête (2026-09-30)
+
+Contexte : Yann : « revois toutes ses fonctionnalités et ce qu'on a fait évoluer ». Audit (Sonnet)
+: le bot ignorait D-043, D-046 et D-048 ; le rappel du 1er/5 pouvait dire « rien à faire » avec
+des lignes à valider ; une charge terminée restait saisissable ; référentiel figé au démarrage.
+Arbitrages :
+1. `valider <charge> [pour <prénom>]`, `dévalider <charge>`, annulables ; la ligne ET le
+   mouvement lié (charge envoyée ailleurs) bougent ensemble, comme coche-ligne.js. `fait` sur
+   un mouvement mode charge valide aussi sa ligne.
+2. `à virer` : groupes par trajet via un pont Node (virements_cli.mjs → groupes-virements.js),
+   pas de réécriture Python (L-014) ; IBAN d'arrivée sur sa propre ligne. IBAN en clair dans
+   Telegram accepté : chat privé à allowlist, c'est l'usage demandé (virer depuis la banque).
+3. Référentiel des charges rafraîchi avant chaque commande budget ; charges terminées exclues.
+4. Rappel du 1er/5 : virements groupés par trajet + « N lignes à valider ». Le regroupement y
+   est dupliqué en TypeScript (Edge Function, pas d'import relatif) et testé par Deno.
+5. Cause racine accents : tous les subprocess.run(text=True) du bot en encoding="utf-8".
+Reste dette : confrontation JS/Python des règles tâches au-delà d'`echeance` (quarts,
+créneaux, regroupement — triplé avec rappel-taches) ; voyages.py à 404 lignes.

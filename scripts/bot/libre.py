@@ -44,7 +44,7 @@ def interpreter(message, libelles, mois_courant, timeout=60):
     try:
         r = subprocess.run(
             ["claude", "-p", prompt, "--model", "haiku", "--output-format", "json"],
-            capture_output=True, text=True, timeout=timeout,
+            capture_output=True, text=True, encoding="utf-8", timeout=timeout,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return {"action": "inconnu"}
@@ -79,7 +79,7 @@ def interpreter_resa(message, voyages, membres, timeout=60):
     try:
         r = subprocess.run(
             ["claude", "-p", prompt, "--model", "haiku", "--output-format", "json"],
-            capture_output=True, text=True, timeout=timeout,
+            capture_output=True, text=True, encoding="utf-8", timeout=timeout,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return {"action": "inconnu"}
@@ -105,7 +105,7 @@ def formuler(chiffres, question, timeout=60):
     try:
         r = subprocess.run(
             ["claude", "-p", prompt, "--model", "haiku", "--output-format", "json"],
-            capture_output=True, text=True, timeout=timeout,
+            capture_output=True, text=True, encoding="utf-8", timeout=timeout,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return None

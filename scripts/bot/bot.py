@@ -18,9 +18,12 @@ sys.path.insert(0, str(RACINE / "scripts" / "bot"))
 
 from provision import cles, lit_env  # noqa: E402
 import actions  # noqa: E402
+from aide_virements import aide_complete  # noqa: E402
+import annulation  # noqa: E402
+import budget_lignes  # noqa: E402
+import budget_virements  # noqa: E402
 import commandes  # noqa: E402
 import libre  # noqa: E402
-import mouvements  # noqa: E402
 import taches as taches_mod  # noqa: E402
 import reponses  # noqa: E402
 import voyages as voyages_mod  # noqa: E402
@@ -48,7 +51,10 @@ def configurer_journal():
 
 def calculer(charges, lignes, revenus, ajustements):
     entree = json.dumps({"charges": charges, "lignes": lignes, "revenus": revenus, "ajustements": ajustements})
-    r = subprocess.run(["node", str(CALC_CLI)], input=entree, capture_output=True, text=True, timeout=30)
+    # encoding="utf-8" explicite : sur Windows, text=True seul retombe sur l'encodage console
+    # (cp1252) et corromprait tout libellé accentué renvoyé un jour par calc_cli.mjs.
+    r = subprocess.run(["node", str(CALC_CLI)], input=entree, capture_output=True, text=True,
+                       encoding="utf-8", timeout=30)
     if r.returncode != 0:
         raise RuntimeError(f"calc_cli.mjs échoué : {r.stderr[:300]}")
     return json.loads(r.stdout)
@@ -72,6 +78,8 @@ class Bot:
         return auj.year, auj.month
 
     def rafraichir_referentiel(self):
+        """Recharge charges/membres (avant extra/bilan/charges/a_virer/valider) — voir une charge
+        créée/terminée dans l'app sans redémarrage, plus simple ici qu'un TTL."""
         self.charges = self.donnees.charges()
         self.membres = [m["prenom"] for m in self.donnees.membres()]
 
@@ -121,7 +129,7 @@ class Bot:
                 if trouve:
                     return self.basculer_tache(telegram_id, prenom, titre, action["fait"],
                                                action.get("a_deux", False))
-        return self.basculer_mouvement(telegram_id, prenom, action, annee, mois)
+        return budget_virements.basculer_mouvement(self, telegram_id, prenom, action, annee, mois)
 
     def basculer_tache(self, telegram_id, prenom, titre, fait, a_deux=False):
         """Coche (ou décoche) une tâche et rend l'écriture annulable.
@@ -141,18 +149,6 @@ class Bot:
         self.marquer_annulable(telegram_id, "taches", {"id": cible["id"]}, avant)
         return reponses.confirmation_tache(cible["titre"], champs["parts_quart"], prenom, fait)
 
-    def basculer_mouvement(self, telegram_id, prenom, action, annee, mois):
-        """Coche (ou décoche) un mouvement du mois et rend l'écriture annulable."""
-        resultat, lignes, _ = self.charger_r(annee, mois)
-        cible, champs, erreur = mouvements.basculer(
-            self.donnees, prenom, action.get("titre"), action["fait"], resultat, lignes, annee, mois)
-        if erreur:
-            return erreur
-        avant = {"fait_le": cible["fait_le"], "montant_centimes": cible["montant_centimes"],
-                 "fait_par": cible.get("fait_par")}
-        self.marquer_annulable(telegram_id, "mouvements", {"id": cible["id"]}, avant)
-        return reponses.confirmation_mouvement(cible["titre"], champs["montant_centimes"], action["fait"])
-
     def marquer_annulable(self, telegram_id, table, cle_filtre, ancienne_valeur):
         self.etats.setdefault(telegram_id, {})["dernier"] = {
             "table": table, "cle": cle_filtre, "ancienne_valeur": ancienne_valeur,
@@ -163,27 +159,7 @@ class Bot:
         dernier = etat.pop("dernier", None)
         if not dernier:
             return "Rien à annuler."
-        table, cle, ancienne = dernier["table"], dernier["cle"], dernier["ancienne_valeur"]
-        if table == "revenus":
-            self.donnees.maj_revenu(cle["annee"], cle["mois"], cle["prenom"], ancienne)
-        elif table == "lignes":
-            self.donnees.maj_ligne(cle["annee"], cle["mois"], cle["charge_id"], ancienne)
-        elif table == "ajustements":
-            self.donnees.supprimer_ajustement(cle["id"])
-        elif table == "courses":
-            self.donnees.supprimer_course(cle["id"])
-        elif table == "taches":
-            self.donnees.maj_tache(cle["id"], ancienne)
-        elif table == "mouvements":
-            self.donnees.maj_mouvement(cle["id"], {"fait_le": ancienne["fait_le"],
-                                                   "montant_centimes": ancienne["montant_centimes"],
-                                                   "fait_par": ancienne.get("fait_par")})
-        elif table == "voyage_lieux":
-            self.donnees.supprimer_lieu(cle["id"])  # toujours une création fraîche
-        elif table == "voyage_resas":
-            self.donnees.maj_resa(cle["id"], {"statut": "annule"})  # traçable, jamais un DELETE
-        else:
-            raise RuntimeError(f"annulation non gérée pour la table {table}")
+        annulation.restaurer(self.donnees, dernier["table"], dernier["cle"], dernier["ancienne_valeur"])
         return "Dernière écriture annulée."
 
     # Actions qui ne portent sur aucun mois : la proposition de copie ne s'y applique pas.
@@ -196,7 +172,7 @@ class Bot:
         if a == "erreur":
             return action["message"]
         if a == "aide":
-            return reponses.AIDE
+            return aide_complete(reponses.AIDE)
         if a == "annuler":
             return self.annuler(telegram_id)
         if a == "ambigu":
@@ -213,7 +189,14 @@ class Bot:
                     or actions.courses(self, telegram_id, prenom, action)
                     or actions.voyages(self, telegram_id, prenom, action, texte_brut))
 
+        if a in ("extra", "bilan", "charges", "a_virer", "valider"):  # voir rafraichir_referentiel
+            self.rafraichir_referentiel()
         annee, mois = action.get("annee"), action.get("mois")
+        if a == "valider":  # hors actions.py (interdit) ; rien à copier sur mois vide
+            return budget_virements.valider(self, telegram_id, prenom, action, annee, mois)
+        if a == "a_virer":
+            return budget_virements.a_virer(self, annee, mois)
+
         copie = self.proposer_copie_si_mois_vide(telegram_id, action, annee, mois)
         if copie:
             return copie
@@ -267,9 +250,10 @@ class Bot:
             return actions.confirmer_voyage(self, telegram_id, prenom, norm == "oui")
 
         annee_c, mois_c = self.mois_courant()
-        action = commandes.interpreter(texte_brut, self.membres, self.charges, annee_c, mois_c)
+        charges_proposables = budget_lignes.charges_actives(self.charges)  # D-043 : jamais une terminée
+        action = commandes.interpreter(texte_brut, self.membres, charges_proposables, annee_c, mois_c)
         if action["action"] is None:
-            libelles = [c["libelle"] for c in self.charges]
+            libelles = [c["libelle"] for c in charges_proposables]
             interp = libre.interpreter(texte_brut, libelles, f"{annee_c}-{mois_c:02d}")
             if interp.get("action") == "question":
                 r, _, _ = self.charger_r(annee_c, mois_c)
@@ -306,7 +290,8 @@ class Bot:
             centimes = commandes.valider_montant_euros(interp["montant"])
             return {"action": "salaire", "prenom": interp.get("prenom"), "montant_centimes": centimes, "annee": annee, "mois": mois}
         if a == "charge":
-            charge, proches = commandes.meilleur_libelle(reponses.normaliser(interp["libelle"]), self.charges)
+            charge, proches = commandes.meilleur_libelle(
+                reponses.normaliser(interp["libelle"]), budget_lignes.charges_actives(self.charges))
             if not charge:
                 return {"action": "ambigu", "libelle": interp["libelle"], "proches": proches}
             centimes = commandes.valider_montant_euros(abs(interp["montant"]))

@@ -438,3 +438,9 @@ l'enquête détaillée du menu disparu. Règle : la session principale lit juste
 la spec, puis délègue le code ET les tests (`model: "sonnet"` explicite) ; elle garde la
 vérification finale (captures 360/320, portes) et la livraison (commit, push, mémoire).
 Enquête d'un bug : aussi déléguée, avec les hypothèses dans la spec.
+
+## L-046 — Un sous-agent ne relance pas d'agent en arrière-plan : il rend son rapport (2026-09-30)
+
+L'agent d'audit du bot a lancé l'audit « en arrière-plan » puis a terminé son tour avec
+« je reviens dès qu'il a terminé » : rapport vide, relance nécessaire. Toute spec de sous-agent
+se termine par « fais-le toi-même, sans agent ni tâche d'arrière-plan, et rends le rapport ».

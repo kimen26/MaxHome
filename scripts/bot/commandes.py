@@ -144,6 +144,27 @@ def interpreter(texte_brut, prenoms, charges, annee_courante, mois_courant):
     m = re.match(r"^balance\s+(\d{1,3})\s*(?:j|jours?)?$", sans_mois)
     if m:
         return {"action": "balance", "jours": max(1, min(365, int(m.group(1))))}
+
+    # « à virer » (alias « virements ») : virements du mois groupés par trajet (D-048 §3).
+    if sans_mois in ("a virer", "virements"):
+        return {"action": "a_virer", "annee": annee, "mois": mois}
+
+    # valider <charge> [pour <prenom>] / pas validé <charge> / devalider <charge> (D-046, D-048).
+    # Testé AVANT « fait/pas fait » (grammaire voisine, même verbe « fait » à distinguer par
+    # le mot-clé « valid »/« dévalid ») pour ne jamais lui laisser confondre les deux.
+    m = re.match(r"^(?:pas\s+valid[ée]|d[ée]valider)\s+(.+)$", sans_mois)
+    if m:
+        return {"action": "valider", "libelle": m.group(1).strip(), "valider": False,
+                "prenom": None, "annee": annee, "mois": mois}
+    m = re.match(r"^valider\s+(.+?)(?:\s+pour\s+(\w[\w-]*))?$", sans_mois)
+    if m:
+        libelle, prenom_brut = m.group(1).strip(), m.group(2)
+        prenom_cible = None
+        if prenom_brut:
+            prenom_cible = next((p for p in prenoms if normaliser(p) == prenom_brut), prenom_brut.capitalize())
+        return {"action": "valider", "libelle": libelle, "valider": True,
+                "prenom": prenom_cible, "annee": annee, "mois": mois}
+
     # fait / pas fait [<titre>] [à deux] — le titre peut viser une tâche ou un mouvement :
     # bot.py tranche, lui seul a les deux listes. Sans titre, c'est le virement au commun.
     # « à deux » (et ses variantes) ne s'applique qu'aux tâches : basculer_fait l'ignore
