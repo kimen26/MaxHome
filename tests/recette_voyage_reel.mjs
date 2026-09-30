@@ -1,9 +1,10 @@
 // Preuve en direct, LECTURE SEULE : login réel (mot de passe lu dans .env, jamais affiché),
 // sur l'app servie localement (même patron que recette_connectee.mjs). Ouvre Agenda › Voyages,
-// capture la liste, ouvre la fiche « Malaga », capture chaque section en défilant (Réservations,
-// Carte avec vraies tuiles Leaflet, Lieux, Topo) à 320 et 360 px. AUCUNE écriture : pas de clic
-// sur un statut, Modifier, +, Localiser — seulement navigation et défilement. Vérifie aussi que
-// rien ne déborde horizontalement (scrollWidth <= innerWidth) sur chaque capture.
+// capture la liste, ouvre la fiche « Malaga », capture chaque section en défilant (Réservations
+// & dépenses, Carte avec vraies tuiles Leaflet, Lieux, mosaïque de blocs) à 320, 360 et 1200 px
+// (D-047 §V2 : la mise en page change de forme à ces largeurs). AUCUNE écriture : pas de clic sur
+// une case, Modifier, +, Localiser, Cadrer — seulement navigation et défilement. Vérifie aussi
+// que rien ne déborde horizontalement (scrollWidth <= innerWidth) sur chaque capture.
 // Usage : node tests/recette_voyage_reel.mjs
 import { chromium } from "playwright";
 import http from "node:http";
@@ -16,7 +17,7 @@ const RACINE = path.resolve("frontend");
 const PORT = 8767;
 const SORTIE = path.resolve("data/captures/reel");
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
-const LARGEURS = [320, 360];
+const LARGEURS = [320, 360, 1200];
 const TITRE_VOYAGE = "Malaga";
 
 const serveur = http.createServer((req, res) => {
@@ -37,7 +38,13 @@ async function connecter(page) {
   await page.fill('input[name=email]', env.EMAIL_YANN);
   await page.fill('input[name=password]', env.PASS_YANN);
   await page.click('button[type=submit]');
-  await page.waitForSelector("#ecran-accueil:not([hidden]) .module-carte", { timeout: 20000 });
+  try {
+    await page.waitForSelector("#ecran-accueil:not([hidden]) .module-carte", { timeout: 20000 });
+  } catch (e) {
+    // Échec intermittent (TODO Lane J) : dire ce que l'écran affiche au lieu d'un simple timeout.
+    const visible = await page.evaluate(() => document.body.innerText.slice(0, 400));
+    throw new Error(`connexion non aboutie en 20 s — écran : ${visible.replace(/\s+/g, " ")}`);
+  }
 }
 
 /** Mesure le débordement horizontal réel (comme recette_ecrans.mjs) : jamais à l'œil sur une
@@ -92,7 +99,12 @@ try {
     await page.waitForSelector(".leaflet-container, .carte-indisponible", { timeout: 15000 }).catch(() => {});
     await page.waitForTimeout(300);
 
-    // Réservations : haut de la feuille plein écran, pas de scroll nécessaire.
+    // Bandeau + Résumé + Prochaine étape + Budget : haut de la feuille plein écran.
+    await page.evaluate(() => document.querySelector("#fiche-bandeau-corps")?.scrollIntoView({ block: "start" }));
+    await page.waitForTimeout(150);
+    await capturer(page, "voyage-reel-fiche-tete", largeur);
+
+    // Réservations & dépenses.
     await page.evaluate(() => document.querySelector("#fiche-resas-corps")?.scrollIntoView({ block: "start" }));
     await page.waitForTimeout(150);
     await capturer(page, "voyage-reel-fiche-resas", largeur);
@@ -108,10 +120,11 @@ try {
     await page.waitForTimeout(150);
     await capturer(page, "voyage-reel-fiche-lieux", largeur);
 
-    // Topo : rendu Markdown → HTML (rendreTopo), jamais les balises brutes à l'écran.
-    await page.evaluate(() => document.querySelector("#fiche-topo-corps")?.scrollIntoView({ block: "start" }));
+    // Mosaïque de blocs (résumé, infos, astuces, attentions — rendus par rendreTopo, jamais les
+    // balises markdown brutes à l'écran).
+    await page.evaluate(() => document.querySelector("#fiche-blocs-corps")?.scrollIntoView({ block: "start" }));
     await page.waitForTimeout(150);
-    await capturer(page, "voyage-reel-fiche-topo", largeur);
+    await capturer(page, "voyage-reel-fiche-blocs", largeur);
 
     await page.close();
   }

@@ -125,14 +125,19 @@ export function creerApi(sb) {
     majLieu: (id, champs) => sb.from("voyage_lieux").update(champs).eq("id", id).then(rendre),
     supprimerLieu: (id) => sb.from("voyage_lieux").delete().eq("id", id).then(rendre),
 
-    /** `voyage_id` de chaque lieu et résa, tous voyages confondus : de quoi compter « n résas ·
-     *  n lieux » sur chaque carte de la liste sans charger le détail de chaque voyage. */
+    /** `voyage_id` de chaque lieu et résa (+ champs de budget des résas et les enveloppes) et le
+     *  bloc résumé de chaque voyage, tous voyages confondus : de quoi compter « n résas · n
+     *  lieux », calculer la barre de budget totale (carnet.js::budgetParPoste) ET montrer un
+     *  avant-goût du résumé sur chaque carte de la liste des voyages, sans charger le détail
+     *  complet de chaque voyage (D-047 §V2 point 7, relecture point 4). */
     async voyageCompteurs() {
-      const [lieux, resas] = await Promise.all([
+      const [lieux, resas, enveloppes, resumes] = await Promise.all([
         sb.from("voyage_lieux").select("voyage_id").then(rendre),
-        sb.from("voyage_resas").select("voyage_id").then(rendre),
+        sb.from("voyage_resas").select("voyage_id,type,poste,prix_centimes,statut").then(rendre),
+        sb.from("voyage_enveloppes").select("voyage_id,poste,prevu_centimes").then(rendre),
+        sb.from("voyage_blocs").select("voyage_id,type,texte").eq("type", "resume").then(rendre),
       ]);
-      return { lieux, resas };
+      return { lieux, resas, enveloppes, resumes };
     },
 
     voyageResas: (voyageId) => sb.from("voyage_resas").select("*").eq("voyage_id", voyageId).order("debut").order("id").then(rendre),
@@ -172,6 +177,34 @@ export function creerApi(sb) {
     },
     /** Écrit le topo (résumé markdown léger) et horodate la réécriture. */
     majTopo: (voyageId, topo) => sb.from("voyages").update({ topo, topo_le: new Date().toISOString() }).eq("id", voyageId).then(rendre),
+
+    // ---------- module Agenda : carnet de voyage V2 (blocs, budget — D-047) ----------
+    voyageBlocs: (voyageId) => sb.from("voyage_blocs").select("*").eq("voyage_id", voyageId).order("ordre").order("id").then(rendre),
+    creerBloc: (champs) => sb.from("voyage_blocs").insert(champs).select().single().then(rendre),
+    majBloc: (id, champs) => sb.from("voyage_blocs").update({ ...champs, maj_le: new Date().toISOString() }).eq("id", id).select().single().then(rendre),
+    supprimerBloc: (id) => sb.from("voyage_blocs").delete().eq("id", id).then(rendre),
+    /** Échange l'`ordre` de deux blocs (monter/descendre) : une seule paire à la fois. */
+    async echangerOrdreBlocs(a, b) {
+      await Promise.all([
+        sb.from("voyage_blocs").update({ ordre: b.ordre }).eq("id", a.id).then(rendre),
+        sb.from("voyage_blocs").update({ ordre: a.ordre }).eq("id", b.id).then(rendre),
+      ]);
+    },
+
+    voyageEnveloppes: (voyageId) => sb.from("voyage_enveloppes").select("*").eq("voyage_id", voyageId).then(rendre),
+    /** Cadre le budget d'un poste. `prevuCentimes` à 0 ou null efface l'enveloppe (poste sans
+     *  ligne cadrée) plutôt que de garder une ligne à 0 qui laisserait croire à un cadrage fait. */
+    async fixerEnveloppe(voyageId, poste, prevuCentimes) {
+      if (!prevuCentimes) return sb.from("voyage_enveloppes").delete().eq("voyage_id", voyageId).eq("poste", poste).then(rendre);
+      return sb.from("voyage_enveloppes").upsert(
+        { voyage_id: voyageId, poste, prevu_centimes: prevuCentimes },
+        { onConflict: "voyage_id,poste" },
+      ).select().single().then(rendre);
+    },
+
+    /** Bascule le statut d'une résa/dépense : case cochée = « fait » (reserve), décochée =
+     *  a_reserver. Un tap, écriture immédiate (D-047). */
+    cocherResa: (id, fait) => sb.from("voyage_resas").update({ statut: fait ? "reserve" : "a_reserver" }).eq("id", id).select().single().then(rendre),
 
     // ---------- module Tâches ----------
     tachesRec: () => sb.from("taches_recurrentes").select("*").order("ordre").order("id").then(rendre),

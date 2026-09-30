@@ -83,18 +83,31 @@
 #liste-voyages { margin-top:10px; }
 #form-voyage { margin-top:10px; }
 
-/* ================= Onglet Voyages : liste ================= */
+/* ================= Onglet Voyages : liste (D-047 §V2 point 7 : liseré couleur d'accent, J-n
+   en gros, barre de budget totale ; grille de cartes sur PC) ================= */
 #voyages-liste-corps { display:flex; flex-direction:column; gap:10px; margin-top:10px; }
+.voyages-invite { font-size:12px; color:var(--texte-2); margin:0; }
 .voyages-cartes { display:flex; flex-direction:column; gap:8px; }
+@media (min-width:768px) { .voyages-cartes { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:10px; } }
 .carte-voyage {
-  display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%;
-  min-height:56px; padding:10px 12px; border:1px solid var(--bordure); border-radius:11px;
-  background:#fff; text-align:left; cursor:pointer; border-bottom:0;
+  display:flex; align-items:flex-start; justify-content:space-between; gap:10px; width:100%;
+  min-height:56px; padding:10px 12px; border:1px solid var(--bordure); border-left:4px solid; border-radius:11px;
+  background:#fff; text-align:left; cursor:pointer; border-bottom:1px solid var(--bordure);
 }
-.cv-corps { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.cv-corps { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
 .cv-titre { font-size:15px; font-weight:600; }
 .cv-sous, .cv-compte { font-size:12px; color:var(--texte-2); }
-.cv-quand { flex:0 0 auto; font-size:12px; font-weight:600; color:var(--bleu); text-align:right; white-space:nowrap; }
+/* Avant-goût du résumé (relecture point 4) : donne envie sans jamais tronquer (mobile-parents). */
+.cv-resume { font-size:12px; color:var(--texte); margin-top:2px; overflow-wrap:anywhere; }
+.cv-barre { position:relative; height:6px; border-radius:999px; background:var(--fond-bandeau); overflow:hidden; margin-top:2px; }
+.cv-barre-remplie { display:block; height:100%; }
+.cv-budget { font-size:11px; color:var(--texte-2); font-family:var(--mono); }
+.cv-budget.depasse { color:var(--rouge); font-weight:600; }
+/* J-n en gros (relecture design) : c'est l'information la plus regardée d'un coup d'œil. */
+.cv-quand { flex:0 0 auto; font-size:18px; font-weight:700; text-align:right; white-space:nowrap; }
+/* Cartes plus riches sur PC (relecture point 4) : un peu plus de respiration, le résumé peut
+   s'étaler davantage qu'au téléphone. */
+@media (min-width:1024px) { .carte-voyage { padding:14px 16px; } .cv-resume { font-size:13px; } }
 .carte-voyages-passes .ct-liste, .carte-voyages-passes > div:last-child { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
 /* Repli « Passés » : même patron que la carte « Terminées » du Budget (ui-charges-ajout.js),
    dupliqué en CSS car propre à ce module (D-036 §CSS par module). */
@@ -104,24 +117,89 @@
 }
 .carte-voyages-passes .ct-voir { color:var(--bleu); font-weight:600; }
 
-/* ================= Fiche voyage (feuille plein écran du socle) ================= */
-.fiche-voyage { gap:16px; }
-.fiche-tete { display:flex; flex-direction:column; gap:2px; }
-.fiche-tete .btn-lien { align-self:flex-start; padding:4px 0 8px; }
-.fiche-tete h2 { font-size:19px; margin:0; }
-.fiche-decompte { align-self:flex-start; margin-top:4px; font-size:12px; font-weight:600; color:var(--bleu); background:var(--bleu-clair); border-radius:999px; padding:3px 10px; }
+/* ================= Fiche voyage V2 (feuille plein écran du socle, D-047 §V2) =================
+   UNE grille à zones nommées (relecture 2 §A — le Résumé hors grille laissait un trou à droite
+   de lui sur PC, la colonne "cote" ne pouvait démarrer qu'après) : 5 enfants directs de
+   .fiche-voyage-grille — resume, cote (wrapper Étape+Budget+Résas), carte, lieux, blocs. Même
+   gouttière que le bandeau à toutes les largeurs (relecture 2 §B). Une seule structure DOM
+   (ui-fiche-voyage.js), jamais deux gabarits HTML à maintenir. */
+.fiche-voyage { display:flex; flex-direction:column; gap:16px; max-width:100%; }
+.fiche-voyage-grille { display:grid; gap:16px; padding:0 16px; grid-template-areas:"resume" "cote" "carte" "lieux" "blocs"; }
+.zone-resume { grid-area:resume; }
+.zone-cote { grid-area:cote; display:flex; flex-direction:column; gap:16px; min-width:0; }
+.zone-carte { grid-area:carte; }
+.zone-lieux { grid-area:lieux; }
+.zone-blocs { grid-area:blocs; }
 
-/* ---- Réservations ---- */
-.ligne-resa { display:flex; flex-direction:column; gap:4px; padding:10px 4px; border-bottom:1px solid var(--separateur); }
+@media (min-width:640px) and (max-width:1023px) {
+  /* Tablette (§V2) : Résumé pleine largeur, puis 2 colonnes égales — "cote" (Étape/Budget/Résas)
+     garde sa place AVANT Carte/Lieux/blocs dans le flux de lecture (relecture point 1). */
+  .fiche-voyage-grille {
+    grid-template-columns:1fr 1fr; align-items:start; padding:0 20px;
+    grid-template-areas:"resume resume" "cote carte" "cote lieux" "cote blocs";
+  }
+}
+@media (min-width:1024px) {
+  .fiche-voyage { max-width:1280px; margin:0 auto; width:100%; }
+  .fiche-voyage-grille {
+    grid-template-columns:8fr 4fr; grid-auto-rows:min-content; align-items:start; padding:0 24px;
+    grid-template-areas:"resume cote" "carte cote" "lieux cote" "blocs cote";
+  }
+  /* "cote" (Étape/Budget/Résas) commence à la MÊME hauteur que le Résumé, sur la même grille —
+     plus de trou à sa gauche (relecture 2 §A) — et reste visible en défilant (collante). */
+  .zone-cote { align-self:start; position:sticky; top:calc(16px + env(safe-area-inset-top, 0px)); }
+}
+
+/* ---- Bandeau (fond couleur d'accent du voyage) ---- */
+.fiche-bandeau { padding:16px; color:#fff; display:flex; flex-direction:column; gap:2px; }
+.fiche-bandeau .bandeau-retour { align-self:flex-start; padding:4px 0 8px; color:#fff; opacity:.9; }
+.bandeau-titre { font-size:20px; margin:0; color:#fff; }
+.bandeau-sous { font-size:13px; margin:0; color:#fff; opacity:.9; }
+.bandeau-decompte { align-self:flex-start; margin-top:6px; font-size:14px; font-weight:700; color:#fff; background:rgba(255,255,255,.22); border-radius:999px; padding:4px 14px; }
+/* 3 pastilles sur UNE ligne, jamais « lieux » seul en dessous (relecture point 3) : grille 3
+   colonnes égales plutôt que flex-wrap, le texte de l'étiquette passe à la ligne dans sa pastille
+   si besoin (overflow-wrap), jamais la pastille entière qui saute de ligne. */
+.bandeau-pastilles { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:12px; }
+.bandeau-pastille { display:flex; flex-direction:column; gap:1px; background:rgba(255,255,255,.16); border-radius:10px; padding:6px 8px; min-width:0; }
+.bp-valeur { font-family:var(--mono); font-size:16px; font-weight:700; color:#fff; overflow-wrap:anywhere; }
+.bp-etiquette { font-size:11px; color:#fff; opacity:.9; overflow-wrap:anywhere; }
+@media (min-width:1024px) {
+  /* Coins arrondis ÉGAUX (pas seulement bas-droit) : le bandeau ne colle plus au bord haut de la
+     feuille sans marge (relecture point 2), il devient une carte comme les autres, dans la même
+     largeur max 1280 px. */
+  .fiche-bandeau { padding:24px; border-radius:16px; margin:16px 24px 0; }
+}
+
+/* ---- Prochaine étape (carte mise en avant) ---- */
+.carte-etape { display:flex; flex-direction:column; gap:3px; padding:14px; border-radius:12px; background:var(--bleu-clair); border:1px solid var(--bleu); }
+.etape-etiquette { font-size:11px; font-weight:700; color:var(--bleu); text-transform:uppercase; letter-spacing:.03em; }
+.etape-type { font-size:12px; color:var(--texte-2); }
+.etape-titre { font-size:16px; margin:2px 0 0; }
+.etape-quand { font-size:13px; color:var(--texte-2); margin:0; }
+.etape-code { align-self:flex-start; font-family:var(--mono); font-size:15px; font-weight:700; letter-spacing:.04em; color:var(--bleu); background:#fff; border-radius:8px; padding:4px 10px; margin-top:2px; }
+
+/* ---- Carte invitante (Résumé vide, Budget vide) ---- */
+.carte-invitante {
+  display:flex; align-items:center; justify-content:center; text-align:center; min-height:64px;
+  border:1.5px dashed var(--bordure); border-radius:12px; background:var(--fond-bandeau);
+  color:var(--bleu); font-size:14px; font-weight:600; padding:16px; cursor:pointer;
+}
+
+/* ---- Réservations & dépenses (D-047 §V2 : une résa EST une ligne de dépense à cocher) ---- */
+.resas-groupe { display:flex; flex-direction:column; gap:2px; }
+.resas-groupe-titre { font-size:13px; font-weight:600; color:var(--texte-2); margin:8px 0 2px; }
+.ligne-resa { display:flex; align-items:flex-start; gap:10px; padding:10px 4px; border-bottom:1px solid var(--separateur); }
 .ligne-resa:last-child { border-bottom:0; }
 .ligne-resa.annulee { opacity:.7; }
+.ligne-resa .case { margin-top:2px; flex:0 0 auto; }
+.lr-corps { display:flex; flex-direction:column; gap:4px; min-width:0; flex:1; }
 .lr-tete { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .lr-type { font-size:12px; font-weight:600; color:var(--texte-2); }
-.lr-titre { font-size:15px; font-weight:600; flex:1; min-width:0; }
+.lr-titre { font-size:15px; font-weight:600; flex:1; min-width:0; overflow-wrap:anywhere; }
 /* Lien texte, mais zone tactile réelle ≥ 48x48 (relecture §D) : le padding l'agrandit, pas le
    texte — measurable par getBoundingClientRect dans la recette. */
 .lr-modifier { margin-left:auto; font-size:12px; min-width:48px; min-height:48px; padding:8px 12px; display:inline-flex; align-items:center; justify-content:center; }
-.lr-quand, .lr-prestataire { font-size:12px; color:var(--texte-2); }
+.lr-detail { font-size:12px; color:var(--texte-2); }
 .lr-bas { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:2px; flex-wrap:wrap; }
 /* Code de résa : gros, chasse fixe (mono), tap = copie + toast (ui-fiche-resas.js). */
 .lr-code {
@@ -133,18 +211,13 @@
 .lr-payeur { color:var(--texte-2); }
 .lr-payeur.alerte { color:var(--ambre-texte); font-weight:600; }
 .lr-annulee-badge { align-self:flex-start; font-size:11px; font-weight:600; color:var(--rouge); background:var(--rouge-fond); border-radius:6px; padding:2px 7px; }
-/* Pied des résas en carte lisible (relecture §G) : une ligne par personne, montant aligné à
-   droite, « Pas encore payé » en toutes lettres — plus une ligne condensée « Total … / Yann … /
-   240,00 € non payé » qui se relit deux fois pour se comprendre. */
-.lr-pied {
-  display:flex; flex-direction:column; gap:4px; margin-top:8px; padding:10px 12px;
-  border:1px solid var(--bordure); border-radius:10px; background:var(--fond-bandeau);
+.resas-annulees { margin-top:8px; }
+.resas-annulees .ct-entete {
+  display:flex; justify-content:space-between; align-items:center; width:100%; min-height:44px;
+  border:0; background:none; cursor:pointer; font-size:13px; font-weight:600; color:var(--texte);
 }
-.lr-pied-ligne { display:flex; align-items:baseline; justify-content:space-between; gap:10px; min-height:20px; font-size:13px; color:var(--texte-2); }
-.lr-pied-ligne span:last-child { text-align:right; }
-.lr-pied-total { font-size:15px; font-weight:700; color:var(--texte); }
-.lr-pied-alerte { color:var(--ambre-texte); font-weight:600; }
-.lr-actions { display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+.resas-annulees .ct-voir { color:var(--bleu); font-weight:600; }
+.lr-actions { display:flex; flex-direction:column; gap:8px; margin-top:10px; }
 
 /* ---- Pièces (vignettes + plein écran) ---- */
 .lr-pieces { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
@@ -181,6 +254,10 @@
 
 /* ---- Lieux ---- */
 .fiche-lieux { display:flex; flex-direction:column; gap:10px; }
+.lieux-grille { display:flex; flex-direction:column; gap:10px; }
+/* Grille 2 colonnes sur PC (relecture point 7) : sous Lieux, la colonne de gauche ne laisse plus
+   un grand vide pendant que la droite (Étape/Budget/Résas) continue de défiler. */
+@media (min-width:1024px) { .lieux-grille { display:grid; grid-template-columns:1fr 1fr; gap:10px 20px; align-items:start; } }
 .lieux-groupe { display:flex; flex-direction:column; gap:2px; }
 /* Pas de text-transform:capitalize (mettait une majuscule à CHAQUE mot : « Lundi 28
    Septembre », « Sans Date » — relecture carnet-voyage §H) : la casse vient déjà du texte
@@ -211,12 +288,62 @@
 .lieu-position-chercher { align-self:flex-start; padding:2px 0 6px; }
 #lieu-resultats-recherche:empty { display:none; }
 
-/* ---- Topo ---- */
-.fiche-topo { display:flex; flex-direction:column; gap:8px; }
+/* ---- Rendu markdown léger (topo.js::rendreTopo), réutilisé par les blocs (D-047 §V2) ---- */
 .topo-rendu { font-size:14px; line-height:1.5; }
 .topo-rendu h3 { font-size:16px; margin:10px 0 4px; }
 .topo-rendu h4 { font-size:14px; margin:8px 0 4px; }
 .topo-rendu ul { margin:4px 0; padding-left:20px; }
 .topo-rendu p { margin:0 0 8px; }
 .topo-rendu a { color:var(--bleu); }
-#topo-edition { min-height:180px; }
+/* Zone de texte de la feuille d'édition d'un bloc (ui-fiche-blocs.js::formulaireBloc, ouverte
+   dans #feuille-corps — hors de la fiche elle-même) : un texte markdown léger a besoin de place. */
+#feuille-corps [data-form-bloc] textarea.champ { min-height:180px; }
+
+/* ---- Budget (D-047 §V2) : une ligne par poste, barre engagé plein / à venir plus clair ---- */
+.fiche-budget { display:flex; flex-direction:column; gap:10px; }
+.budget-lignes { display:flex; flex-direction:column; gap:12px; }
+.ligne-budget { display:flex; flex-direction:column; gap:4px; }
+.lb-tete { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.lb-libelle { font-size:14px; font-weight:600; }
+/* « Dépassé » en MOT, jamais la couleur seule (mobile-parents) : le rouge accompagne toujours ce texte. */
+.lb-depasse { font-size:11px; font-weight:700; color:var(--rouge); background:var(--rouge-fond); border-radius:6px; padding:2px 7px; }
+.lb-barre { position:relative; display:flex; height:10px; border-radius:999px; background:var(--fond-bandeau); overflow:hidden; }
+.lb-barre-engage { display:block; height:100%; background:var(--bleu); }
+.lb-barre-avenir { display:block; height:100%; background:var(--bleu-clair); border-left:1px solid #fff; }
+.ligne-budget.depasse .lb-barre-engage, .ligne-budget.depasse .lb-barre-avenir { background:var(--rouge); }
+.lb-montants { font-size:12px; color:var(--texte-2); margin:0; overflow-wrap:anywhere; }
+.budget-total { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; margin:4px 0 0; padding-top:8px; border-top:1px solid var(--separateur); }
+.budget-total.depasse { color:var(--rouge); }
+.budget-invite { font-size:12px; color:var(--texte-2); margin:0; }
+/* Vrai bouton secondaire 48 px (relecture point 5) : « Cadrer le budget » ne doit plus se lire
+   comme un lien discret qu'on peut manquer. */
+.btn-budget-secondaire { min-height:48px; width:100%; font-weight:600; }
+
+/* ---- Blocs éditables (D-047 §V2) : cartes arrondies 12 px, fond/bord du type, pastille de coin,
+   crayon 48 px, ↑/↓. Résumé toujours en tête sous le bandeau ; mosaïque des autres types dessous
+   (auto-fit, jamais moins de 280 px, jamais un débordement horizontal à 320 px). ---- */
+.fiche-resume { padding:0; }  /* la gouttière vient de .fiche-voyage-grille, pas du bloc */
+/* Mosaïque en colonnes CSS (façon « maçonnerie ») : une astuce de 2 lignes ne s'étire plus à la
+   hauteur de sa voisine de 12 lignes. Ordre de lecture : colonne par colonne. */
+.fiche-blocs-mosaique { columns:1; column-gap:12px; }
+.fiche-blocs-mosaique > * { break-inside:avoid; margin-bottom:12px; width:100%; }
+@media (min-width:640px) { .fiche-blocs-mosaique { columns:2 280px; } }
+/* Sur PC (relecture point 7) : la mosaïque vit maintenant dans la colonne GAUCHE (8/12, sous
+   Lieux), pas en pleine largeur — 2 colonnes plutôt que 3, elle resterait trop étroite sinon. */
+@media (min-width:1024px) { .fiche-blocs-mosaique { columns:2; } }
+.carte-bloc { display:flex; flex-direction:column; gap:6px; padding:14px; border-radius:12px; border:1.5px solid; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+.cb-tete { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.cb-pastille { font-size:12px; font-weight:700; }
+.cb-actions { display:flex; align-items:center; gap:2px; }
+.cb-fleche, .cb-crayon {
+  min-width:44px; min-height:44px; border:0; background:none; font-size:16px; border-radius:8px;
+  display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:var(--texte-2);
+}
+.cb-fleche:hover, .cb-crayon:hover { background:rgba(0,0,0,.05); }
+.cb-titre { font-size:15px; margin:0; }
+.cb-texte { color:var(--texte); }
+.carte-bloc-invitante, .carte-bloc-ajout {
+  border-style:dashed; background:var(--fond-bandeau); color:var(--bleu); align-items:center;
+  justify-content:center; text-align:center; cursor:pointer; min-height:64px; font-weight:600;
+}
+.carte-bloc-ajout { font-size:14px; }

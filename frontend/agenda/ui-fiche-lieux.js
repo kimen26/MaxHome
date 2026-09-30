@@ -39,13 +39,15 @@ export function creerFicheLieux(api, etat, cb, { voyage, lieux, rafraichir, reve
   function html() {
     const groupes = lieuxParJour(lieux().filter((l) => l.statut !== "ecarte"));
     const sansPositionCount = lieux().filter((l) => l.lat == null && l.statut !== "ecarte").length;
+    // Grille 2 colonnes sur PC (§V2, relecture point 7) : un `<div>` intermédiaire, jamais deux
+    // gabarits — les groupes restent identiques, seule leur disposition change en CSS.
     return `<div class="fiche-lieux">
       ${titreSection("Lieux")}
-      ${groupes.length ? groupes.map((g) => `
+      ${groupes.length ? `<div class="lieux-grille">${groupes.map((g) => `
         <div class="lieux-groupe">
           <h4 class="lieux-groupe-titre">${g.jour ? txt(formatJour(g.jour)) : "Sans date"}</h4>
           ${g.lieux.map(ligneLieu).join("")}
-        </div>`).join("") : `<p class="vide">Aucun lieu pour l'instant.</p>`}
+        </div>`).join("")}</div>` : `<p class="vide">Aucun lieu pour l'instant.</p>`}
       ${sansPositionCount ? `<button type="button" class="btn-lien" data-localiser-tous>Localiser les ${sansPositionCount} lieux sans position</button>` : ""}
       <button type="button" class="btn btn-tirets" data-nouveau-lieu>+ Lieu</button>
     </div>`;

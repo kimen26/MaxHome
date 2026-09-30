@@ -232,7 +232,7 @@ def proposer_copie(mois_vide_nom, mois_source_nom):
 # ---------- module Voyages (carnet, D-045) ----------
 MOTS_TYPE_RESA = {
     "vol": "✈️ Vol", "train": "🚆 Train", "logement": "🏠 Logement",
-    "voiture": "🚗 Voiture", "activite": "🎟️ Activité", "autre": "📌",
+    "voiture": "🚗 Voiture", "activite": "🎟️ Activité", "repas": "🍽️ Repas", "autre": "📌",
 }
 MOTS_CATEGORIE_LIEU = {
     "a_voir": "à voir", "activite": "activité", "logement": "logement",
@@ -264,8 +264,16 @@ def _ligne_lieu(l):
     return f"  {l['nom']} ({cat})"
 
 
-def fiche_voyage(voyage, resas, lieux_du_jour_ou_prochains, jour_aujourdhui):
+def fiche_voyage(voyage, resas, lieux_du_jour_ou_prochains, jour_aujourdhui,
+                  resume=None, budget_engage=None, budget_prevu=None):
+    """`resume` (le bloc résumé, V2 D-047) ouvre la fiche s'il existe ; suit « Budget : engagé
+    / prévu » si au moins un montant est non nul (rien n'est affiché tant qu'aucune enveloppe
+    n'est cadrée ET qu'aucune résa n'est engagée — pas de « 0 € / 0 € » qui ne dit rien)."""
     lignes = [f"{voyage['titre']} — {voyage.get('lieu') or '?'}"]
+    if resume:
+        lignes.append(resume)
+    if budget_engage or budget_prevu:
+        lignes.append(f"Budget : {euros(budget_engage or 0)} engagé / {euros(budget_prevu or 0)} prévu")
     if resas:
         lignes.append("Réservations :")
         for r in resas:

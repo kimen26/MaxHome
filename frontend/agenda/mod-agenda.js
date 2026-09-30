@@ -9,6 +9,7 @@ import { creerUiVoyagesListe } from "./ui-voyages-liste.js";
 import { creerFicheVoyage } from "./ui-fiche-voyage.js";
 import { chargerVacances, ZONE_DEFAUT } from "./vacances.js";
 import { jourIso, prochaines, relatif } from "./calendrier.js";
+import { budgetParPoste } from "./carnet.js";
 
 const auj = () => jourIso(new Date());
 
@@ -65,7 +66,7 @@ export default {
         const [voyages, vacances, compteurs] = await Promise.all([
           api.voyages(),
           vacancesDe(etat.zone).catch((e) => { cb.echec(e); return { periodes: [], perime: false }; }),
-          api.voyageCompteurs().catch((e) => { cb.echec(e); return { lieux: [], resas: [] }; }),
+          api.voyageCompteurs().catch((e) => { cb.echec(e); return { lieux: [], resas: [], enveloppes: [], resumes: [] }; }),
         ]);
         etat.voyages = voyages;
         etat.vacances = vacances.periodes;
@@ -75,6 +76,8 @@ export default {
           etat.voyageCompte[v.id] = {
             lieux: compteurs.lieux.filter((l) => l.voyage_id === v.id).length,
             resas: compteurs.resas.filter((r) => r.voyage_id === v.id).length,
+            budget: budgetParPoste(compteurs.resas.filter((r) => r.voyage_id === v.id), compteurs.enveloppes.filter((e) => e.voyage_id === v.id)),
+            resume: compteurs.resumes.find((r) => r.voyage_id === v.id)?.texte ?? null,
           };
         }
       },

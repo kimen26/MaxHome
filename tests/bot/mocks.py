@@ -26,10 +26,13 @@ class DonneesFausse:
         self._lieux = []
         self._resas = []
         self._pieces = []
+        self._blocs = []
+        self._enveloppes = []
         self._stockage = {}  # chemin -> (contenu, type_mime)
         self._prochain_id_lieu = 1
         self._prochain_id_resa = 1
         self._prochain_id_piece = 1
+        self._prochain_id_bloc = 1
 
     # ---------- lecture ----------
     def membre_telegram(self, telegram_id):
@@ -206,6 +209,29 @@ class DonneesFausse:
 
     def supprimer_stockage(self, chemin):
         self._stockage.pop(chemin, None)
+
+    # ---------- module Voyages : blocs et budget (V2, D-047) ----------
+    def blocs_voyage(self, voyage_id):
+        return [dict(b) for b in self._blocs if b["voyage_id"] == voyage_id]
+
+    def bloc_resume(self, voyage_id):
+        return next((dict(b) for b in self._blocs if b["voyage_id"] == voyage_id and b["type"] == "resume"), None)
+
+    def creer_bloc(self, champs):
+        b = {"id": self._prochain_id_bloc, "titre": None, "ordre": 0, **champs}
+        self._prochain_id_bloc += 1
+        self._blocs.append(b)
+        return dict(b)
+
+    def maj_bloc(self, id_, champs):
+        for b in self._blocs:
+            if b["id"] == id_:
+                b.update(champs)
+                return dict(b)
+        raise RuntimeError(f"bloc {id_} introuvable")
+
+    def enveloppes_voyage(self, voyage_id):
+        return [dict(e) for e in self._enveloppes if e["voyage_id"] == voyage_id]
 
 
 def recurrents_part(membres):

@@ -162,6 +162,27 @@ def test_valider_resa_sans_prix_ni_payeur_accepte():
     assert resa["prix_centimes"] is None and resa["paye_par"] is None
 
 
+def test_valider_resa_type_repas_accepte_et_deduit_le_poste():
+    champs = {"voyage": "Malaga", "type": "repas", "titre": "Repas sur place", "prix_centimes": 4000}
+    resa, erreur = voyages_mod.valider_resa(champs, VOYAGES, MEMBRES)
+    assert erreur is None
+    assert resa["type"] == "repas" and resa["poste"] == "repas"
+
+
+def test_valider_resa_poste_explicite_prime_sur_la_deduction():
+    champs = {"voyage": "Malaga", "type": "vol", "titre": "Vol", "poste": "sur_place"}
+    resa, erreur = voyages_mod.valider_resa(champs, VOYAGES, MEMBRES)
+    assert erreur is None
+    assert resa["poste"] == "sur_place"
+
+
+def test_valider_resa_poste_inconnu_refuse():
+    champs = {"voyage": "Malaga", "type": "vol", "titre": "Vol", "poste": "loisirs"}
+    resa, erreur = voyages_mod.valider_resa(champs, VOYAGES, MEMBRES)
+    assert resa is None
+    assert "Poste de budget inconnu" in erreur
+
+
 # ---------- géocodage et Claude bouchonnés ----------
 def test_ajouter_lieu_avec_position(monkeypatch):
     monkeypatch.setattr(voyages_mod, "geocoder",
@@ -288,6 +309,26 @@ def test_action_voyage_liste_resas_et_lieux_du_jour(monkeypatch):
     assert "Malaga" in r and "ABC123" in r and "57" in r.replace(",", "") and "Yann" in r
 
 
+def test_action_voyage_commence_par_le_resume_puis_le_budget():
+    """V2 (D-047) : la fiche bot ouvre sur le résumé, puis « Budget : engagé / prévu »."""
+    b = nouveau_bot()
+    b.donnees.creer_bloc({"voyage_id": 2, "type": "resume", "texte": "Séjour à Malaga en famille.", "ordre": -1})
+    b.donnees._enveloppes.append({"voyage_id": 2, "poste": "transport", "prevu_centimes": 30000})
+    b.donnees.creer_resa({"voyage_id": 2, "type": "vol", "titre": "Vueling",
+                           "prix_centimes": 20000, "statut": "reserve"})
+    r = b.traiter_message(YANN, "voyage Malaga")
+    lignes = r.split("\n")
+    assert lignes[0].startswith("Malaga")
+    assert lignes[1] == "Séjour à Malaga en famille."
+    assert "Budget" in lignes[2] and "200,00" in lignes[2] and "300,00" in lignes[2]
+
+
+def test_action_voyage_sans_resume_ni_budget_ne_les_affiche_pas():
+    b = nouveau_bot()
+    r = b.traiter_message(YANN, "voyage Malaga")
+    assert "Budget" not in r
+
+
 def test_action_voyages_liste_a_venir():
     b = nouveau_bot()
     r = b.traiter_message(YANN, "voyages")
@@ -320,23 +361,39 @@ def test_action_localise_annonce_le_resultat(monkeypatch):
 
 
 def test_action_topo_demande_confirmation_avant_ecriture(monkeypatch):
-    monkeypatch.setattr(voyages_mod, "reecrire_topo", lambda donnees, voyage: "## Résumé\n- alerte")
+    """V2 (D-047) : `topo` réécrit désormais le SEUL bloc `resume`, jamais voyages.topo."""
+    monkeypatch.setattr(voyages_mod, "reecrire_topo", lambda donnees, voyage: "Résumé\n- alerte")
     b = nouveau_bot()
     r = b.traiter_message(YANN, "topo Malaga")
     assert "oui/non" in r.lower()
-    assert b.donnees.voyage(2).get("topo") is None, "rien écrit avant confirmation"
+    assert b.donnees.bloc_resume(2) is None, "rien écrit avant confirmation"
     r2 = b.traiter_message(YANN, "oui")
     assert "enregistré" in r2.lower()
-    assert b.donnees.voyage(2)["topo"] == "## Résumé\n- alerte"
+    bloc = b.donnees.bloc_resume(2)
+    assert bloc["texte"] == "Résumé\n- alerte"
+    assert bloc["type"] == "resume"
+
+
+def test_action_topo_reecrit_le_bloc_resume_existant(monkeypatch):
+    """Un second `topo` met à jour le même bloc plutôt que d'en créer un second (au plus un
+    resume par voyage, D-047)."""
+    monkeypatch.setattr(voyages_mod, "reecrire_topo", lambda donnees, voyage: "Nouveau résumé")
+    b = nouveau_bot()
+    b.donnees.creer_bloc({"voyage_id": 2, "type": "resume", "texte": "Ancien résumé", "ordre": -1})
+    b.traiter_message(YANN, "topo Malaga")
+    b.traiter_message(YANN, "oui")
+    blocs_resume = [x for x in b.donnees._blocs if x["voyage_id"] == 2 and x["type"] == "resume"]
+    assert len(blocs_resume) == 1
+    assert blocs_resume[0]["texte"] == "Nouveau résumé"
 
 
 def test_action_topo_refuse_sur_non(monkeypatch):
-    monkeypatch.setattr(voyages_mod, "reecrire_topo", lambda donnees, voyage: "## Résumé")
+    monkeypatch.setattr(voyages_mod, "reecrire_topo", lambda donnees, voyage: "Résumé")
     b = nouveau_bot()
     b.traiter_message(YANN, "topo Malaga")
     r = b.traiter_message(YANN, "non")
     assert "rien fait" in r.lower()
-    assert b.donnees.voyage(2).get("topo") is None
+    assert b.donnees.bloc_resume(2) is None
 
 
 def test_resa_libre_confirmation_puis_insertion(monkeypatch):

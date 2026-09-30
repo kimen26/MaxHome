@@ -260,8 +260,11 @@ répétable oui/non, sa liste de tâches découpée. Arbitrages : D-041._
 - [x] Base (020), import des 4 carnets, écrans Agenda › Voyages, bot, recettes.
 - [ ] Déployer (push) et redémarrer la tâche planifiée du bot, après accord de Yann.
 - [ ] Yann : renseigner « payé par » sur les résas importées (toutes « pas encore payé »).
-- [ ] recette_voyage_reel a échoué 2 fois sur 6 juste après d'autres recettes, cause non trouvée
-      (port fixe 8767 ? connexion lente ?) — sortie d'erreur à capturer au prochain échec.
+- [ ] Connexion bloquée sur « Connexion en cours de validation… » (vu 2026-09-30 par
+      recette_voyage_reel, ~1 run sur 3) : le JWT juste émis est refusé « issued at future » par
+      l'API données, l'horloge du PC est pourtant à l'heure (−1 s vs serveur) → décalage interne
+      Supabase auth/REST. L'app attend TOKEN_REFRESHED, qui n'arrive pas en 20 s. Vrai risque
+      pour Yann au login : relancer la requête après 2-3 s au lieu d'attendre le rafraîchissement.
 - [ ] Déconnexion : vider le cache `maxhome-pieces` (billets restés sur l'appareil).
 - [ ] Plus tard, si demandé : une résa payée → « ajouter au mois » dans le Budget.
 

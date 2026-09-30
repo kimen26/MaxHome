@@ -26,7 +26,7 @@ def appel(methode, url, jeton, corps=None):
     req.add_header("User-Agent", "maxhome-sql/1.0")
     try:
         with urllib.request.urlopen(req, timeout=120) as r:
-            texte = r.read().decode()
+            texte = r.read().decode("utf-8")
             return json.loads(texte) if texte else None
     except urllib.error.HTTPError as e:
         raise RuntimeError(f"{methode} {url.split('?')[0]} -> {e.code}: {e.read().decode()[:500]}") from e

@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { paques, feries, grilleMois, evenementsDuMois, prochaines, nbJours, formatPeriode, relatif,
   couvre, chevauche } from "../frontend/agenda/calendrier.js";
 import { parserVacances, chargerVacances, jourParis, cleCache, TTL_CACHE_MS } from "../frontend/agenda/vacances.js";
-import { lieuxParJour, totauxResas, joursAvant, CATEGORIES_LIEU, TYPES_RESA } from "../frontend/agenda/carnet.js";
+import { lieuxParJour, totauxResas, joursAvant, CATEGORIES_LIEU, TYPES_RESA,
+  POSTES, TYPES_BLOC, posteDe, budgetParPoste, prochaineEtape, couleurVoyage, TEINTES_VOYAGE } from "../frontend/agenda/carnet.js";
 import { rendreTopo } from "../frontend/agenda/topo.js";
 
 // ---------- Pâques et fériés ----------
@@ -132,8 +133,77 @@ assert.equal(CATEGORIES_LIEU.length, 6);
 assert.ok(CATEGORIES_LIEU.every((c) => /^#[0-9a-f]{6}$/i.test(c.couleur)), "couleurs hexa");
 assert.deepEqual(new Set(CATEGORIES_LIEU.map((c) => c.valeur)),
   new Set(["a_voir", "activite", "logement", "resto", "transport", "autre"]));
-assert.equal(TYPES_RESA.length, 6);
+assert.equal(TYPES_RESA.length, 7);
 assert.ok(TYPES_RESA.every((t) => t.emoji && t.libelle));
+assert.ok(TYPES_RESA.some((t) => t.valeur === "repas"), "type repas ajouté (D-047)");
+
+// ---------- carnet V2 : postes et types de bloc ----------
+assert.equal(POSTES.length, 6);
+assert.deepEqual(new Set(POSTES.map((p) => p.valeur)),
+  new Set(["transport", "logement", "activites", "repas", "sur_place", "autre"]));
+assert.equal(TYPES_BLOC.length, 4);
+assert.deepEqual(new Set(TYPES_BLOC.map((t) => t.valeur)), new Set(["resume", "info", "astuce", "attention"]));
+assert.ok(TYPES_BLOC.every((t) => t.emoji && t.libelle && /^#[0-9a-f]{6}$/i.test(t.fond) && /^#[0-9a-f]{6}$/i.test(t.bord)));
+
+// ---------- carnet V2 : posteDe ----------
+assert.equal(posteDe({ type: "vol" }), "transport");
+assert.equal(posteDe({ type: "train" }), "transport");
+assert.equal(posteDe({ type: "voiture" }), "transport");
+assert.equal(posteDe({ type: "logement" }), "logement");
+assert.equal(posteDe({ type: "activite" }), "activites");
+assert.equal(posteDe({ type: "repas" }), "repas");
+assert.equal(posteDe({ type: "autre" }), "autre");
+assert.equal(posteDe({ type: "vol", poste: "sur_place" }), "sur_place", "poste explicite prime sur la déduction");
+
+// ---------- carnet V2 : budgetParPoste ----------
+const resasBudget = [
+  { type: "vol", prix_centimes: 20000, statut: "reserve" },
+  { type: "vol", prix_centimes: 5000, statut: "a_reserver" },
+  { type: "logement", prix_centimes: 15000, statut: "reserve" },
+  { type: "activite", prix_centimes: 3000, statut: "annule" }, // exclue
+  { type: "autre", poste: "sur_place", prix_centimes: 1000, statut: "reserve" },
+];
+const enveloppesBudget = [
+  { poste: "transport", prevu_centimes: 20000 },
+  { poste: "logement", prevu_centimes: 10000 },
+  { poste: "activites", prevu_centimes: 5000 }, // aucune ligne, doit quand même apparaître
+];
+const budget = budgetParPoste(resasBudget, enveloppesBudget);
+assert.deepEqual(budget.parPoste.map((l) => l.poste), ["transport", "logement", "activites", "sur_place"],
+  "ordre de POSTES ; sur_place (sans enveloppe) en fin car hors des 3 enveloppées, mais présent");
+const transport = budget.parPoste.find((l) => l.poste === "transport");
+assert.deepEqual(transport, { poste: "transport", prevu: 20000, engage: 20000, aVenir: 5000, reste: -5000, depasse: true });
+const logement = budget.parPoste.find((l) => l.poste === "logement");
+assert.deepEqual(logement, { poste: "logement", prevu: 10000, engage: 15000, aVenir: 0, reste: -5000, depasse: true });
+const activites = budget.parPoste.find((l) => l.poste === "activites");
+assert.deepEqual(activites, { poste: "activites", prevu: 5000, engage: 0, aVenir: 0, reste: 5000, depasse: false });
+const surPlace = budget.parPoste.find((l) => l.poste === "sur_place");
+assert.deepEqual(surPlace, { poste: "sur_place", prevu: 0, engage: 1000, aVenir: 0, reste: -1000, depasse: false },
+  "sans enveloppe (prevu 0) : jamais « dépassé », il n'y a rien à dépasser");
+assert.equal(budget.totaux.prevu, 35000);
+assert.equal(budget.totaux.engage, 36000);
+assert.equal(budget.totaux.aVenir, 5000);
+assert.equal(budget.totaux.reste, -6000);
+assert.equal(budget.totaux.depasse, true);
+assert.deepEqual(budgetParPoste([], []), { parPoste: [], totaux: { prevu: 0, engage: 0, aVenir: 0, reste: 0, depasse: false } });
+
+// ---------- carnet V2 : prochaineEtape ----------
+const resasEtapes = [
+  { titre: "Vol aller", debut: "2026-10-17T08:00:00", statut: "reserve" },
+  { titre: "Musée", debut: "2026-10-18T10:00:00", statut: "reserve" },
+  { titre: "Annulée", debut: "2026-10-17T09:00:00", statut: "annule" },
+  { titre: "Sans date", debut: null, statut: "reserve" },
+  { titre: "Passée", debut: "2026-10-10T08:00:00", statut: "reserve" },
+];
+assert.equal(prochaineEtape(resasEtapes, "2026-10-17T00:00:00").titre, "Vol aller");
+assert.equal(prochaineEtape(resasEtapes, "2026-10-17T08:30:00").titre, "Musée", "l'étape passée à cette heure est ignorée");
+assert.equal(prochaineEtape([], "2026-10-17T00:00:00"), null);
+assert.equal(prochaineEtape(resasEtapes, "2026-12-01T00:00:00"), null, "aucune résa future");
+
+// ---------- carnet V2 : couleurVoyage ----------
+assert.equal(couleurVoyage(1), couleurVoyage(1), "stable");
+assert.ok(TEINTES_VOYAGE.includes(couleurVoyage(3)));
+assert.equal(couleurVoyage(0), couleurVoyage(TEINTES_VOYAGE.length), "cycle sur le nombre de teintes");
 
 // ---------- carnet de voyage : lieuxParJour ----------
 const lieux = [

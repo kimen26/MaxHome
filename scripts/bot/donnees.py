@@ -179,6 +179,27 @@ class Donnees:
         r = self._appel("POST", "voyage_pieces", champs, {"Prefer": "return=representation"})
         return r[0]
 
+    # ---------- module Voyages : blocs et budget (V2, D-047) ----------
+    def blocs_voyage(self, voyage_id):
+        return self._appel("GET", f"voyage_blocs?voyage_id=eq.{voyage_id}&select=*&order=ordre,id")
+
+    def bloc_resume(self, voyage_id):
+        r = self._appel("GET", f"voyage_blocs?voyage_id=eq.{voyage_id}&type=eq.resume&select=*")
+        return r[0] if r else None
+
+    def creer_bloc(self, champs):
+        r = self._appel("POST", "voyage_blocs", champs, {"Prefer": "return=representation"})
+        return r[0]
+
+    def maj_bloc(self, id_, champs):
+        r = self._appel("PATCH", f"voyage_blocs?id=eq.{id_}", champs, {"Prefer": "return=representation"})
+        if not r:
+            raise RuntimeError(f"bloc {id_} introuvable")
+        return r[0]
+
+    def enveloppes_voyage(self, voyage_id):
+        return self._appel("GET", f"voyage_enveloppes?voyage_id=eq.{voyage_id}&select=*")
+
     # ---------- Storage (bucket privé « voyages ») ----------
     def upload_stockage(self, chemin, contenu_binaire, type_mime):
         """PUT direct sur l'API Storage (pas du PostgREST : base différente)."""

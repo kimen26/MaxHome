@@ -61,10 +61,12 @@ def interpreter(message, libelles, mois_courant, timeout=60):
         return {"action": "inconnu"}
 
 
-PROMPT_RESA = """Tu extrais une réservation de voyage depuis un message en langage libre. Réponds UNIQUEMENT en JSON, une seule ligne, sans texte autour.
-Schéma : {{"voyage":"...","type":"vol|train|logement|voiture|activite|autre","titre":"...","debut":"AAAA-MM-JJ HH:MM"|null,"fin":"AAAA-MM-JJ HH:MM"|null,"prestataire":"..."|null,"code":"..."|null,"prix_centimes":12345|null,"paye_par":"..."|null}}
+PROMPT_RESA = """Tu extrais une réservation de voyage (ou une dépense à cadrer) depuis un message en langage libre. Réponds UNIQUEMENT en JSON, une seule ligne, sans texte autour.
+Schéma : {{"voyage":"...","type":"vol|train|logement|voiture|activite|repas|autre","titre":"...","debut":"AAAA-MM-JJ HH:MM"|null,"fin":"AAAA-MM-JJ HH:MM"|null,"prestataire":"..."|null,"code":"..."|null,"prix_centimes":12345|null,"paye_par":"..."|null,"poste":"transport|logement|activites|repas|sur_place|autre"|null}}
 "prix_centimes" est le prix en centimes d'euro entiers (578,35 € -> 57835), null si absent.
 "debut"/"fin" : heure LOCALE du lieu, sans fuseau, null si absente. Année par défaut : l'année courante si absente du message.
+"poste" : laisse null si le message ne le précise pas explicitement, il sera déduit du type.
+"repas" convient pour un repas sur place sans réservation formelle (ex. "40 €/jour de repas").
 Voyages existants : {voyages}
 Membres du foyer : {membres}
 Message : {message}"""

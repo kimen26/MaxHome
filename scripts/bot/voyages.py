@@ -31,8 +31,31 @@ ADDRESSTYPES_TROP_VAGUES = {
 }
 PLACE_RANK_MIN_PRECIS = 20
 
-TYPES_RESA = ("vol", "train", "logement", "voiture", "activite", "autre")
+TYPES_RESA = ("vol", "train", "logement", "voiture", "activite", "repas", "autre")
 CATEGORIES_LIEU = ("a_voir", "activite", "logement", "resto", "transport", "autre")
+POSTES = ("transport", "logement", "activites", "repas", "sur_place", "autre")
+
+# Même règle que frontend/agenda/carnet.js::posteDe et la migration 021 : déduit le poste
+# depuis le type de résa quand il n'est pas donné explicitement.
+POSTE_PAR_TYPE = {
+    "vol": "transport", "train": "transport", "voiture": "transport",
+    "logement": "logement", "activite": "activites", "repas": "repas",
+}
+
+
+def poste_de(type_resa, poste_donne=None):
+    if poste_donne:
+        return poste_donne
+    return POSTE_PAR_TYPE.get(type_resa, "autre")
+
+
+def budget_engage_prevu(resas, enveloppes):
+    """Totaux simples pour le bot (texte) : engagé (résas non annulées `reserve`) et prévu
+    (somme des enveloppes cadrées). Miroir simplifié de frontend/agenda/carnet.js::budgetParPoste
+    (le détail par poste reste réservé à l'écran)."""
+    engage = sum(r.get("prix_centimes") or 0 for r in resas if r.get("statut") == "reserve")
+    prevu = sum(e["prevu_centimes"] for e in enveloppes)
+    return engage, prevu
 EXTENSIONS_AUTORISEES = {
     "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
     "image/heic": "heic", "application/pdf": "pdf",
@@ -213,21 +236,26 @@ def localiser_manquants(donnees, voyage):
     return localises, restants
 
 
-# ---------- topo ----------
+# ---------- topo -> bloc résumé (V2, D-047) ----------
 def reecrire_topo(donnees, voyage):
-    """Claude réécrit voyages.topo en markdown léger à partir du topo actuel + lieux + résas.
-
-    N'écrit rien ici : retourne le texte proposé, à confirmer avant `enregistrer_topo`.
+    """Claude réécrit le SEUL bloc `resume` du voyage, en markdown léger, à partir des autres
+    blocs (info/astuce/attention) + lieux + résas — jamais le topo brut, qui n'est plus lu par
+    l'écran V2 (gardé en base, jamais supprimé). N'écrit rien ici : retourne le texte proposé,
+    à confirmer avant `enregistrer_topo`.
     """
+    blocs = [b for b in donnees.blocs_voyage(voyage["id"]) if b["type"] != "resume"]
     lieux = donnees.lieux_voyage(voyage["id"])
     resas = donnees.resas_voyage(voyage["id"])
+    resume_actuel = next((b["texte"] for b in donnees.blocs_voyage(voyage["id"]) if b["type"] == "resume"), None)
     prompt = (
-        "Réécris le topo (résumé) de ce voyage en markdown léger : titres avec ##, listes avec -, "
-        "gras avec **, liens http(s) en clair. Garde les informations utiles (alertes, accès, "
-        "à savoir, budget estimé, comparatifs) ; sois concis. Réponds UNIQUEMENT avec le markdown, "
+        "Réécris le résumé (4 à 6 lignes) de ce voyage en markdown léger : listes avec -, gras "
+        "avec **, liens http(s) en clair, pas de titre ##. Base-toi UNIQUEMENT sur les blocs, "
+        "lieux et réservations donnés ci-dessous — n'invente rien. Sois concis, dis quoi, où, "
+        "quand, la base d'hébergement et les points forts. Réponds UNIQUEMENT avec le markdown, "
         "sans texte autour, sans bloc de code.\n\n"
         f"Voyage : {voyage.get('titre', '')} — {voyage.get('lieu', '')}\n"
-        f"Topo actuel : {voyage.get('topo') or '(vide)'}\n"
+        f"Résumé actuel : {resume_actuel or '(aucun)'}\n"
+        f"Blocs : {[(b['type'], b['titre'], b['texte']) for b in blocs]}\n"
         f"Lieux : {[l['nom'] for l in lieux]}\n"
         f"Réservations : {[(r['type'], r['titre']) for r in resas]}"
     )
@@ -249,7 +277,12 @@ def reecrire_topo(donnees, voyage):
 
 
 def enregistrer_topo(donnees, voyage_id, texte):
-    return donnees.maj_voyage(voyage_id, {"topo": texte, "topo_le": datetime.now().isoformat()})
+    """Upsert du bloc `resume` (D-047 : au plus un par voyage) : met à jour s'il existe déjà,
+    le crée sinon, toujours en tête (ordre -1)."""
+    existant = donnees.bloc_resume(voyage_id)
+    if existant:
+        return donnees.maj_bloc(existant["id"], {"texte": texte})
+    return donnees.creer_bloc({"voyage_id": voyage_id, "type": "resume", "texte": texte, "ordre": -1})
 
 
 # ---------- résa en langage libre ----------
@@ -271,6 +304,12 @@ def valider_resa(champs, voyages, membres):
     type_resa = normaliser(str(champs.get("type") or "autre"))
     if type_resa not in TYPES_RESA:
         return None, f"Type de réservation inconnu : « {champs.get('type')} »."
+
+    poste = champs.get("poste")
+    if poste:
+        poste = normaliser(str(poste))
+        if poste not in POSTES:
+            return None, f"Poste de budget inconnu : « {champs.get('poste')} »."
 
     titre = str(champs.get("titre") or "").strip()
     if not titre:
@@ -297,6 +336,7 @@ def valider_resa(champs, voyages, membres):
         "debut": champs.get("debut") or None, "fin": champs.get("fin") or None,
         "prestataire": champs.get("prestataire") or None, "code": champs.get("code") or None,
         "prix_centimes": prix_centimes, "paye_par": paye_par, "statut": "reserve",
+        "poste": poste_de(type_resa, poste),
     }
     return resa, None
 

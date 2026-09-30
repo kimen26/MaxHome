@@ -12,7 +12,7 @@ import * as DONNEES from "./donnees_factices.mjs";
 const RACINE = path.resolve("frontend");
 const SORTIE = path.resolve("data/captures/ecrans");
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
-const LARGEURS = [320, 360, 1200]; // non-régression, conception, desktop (règle mobile-parents.md)
+const LARGEURS = [320, 360, 768, 1200]; // non-régression, conception, tablette, desktop (règle mobile-parents.md ; 768 : mise en page deux colonnes de la fiche voyage V2, D-047)
 
 // Stub Leaflet minimal (frontend/agenda/carte.js n'a besoin que de L.map/tileLayer/marker/
 // divIcon/featureGroup) : pose un conteneur `.leaflet-container` visible, sans vraie tuile ni
@@ -185,14 +185,54 @@ const GESTES = [
       if (!boite || boite.width < 48 || boite.height < 48) {
         throw new Error(`« Modifier » d'une résa : zone tactile ${boite ? `${Math.round(boite.width)}x${Math.round(boite.height)}` : "introuvable"}, attendu ≥ 48x48`);
       }
+      // Ordre mobile (D-047 §V2, relecture point 1) : Résumé → Prochaine étape → Budget →
+      // Réservations & dépenses → Carte → Lieux → mosaïque de blocs. Vérifié par géométrie
+      // réelle (getBoundingClientRect().top), pas seulement en lisant le HTML — un ordre DOM
+      // correct peut encore se voir inversé visuellement par un mauvais `order` CSS (L-016 :
+      // une capture ne prouve rien qu'une mesure ne prouve pas déjà mieux).
+      const largeur = page.viewportSize()?.width;
+      if (largeur === 360) {
+        const tops = await page.evaluate(() => {
+          const sel = ["#fiche-resume-corps", "#fiche-etape-corps", "#fiche-budget-corps",
+            "#fiche-resas-corps", "#fiche-carte-corps", "#fiche-lieux-corps", "#fiche-blocs-corps"];
+          return sel.map((s) => ({ s, top: document.querySelector(s)?.getBoundingClientRect().top ?? null }));
+        });
+        for (const t of tops) if (t.top == null) throw new Error(`ordre mobile : section ${t.s} introuvable`);
+        for (let i = 1; i < tops.length; i++) {
+          if (tops[i].top < tops[i - 1].top) {
+            throw new Error(`ordre mobile : ${tops[i].s} (top=${tops[i].top}) apparaît AVANT ${tops[i - 1].s} (top=${tops[i - 1].top}), attendu l'inverse`);
+          }
+        }
+      }
+      if (largeur === 360 || largeur === 1200) {
+        const { leftResume, leftCote, topResume, topCote } = await page.evaluate(() => {
+          const r = document.querySelector("#fiche-resume-corps")?.getBoundingClientRect();
+          const c = document.querySelector("#fiche-etape-corps")?.getBoundingClientRect();
+          return { leftResume: r?.left, leftCote: c?.left, topResume: r?.top, topCote: c?.top };
+        });
+        if (leftResume == null || leftCote == null) throw new Error("gouttière : résumé ou colonne latérale introuvable");
+        // À 360 px, tout est empilé en UNE colonne (relecture 2 §B) : le bord gauche du Résumé
+        // doit coïncider avec celui de « cote », jamais l'un plus rentré que l'autre. À 1200 px,
+        // « cote » est légitimement une colonne à DROITE (grille 8fr/4fr) : son `left` diffère
+        // normalement de celui du Résumé, seul le `top` doit s'aligner (vérifié ci-dessous).
+        if (largeur === 360 && Math.abs(leftResume - leftCote) > 2) {
+          throw new Error(`gouttière : left(resume)=${leftResume} != left(cote)=${leftCote} (écart > 2px) à ${largeur}px`);
+        }
+        // À 1200 px (grille "resume cote" / "carte cote" / …), « cote » doit démarrer à la MÊME
+        // hauteur que le Résumé — sinon c'est le trou blanc que la relecture 2 §A signalait
+        // (le Résumé hors grille faisait démarrer « cote » après lui).
+        if (largeur === 1200 && Math.abs(topResume - topCote) > 4) {
+          throw new Error(`alignement PC : top(resume)=${topResume} != top(cote)=${topCote} (écart > 4px)`);
+        }
+      }
     } },
-  // La fiche défile : Réservations (capturée ci-dessus, en haut de la feuille plein écran) puis
-  // Lieux, Topo — chacune capturée séparément (relecture §B, une feuille plein écran ne montre
-  // plus tout d'un coup). La section Carte avec de VRAIES tuiles a son propre geste, isolé dans
-  // sa propre page (voir captureCarteReelle plus bas) : Leaflet mémorise sa promesse de
-  // chargement (carte.js::promesseChargement) — une fois le vrai script chargé, cette page ne
-  // reviendrait plus jamais au stub, ce qui casserait le geste voyage-carte-hors-ligne s'ils
-  // partageaient la même page.
+  // La fiche défile : Réservations & dépenses (capturée ci-dessus, en haut de la feuille plein
+  // écran) puis Lieux, puis la mosaïque de blocs — chacune capturée séparément (relecture §B, une
+  // feuille plein écran ne montre plus tout d'un coup). La section Carte avec de VRAIES tuiles a
+  // son propre geste, isolé dans sa propre page (voir captureCarteReelle plus bas) : Leaflet
+  // mémorise sa promesse de chargement (carte.js::promesseChargement) — une fois le vrai script
+  // chargé, cette page ne reviendrait plus jamais au stub, ce qui casserait le geste
+  // voyage-carte-hors-ligne s'ils partageaient la même page.
   { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-fiche-lieux",
     geste: async (page) => {
       await page.click('#voyages-liste-corps [data-voyage="1"]');
@@ -201,12 +241,41 @@ const GESTES = [
       await page.evaluate(() => document.querySelector("#fiche-lieux-corps")?.scrollIntoView({ block: "start" }));
       await page.waitForTimeout(150);
     } },
-  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-fiche-topo",
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-fiche-blocs",
     geste: async (page) => {
       await page.click('#voyages-liste-corps [data-voyage="1"]');
       await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
       await page.waitForSelector(".leaflet-container, .carte-indisponible", { timeout: 8000 }).catch(() => {});
-      await page.evaluate(() => document.querySelector("#fiche-topo-corps")?.scrollIntoView({ block: "start" }));
+      await page.evaluate(() => document.querySelector("#fiche-blocs-corps")?.scrollIntoView({ block: "start" }));
+      await page.waitForTimeout(150);
+    } },
+  // Édition d'un bloc (D-047 §V2, brief lot F point 8) : crayon du bloc Astuce → feuille (type,
+  // titre, texte).
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-bloc-edition",
+    geste: async (page) => {
+      await page.click('#voyages-liste-corps [data-voyage="1"]');
+      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+      await page.click('#fiche-blocs-corps [data-modifier-bloc]');
+      await page.waitForSelector("#feuille [data-form-bloc]", { timeout: 5000 });
+      await page.waitForTimeout(150);
+    } },
+  // Cadrer le budget (brief lot F point 3) : les 6 postes, un montant chacun.
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-cadrer-budget",
+    geste: async (page) => {
+      await page.click('#voyages-liste-corps [data-voyage="1"]');
+      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+      await page.click('#fiche-budget-corps [data-cadrer-budget]');
+      await page.waitForSelector("#feuille [data-form-enveloppes]", { timeout: 5000 });
+      await page.waitForTimeout(150);
+    } },
+  // Cocher une dépense (brief lot F point 4) : la case d'une ligne « à réserver » (résa 4, vol
+  // retour) bascule à « fait » d'un tap, écriture immédiate.
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-cocher-depense",
+    geste: async (page) => {
+      await page.click('#voyages-liste-corps [data-voyage="1"]');
+      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+      await page.click('#fiche-resas-corps [data-cocher-resa="4"]');
+      await page.waitForFunction(() => document.querySelector('#fiche-resas-corps [data-resa="4"] .case')?.classList.contains("cochee"), null, { timeout: 3000 });
       await page.waitForTimeout(150);
     } },
   // Pièce (billet du vol) ouverte en plein écran fond blanc, bouton Fermer 48 px.
@@ -344,6 +413,7 @@ const TABLES = {
   courses_classiques: "COURSES_CLASSIQUES",
   voyages: "VOYAGES", parametres: "PARAMETRES",
   voyage_lieux: "VOYAGE_LIEUX", voyage_resas: "VOYAGE_RESAS", voyage_pieces: "VOYAGE_PIECES",
+  voyage_blocs: "VOYAGE_BLOCS", voyage_enveloppes: "VOYAGE_ENVELOPPES",
 };
 
 /** Construit le script de bouchon : un thenable qui imite from().select().eq()... et

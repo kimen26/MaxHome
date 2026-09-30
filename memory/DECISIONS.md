@@ -663,6 +663,22 @@ Arbitrages :
 Hors périmètre : le bot ne sait pas valider une ligne de charge (seulement les mouvements).
 Dev et tests par un sous-agent Sonnet sur spec, vérifiés ici (captures 360/320, portes).
 
+## D-047 — Carnet V2 : le récit en blocs typés, le budget en enveloppes, la fiche en tableau de bord (2026-09-30)
+
+Contexte : Yann, sur la V1 (D-045) : éditer « en bloc », cadrer les grandes lignes du budget puis
+cocher ce qui est fait à tel prix, et une fiche « dynamique, visuelle, qui invite à préparer son
+voyage » — sur PC, des lignes pleine largeur ne vont pas. Arbitrages (détail : brief carnet-voyage.md §V2) :
+1. **Le topo devient des blocs** (`voyage_blocs` : resume | info | astuce | attention). Un bloc
+   s'édite seul, le bot peut réécrire le seul Résumé sans écraser le reste, l'ordre se règle.
+   Écarté : garder un markdown unique découpé sur `##` à l'édition (le type et la couleur du bloc
+   n'auraient nulle part où vivre ; deux éditions concurrentes s'écrasent).
+2. **Budget = enveloppes par poste + lignes cochables** : une résa EST une ligne de dépense
+   (`poste` ajouté, type `repas`), la case à cocher est son statut a_reserver ↔ reserve. Pas de
+   seconde table « dépenses » qui doublerait les résas.
+3. **Mise en page par largeur** : une colonne au téléphone, deux en tablette, grille 8/4 avec
+   colonne droite collante et mosaïque de blocs sur PC (max 1280 px).
+
+
 ## D-048 — Valider pour l'un ou l'autre, virements groupés par trajet, IBAN complet (2026-09-30)
 
 Contexte : Yann, après D-046 : le menu d'une ligne a disparu ; « si je clique 2 fois ça met

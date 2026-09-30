@@ -244,4 +244,12 @@ _État courant. Réécrit en fin de session, jamais un journal._
   Portes : test_agenda, recette écrans (114), recette connectée, recette_voyage_reel (lecture
   seule, fiche Malaga réelle regardée), 181 bot. recette_token rouge : bouchon `insert` côté
   Tâches (autre session), pas le carnet.
+- 2026-09-30 : **carnet V2** (D-047). Migration 021 (`voyage_blocs`, `voyage_enveloppes`,
+  `voyage_resas.poste`, type `repas`) ; topos découpés en blocs (scripts/topo_en_blocs.py) et un
+  Résumé rédigé par voyage. Fiche en tableau de bord : bandeau couleur + J-n + 3 pastilles,
+  Résumé, Prochaine étape, Budget par poste (barres, « dépassé »), résas = lignes cochables,
+  blocs Info/Astuce/Attention éditables en mosaïque ; grille 8/4 sur PC avec colonne droite
+  collante, une colonne au téléphone (ordre vérifié par géométrie). Bot : `topo` réécrit le seul
+  Résumé. scripts/sql.py décode en UTF-8. Portes : test_agenda, test_calc, 187 bot, recette
+  écrans (172, 4 largeurs), recette_voyage_reel (captures Malaga 360/1200 regardées).
 

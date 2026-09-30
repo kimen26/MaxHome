@@ -343,6 +343,32 @@ export const VOYAGES = [
     topo_le: ilYA(2) },
   { id: 2, titre: "Ski en famille", lieu: "Le Lioran", debut: ilYA(-40), fin: ilYA(-47), note: null, cree_par: "Claudia", cree_le: ilYA(10) },
 ];
+
+// ---------- module Agenda : carnet de voyage V2 — blocs et enveloppes (D-047, voyage 1) ----------
+// Un bloc de chaque type (résumé toujours en tête, puis info/astuce/attention pour peupler la
+// mosaïque). Trois enveloppes cadrées (transport, logement, repas), activités et sur_place
+// laissées sans enveloppe pour montrer la carte « Cadrez les grandes lignes » à l'état vide sur un
+// poste, et transport DÉPASSÉ (résas 1 = 89 € + un billet non chiffré compté ailleurs) pour que la
+// capture montre l'état « Dépassé » en toutes lettres.
+export const VOYAGE_BLOCS = [
+  { id: 1, voyage_id: 1, type: "resume", titre: null,
+    texte: "Un week-end de 3 jours à Deauville : plage, marché du dimanche et une bonne adresse pour le dîner. Départ en train, gîte à deux pas du centre.",
+    ordre: 0, cree_par: "Yann", cree_le: ilYA(29), maj_le: ilYA(2) },
+  { id: 2, voyage_id: 1, type: "info", titre: "À savoir",
+    texte: "Le **camping** voisin ferme à 22 h. Prévoir des bottes si marée haute.\n\n- Marché le dimanche matin\n- [Météo locale](https://meteo.example/normandie)",
+    ordre: 0, cree_par: "Yann", cree_le: ilYA(29), maj_le: ilYA(2) },
+  { id: 3, voyage_id: 1, type: "astuce", titre: "Bon plan",
+    texte: "Le petit café du port sert un chocolat chaud excellent, avant 10 h seulement.",
+    ordre: 1, cree_par: "Claudia", cree_le: ilYA(15), maj_le: ilYA(15) },
+  { id: 4, voyage_id: 1, type: "attention", titre: null,
+    texte: "Le parking de la plage est payant le week-end (2 €/h). Prévoir de la monnaie.",
+    ordre: 2, cree_par: "Yann", cree_le: ilYA(10), maj_le: ilYA(10) },
+];
+export const VOYAGE_ENVELOPPES = [
+  { id: 1, voyage_id: 1, poste: "transport", prevu_centimes: 8000, note: null },
+  { id: 2, voyage_id: 1, poste: "logement", prevu_centimes: 30000, note: null },
+  { id: 3, voyage_id: 1, poste: "repas", prevu_centimes: 6000, note: null },
+];
 export const PARAMETRES = [{ cle: "zone", valeur: "Zone C" }];
 export const VACANCES_CACHE = [
   { titre: "Vacances d'exemple", zone: "Zone C", debut: ilYA(-10), fin: ilYA(-25), anneeScolaire: `${ANNEE}-${ANNEE + 1}` },
@@ -350,18 +376,28 @@ export const VACANCES_CACHE = [
 ];
 
 // ---------- module Agenda : carnet de voyage (voyage 1, « Week-end à la mer ») ----------
-// 3 résas : vol avec code (payé par Yann), logement (sans payeur — teste « non payé »),
-// voiture (annulée — exclue des totaux, carnet.js::totauxResas).
+// 5 résas/dépenses (D-047 §V2 : une résa EST une ligne de dépense) : vol coché/payé (poste
+// transport, déduit du type, dépasse l'enveloppe 80 € à lui seul avec le billet retour à venir),
+// billet retour PAS coché (à_reserver, teste la case décochée et « à venir » du budget), logement
+// coché sans payeur (teste « non payé »), voiture annulée (exclue des totaux), et un repas SANS
+// DATE ni code (poste sur_place au lieu du type déduit « repas » → transport : teste `poste`
+// explicite, une dépense « repas sur place » sans date est normale — brief §V2).
 export const VOYAGE_RESAS = [
-  { id: 1, voyage_id: 1, type: "vol", titre: "Aller Paris → Deauville", debut: `${ilYA(1)}T07:30:00`, fin: `${ilYA(1)}T08:45:00`,
+  { id: 1, voyage_id: 1, type: "vol", poste: null, titre: "Aller Paris → Deauville", debut: `${ilYA(1)}T07:30:00`, fin: `${ilYA(1)}T08:45:00`,
     prestataire: "Air Littoral", code: "XR7K2P", prix_centimes: 8900, paye_par: "Yann", statut: "reserve",
     lieu_id: null, note: null, cree_par: "Yann", cree_le: ilYA(30) },
-  { id: 2, voyage_id: 1, type: "logement", titre: "Gîte les Embruns", debut: `${ilYA(1)}T15:00:00`, fin: `${ilYA(-1)}T10:00:00`,
+  { id: 2, voyage_id: 1, type: "logement", poste: null, titre: "Gîte les Embruns", debut: `${ilYA(1)}T15:00:00`, fin: `${ilYA(-1)}T10:00:00`,
     prestataire: "Gîtes de France", code: null, prix_centimes: 24000, paye_par: null, statut: "reserve",
     lieu_id: null, note: "Code boîte à clés envoyé par SMS la veille.", cree_par: "Yann", cree_le: ilYA(28) },
-  { id: 3, voyage_id: 1, type: "voiture", titre: "Location voiture gare", debut: `${ilYA(1)}T09:00:00`, fin: `${ilYA(-1)}T18:00:00`,
+  { id: 3, voyage_id: 1, type: "voiture", poste: null, titre: "Location voiture gare", debut: `${ilYA(1)}T09:00:00`, fin: `${ilYA(-1)}T18:00:00`,
     prestataire: "Europcar", code: "LOC4419", prix_centimes: 6500, paye_par: "Claudia", statut: "annule",
     lieu_id: null, note: "Annulée : covoiturage avec les Martin finalement.", cree_par: "Claudia", cree_le: ilYA(20) },
+  { id: 4, voyage_id: 1, type: "vol", poste: null, titre: "Retour Deauville → Paris", debut: `${ilYA(-1)}T19:00:00`, fin: `${ilYA(-1)}T20:15:00`,
+    prestataire: "Air Littoral", code: "XR7K2Q", prix_centimes: 8900, paye_par: null, statut: "a_reserver",
+    lieu_id: null, note: null, cree_par: "Yann", cree_le: ilYA(30) },
+  { id: 5, voyage_id: 1, type: "repas", poste: "sur_place", titre: "Repas sur place", debut: null, fin: null,
+    prestataire: null, code: null, prix_centimes: 4000, paye_par: "Claudia", statut: "reserve",
+    lieu_id: null, note: "Estimation pour les deux jours.", cree_par: "Claudia", cree_le: ilYA(5) },
 ];
 
 // 8 lieux : 2 sans position (« à localiser »), 3 datés sur 2 jours différents, le reste sans

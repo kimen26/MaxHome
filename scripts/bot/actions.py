@@ -128,7 +128,12 @@ def voyages(bot, telegram_id, prenom, action, texte_brut=None):
         aujourdhui = date.today().isoformat()
         du_jour = [l for l in lieux if l.get("jour") == aujourdhui]
         cible = du_jour if du_jour else [l for l in lieux if l.get("jour") and l["jour"] >= aujourdhui][:5]
-        return reponses.fiche_voyage(voyage, resas, cible, aujourdhui)
+        resume = bot.donnees.bloc_resume(voyage["id"])
+        enveloppes = bot.donnees.enveloppes_voyage(voyage["id"])
+        engage, prevu = voyages_mod.budget_engage_prevu(resas, enveloppes)
+        return reponses.fiche_voyage(voyage, resas, cible, aujourdhui,
+                                      resume=resume["texte"] if resume else None,
+                                      budget_engage=engage, budget_prevu=prevu)
 
     if a == "lieu":
         voyage, suite_ou_proches = voyages_mod.separer_voyage_et_reste(action["reste"], bot.donnees.voyages())
