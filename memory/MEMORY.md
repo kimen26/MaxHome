@@ -17,12 +17,13 @@ Livré en prod (commits 98458a7 → 0c103e0) :
 Données saisies (base, jamais git) : compte École Max (charge École 910 €/mois dès octobre) ;
 compte Syndic Feuillantines (Citya) ; charge Feuillantines = mise de côté mensuelle vers Bourso
 Joint Épargne, 350 € en octobre puis 420 € dès novembre ; mouvement ponctuel octobre
-« Appel de fonds T4 2026 → Syndic » 1 218,25 € depuis l'épargne.
+« Appel de fonds T4 2026 → Syndic » 1 218,25 € depuis l'épargne. Livret Max → Bourso Max,
+LDD Solidaire → Caisse Épargne Joint, Livret Vacances → Bourso Joint Épargne (= provision :
+syndic, crèche en attendant, vacances, imprévus).
 Questions ouvertes à Yann : alerte si le bot est mort depuis quelques heures ? résumé
 automatique de fin de mois (quel jour) ? alerte quand une charge change de montant ?
 Dette : confrontation JS/Python des règles tâches hors `echeance` (quarts, créneaux,
-regroupement triplé avec rappel-taches) ; voyages.py à 404 lignes ; LDD Solidaire, Livret
-Vacances, Livret Max sans « va sur » (Yann devait les régler) ; rien ne prévient si le bot meurt.
+regroupement triplé avec rappel-taches) ; voyages.py à 404 lignes  ; rien ne prévient si le bot meurt.
 
 ## Où on en est
 - 2026-09-05 : **Lot A livré** : écran mensuel refondu en prod (bloc « à faire », charges
