@@ -478,3 +478,13 @@ mouvement existe bien en base et faut le chercher par `recurrent_id`. Piège tro
 Deno écrit en confrontation (`npx --yes deno test`), pas par relecture — deux implémentations
 dupliquées du même algorithme (JS app + TS Edge Function, D-049 §4) reproduisent le même bug
 séparément si on ne les TESTE pas séparément avec le même cas.
+
+## L-049 — Une vraie donnée donnée en EXEMPLE à un sous-agent finit dans git (2026-10-01)
+
+Pour expliquer `libellé <cible> <texte>`, j'ai cité au sous-agent le vrai libellé de Yann (nom
+de famille + numéro de facture). Il l'a recopié dans un commentaire et un test, poussé dans le
+repo public (8b62bcd), retiré au commit suivant mais resté dans l'historique. La consigne
+« jamais de vraie donnée » ne pèse rien face à un exemple concret. Règle : dans une spec de
+sous-agent, n'écrire QUE des exemples fictifs (DUPONT, 1234-56) ; les vraies valeurs vont
+directement en base, par une tâche de données à part. Et grep les vraies valeurs dans le diff
+indexé AVANT le commit, pas après le push.
