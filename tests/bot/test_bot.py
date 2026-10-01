@@ -5,11 +5,13 @@ l'instance sans passer par __init__ et on injecte les doublures de mocks.py.
 """
 import logging
 import socket
+from datetime import date
 
 import bot as bot_mod
 from mocks import DonneesFausse
 
-ANNEE, MOIS = 2026, 9
+ANNEE, MOIS = date.today().year, date.today().month
+ANNEE_PREC, MOIS_PREC = (ANNEE - 1, 12) if MOIS == 1 else (ANNEE, MOIS - 1)
 
 CHARGES = [
     {"id": 1, "libelle": "Crédit", "categorie": "Logement", "regle": "egales", "ponctuel": False, "actif": True},
@@ -27,10 +29,10 @@ def nouveau_bot(charges=None, revenus_precedent=None, lignes_precedent=None):
     b.etats = {}
     if revenus_precedent:
         for p, m in revenus_precedent.items():
-            b.donnees.maj_revenu(ANNEE, MOIS - 1, p, m)
+            b.donnees.maj_revenu(ANNEE_PREC, MOIS_PREC, p, m)
     if lignes_precedent:
         for cid, m in lignes_precedent.items():
-            b.donnees.maj_ligne(ANNEE, MOIS - 1, cid, m)
+            b.donnees.maj_ligne(ANNEE_PREC, MOIS_PREC, cid, m)
     return b
 
 

@@ -49,10 +49,13 @@ def budget(bot, telegram_id, prenom, action, annee, mois):
         return reponses.confirmation_ecriture(action["libelle_reel"], action["montant_centimes"], annee, mois)
 
     if a == "extra":
-        # Charge ponctuelle : créée inactive pour ne pas peupler les mois suivants.
+        # Charge ponctuelle : ponctuel=true suffit à ne pas la répéter ni se préafficher un
+        # autre mois (D-036 §4, aligné sur l'app) — actif doit rester True sinon la ligne est
+        # invisible à l'écran Mois (ponctuelles() n'affiche que actif !== false) tout en
+        # comptant dans le total : une charge invisible mais comptée.
         c = bot.donnees.creer_charge({
             "libelle": action["libelle"], "categorie": "Autre", "regle": action["regle"],
-            "type": "proport", "ponctuel": True, "actif": False, "ordre": 999,
+            "type": action["regle"], "ponctuel": True, "actif": True, "ordre": 999,
         })
         bot.charges.append(c)
         bot.donnees.maj_ligne(annee, mois, c["id"], action["montant_centimes"])

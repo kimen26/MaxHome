@@ -3,11 +3,12 @@ par le dispatch complet (bot.Bot.traiter_message), comme tests/bot/test_bot.py. 
 par DonneesFausseLignes (tests/bot/mocks_lignes.py, superset du mock partagé mocks.py).
 """
 import logging
+from datetime import date
 
 import bot as bot_mod
 from mocks_lignes import DonneesFausseLignes
 
-ANNEE, MOIS = 2026, 9
+ANNEE, MOIS = date.today().year, date.today().month
 TELEGRAM_ID = 6433455282
 
 CHARGES = [
