@@ -453,3 +453,28 @@ ne peut rien contre sa propre mort, et la tâche planifiée est interdite sur ce
 (D-031). Découvert par hasard en voulant le redémarrer. Désormais : avant de livrer un
 changement du bot, vérifier qu'un python bot.py tourne ; le polling survit aux coupures
 réseau (backoff 5 → 60 s). Reste ouvert : aucune alerte quand le bot est mort.
+
+## L-048 — Un groupe de virement en mode "charge" n'a pas de ligne `type: "mouvement"` (2026-10-01)
+
+En ajoutant le libellé de virement (D-050), premier jet : chercher le mouvement d'un groupe via
+`g.lignes.find((l) => l.type === "mouvement")`. Marchait pour les virements au commun (mode
+"part") mais jamais pour une charge envoyée vers un autre compte (mode "charge", D-042) — ce
+groupe n'a qu'un élément `type: "ligne"` (groupes-virements.js : la charge est représentée par sa
+ligne, pas par son mouvement, parce que D-046 a mis la validation visible sur `lignes.fait_le`).
+Le mouvement existe pourtant bien en base (il se coche en parallèle de la ligne,
+budget_lignes.py::valider_ligne) et porte le libellé du mois. Testé « à vide » (compte fixe, mode
+"part") le bug ne se voyait pas ; c'est l'exemple même demandé par Yann (école, mode "charge")
+qui l'a révélé en confrontation JS (L-014, tests/bot/test_virements_cli.py). Leçon : un trajet de
+groupe et les TYPES d'éléments qu'il contient (`ligne` vs `mouvement`) ne se recouvrent pas —
+chercher « le mouvement d'un groupe » doit toujours passer par le trajet (`compte_vers` +
+`compte_de`/`qui`) directement dans `etat.mouvements`, jamais en supposant qu'un élément du
+groupe EST ce mouvement. Tester avec le cas qui a motivé la demande, pas seulement le plus simple.
+
+**Récidive** le même jour dans `supabase/functions/rappel-virements/index.ts` : en y ajoutant
+`libelleACompleterPourGroupe`, le code pour une charge mode "charge" appelait `ajouter(null,
+vers, montant, null)` — copié tel quel du commentaire « mode "charge" : pas de mouvement propre
+ici », qui dit vrai pour le TOTAL/nLignes (pas de double-comptage) mais pas pour le LIBELLÉ : le
+mouvement existe bien en base et faut le chercher par `recurrent_id`. Piège trouvé par un test
+Deno écrit en confrontation (`npx --yes deno test`), pas par relecture — deux implémentations
+dupliquées du même algorithme (JS app + TS Edge Function, D-049 §4) reproduisent le même bug
+séparément si on ne les TESTE pas séparément avec le même cas.

@@ -23,54 +23,69 @@ function euros(centimes: number): string {
   return (centimes / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 }
 
-type Compte = { id: number; nom: string; commun: boolean };
+type Compte = { id: number; nom: string; commun: boolean; libelle_virement: string | null; libelle_variable: boolean };
 type Charge = { id: number; libelle: string; ponctuel: boolean; actif: boolean };
 type Recurrent = { id: number; mode: string; charge_id: number | null; compte_de: number | null; compte_vers: number | null; actif: boolean };
 type Ligne = { charge_id: number; montant_centimes: number; fait_le: string | null };
-type Mouvement = { id: number; recurrent_id: number | null; titre: string; compte_de: number | null; compte_vers: number | null; montant_centimes: number; qui: string | null; fait_le: string | null };
+type Mouvement = { id: number; recurrent_id: number | null; titre: string; compte_de: number | null; compte_vers: number | null; montant_centimes: number; qui: string | null; fait_le: string | null; libelle_virement: string | null };
 
-type Groupe = { de: number | string | null; vers: number; libelleVers: string; total: number; nLignes: number };
+type Groupe = { de: number | string | null; vers: number; libelleVers: string; total: number; nLignes: number; libelleACompleter: boolean };
+
+// Même règle que frontend/budget/libelle-virement.js::libelleACompleter (dupliquée ici : Deno
+// n'a pas d'import relatif hors de son dossier, D-049 §4) : un compte variable sans surcharge du
+// mois sur AUCUN mouvement du groupe doit encore être complété.
+function libelleACompleterPourGroupe(compteVers: Compte | undefined, mouvementsDuGroupe: Mouvement[]): boolean {
+  if (!compteVers?.libelle_variable) return false;
+  return mouvementsDuGroupe.every((m) => !m.libelle_virement);
+}
 
 function nomDuCompte(comptes: Compte[], id: number | null): string {
   if (id == null) return "Commun";
   return comptes.find((c) => c.id === id)?.nom ?? "compte inconnu";
 }
 
-// Même règle que compte-charge.js::compteDeCharge : au plus un récurrent actif en mode "charge"
-// par charge (D-042).
-function compteDeCharge(chargeId: number, recurrents: Recurrent[]): number | null {
-  return recurrents.find((r) => r.actif && r.mode === "charge" && r.charge_id === chargeId)?.compte_vers ?? null;
-}
-
 function construireGroupesNonFaits(
   charges: Charge[], lignes: Ligne[], recurrents: Recurrent[], mouvements: Mouvement[], comptes: Compte[],
 ): Groupe[] {
-  const groupes = new Map<string, Groupe>();
-  const ajouter = (de: number | string | null, vers: number, montant: number) => {
+  const groupes = new Map<string, Groupe & { mouvementsVers: Mouvement[] }>();
+  const ajouter = (de: number | string | null, vers: number, montant: number, mouvement: Mouvement | null) => {
     const cle = `${de ?? "?"}→${vers}`;
-    const g = groupes.get(cle) ?? { de, vers, libelleVers: nomDuCompte(comptes, vers), total: 0, nLignes: 0 };
+    const g = groupes.get(cle) ?? {
+      de, vers, libelleVers: nomDuCompte(comptes, vers), total: 0, nLignes: 0,
+      libelleACompleter: false, mouvementsVers: [],
+    };
     g.total += montant;
     g.nLignes += 1;
+    if (mouvement) g.mouvementsVers.push(mouvement);
     groupes.set(cle, g);
   };
 
   for (const c of charges) {
     if (c.ponctuel || c.actif === false) continue;
-    const vers = compteDeCharge(c.id, recurrents);
+    const recurrent = recurrents.find((r) => r.actif && r.mode === "charge" && r.charge_id === c.id);
+    const vers = recurrent?.compte_vers ?? null;
     if (vers == null) continue; // reste sur le commun : rien à virer.
     const l = lignes.find((x) => x.charge_id === c.id);
     if (!l || !l.montant_centimes || l.fait_le) continue; // pas de montant, ou déjà validée.
-    ajouter(null, vers, l.montant_centimes);
+    // Le mouvement du mois existe en base même si sa case n'est plus celle qui compte ici (sa
+    // LIGNE porte la validation visible, D-046) : c'est pourtant lui qui porte la surcharge de
+    // libellé du mois (D-050, même piège que L-048 côté app/bot — corrigé ici aussi).
+    const mouvement = mouvements.find((m) => m.recurrent_id === recurrent?.id) ?? null;
+    ajouter(null, vers, l.montant_centimes, mouvement);
   }
 
   for (const m of mouvements) {
     const r = recurrents.find((x) => x.id === m.recurrent_id);
     if (r?.mode === "charge") continue; // déjà représenté par sa ligne, ci-dessus.
     if (m.compte_vers == null || m.fait_le) continue;
-    ajouter(m.compte_de, m.compte_vers, m.montant_centimes);
+    ajouter(m.compte_de, m.compte_vers, m.montant_centimes, m);
   }
 
-  return [...groupes.values()];
+  return [...groupes.values()].map((g) => {
+    const compteVers = comptes.find((c) => c.id === g.vers);
+    const { mouvementsVers, ...reste } = g;
+    return { ...reste, libelleACompleter: libelleACompleterPourGroupe(compteVers, mouvementsVers) };
+  });
 }
 
 Deno.serve(async () => {
@@ -90,7 +105,7 @@ Deno.serve(async () => {
   const nomMois = MOIS[mois - 1];
 
   const { data: mouvements, error: eMouv } = await sb
-    .from("mouvements").select("id, recurrent_id, titre, compte_de, compte_vers, montant_centimes, qui, fait_le")
+    .from("mouvements").select("id, recurrent_id, titre, compte_de, compte_vers, montant_centimes, qui, fait_le, libelle_virement")
     .eq("annee", annee).eq("mois", mois);
   if (eMouv) throw eMouv;
 
@@ -114,7 +129,7 @@ Deno.serve(async () => {
     sb.from("charges").select("id, libelle, ponctuel, actif"),
     sb.from("lignes").select("charge_id, montant_centimes, fait_le").eq("annee", annee).eq("mois", mois),
     sb.from("mouvements_recurrents").select("id, mode, charge_id, compte_de, compte_vers, actif"),
-    sb.from("comptes").select("id, nom, commun"),
+    sb.from("comptes").select("id, nom, commun, libelle_virement, libelle_variable"),
   ]);
   if (eCharges) throw eCharges;
   if (eLignes) throw eLignes;
@@ -126,7 +141,8 @@ Deno.serve(async () => {
   if (groupes.length) {
     lignesTexte.push("Virements à faire :");
     for (const g of groupes) {
-      lignesTexte.push(`• → ${g.libelleVers} : ${euros(g.total)} (${g.nLignes} ligne${g.nLignes > 1 ? "s" : ""})`);
+      const note = g.libelleACompleter ? " — libellé à compléter" : "";
+      lignesTexte.push(`• → ${g.libelleVers} : ${euros(g.total)} (${g.nLignes} ligne${g.nLignes > 1 ? "s" : ""})${note}`);
     }
   }
 

@@ -15,6 +15,8 @@ export function creerUiComptes(api, etat, cb) {
     ${c.iban ? `<p class="mono compte-iban">${formaterIban(c.iban).split(" ").map((g) => `<span>${txt(g)}</span>`).join(" ")}</p>
       <button class="btn-lien compte-copier-iban" data-copier-iban="${c.id}">Copier l'IBAN</button>` : ""}
     ${c.note ? `<p class="compte-note">${txt(c.note)}</p>` : ""}
+    ${c.libelle_virement ? `<p class="compte-libelle">Libellé virement : <span class="mono">${txt(c.libelle_virement)}</span>${c.libelle_variable ? " (modèle, change chaque mois)" : ""}</p>
+      <button class="btn-lien compte-copier-libelle" data-copier-libelle="${c.id}">Copier le libellé</button>` : ""}
     <div class="rec-actions">
       <button class="btn-lien" data-modifier="${c.id}">Modifier</button>
       <button class="btn-lien" data-retirer="${c.id}">Supprimer</button>
@@ -32,9 +34,11 @@ export function creerUiComptes(api, etat, cb) {
       ${champ("iban", "IBAN", { valeur: c?.iban, placeholder: "ex. FR76 3000 ...", attrs: 'autocomplete="off" spellcheck="false"' })}
       ${champ("bic", "BIC (facultatif)", { valeur: c?.bic, placeholder: "ex. BNPAFRPP" })}
       ${zone("note", "Note — virement permanent (montant et jour)", c?.note, { placeholder: "ex. permanent de 3 000 € le 2" })}
+      ${champ("libelle_virement", "Libellé à mettre sur le virement", { valeur: c?.libelle_virement, placeholder: "ex. CL-4821, ou Prénom Nom Facture n°" })}
+      ${caseACocher("libelle_variable", "Change chaque mois (ex. numéro de facture)", c?.libelle_variable)}
       ${caseACocher("commun", "Compte commun", c?.commun)}`,
     champs: (form, c) => {
-      const valeurs = lire(form, { booleens: ["commun"] });
+      const valeurs = lire(form, { booleens: ["commun", "libelle_variable"] });
       const messageErreur = erreurIban(valeurs.iban);
       if (messageErreur) throw new Error(messageErreur);
       const iban = valeurs.iban ? nettoyerIban(valeurs.iban) : null;
@@ -60,6 +64,12 @@ export function creerUiComptes(api, etat, cb) {
       btn.addEventListener("click", () => {
         const c = etat.comptes.find((x) => x.id === Number(btn.dataset.copierIban));
         if (c?.iban) copier(c.iban);
+      });
+    });
+    document.querySelectorAll("[data-copier-libelle]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const c = etat.comptes.find((x) => x.id === Number(btn.dataset.copierLibelle));
+        if (c?.libelle_virement) copier(c.libelle_virement);
       });
     });
   };

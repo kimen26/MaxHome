@@ -17,6 +17,7 @@ import { optionsRegle, detailRegle } from "./repartition.js";
 import { etatDuMois, texteAFaireVide } from "./etat-mois.js";
 import { valeurCourante, valeurAffichee, prochaineValeur } from "./coche-ligne.js";
 import { creerUiGroupesVirements } from "./ui-groupes-virements.js";
+import { htmlBlocLibelle, brancherBlocLibelle } from "./bloc-libelle-virement.js";
 
 const ASIDE = "#detail-pc";
 const SUGGESTIONS_AJOUT = ["Resto", "Vacances", "Cadeaux", "Santé"];
@@ -162,6 +163,7 @@ export function creerUiMouvements(api, etat, cb) {
           <span class="nom">${txt(nomCompte(m.compte_vers) ?? "à définir")}</span>
           <span class="sous">${txt(detailCompte(m.compte_vers))}</span></div>
       </div>
+      ${htmlBlocLibelle(m, compte(m.compte_vers))}
       <div class="detail-consigne">
         <span class="etiquette">Consigne</span>
         <textarea class="champ" rows="3" data-consigne placeholder="Où faire le virement, quelle appli, quel libellé…">${txt(consigne)}</textarea>
@@ -192,6 +194,7 @@ export function creerUiMouvements(api, etat, cb) {
     brancherDetail: (m, racine, { fermer }) => {
       racine.querySelector("[data-copier]")?.addEventListener("click", (e) => copier(e.currentTarget.dataset.copier));
       racine.querySelector("[data-vers-recurrents]")?.addEventListener("click", () => { fermer(); montrerEcran("comptes"); });
+      brancherBlocLibelle(racine, api, etat, cb, () => liste.ouvrirDetail?.(m.id));
       racine.querySelector("[data-consigne]")?.addEventListener("change", async (e) => {
         const valeur = e.target.value.trim() || null;
         try {

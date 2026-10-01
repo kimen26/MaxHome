@@ -4,6 +4,12 @@
 // tant qu'il manque des montants, un bandeau le dit et propose de les remplir d'un geste avec
 // les montants habituels (D-040, habituel.js). Le réglage d'une charge vit dans sa feuille
 // (ui-charge-feuille.js), ouverte au tap sur le libellé.
+//
+// Deuxième vue « Destinataires » (Yann : « regroupe ce qu'il y a à faire par compte vers où on
+// déplace, de CB on a besoin de X ») : un sélecteur segmenté au-dessus des cartes bascule entre
+// Catégories (défaut) et Destinataires, mémorisé par appareil (localStorage). Les deux vues
+// lisent le même état et la même fonction `ligneCharge` — seul le regroupement change
+// (par-destinataire.js, pur, testé en node comme groupes-virements.js).
 
 import { euros, versCentimes, regleEffective } from "./calc.js";
 import { $, $$, txt, toast } from "../socle/ui-base.js";
@@ -15,6 +21,13 @@ import { montantHabituel } from "./habituel.js";
 import { creerFeuilleCharge } from "./ui-charge-feuille.js";
 import { compteDeCharge, nomDuCompte } from "./compte-charge.js";
 import { preparerBascule, appliquerBascule, annulerBascule, ecrireBascule, valeurCourante, valeurAffichee } from "./coche-ligne.js";
+import { construireGroupesDestinataires, totalGroupe, comptageValidation, trierGroupesDestinataires, totauxParSource } from "./par-destinataire.js";
+
+/** Vue mémorisée par appareil : « categories » (défaut) ou « destinataires ». Jamais rien ne
+ *  change pour qui ne touche pas au sélecteur (localStorage absent ou en échec → défaut). */
+const CLE_VUE = "maxhome.budget.vueCharges";
+const lireVue = () => { try { return localStorage.getItem(CLE_VUE) === "destinataires" ? "destinataires" : "categories"; } catch { return "categories"; } };
+const ecrireVue = (v) => { try { localStorage.setItem(CLE_VUE, v); } catch { /* stockage indisponible : pas mémorisé, pas bloquant */ } };
 
 /** jj/mm d'une date ISO — même calcul que jourMois() de ui-mouvements.js (pas d'import croisé :
  *  deux fichiers pairs, chacun garde sa petite fonction plutôt qu'un troisième module pour trois
@@ -34,6 +47,7 @@ export const categoriesPresentes = (parCat) => [
 ];
 
 export function creerUiMoisCharges(api, etat, cb) {
+  let vue = lireVue();
   const ligne = (id) => etat.lignes[id];
   const montantDe = (id) => ligne(id)?.montant_centimes ?? 0;
   const saisie = (id) => ligne(id) !== undefined;
@@ -51,7 +65,34 @@ export function creerUiMoisCharges(api, etat, cb) {
     && (c.actif !== false || saisie(c.id)));
 
   // ---------- rendu ----------
+  /** Sélecteur segmenté Catégories | Destinataires — même markup que `.segment` du socle
+   *  (ui-base.js::segmentEcrans), câblé localement (pas de navigation d'écran ici). */
+  function htmlSelecteurVue() {
+    const options = [["categories", "Catégories"], ["destinataires", "Destinataires"]];
+    return `<div class="segment segment-vue-charges" role="radiogroup" aria-label="Regrouper les charges par">
+      ${options.map(([v, l]) => `<button type="button" role="radio" aria-checked="${v === vue}"
+        class="${v === vue ? "actif" : ""}" data-vue-charges="${v}">${txt(l)}</button>`).join("")}
+    </div>`;
+  }
+
   function rendre() {
+    $("#mois-vue-charges").innerHTML = htmlSelecteurVue();
+    for (const b of $$("#mois-vue-charges [data-vue-charges]")) {
+      b.addEventListener("click", () => {
+        if (b.dataset.vueCharges === vue) return;
+        vue = b.dataset.vueCharges;
+        ecrireVue(vue);
+        rendre();
+      });
+    }
+    if (vue === "destinataires") rendreDestinataires(); else rendreCategories();
+    // PROPOSÉES seulement (jamais une terminée) : « à remplir » et « montants habituels »
+    // ne portent que sur ce qui reste à saisir pour de vrai ce mois-ci — commun aux deux vues.
+    rendreACompleter(proposees());
+    brancher();
+  }
+
+  function rendreCategories() {
     const liste = affichees();
     const parCat = {};
     for (const c of liste) (parCat[c.categorie] ??= []).push(c);
@@ -66,10 +107,39 @@ export function creerUiMoisCharges(api, etat, cb) {
         ${items.map(ligneCharge).join("")}
       </div>`;
     }).join("");
-    // PROPOSÉES seulement (jamais une terminée) : « à remplir » et « montants habituels »
-    // ne portent que sur ce qui reste à saisir pour de vrai ce mois-ci.
-    rendreACompleter(proposees());
-    brancher();
+  }
+
+  /** Vue Destinataires (règle 2 du brief) : une carte par compte où va l'argent, triées par
+   *  total décroissant, « reste sur le commun » toujours en dernier ; pied « Total qui part de
+   *  <compte> » par source quand plusieurs cartes en partagent une. Regroupement pur délégué à
+   *  par-destinataire.js ; les lignes réutilisent EXACTEMENT `ligneCharge` de la vue Catégories. */
+  function rendreDestinataires() {
+    const liste = affichees();
+    const groupes = construireGroupesDestinataires(liste, etat.recurrents, etat.comptes);
+    const totalParGroupe = new Map(groupes.map((g) => [g.cle, totalGroupe(g, montantDe)]));
+    const tries = trierGroupesDestinataires(groupes, totalParGroupe);
+    const faitDe = (id) => ligne(id)?.fait_le ?? null;
+
+    const carteGroupe = (g) => {
+      const total = totalParGroupe.get(g.cle);
+      const { faites, total: n, complet } = comptageValidation(g, faitDe);
+      const entete = g.compteId == null ? g.libelleVers : `${g.libelleDe} → ${g.libelleVers}`;
+      return `<div class="carte carte-charges carte-destinataire">
+        <div class="carte-tete${complet ? " complete" : ""}">
+          <span>${txt(entete)}</span><span class="mono">${euros(total)}</span>
+        </div>
+        <div class="cd-validees">${faites}/${n} validées</div>
+        ${g.charges.map(ligneCharge).join("")}
+      </div>`;
+    };
+
+    const pieds = totauxParSource(tries, totalParGroupe, etat.comptes);
+    const piedHtml = pieds.length
+      ? `<div class="cd-totaux-source">${pieds.map((p) => `<p class="cd-total-source">
+          Total qui part de ${txt(p.libelle)} : <span class="mono">${euros(p.total)}</span></p>`).join("")}</div>`
+      : "";
+
+    $("#mois-categories").innerHTML = tries.map(carteGroupe).join("") + piedHtml;
   }
 
   /** Bandeau de tête : ce qui manque ce mois-ci, et le geste qui le remplit. Vide si complet. */

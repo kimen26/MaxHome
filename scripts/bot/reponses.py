@@ -201,6 +201,8 @@ AIDE = """Commandes :
   extra <libelle> <montant> [egales]
   <prenom> prend <montant> <motif>
   fait / pas fait [<titre>]   (virement ou tâche)
+  à virer · valider <charge> [pour <prenom>] · dévalider <charge>
+  libellé <charge ou compte> <texte du virement>
   taches · balance [<jours>]
   ajoute <article> · courses
   bilan [<mois>]

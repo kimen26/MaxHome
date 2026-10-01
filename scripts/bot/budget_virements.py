@@ -107,6 +107,12 @@ def _ligne_groupe(g, comptes):
     compte = next((c for c in comptes if c["id"] == g["vers"]), None)
     if compte and compte.get("iban"):
         lignes.append(f"  IBAN : {formater_iban(compte['iban'])}")
+    # Libellé de virement (D-050) : sa propre ligne, copiable d'un appui long sur Telegram.
+    if g.get("libelle"):
+        lignes.append(f"  Libellé : {g['libelle']}")
+    elif g.get("libelleACompleter"):
+        modele = g.get("libelleModele")
+        lignes.append(f"  Libellé à compléter (modèle : {modele})" if modele else "  Libellé à compléter")
     return "\n".join(lignes)
 
 

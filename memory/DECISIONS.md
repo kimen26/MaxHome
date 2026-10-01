@@ -718,3 +718,45 @@ Arbitrages :
 5. Cause racine accents : tous les subprocess.run(text=True) du bot en encoding="utf-8".
 Reste dette : confrontation JS/Python des règles tâches au-delà d'`echeance` (quarts,
 créneaux, regroupement — triplé avec rappel-taches) ; voyages.py à 404 lignes.
+
+## D-050 — Le libellé de virement vit sur le COMPTE destinataire, pas sur la charge (2026-10-01)
+
+Contexte : Yann veut voir et copier la référence à mettre sur un virement (copropriété : un code
+client fixe ; école : « Prénom Nom Facture n° » qui change chaque mois). Premier arbitrage posé
+sur le récurrent, corrigé en cours de tâche : le libellé dépend de QUI reçoit l'argent, pas de la
+charge qui finance le virement — plusieurs charges vers le même compte partageraient le même
+libellé, un récurrent par charge ne le permettrait pas.
+1. `comptes.libelle_virement` (modèle/valeur fixe) + `comptes.libelle_variable` (change chaque
+   mois) ; `mouvements.libelle_virement` surcharge le mois (migration 025). Règle pure
+   (`frontend/budget/libelle-virement.js`) : effectif = surcharge du mois ?? (variable ? null :
+   modèle du compte) ; « à compléter » si variable et mois vide ; le modèle pré-remplit le champ.
+2. Réglage dans la feuille d'un compte (ui-comptes.js), pas sur la charge ni le récurrent.
+3. Piège trouvé en testant (confrontation L-014, voir L-048) : une charge en mode "charge"
+   (D-042) n'a PAS de ligne `type: "mouvement"` dans son groupe (groupes-virements.js) — elle est
+   représentée par sa ligne de charge, sa validation vit sur `lignes.fait_le` (D-046). Le mouvement
+   réel existe pourtant en base (il se coche en parallèle, budget_lignes.py::valider_ligne) et
+   c'est LUI qui porte `libelle_virement`. Chercher le libellé dans `g.lignes` (comme le premier
+   jet le faisait) manque donc tous les virements envoyés par ce mode — le cas même de l'exemple
+   école. Corrigé : le mouvement du groupe se trouve par trajet (`compte_vers` + `compte_de`/`qui`)
+   directement dans `etat.mouvements`, jamais dans `g.lignes`.
+4. Bot : `à virer` affiche le libellé (sa propre ligne, copiable d'un appui long) ; nouvelle
+   commande `libellé <charge|compte> <texte>` (alias `libelle`) pose la valeur du mois sur le
+   mouvement non fait allant vers ce compte, annulable. La séparation cible/texte n'est pas
+   déterministe (cible multi-mots possible, grammaire normalise tout le texte avant matching,
+   même limite que `lieu <voyage> <nom du lieu>`) : essaie les coupures de la plus longue à la
+   plus courte, comme voyages.py::separer_voyage_et_reste.
+5. Rappel du 1er/5 (TypeScript, dupliqué comme D-049 §4) : « — libellé à compléter » sur les
+   groupes concernés.
+Reste à faire : brancher le détail d'un mouvement seul (ui-mouvements.js, fichier interdit
+pendant cette tâche) — voir LESSONS pour la ligne exacte.
+
+## D-051 — Écran Mois : vue « Catégories | Destinataires » (2026-10-01)
+
+Yann : « regrouper par compte cible, ou un toggle catégorie / destinataire : on cumule direct,
+de CB on a besoin pour xyz ». Sélecteur au-dessus des charges, mémorisé par appareil
+(localStorage, défaut Catégories). Destinataires : une carte par compte d'arrivée
+(compteDeCharge ; null = « Reste sur <commun> (prélèvements) », en dernier), total en gros,
+« x/y validées », lignes identiques au mode Catégories (même fonction de rendu), faites
+comprises ; pied « Total qui part de <compte> » quand plusieurs cartes partagent la source.
+Logique pure dans par-destinataire.js (distinct de groupes-virements.js, qui ne liste que ce
+qui reste à virer). Cible du sélecteur 48 px. Nom de compte jamais rogné (passe à la ligne).

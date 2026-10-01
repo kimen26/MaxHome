@@ -30,5 +30,7 @@ def restaurer(donnees, table, cle, ancienne):
         budget_lignes.restaurer_validation(donnees, ancienne)
     elif table == "mouvement_et_ligne":  # `fait <titre>` sur un mouvement mode "charge"
         budget_lignes.restaurer_mouvement_et_ligne(donnees, cle["mouvement_id"], ancienne)
+    elif table == "mouvement_libelle":  # `libellé <charge|compte> <texte>` (D-050)
+        donnees.maj_mouvement(cle["id"], {"libelle_virement": ancienne["libelle_virement"]})
     else:
         raise RuntimeError(f"annulation non gérée pour la table {table}")

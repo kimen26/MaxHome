@@ -6,6 +6,7 @@ import { compteDeCharge, compteSource, optionsCompte, aAutreCompte, choisirCompt
 import { etatDuMois, texteAFaireVide } from "../frontend/budget/etat-mois.js";
 import { champsCycle, valeurCourante, valeurAffichee, prochaineValeur, SANS_PRENOM, champsMouvementLie, preparerBascule, appliquerBascule, annulerBascule, ecrireBascule } from "../frontend/budget/coche-ligne.js";
 import { construireGroupes, preparerBasculeGroupe, lignesAFaire, lignesFaites } from "../frontend/budget/groupes-virements.js";
+import { construireGroupesDestinataires, totalGroupe, comptageValidation, trierGroupesDestinataires, totauxParSource, CLE_COMMUN } from "../frontend/budget/par-destinataire.js";
 
 // Cas réel : Comptes 2026, février. Doit TOUJOURS donner Yann -3 236,15 ±1 ct.
 const chargesFevrier = [
@@ -646,6 +647,65 @@ assert.equal(refus.message, "Saisis d'abord le montant de Assurance.");
   const gMelange = groupesMelange.find((x) => x.vers === 7);
   assert.equal(gMelange.fait, true);
   assert.equal(gMelange.prenom, SANS_PRENOM, "prénoms différents entre les lignes (Yann vs sans) : pas de prénom commun");
+}
+
+// ---------- Regroupement par destinataire (par-destinataire.js, Yann : « de CB j'ai besoin de X ») ----------
+{
+  const comptes = [
+    { id: 1, nom: "Commun", commun: true },
+    { id: 2, nom: "Caisse d'Épargne" },
+    { id: 3, nom: "École Max" },
+  ];
+  const charges = [
+    { id: 1, libelle: "Crédit immo", categorie: "Logement", regle: "egales", actif: true, ponctuel: false }, // envoyé vers 2
+    { id: 2, libelle: "Loyer", categorie: "Logement", regle: "egales", actif: true, ponctuel: false }, // reste sur commun
+    { id: 3, libelle: "École", categorie: "Max", regle: "egales", actif: true, ponctuel: false }, // envoyé vers 3
+    { id: 4, libelle: "Resto", categorie: "Autre", regle: "egales", actif: true, ponctuel: true }, // ponctuelle, aucune destination
+  ];
+  const recurrents = [
+    { id: 9, mode: "charge", charge_id: 1, actif: true, compte_de: 1, compte_vers: 2 },
+    { id: 10, mode: "charge", charge_id: 3, actif: true, compte_de: 1, compte_vers: 3 },
+  ];
+  const montantDe = (id) => ({ 1: -125000, 2: -80000, 3: -91000, 4: -8640 })[id] ?? 0;
+
+  const groupes = construireGroupesDestinataires(charges, recurrents, comptes);
+  assert.equal(groupes.length, 3, "trois groupes : deux trajets, un seul groupe commun (loyer + resto ensemble)");
+  const gCommun = groupes.find((g) => g.cle === CLE_COMMUN);
+  assert.ok(gCommun, "groupe « reste sur le commun » trouvé par sa clé stable");
+  assert.ok(gCommun.charges.some((c) => c.id === 2), "charge sans destination (Loyer) : reste sur le commun");
+  assert.ok(gCommun.charges.some((c) => c.id === 4), "charge ponctuelle sans destination (Resto) : reste sur le commun aussi");
+  assert.equal(groupes.find((g) => g.compteId === 2).charges[0].id, 1, "Crédit immo groupé sous son compte de destination (Caisse d'Épargne)");
+  assert.equal(groupes.find((g) => g.compteId === 3).charges[0].id, 3, "École groupée sous son compte de destination (École Max)");
+
+  // ---------- tri : trajets par total décroissant, le commun toujours en dernier ----------
+  const totalParGroupe = new Map(groupes.map((g) => [g.cle, totalGroupe(g, montantDe)]));
+  assert.equal(totalParGroupe.get(gCommun.cle), -88640, "total du groupe commun = loyer + resto");
+  const tries = trierGroupesDestinataires(groupes, totalParGroupe);
+  assert.equal(tries.at(-1).cle, CLE_COMMUN, "la carte « reste sur le commun » est toujours en dernier");
+  assert.equal(tries[0].compteId, 2, "Crédit immo (1250 €) avant École (910 €) : total décroissant");
+  assert.equal(tries[1].compteId, 3);
+
+  // ---------- comptage de validation (« x/y validées ») ----------
+  const faitDe = (id) => ({ 1: "2026-09-29T09:00:00" }[id] ?? null);
+  const gCredit = groupes.find((g) => g.compteId === 2);
+  const compte1 = comptageValidation(gCredit, faitDe);
+  assert.deepEqual(compte1, { faites: 1, total: 1, complet: true });
+  const compteCommunLigne = comptageValidation(gCommun, faitDe);
+  assert.deepEqual(compteCommunLigne, { faites: 0, total: 2, complet: false });
+
+  // ---------- pied « Total qui part de <compte> » seulement si plusieurs cartes partagent la source ----------
+  // Ici les deux trajets partent tous les deux du Commun (compte_de:1) : un seul pied, Commun.
+  const pieds = totauxParSource(tries, totalParGroupe, comptes);
+  assert.equal(pieds.length, 1, "une seule source partagée (Commun) entre les deux trajets");
+  assert.equal(pieds[0].libelle, "Commun");
+  assert.equal(pieds[0].total, -216000, "Crédit immo + École, les deux partant du Commun");
+
+  // Une seule carte depuis une source : pas de pied (rien à cumuler).
+  const unSeulTrajet = construireGroupesDestinataires(
+    [charges[0], charges[1]], [recurrents[0]], comptes);
+  const totalUnSeul = new Map(unSeulTrajet.map((g) => [g.cle, totalGroupe(g, montantDe)]));
+  const piedsUnSeul = totauxParSource(unSeulTrajet, totalUnSeul, comptes);
+  assert.equal(piedsUnSeul.length, 0, "une seule carte depuis le Commun : pas de pied, rien à cumuler");
 }
 
 console.log("test_calc OK");

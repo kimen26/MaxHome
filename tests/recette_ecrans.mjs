@@ -138,6 +138,33 @@ const GESTES = [
       await page.click("#mois-a-completer [data-remplir]");
       await page.waitForFunction(() => !document.querySelector("#mois-a-completer .a-completer"), null, { timeout: 3000 });
     } },
+  // Mode Destinataires du sélecteur Catégories | Destinataires (Yann : « regroupe par compte
+  // vers où on déplace, de CB on a besoin de X »). Les charges factices posent un trajet
+  // (Crédit immobilier → Compte Yann) et des charges qui restent sur le commun : au moins une
+  // carte de trajet et la carte « reste sur le commun ».
+  { ecran: "mois", moduleDefaut: "mois", nom: "mois-destinataires",
+    geste: async (page) => {
+      await page.click('#mois-vue-charges [data-vue-charges="destinataires"]');
+      await page.waitForSelector("#mois-categories .carte-destinataire", { timeout: 3000 });
+      await page.waitForTimeout(100);
+    } },
+  // Détail d'un groupe de virements dont le compte de destination est VARIABLE et sans valeur
+  // ce mois (D-050, Compte École dans donnees_factices.mjs) : bandeau ambre « Libellé à
+  // compléter ce mois », champ pré-rempli du modèle, bouton Enregistrer — tap sur la ligne de
+  // groupe elle-même (hors case, D-048 §1), comme reglage-charge plus haut.
+  { ecran: "mois", moduleDefaut: "mois", nom: "detail-groupe-libelle-a-completer",
+    geste: async (page) => {
+      const groupe = page.locator("#groupes-virements .gv-groupe").filter({ hasText: "École" }).first();
+      await groupe.scrollIntoViewIfNeeded();
+      // Tap dans le corps du texte (.mvt-corps), jamais au centre de l'élément entier : la case
+      // cycle (::before élargi, D-048) occupe la zone de gauche et volerait le clic (même piège
+      // que reglage-charge plus haut).
+      const corps = await groupe.locator(".mvt-corps").boundingBox();
+      if (!corps) throw new Error("detail-groupe-libelle-a-completer : groupe École introuvable.");
+      await page.mouse.click(corps.x + corps.width / 2, corps.y + corps.height / 2);
+      await page.waitForSelector("#feuille-corps .gv-libelle-manquant", { timeout: 3000 });
+      await page.waitForTimeout(250);
+    } },
   // Fiche d'une tâche (D-041) : Réglages · Tâches, tap sur une ligne.
   { ecran: "taches-rec", moduleDefaut: "taches-rec", nom: "fiche-tache",
     geste: async (page) => {

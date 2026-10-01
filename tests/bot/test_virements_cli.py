@@ -48,16 +48,27 @@ def _via_pont(etat):
 
 def _via_js_direct(etat):
     """Reproduit exactement ce que fait virements_cli.mjs (y compris l'ajout de fait_le par
-    ligne, calculé ici de la même façon plutôt que dans groupes-virements.js — voir le
-    commentaire du pont) : ce test confronte le PONT dans son ensemble, pas juste le moteur."""
-    module_url = "file:///" + str(RACINE / "frontend" / "budget" / "groupes-virements.js").replace("\\", "/")
+    ligne et du libellé de virement par groupe, D-050 — calculés ici de la même façon plutôt
+    que dans groupes-virements.js/libelle-virement.js, voir le commentaire du pont) : ce test
+    confronte le PONT dans son ensemble, pas juste le moteur."""
+    module_groupes = "file:///" + str(RACINE / "frontend" / "budget" / "groupes-virements.js").replace("\\", "/")
+    module_libelle = "file:///" + str(RACINE / "frontend" / "budget" / "libelle-virement.js").replace("\\", "/")
     script = (
-        f"import('{module_url}').then(m => {{"
+        f"Promise.all([import('{module_groupes}'), import('{module_libelle}')]).then(([m, l]) => {{"
         f"const etat = {json.dumps(etat)};"
-        f"const faitLeDe = (l) => l.type === 'ligne' ? (etat.lignes[l.id]?.fait_le ?? null) "
-        f": (etat.mouvements.find((mv) => mv.id === l.id)?.fait_le ?? null);"
-        f"const groupes = m.construireGroupes(etat).map(g => ({{...g, bascule: m.preparerBasculeGroupe(g, etat.membres), "
-        f"lignes: g.lignes.map((l) => ({{...l, fait_le: faitLeDe(l)}}))}}));"
+        f"const faitLeDe = (x) => x.type === 'ligne' ? (etat.lignes[x.id]?.fait_le ?? null) "
+        f": (etat.mouvements.find((mv) => mv.id === x.id)?.fait_le ?? null);"
+        f"const mvtDuGroupe = (g) => etat.mouvements.find((mv) => mv.compte_vers === g.vers "
+        f"&& (mv.compte_de ?? (mv.qui ? ('perso:' + mv.qui) : null)) === g.de);"
+        f"const groupes = m.construireGroupes(etat).map(g => {{"
+        f"const compteVers = etat.comptes.find((c) => c.id === g.vers) ?? null;"
+        f"const mouvement = mvtDuGroupe(g);"
+        f"return {{...g, bascule: m.preparerBasculeGroupe(g, etat.membres),"
+        f"libelle: l.libelleEffectif(mouvement, compteVers),"
+        f"libelleACompleter: l.libelleACompleter(mouvement, compteVers),"
+        f"libelleModele: l.modeleLibelle(compteVers),"
+        f"lignes: g.lignes.map((x) => ({{...x, fait_le: faitLeDe(x)}}))}};"
+        f"}});"
         f"console.log(JSON.stringify({{groupes}}));"
         f"}})"
     )

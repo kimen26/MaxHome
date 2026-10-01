@@ -21,6 +21,7 @@ import actions  # noqa: E402
 from aide_virements import aide_complete  # noqa: E402
 import annulation  # noqa: E402
 import budget_lignes  # noqa: E402
+import budget_libelle  # noqa: E402
 import budget_virements  # noqa: E402
 import commandes  # noqa: E402
 import libre  # noqa: E402
@@ -191,13 +192,15 @@ class Bot:
                     or actions.courses(self, telegram_id, prenom, action)
                     or actions.voyages(self, telegram_id, prenom, action, texte_brut))
 
-        if a in ("extra", "bilan", "charges", "a_virer", "valider"):  # voir rafraichir_referentiel
+        if a in ("extra", "bilan", "charges", "a_virer", "valider", "libelle"):  # voir rafraichir_referentiel
             self.rafraichir_referentiel()
         annee, mois = action.get("annee"), action.get("mois")
         if a == "valider":  # hors actions.py (interdit) ; rien à copier sur mois vide
             return budget_virements.valider(self, telegram_id, prenom, action, annee, mois)
         if a == "a_virer":
             return budget_virements.a_virer(self, annee, mois)
+        if a == "libelle":  # D-050, rien à copier sur mois vide non plus
+            return budget_libelle.libelle(self, telegram_id, action["reste"], annee, mois)
 
         copie = self.proposer_copie_si_mois_vide(telegram_id, action, annee, mois)
         if copie:

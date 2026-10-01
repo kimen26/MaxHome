@@ -1,0 +1,50 @@
+/* MaxHome — Budget : virements groupés par trajet, vue Destinataires et libellé de virement
+   (D-048 §3, D-050). Extrait de budget.css (D-036 §CSS par module) quand celui-ci a dépassé
+   400 lignes : ce fichier porte ce qui tourne autour de « où va l'argent » — tokens et gabarits
+   communs (carte, ligne, segment, .mvt partagé avec À faire/Fait) restent dans budget.css et
+   socle.css. Listé dans index.html après budget.css, pris par le service worker comme les
+   autres feuilles de style (gen-sw-version.mjs énumère frontend/ par parcours du disque, rien à
+   lister à la main). */
+
+/* ===== Sélecteur Catégories | Destinataires + vue Destinataires (par-destinataire.js) =====
+   Même `.segment` que le socle (ui-base.js::segmentEcrans), câblé localement, pas une navigation
+   d'écran. Vue Destinataires : même grille/carte que Catégories (carte-charges), l'en-tête passe
+   sur deux lignes (trajet, puis total gros mono + compteur) — le titre socle suppose un libellé
+   court et le force sur une ligne (.carte-tete > :first-child, socle.css) : un trajet ou « Reste
+   sur Compte commun (prélèvements) » sont plus longs et NE DOIVENT jamais être tronqués
+   (mobile-parents.md), d'où l'override ci-dessous, scopé à cette carte. */
+.mois-vue-charges { display:flex; justify-content:center; margin:10px 0 2px; }
+/* 48 px de cible tactile (règle parents) : .segment du socle n'a que 26 px, trop petit pour un
+   geste répété à chaque visite de l'écran Mois (contrairement aux mini-cycles du tableau Parts,
+   D-036 §2, qui restent à 44 px par exception documentée). Scopé à ce sélecteur uniquement. */
+.mois-vue-charges .segment button { padding:0 16px; min-height:48px; }
+.carte-destinataire .carte-tete { flex-direction:column; align-items:flex-start; gap:2px; text-transform:none; }
+.carte-destinataire .carte-tete span:first-child {
+  font-size:13px; font-weight:700; color:var(--texte-2); text-transform:uppercase;
+  white-space:normal; overflow-wrap:anywhere;
+}
+.carte-destinataire .carte-tete .mono { font-size:20px; font-weight:700; color:var(--texte); }
+.carte-destinataire .carte-tete.complete .mono { color:var(--vert); }
+.cd-validees { font-size:12px; color:var(--texte-2); padding:2px 0 6px; }
+/* Pied « Total qui part de X » : enfant direct de la grille #mois-categories (deux colonnes dès
+   640 px), pleine largeur, jamais coincé dans une seule colonne. */
+.cd-totaux-source { grid-column:1 / -1; margin-top:4px; }
+.cd-total-source {
+  font-size:14px; font-weight:600; color:var(--texte); background:var(--fond-bandeau);
+  border-radius:8px; padding:10px 12px; margin:0 0 10px;
+}
+.cd-total-source .mono { font-weight:700; }
+
+/* Virements à faire, groupés par trajet (D-048 §3) : même gabarit .mvt que les mouvements pris
+   un par un (carte-mvts, budget.css), la case cycle (caseCycle, .case-cycle-*) remplace la case
+   ✓ binaire. Détail replié (feuille) : une ligne par élément du groupe, libellé + montant, sans
+   case (le groupe se coche entier, chaque ligne reste cochable dans sa propre catégorie). */
+.carte-groupes-virements { margin-bottom:10px; }
+.gv-detail-lignes { display:flex; flex-direction:column; gap:2px; margin:10px 0; }
+.gv-detail-ligne { display:flex; justify-content:space-between; gap:10px; font-size:13px; padding:4px 0; border-bottom:1px solid var(--separateur); }
+.gv-detail-ligne:last-child { border-bottom:0; }
+
+/* Libellé de virement (D-050), dans le détail d'un groupe/mouvement et dans la carte d'un compte. */
+.gv-libelle, .compte-libelle { margin:10px 0; font-size:13px; }
+.gv-libelle-manquant input { width:100%; margin:6px 0; }
+.gv-libelle-alerte { display:block; }

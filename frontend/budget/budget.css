@@ -91,7 +91,7 @@
 .detail-montant .grand { font-size:34px; font-weight:600; letter-spacing:-.02em; line-height:1; }
 .detail-trajet { display:grid; grid-template-columns:1fr auto 1fr; gap:10px; align-items:center; }
 .case-compte { border:1px solid var(--bordure); border-radius:10px; padding:10px 12px; display:flex; flex-direction:column; gap:2px; min-width:0; }
-.case-compte .nom { font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.case-compte .nom { font-size:14px; font-weight:600; overflow-wrap:anywhere; }
 .detail-trajet .fleche { color:var(--bleu); font-size:18px; }
 .etiquette { font-size:11px; font-weight:600; color:var(--texte-2); text-transform:uppercase; letter-spacing:.05em; }
 .detail-consigne { display:flex; flex-direction:column; gap:6px; }
@@ -118,6 +118,10 @@
   .carte-liste { border-radius:12px; }
 }
 
+
+/* Sélecteur Catégories | Destinataires, vue Destinataires, virements groupés et libellé de
+   virement : déplacés dans budget-virements.css (D-036 §CSS par module, extraction quand
+   budget.css a dépassé 400 lignes, D-050). */
 
 /* ================= Charges par catégorie, écran « Mois » ================= */
 /* Une colonne sur téléphone, deux au-dessus de 640 px (D-039) : à 360 px, deux colonnes
@@ -357,12 +361,3 @@
 /* Régularisations entre nous, dans la carte « Ce mois seulement » : ligne compacte + lien discret. */
 .ligne.regularisation .repere { font-size:11px; white-space:nowrap; }
 .btn-lien.discret { font-size:12px; min-height:32px; padding:4px 8px; text-decoration:none; }
-
-/* Virements à faire, groupés par trajet (D-048 §3) : même gabarit .mvt que les mouvements pris
-   un par un (carte-mvts), la case cycle (caseCycle, .case-cycle-*) remplace la case ✓ binaire.
-   Détail replié (feuille) : une ligne par élément du groupe, libellé + montant, sans case (le
-   groupe se coche entier, chaque ligne reste cochable dans sa propre catégorie). */
-.carte-groupes-virements { margin-bottom:10px; }
-.gv-detail-lignes { display:flex; flex-direction:column; gap:2px; margin:10px 0; }
-.gv-detail-ligne { display:flex; justify-content:space-between; gap:10px; font-size:13px; padding:4px 0; border-bottom:1px solid var(--separateur); }
-.gv-detail-ligne:last-child { border-bottom:0; }

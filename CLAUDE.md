@@ -66,6 +66,7 @@ Plan → TodoWrite → Exécution → Vérification → Commit → memory/ grav�
 | `node tests/recette_ecrans.mjs` puis `node tests/planche_maquette.mjs` et **OUVRIR** data/captures/planche/*.png (app à gauche, maquette à droite — L-028) | tout changement UI |
 | `node tests/test_courses.mjs` | tout changement de la tournée / des repas / de l'aide à la saisie |
 | `node tests/test_agenda.mjs` | tout changement du calendrier (fériés, grille, vacances par zone) |
+| `node tests/test_libelles.mjs` | tout changement du libellé de virement (D-050) |
 | `node tests/comparer_captures.mjs --attendu <écrans>` (référence : data/captures/avant/) | tout refactor censé ne rien changer |
 | `node tests/recette_token.mjs` (jeton refusé puis rafraîchi) | tout changement de `surChangement` / `demarrer()` / gestion d'erreur |
 | `node tests/recette_mise_a_jour.mjs` (déploiement simulé : l'app se recharge seule, jamais en saisie) | tout changement de `sw.js`, de son enregistrement dans index.html, de `gen-sw-version.mjs` |

@@ -29,10 +29,20 @@ export const MEMBRES = [
 ];
 
 // iban : exemple PUBLIC de la norme IBAN (fr.wikipedia.org/wiki/IBAN), jamais un vrai compte.
+// libelle_virement / libelle_variable (D-050, comptes factices uniquement) : Compte Yann porte
+// un libellé FIXE (code client inventé, trajet existant Crédit immobilier → Compte Yann) ;
+// Compte École est VARIABLE et sa valeur du mois n'est volontairement PAS saisie (MOUVEMENTS plus
+// bas) pour que l'écran Mois et le détail du groupe montrent le bandeau « à compléter » sur la
+// capture — sinon la recette dirait vert sans avoir vu cet état (L-009).
 export const COMPTES = [
-  { id: 1, nom: "Compte commun", titulaire: null, iban: "FR1420041010050500013M02606", iban_masque: "1234", note: null, commun: true },
-  { id: 2, nom: "Compte Claudia", titulaire: "Claudia", iban_masque: "5678", note: null, commun: false },
-  { id: 3, nom: "Compte Yann", titulaire: "Yann", iban_masque: "9012", note: null, commun: false },
+  { id: 1, nom: "Compte commun", titulaire: null, iban: "FR1420041010050500013M02606", iban_masque: "1234", note: null, commun: true,
+    libelle_virement: null, libelle_variable: false },
+  { id: 2, nom: "Compte Claudia", titulaire: "Claudia", iban_masque: "5678", note: null, commun: false,
+    libelle_virement: null, libelle_variable: false },
+  { id: 3, nom: "Compte Yann", titulaire: "Yann", iban_masque: "9012", note: null, commun: false,
+    libelle_virement: "CL-48217", libelle_variable: false },
+  { id: 4, nom: "Compte École", titulaire: null, iban_masque: null, note: null, commun: false,
+    libelle_virement: "Prénom Nom Facture n°", libelle_variable: true },
 ];
 
 // Charges en montants NÉGATIFS, comme en base (docs/regles-repartition.md). Chaque état qu'un
@@ -58,6 +68,10 @@ export const CHARGES = [
     cle_pct: null, payeur: null, ponctuel: true, montant_defaut: null, defaut_dernier: false },
   { id: 8, libelle: "Ancienne box internet", ordre: 80, categorie: "Logement", type: "egales", regle: "egales",
     cle_pct: null, payeur: null, ponctuel: false, montant_defaut: -3500, defaut_dernier: true, actif: false },
+  // Envoyée vers Compte École (libellé VARIABLE non saisi ce mois, D-050) : montant et récurrent
+  // plus bas (MOUVEMENTS_RECURRENTS id 4, MOUVEMENTS id 4) pour peupler le groupe « à compléter ».
+  { id: 9, libelle: "École", ordre: 55, categorie: "Léo", type: "egales", regle: "egales",
+    cle_pct: null, payeur: null, ponctuel: false, montant_defaut: -91000, defaut_dernier: false },
 ];
 
 const MONTANT_DU_MOIS = { 1: -125000, 7: -8640 }; // Crédit immobilier ≠ référence ; Resto ponctuel
@@ -100,6 +114,11 @@ export const MOUVEMENTS_RECURRENTS = [
   { id: 3, titre: "Crédit immobilier → Compte Yann", compte_de: 1, compte_vers: 3, mode: "charge",
     montant_centimes: null, charge_id: 1, prenom_part: null, qui: null, jour: 5,
     consigne: null, ordre: 3, actif: true },
+  // École → Compte École, libellé VARIABLE (compte 4) non saisi ce mois (D-050) : le mouvement
+  // lié (MOUVEMENTS id 4) n'a pas de libelle_virement, pour peupler le bandeau « à compléter ».
+  { id: 4, titre: "École → Compte École", compte_de: 1, compte_vers: 4, mode: "charge",
+    montant_centimes: null, charge_id: 9, prenom_part: null, qui: null, jour: 5,
+    consigne: null, ordre: 4, actif: true },
 ];
 
 export const MOUVEMENTS = [
@@ -114,6 +133,11 @@ export const MOUVEMENTS = [
   { id: 3, annee: ANNEE, mois: MOIS, recurrent_id: 3, titre: "Crédit immobilier → Compte Yann",
     compte_de: 1, compte_vers: 3, montant_centimes: -125000, qui: null, consigne: null,
     fait_le: `${ilYA(2)}T09:00:00`, fait_par: "Yann" },
+  // Mouvement de l'École (non fait, sans libelle_virement) : le compte 4 est VARIABLE et rien
+  // n'a été saisi ce mois-ci, le groupe doit apparaître « à compléter » sur la capture (L-009).
+  { id: 4, annee: ANNEE, mois: MOIS, recurrent_id: 4, titre: "École → Compte École",
+    compte_de: 1, compte_vers: 4, montant_centimes: -91000, qui: null, consigne: null,
+    fait_le: null, fait_par: null, libelle_virement: null },
 ];
 
 // ---------- module Tâches ----------

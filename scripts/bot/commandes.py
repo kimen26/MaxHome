@@ -92,7 +92,8 @@ def meilleur_libelle(cible_norm, charges):
 
 def interpreter(texte_brut, prenoms, charges, annee_courante, mois_courant):
     """Retourne un dict d'action. `action` == None si rien ne matche (repli libre)."""
-    texte_norm = normaliser(texte_brut.strip())
+    texte_brut = texte_brut.strip()
+    texte_norm = normaliser(texte_brut)
     annee, mois, sans_mois = extraire_mois(texte_norm, annee_courante, mois_courant)
     sans_mois = sans_mois.strip()
 
@@ -148,6 +149,18 @@ def interpreter(texte_brut, prenoms, charges, annee_courante, mois_courant):
     # « à virer » (alias « virements ») : virements du mois groupés par trajet (D-048 §3).
     if sans_mois in ("a virer", "virements"):
         return {"action": "a_virer", "annee": annee, "mois": mois}
+
+    # libellé <charge|compte> <texte> (alias libelle) : pose la valeur du mois (D-050). Un
+    # libellé bancaire doit garder EXACTEMENT ce qui a été tapé (casse, accents, tirets : « Max
+    # DUPONT Facture-École 1234-56 ») — seule la CIBLE (compte ou charge) se cherche en flou,
+    # budget_libelle.py la sépare du texte sans jamais passer `reste` par `normaliser()`. On
+    # repère juste ici où commence le reste, sur le texte BRUT (insensible casse/accents pour
+    # reconnaître « libellé »/« libelle », mais rien n'est réécrit) ; la séparation cible/texte
+    # n'est pas déterministe (la cible peut être multi-mots, « École Max »), comme
+    # `lieu <voyage> <nom du lieu>` plus haut.
+    m = re.match(r"^libell?[ée]\s+(.+)$", texte_brut, flags=re.IGNORECASE)
+    if m:
+        return {"action": "libelle", "reste": m.group(1).strip(), "annee": annee, "mois": mois}
 
     # valider <charge> [pour <prenom>] / pas validé <charge> / devalider <charge> (D-046, D-048).
     # Testé AVANT « fait/pas fait » (grammaire voisine, même verbe « fait » à distinguer par

@@ -4,8 +4,10 @@
 // charges. Une case par groupe (même cycle que les lignes, D-048 §2) : cocher un groupe valide
 // toutes ses lignes non faites pour la même personne et la même date, décocher un groupe déjà
 // fait annule tout. Le détail replié (tap hors case) montre De/Vers, l'IBAN de la destination
-// s'il est connu, et un bouton Copier le montant total. La logique de regroupement est pure
-// (groupes-virements.js, testée en node) : ce fichier n'assemble que l'affichage (D-024).
+// s'il est connu, le libellé de virement à copier (ou à compléter ce mois si le compte en
+// demande un qui change chaque mois, D-050), et un bouton Copier le montant total. La logique de
+// regroupement est pure (groupes-virements.js, testée en node) : ce fichier n'assemble que
+// l'affichage (D-024).
 
 import { euros } from "./calc.js";
 import { $, $$, txt, toast, copier, ouvrirFeuille, fermerFeuille, feuilleOuverte } from "../socle/ui-base.js";
@@ -14,6 +16,8 @@ import { brancherCycles } from "../socle/blocs-cycle.js";
 import { construireGroupes, preparerBasculeGroupe } from "./groupes-virements.js";
 import { SANS_PRENOM, valeurAffichee, preparerBascule as preparerBasculeLigne, appliquerBascule as appliquerBasculeLigne,
   annulerBascule as annulerBasculeLigne, ecrireBascule as ecrireBasculeLigne } from "./coche-ligne.js";
+import { libelleACompleter } from "./libelle-virement.js";
+import { htmlBlocLibelle, brancherBlocLibelle } from "./bloc-libelle-virement.js";
 
 export function creerUiGroupesVirements(api, etat, cb, { basculerMouvement }) {
   const [p1] = etat.membres.map((m) => m.prenom);
@@ -23,6 +27,15 @@ export function creerUiGroupesVirements(api, etat, cb, { basculerMouvement }) {
    *  catégorie, règle 3 du brief). */
   const ligneDetail = (l) => `<div class="gv-detail-ligne">
     <span>${txt(l.libelle)}</span><span class="mono">${euros(l.montant_centimes)}</span></div>`;
+
+  /** Mouvement réel du mois qui réalise ce trajet, quel que soit son mode — même pour une
+   *  charge en mode "charge" (D-046 : sa LIGNE porte la validation visible, mais le mouvement
+   *  existe en base et se coche en parallèle), c'est lui qui porte la surcharge de libellé du
+   *  mois : jamais g.lignes, qui ne contient qu'un élément `type: "ligne"` pour ce mode. */
+  function mouvementDuGroupe(g) {
+    return etat.mouvements.find((m) => m.compte_vers === g.vers
+      && (m.compte_de ?? (m.qui ? `perso:${m.qui}` : null)) === g.de);
+  }
 
   function html() {
     const groupes = construireGroupes(etat);
@@ -34,11 +47,14 @@ export function creerUiGroupesVirements(api, etat, cb, { basculerMouvement }) {
       // « ✓ Prénom » seulement si un prénom commun existe (D-048) ; sinon juste « ✓ » — jamais
       // le Symbol SANS_PRENOM affiché tel quel dans le texte.
       const suffixeFait = g.fait ? ` · ✓${g.prenom !== SANS_PRENOM ? ` ${txt(g.prenom)}` : ""}` : "";
+      const compteVers = etat.comptes.find((c) => c.id === g.vers);
+      const aCompleter = libelleACompleter(mouvementDuGroupe(g), compteVers);
       return `<div class="mvt gv-groupe cliquable${g.fait ? " fait" : ""}" data-id="${txt(g.cle)}">
         ${caseCycle({ id: g.cle, valeur: valeurAffichee(valeur), p1, titre: `${g.libelleDe} vers ${g.libelleVers}` })}
         <div class="mvt-corps">
           <span class="mvt-titre">${txt(g.libelleDe)} → ${txt(g.libelleVers)}</span>
           <span class="mvt-trajet">${g.lignes.length} ligne${g.lignes.length > 1 ? "s" : ""}${suffixeFait}</span>
+          ${aCompleter ? `<span class="mvt-note gv-libelle-alerte">Libellé à compléter</span>` : ""}
         </div>
         <div class="mvt-droite"><span class="mono mvt-montant">${euros(g.total)}</span></div>
       </div>`;
@@ -76,11 +92,12 @@ export function creerUiGroupesVirements(api, etat, cb, { basculerMouvement }) {
     toast(valeurCible === null ? "Validation annulée." : `Validé pour ${valeurCible}.`);
   }
 
-  /** Détail replié d'un groupe (tap hors case) : De/Vers, IBAN si connu, Copier le total. */
+  /** Détail replié d'un groupe (tap hors case) : De/Vers, IBAN si connu, libellé, Copier le total. */
   function ouvrirDetail(cle) {
     const g = construireGroupes(etat).find((x) => x.cle === cle);
     if (!g) return;
     const compteVers = etat.comptes.find((c) => c.id === g.vers);
+    const mouvement = mouvementDuGroupe(g);
     const iban = compteVers?.iban ?? null;
     const html = `<div class="detail" data-id="${txt(g.cle)}">
       ${enteteDetail(`${g.libelleDe} → ${g.libelleVers}`, `${g.lignes.length} ligne${g.lignes.length > 1 ? "s" : ""}`)}
@@ -93,6 +110,7 @@ export function creerUiGroupesVirements(api, etat, cb, { basculerMouvement }) {
         <div class="case-compte"><span class="etiquette">Vers</span><span class="nom">${txt(g.libelleVers)}</span>
           ${iban ? `<span class="sous mono">${txt(iban)}</span>` : ""}</div>
       </div>
+      ${htmlBlocLibelle(mouvement, compteVers)}
       <div class="gv-detail-lignes">${g.lignes.map(ligneDetail).join("")}</div>
       <div class="detail-actions">
         <button class="btn btn-bleu grandir" data-copier-total="${(g.total / 100).toFixed(2).replace(".", ",")}">
@@ -101,6 +119,7 @@ export function creerUiGroupesVirements(api, etat, cb, { basculerMouvement }) {
     </div>`;
     ouvrirFeuille(html);
     $("#feuille-corps [data-copier-total]").addEventListener("click", (e) => copier(e.currentTarget.dataset.copierTotal));
+    brancherBlocLibelle($("#feuille-corps"), api, etat, cb, () => ouvrirDetail(cle));
   }
 
   /** Branche les cases (cycle) et le tap sur la ligne (détail) — `racine` (#groupes-virements)
