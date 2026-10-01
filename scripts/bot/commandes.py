@@ -152,7 +152,7 @@ def interpreter(texte_brut, prenoms, charges, annee_courante, mois_courant):
 
     # libellé <charge|compte> <texte> (alias libelle) : pose la valeur du mois (D-050). Un
     # libellé bancaire doit garder EXACTEMENT ce qui a été tapé (casse, accents, tirets : « Max
-    # DUPONT Facture-École 1234-56 ») — seule la CIBLE (compte ou charge) se cherche en flou,
+    # DUPONT Facture 1234-56 ») — seule la CIBLE (compte ou charge) se cherche en flou,
     # budget_libelle.py la sépare du texte sans jamais passer `reste` par `normaliser()`. On
     # repère juste ici où commence le reste, sur le texte BRUT (insensible casse/accents pour
     # reconnaître « libellé »/« libelle », mais rien n'est réécrit) ; la séparation cible/texte
