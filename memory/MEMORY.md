@@ -1,6 +1,29 @@
 # MEMORY — MaxBudget
 _État courant. Réécrit en fin de session, jamais un journal._
 
+## Passation 2026-10-01 — Budget validé ligne à ligne, bot remis à niveau
+Rôle tenu : session principale = conception, vérification (captures 360/320, portes), livraison
+(commit, push, déploiement, mémoire) ; code ET tests par sous-agents `model: "sonnet"` (L-045).
+Livré en prod (commits 98458a7 → 0c103e0) :
+- Budget · Mois : chaque ligne de charge se valide dans sa catégorie (lignes.fait_le/fait_par,
+  migration 021) ; case cycle rien → moi → l'autre → rien, initiale + « ✓ Claudia · 30/09 » ;
+  coche ancienne sans prénom = « ✓ » vert (D-046, D-048).
+- « Virements à faire » groupés par trajet en tête du mois, case de groupe ; toute la ligne
+  rouvre la feuille de réglage d'une charge (bande morte corrigée, D-048 §1).
+- Comptes : IBAN complet + BIC (migration 022), validé mod 97, copiable (D-048 §4).
+- Bot : `valider <charge> [pour X]`, `dévalider`, `à virer` (pont Node → groupes-virements.js),
+  charges terminées exclues, rappel du 1er/5 groupé + lignes à valider (redéployé le 30/09),
+  polling qui survit aux coupures réseau (D-049, L-047). Bot relancé le 30/09 à 08:26.
+Données saisies (base, jamais git) : compte École Max (charge École 910 €/mois dès octobre) ;
+compte Syndic Feuillantines (Citya) ; charge Feuillantines = mise de côté mensuelle vers Bourso
+Joint Épargne, 350 € en octobre puis 420 € dès novembre ; mouvement ponctuel octobre
+« Appel de fonds T4 2026 → Syndic » 1 218,25 € depuis l'épargne.
+Questions ouvertes à Yann : alerte si le bot est mort depuis quelques heures ? résumé
+automatique de fin de mois (quel jour) ? alerte quand une charge change de montant ?
+Dette : confrontation JS/Python des règles tâches hors `echeance` (quarts, créneaux,
+regroupement triplé avec rappel-taches) ; voyages.py à 404 lignes ; LDD Solidaire, Livret
+Vacances, Livret Max sans « va sur » (Yann devait les régler) ; rien ne prévient si le bot meurt.
+
 ## Où on en est
 - 2026-09-05 : **Lot A livré** : écran mensuel refondu en prod (bloc « à faire », charges
   par catégorie, ponctuels, ajustements, panneaux Charges/Comptes). URL inchangée :
