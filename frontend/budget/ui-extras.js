@@ -25,7 +25,10 @@ export function creerUiExtras(api, etat, cb) {
   const enFileValidation = creerFileEcritures();
 
   const ligne = (c) => {
-    const m = etat.lignes[c.id]?.montant_centimes ?? 0;
+    // Montant toujours en positif (D-053, cohérent avec la liste unifiée) : une ligne de ce
+    // mois sort du commun comme une charge normale, son signe en base reste négatif, mais rien
+    // sur cet écran n'affiche plus de signe hors « Reste ».
+    const m = Math.abs(etat.lignes[c.id]?.montant_centimes ?? 0);
     const fait = etat.lignes[c.id]?.fait_le;
     const valeur = valeurCourante(etat.lignes[c.id]);
     const [p1] = etat.membres.map((mb) => mb.prenom);

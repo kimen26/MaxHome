@@ -58,13 +58,15 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
   }
 
   /** Élément déplié (ligne de charge ou mouvement) — même gabarit `.mois-charge` qu'avant
-   *  (D-024 : pas un second gabarit pour la même information), sans champ montant inline. */
+   *  (D-024 : pas un second gabarit pour la même information), sans champ montant inline.
+   *  Montant toujours affiché en POSITIF (D-053) : le trajet (De → Vers) dit déjà le sens du
+   *  virement, un signe négatif en plus n'ajoute rien et mélangeait + et − dans la même liste. */
   function ligneElement(e) {
     const manque = manqueMontant(e);
     const fait = e.fait_le ?? null;
     const droite = manque
       ? `<span class="mc-manque">Montant à saisir</span>`
-      : `<span class="mono mvt-montant${e.valeur !== null ? " pale" : ""}">${euros(e.montant_centimes)}</span>`;
+      : `<span class="mono mvt-montant${e.valeur !== null ? " pale" : ""}">${euros(Math.abs(e.montant_centimes))}</span>`;
     return `<div class="mois-charge ml-element${manque ? " a-faire" : ""}${e.valeur !== null ? " fait" : ""} cliquable"
         data-ml-type="${e.type}" data-id="${e.id}">
       ${manque ? '<span class="case case-cycle-vide" aria-hidden="true"></span>'
@@ -102,7 +104,7 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
           <span class="mvt-trajet">${g.lignes.length} ligne${g.lignes.length > 1 ? "s" : ""}${suffixeFait}</span>
           ${aCompleter ? `<span class="mvt-note gv-libelle-alerte">Libellé à compléter</span>` : ""}
         </div>
-        <div class="mvt-droite"><span class="mono mvt-montant">${euros(g.total)}</span></div>
+        <div class="mvt-droite"><span class="mono mvt-montant">${euros(Math.abs(g.total))}</span></div>
       </div>
       ${deplie ? `<div class="ml-sous-lignes">
         ${htmlBlocLibelle(mouvementDuGroupe(g), compteDe(g.vers))}
@@ -115,12 +117,15 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
     const groupes = construireGroupes(etat);
     const aFaire = groupes.filter((g) => !g.fait);
     const faits = groupes.filter((g) => g.fait);
-    const totalAFaire = aFaire.reduce((s, g) => s + g.total, 0);
+    // Somme des valeurs ABSOLUES (D-053) : un virement au commun (crédit, positif) et une charge
+    // envoyée ailleurs (débit, négatif) sont deux montants à déplacer, jamais à compenser.
+    const totalAFaire = aFaire.reduce((s, g) => s + Math.abs(g.total), 0);
+    const totalFaits = faits.reduce((s, g) => s + Math.abs(g.total), 0);
     cb.majEnTeteAFaire(aFaire.length, totalAFaire);
     $("#mvts-a-faire").innerHTML = aFaire.length ? aFaire.map(ligneGroupeTrajet).join("")
       : `<p class="vide">Rien à faire ce mois-ci.</p>`;
     $("#mvts-faits").innerHTML = faits.map(ligneGroupeTrajet).join("");
-    return faits.length;
+    return { n: faits.length, total: totalFaits };
   }
 
   // ---------- vue Catégories (groupes-categories.js) ----------
@@ -132,7 +137,11 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
     if (!elements.length) return "";
     const cle = `cat:${g.cle}`;
     const deplie = deplies.has(cle);
-    const total = elements.reduce((s, e) => s + (manqueMontant(e) ? 0 : e.montant_centimes), 0);
+    // Montant à déplacer toujours en positif (D-053, même choix que la vue Destinataires) :
+    // somme des valeurs ABSOLUES, pas la valeur absolue de la somme — une catégorie peut mêler
+    // une charge (négative) et un virement reçu (positif), les deux sont des MONTANTS à traiter,
+    // jamais à compenser l'un l'autre dans le total affiché.
+    const total = elements.reduce((s, e) => s + (manqueMontant(e) ? 0 : Math.abs(e.montant_centimes)), 0);
     const libelle = g.cle === CLE_VIREMENTS ? g.libelle : g.libelle.toUpperCase();
     return `<div class="ml-groupe${deplie ? " ouvert" : ""}">
       <button type="button" class="mvt gv-groupe" data-ml-groupe="${txt(cle)}">
@@ -151,20 +160,25 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
     const faitHtml = groupes.map((g) => ligneGroupeCategorie(g, true)).filter(Boolean).join("");
     const nAFaire = groupes.reduce((s, g) => s + g.elements.filter((e) => e.valeur === null).length, 0);
     const nFaits = groupes.reduce((s, g) => s + g.elements.filter((e) => e.valeur !== null).length, 0);
+    // Somme des valeurs ABSOLUES (D-053) : jamais la somme signée, qui compenserait une charge
+    // et un virement reçu au lieu de les additionner comme deux montants à traiter.
     const totalAFaire = groupes.reduce((s, g) => s + g.elements
       .filter((e) => e.valeur === null && !manqueMontant(e))
-      .reduce((s2, e) => s2 + e.montant_centimes, 0), 0);
+      .reduce((s2, e) => s2 + Math.abs(e.montant_centimes), 0), 0);
+    const totalFaits = groupes.reduce((s, g) => s + g.elements
+      .filter((e) => e.valeur !== null)
+      .reduce((s2, e) => s2 + Math.abs(e.montant_centimes), 0), 0);
     cb.majEnTeteAFaire(nAFaire, totalAFaire);
     $("#mvts-a-faire").innerHTML = aFaireHtml || `<p class="vide">Rien à faire ce mois-ci.</p>`;
     $("#mvts-faits").innerHTML = faitHtml;
-    return nFaits;
+    return { n: nFaits, total: totalFaits };
   }
 
   // ---------- rendu + bascule ----------
   function rendre() {
     $("#mois-vue-charges").innerHTML = htmlSelecteurVue();
-    const nFaits = vue === "destinataires" ? rendreDestinataires() : rendreCategories();
-    cb.majEnTeteFait(nFaits);
+    const { n: nFaits, total: totalFaits } = vue === "destinataires" ? rendreDestinataires() : rendreCategories();
+    cb.majEnTeteFait(nFaits, totalFaits);
     brancher();
   }
 

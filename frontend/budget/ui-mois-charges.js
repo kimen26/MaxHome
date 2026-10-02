@@ -6,7 +6,7 @@
 // — c'est ui-mois-liste.js qui affiche les lignes, cette source de données et cette feuille
 // restent ici (exportées : `proposees`/`affichees`) pour ne pas dupliquer la règle D-043.
 
-import { $ } from "../socle/ui-base.js";
+import { $, txt } from "../socle/ui-base.js";
 import { montantHabituel } from "./habituel.js";
 import { creerFeuilleCharge } from "./ui-charge-feuille.js";
 
@@ -33,7 +33,10 @@ export function creerUiMoisCharges(api, etat, cb) {
   const affichees = () => etat.charges.filter((c) => !c.ponctuel
     && (c.actif !== false || saisie(c.id)));
 
-  /** Bandeau de tête : ce qui manque ce mois-ci, et le geste qui le remplit. Vide si complet. */
+  /** Bandeau de tête : ce qui manque ce mois-ci, et le geste qui le remplit. Vide si complet.
+   *  D-053 : seul endroit qui porte cette info (l'en-tête ne la répète plus) — NOMME la ou les
+   *  charges manquantes (jusqu'à 3, « Montant à saisir : Impôts » ou « Impôts, Copro » ; au-delà,
+   *  revient au compte pour ne pas déborder à 360 px). */
   function rendreACompleter() {
     const liste = proposees();
     const manquantes = liste.filter((c) => !saisie(c.id));
@@ -42,8 +45,11 @@ export function creerUiMoisCharges(api, etat, cb) {
     if (!manquantes.length) { zone.innerHTML = ""; return; }
     const n = manquantes.length;
     const aTaper = n - remplissables.length;
+    const titre = n <= 3
+      ? `Montant à saisir : ${manquantes.map((c) => c.libelle).join(", ")}`
+      : `${n} charges sans montant ce mois-ci`;
     zone.innerHTML = `<div class="carte a-completer">
-      <p><strong>${n} charge${n > 1 ? "s" : ""} sans montant ce mois-ci.</strong>
+      <p><strong>${txt(titre)}.</strong>
       Les virements ne sont justes qu'une fois toutes les charges remplies.</p>
       ${remplissables.length ? `<button type="button" class="btn btn-bleu" data-remplir>
         Remplir avec les montants habituels (${remplissables.length})</button>` : ""}

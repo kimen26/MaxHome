@@ -123,6 +123,13 @@
    virement : déplacés dans budget-virements.css (D-036 §CSS par module, extraction quand
    budget.css a dépassé 400 lignes, D-050). */
 
+/* En-tête « FAIT » pliable (D-053) : un bouton plein-largeur, même gabarit visuel que
+   `.carte-tete` (socle.css), repliée par défaut — la carte « Fait » n'encombre pas l'écran tant
+   qu'on ne demande pas à la voir. `.ct-entete` (plus bas) fait la même chose pour les charges
+   terminées, mais celui-ci reste `.carte-tete` pour garder le fond vert `.complete`. */
+.carte-tete-pliable { width:100%; background:none; border:0; cursor:pointer; min-height:48px; }
+.carte-tete-pliable:focus-visible { outline:3px solid var(--bleu); outline-offset:-3px; }
+
 /* ================= Charges, liste unifiée « À faire »/« Fait » (ui-mois-liste.js, D-052) ===== */
 /* `.mois-charge` : gabarit d'une ligne de charge dépliée dans `#mvts-a-faire`/`#mvts-faits`
    (`.ml-sous-lignes`), plus utilisée en grille séparée depuis la fusion D-052. */

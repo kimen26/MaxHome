@@ -172,10 +172,12 @@ assert.equal(deuxSalaires.phrase, "Salaires à noter", "le salaire passe avant l
 
 const chargesVides = etatDuMois({ ...moisComplet, lignes: {} });
 assert.equal(chargesVides.statut, "charges");
-assert.equal(chargesVides.phrase, "2 charges à remplir");
-// Une seule charge manquante : la phrase la NOMME (plainte Yann : « on ne sait pas laquelle »).
+// D-053 : le bandeau « à compléter » (ui-mois-charges.js) nomme déjà la charge manquante — la
+// phrase d'en-tête ne la répète plus (duplication signalée par Yann/Claudia), mais
+// `chargeManquante` reste calculé pour qui en a besoin (ex. un futur appelant).
+assert.equal(chargesVides.phrase, "Montants à saisir ci-dessous");
 const uneChargeVide = etatDuMois({ ...moisComplet, lignes: { 1: moisComplet.lignes[1] } });
-assert.equal(uneChargeVide.phrase, "Montant à saisir : Charge B");
+assert.equal(uneChargeVide.phrase, "Montants à saisir ci-dessous");
 assert.equal(uneChargeVide.chargeManquante.id, 2);
 assert.ok(!texteAFaireVide(chargesVides).includes("Tout est fait"), "jamais « tout est fait » avec une charge vide");
 

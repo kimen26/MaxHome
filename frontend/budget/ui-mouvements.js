@@ -180,9 +180,14 @@ export function creerUiMouvements(api, etat, cb) {
     ouvrirDetailMouvement: (id) => liste.ouvrirDetail(id),
     chargesAffichees: () => charges.affichees(),
     majEnTeteAFaire: (n, total) => {
-      $("#afaire-tete-total").textContent = n ? `${n} · ${euros(total)}` : "0";
+      // Montants à déplacer : toujours en positif (un virement dont le trajet dit déjà le sens,
+      // D-053) — un total en négatif + des lignes mêlant + et − dans la même carte dérouté Yann.
+      $("#afaire-tete-total").textContent = n ? `${n} · ${euros(Math.abs(total))}` : "0";
     },
-    majEnTeteFait: (n) => { $("#fait-tete-total").textContent = String(n); },
+    majEnTeteFait: (n, total) => {
+      $("#fait-tete-titre").textContent = `Fait · ${n}`;
+      $("#fait-tete-total").textContent = n ? euros(Math.abs(total)) : "";
+    },
   };
   const moisListe = creerUiMoisListe(api, etat, cbListe, { basculerMouvement: liste.basculer });
 
@@ -214,7 +219,9 @@ export function creerUiMouvements(api, etat, cb) {
   const regularisations = creerUiRegularisations(api, etat, cb);
 
   function rendreExtras() {
-    $("#ce-mois-tete-total").textContent = euros(extras.total());
+    // Positif (D-053) comme le reste de l'écran : une ligne de ce mois sort du commun, en base
+    // comme une charge (négatif), mais aucun signe ne s'affiche plus ici hors « Reste ».
+    $("#ce-mois-tete-total").textContent = euros(Math.abs(extras.total()));
     $("#ajustements").innerHTML = extras.html() + regularisations.html();
     extras.brancher($("#ajustements"), rendre);
     regularisations.brancher($("#ajustements"), rendre);
@@ -304,13 +311,15 @@ export function creerUiMouvements(api, etat, cb) {
     // Phrase d'action unique en en-tête (D-052) : dit QUOI faire — salaire manquant, charge
     // précise à saisir, ou nombre de virements restants — jamais un bandeau séparé en plus.
     $("#sous-mois").textContent = statut.statut === "salaires" ? statut.phrase : `${statut.phrase} · clé ${cle}`;
-    $("#total-charges-mois").textContent = euros(r.total);
+    // Montants de l'écran Mois toujours en positif (D-053), seul « Reste » garde son signe (un
+    // reste négatif EST l'information : ça dit qu'on a trop donné, pas juste un montant à payer).
+    $("#total-charges-mois").textContent = euros(Math.abs(r.total));
 
     rendreSalaires();
 
     $("#chiffres-mois").innerHTML = `
       <div class="carte chiffre-carte"><span class="chiffre-etiquette">Total commun</span>
-        <span class="mono chiffre-valeur">${euros(r.totalCommun)}</span></div>
+        <span class="mono chiffre-valeur">${euros(Math.abs(r.totalCommun))}</span></div>
       ${etat.membres.map((m) => `<div class="carte chiffre-carte"><span class="chiffre-etiquette">Reste ${txt(m.prenom)}</span>
         <span class="mono chiffre-valeur ${(r.reste[m.prenom] ?? 0) < 0 ? "accent-rouge" : "accent-vert"}">${euros(r.reste[m.prenom] ?? 0)}</span></div>`).join("")}`;
 
@@ -322,6 +331,13 @@ export function creerUiMouvements(api, etat, cb) {
 
   $("#btn-mvt-ponctuel").addEventListener("click", formulairePonctuel);
   $("#fab-ajouter-mois").addEventListener("click", formulaireLigneDuMois);
+  // « Fait » replié par défaut (D-053) : un tap sur l'en-tête bascule, state tenu ici (la carte
+  // ne se redessine jamais toute seule, re.rendre() ne doit pas la rouvrir malgré elle).
+  $("#fait-tete").addEventListener("click", () => {
+    const ouvert = $("#fait-tete").getAttribute("aria-expanded") === "true";
+    $("#fait-tete").setAttribute("aria-expanded", String(!ouvert));
+    $("#mvts-faits").hidden = ouvert;
+  });
 
   return { rendre, fermerDetail: liste.fermerDetail, fermerReglagesCharges: charges.fermerReglages,
     ouvrirReglagesCharge: charges.ouvrirReglages };

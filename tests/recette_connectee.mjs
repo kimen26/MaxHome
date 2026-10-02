@@ -102,6 +102,10 @@ try {
   // « Virements », toujours en tête, des catégories de charges).
   await page.click('#mois-vue-charges [data-vue-charges="categories"]');
   await page.waitForSelector("#mvts-a-faire [data-ml-groupe], #mvts-faits [data-ml-groupe]", { timeout: 10000 });
+  // « Fait » replié par défaut (D-053) : déplié une fois pour que les vérifications suivantes
+  // (une ligne qui bascule de À faire vers Fait) voient un élément VISIBLE, pas juste présent.
+  await page.click("#fait-tete");
+  await page.waitForSelector("#mvts-faits:not([hidden])", { timeout: 3000 });
 
   // Détail d'un mouvement + coche, si au moins un mouvement (hors ligne de charge) existe : le
   // groupe « Virements » est le premier groupe de la vue Catégories, à déplier d'abord.
@@ -345,7 +349,9 @@ try {
 
   const tc = await pc.evaluate(() => [...document.querySelectorAll("#chiffres-mois .chiffre-carte")]
     .find((c) => c.textContent.includes("Total commun"))?.querySelector(".chiffre-valeur")?.textContent ?? "");
-  if (Math.abs(nombre(tc) - -5844.78) > 0.01) throw new Error(`total commun février 2026 inattendu : ${tc}`);
+  // Positif (D-053) : l'écran Mois n'affiche plus de signe hors « Reste » — même montant que
+  // l'Excel, en valeur absolue.
+  if (Math.abs(nombre(tc) - 5844.78) > 0.01) throw new Error(`total commun février 2026 inattendu : ${tc}`);
   console.log("Total commun février 2026 :", tc.trim(), "— conforme à l'Excel");
 
   // « charges-ref » et « comptes » (comptes + récurrents fusionnés, D-036 §4) sont des écrans

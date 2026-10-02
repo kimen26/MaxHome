@@ -809,3 +809,27 @@ détail d'un mouvement. Et un clic à coordonnées fixes (`page.mouse.click`) pe
 toucher le FAB « + Ajouter » (`position:fixed`) si la ligne ciblée tombe sous lui après un
 défilement — aucune erreur, la feuille attendue n'ouvre juste jamais : préférer `locator.click()`
 (vérifie l'absence d'élément qui intercepte avant de taper) à des coordonnées calculées à la main.
+
+## D-053 — Écran Mois : montants en positif, Fait replié par défaut, bandeau unique (2026-10-02)
+
+Retour coordinateur sur D-052 (capture `mois-360.png`) : cinq points.
+1. **Plus de doublon de message.** L'en-tête disait « Montant à saisir : Impôts » ET le bandeau
+   ambre disait « 1 charge sans montant ce mois-ci » — même info, deux endroits. L'en-tête
+   (`etat-mois.js::etatDuMois`) dit maintenant juste « Montants à saisir ci-dessous » pour le
+   statut "charges" ; le bandeau (`ui-mois-charges.js::rendreACompleter`) seul NOMME la ou les
+   charges (jusqu'à 3, sinon le compte) et porte le bouton « Remplir ».
+2. **Montants toujours en positif** sur cet écran (groupes, lignes dépliées, Total commun, Total
+   des charges, Ce mois seulement), SAUF « Reste » qui garde son signe (négatif = information,
+   pas juste un montant). Un trajet (De → Vers) dit déjà le sens du virement ; le signe en plus
+   mélangeait + (crédit au commun) et − (charge) dans la même carte — confus (plainte
+   coordinateur). Les pures (`groupes-virements.js`, `groupes-categories.js`, `calc.js`) gardent
+   leur signe d'origine (testées ainsi) : `Math.abs()` seulement à l'affichage
+   (`ui-mois-liste.js`, `ui-extras.js`, `ui-mouvements.js`). Somme des valeurs ABSOLUES pour un
+   total de tête (jamais la valeur absolue d'une somme signée, qui compenserait un crédit et un
+   débit au lieu de les additionner).
+3. **« Fait » replié par défaut**, comme une boîte mail : bouton plein-largeur (`#fait-tete`,
+   `.carte-tete-pliable`), en-tête « Fait · N · total », `#mvts-faits[hidden]` jusqu'au tap.
+4. Vérifié : une charge ponctuelle (« Ce mois seulement ») n'entre ni dans `construireGroupes`
+   ni dans `charges.affichees()` (filtrées par `c.ponctuel`) — jamais doublée dans la liste
+   unifiée, confirmé sur capture.
+5. Le paragraphe d'aide en pied d'écran est retiré : l'écran doit se comprendre sans légende.

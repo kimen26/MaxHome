@@ -44,14 +44,15 @@ export function etatDuMois({ mois, membres, revenus, charges, lignes, mouvements
       : aFaire ? "virements"
         : total ? "fait" : "aucun";
   const nomMois = MOIS[mois - 1];
-  // Une seule charge manquante : la nommer plutôt que dire juste « 1 charge à remplir » — la
-  // phrase d'en-tête doit dire QUOI faire, pas juste QUE quelque chose reste à faire (plainte
-  // Yann : « on ne sait pas laquelle »). Plusieurs manquantes : rester au compte, sinon la
-  // phrase déborde à 360 px.
+  // Une seule charge manquante : la nommer — la phrase d'en-tête doit dire QUOI faire, pas
+  // juste QUE quelque chose reste à faire (plainte Yann : « on ne sait pas laquelle »).
   const chargeManquante = chargesVides === 1 ? videsListe[0] : null;
+  // D-053 : le bandeau « à compléter » (ui-mois-charges.js) nomme déjà la charge manquante et
+  // porte le bouton « Remplir » — la phrase d'en-tête ne répète plus la même information en
+  // double, elle dit seulement QUE des charges manquent (bandeau juste en dessous pour le détail).
   const phrase = {
     salaires: salaires.length === 1 ? `Salaire de ${salaires[0]} à noter` : "Salaires à noter",
-    charges: chargeManquante ? `Montant à saisir : ${chargeManquante.libelle}` : `${chargesVides} charges à remplir`,
+    charges: "Montants à saisir ci-dessous",
     virements: `${aFaire} à valider en ${nomMois}`,
     fait: `Tout est validé pour ${nomMois}`,
     aucun: "Aucun virement prévu",
