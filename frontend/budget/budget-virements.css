@@ -49,7 +49,7 @@
 .gv-libelle-manquant input { width:100%; margin:6px 0; }
 .gv-libelle-alerte { display:block; }
 
-/* ================= Liste unifiée « À faire » / « Fait » (ui-mois-liste.js, D-051) =============
+/* ================= Liste unifiée « À faire » / « Fait » (ui-mois-liste.js, D-052) =============
    Un groupe (trajet ou catégorie) replié par défaut ; le tap sur sa ligne (hors case) déplie ses
    éléments juste en dessous, en retrait, chacun avec sa propre case. Jamais une ligne affichée
    deux fois : repliée, seul le groupe se voit ; dépliée, ses éléments remplacent le silence. */

@@ -1,4 +1,4 @@
-// Liste unifiée « À faire » / « Fait » de l'écran Mois (D-051 : chaque virement ou charge à
+// Liste unifiée « À faire » / « Fait » de l'écran Mois (D-052 : chaque virement ou charge à
 // régler n'apparaît plus qu'UNE fois — avant, un même virement pouvait se lire dans le bloc
 // « Virements à faire » groupé par trajet, dans la liste de mouvements, ET dans sa catégorie de
 // charges, chacun avec sa propre case). Rend dans `#mvts-a-faire` / `#mvts-faits` (plus de bloc

@@ -123,9 +123,9 @@
    virement : déplacés dans budget-virements.css (D-036 §CSS par module, extraction quand
    budget.css a dépassé 400 lignes, D-050). */
 
-/* ================= Charges, liste unifiée « À faire »/« Fait » (ui-mois-liste.js, D-051) ===== */
+/* ================= Charges, liste unifiée « À faire »/« Fait » (ui-mois-liste.js, D-052) ===== */
 /* `.mois-charge` : gabarit d'une ligne de charge dépliée dans `#mvts-a-faire`/`#mvts-faits`
-   (`.ml-sous-lignes`), plus utilisée en grille séparée depuis la fusion D-051. */
+   (`.ml-sous-lignes`), plus utilisée en grille séparée depuis la fusion D-052. */
 .carte-charges { padding:10px 12px; }
 .mois-charge {
   display:flex; align-items:center; gap:10px; min-height:52px; padding:4px 0;

@@ -1,4 +1,4 @@
-// Écran « Mois » (budget.png, D-036 §4 ; refonte D-051). En-tête : mois + UNE phrase d'action
+// Écran « Mois » (budget.png, D-036 §4 ; refonte D-052). En-tête : mois + UNE phrase d'action
 // (etat-mois.js), salaires Y/C + clé, trois chiffres, puis la liste unifiée « À faire » / « Fait »
 // (ui-mois-liste.js : virements ET charges, chacun une seule fois, Destinataires par défaut),
 // « Ce mois seulement » (ex-ajustements), FAB « + Ajouter » qui ouvre la feuille « Ligne de ce
@@ -172,7 +172,7 @@ export function creerUiMouvements(api, etat, cb) {
     },
   });
 
-  // ---------- liste unifiée « À faire » / « Fait » (ui-mois-liste.js, D-051) ----------
+  // ---------- liste unifiée « À faire » / « Fait » (ui-mois-liste.js, D-052) ----------
   const cbListe = {
     ...cb,
     rendreMois: () => rendre(),
@@ -301,7 +301,7 @@ export function creerUiMouvements(api, etat, cb) {
     const nomMois = `${MOIS[etat.mois - 1][0].toUpperCase()}${MOIS[etat.mois - 1].slice(1)} ${etat.annee}`;
     $("#titre-mois").textContent = nomMois;
     const cle = etat.membres.map((m) => Math.round((r.ratio[m.prenom] ?? 0) * 100)).join(" / ");
-    // Phrase d'action unique en en-tête (D-051) : dit QUOI faire — salaire manquant, charge
+    // Phrase d'action unique en en-tête (D-052) : dit QUOI faire — salaire manquant, charge
     // précise à saisir, ou nombre de virements restants — jamais un bandeau séparé en plus.
     $("#sous-mois").textContent = statut.statut === "salaires" ? statut.phrase : `${statut.phrase} · clé ${cle}`;
     $("#total-charges-mois").textContent = euros(r.total);

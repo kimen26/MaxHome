@@ -1,8 +1,8 @@
 // Feuille de réglage d'UNE charge, ouverte au tap sur son libellé (écran Mois) ou sur son
 // nom (Réglages · Charges). Cinq questions, dans l'ordre où on se les pose (D-040, D-042,
-// D-051) :
+// D-052) :
 //   0. Le montant DE CE MOIS (etat.lignes) — seul endroit où on le tape depuis la refonte
-//      D-051 (plus de champ inline dans la liste) ; absent tant qu'aucun mois n'est ouvert
+//      D-052 (plus de champ inline dans la liste) ; absent tant qu'aucun mois n'est ouvert
 //      (Réglages · Charges, hors contexte d'un mois) ;
 //   1. Le montant revient-il chaque mois ? « Toujours le même » (noté ici) ou « Change chaque
 //      mois » (on reprend le dernier) ;
@@ -40,7 +40,7 @@ export function creerFeuilleCharge(api, etat, cb, categories) {
     const cats = categories.includes(c.categorie) ? categories : [...categories, c.categorie];
     // Montant DE CE MOIS (etat.annee/mois) : seul champ qui écrit sur `lignes`, pas sur la
     // charge — distinct de « Le montant, chaque mois » (montant_defaut) qui règle les mois
-    // SUIVANTS. Toujours affiché depuis l'écran Mois (ouvert sur un mois précis, D-051) ;
+    // SUIVANTS. Toujours affiché depuis l'écran Mois (ouvert sur un mois précis, D-052) ;
     // `etat.mois` vaut toujours un mois réel ici (Réglages · Charges ne passe jamais par cette
     // feuille sans contexte de mois — ui-charges-ref.js ouvre toujours sur le mois courant).
     return `<form class="pile reglages" data-charge="${c.id}" novalidate>
@@ -181,7 +181,7 @@ export function creerFeuilleCharge(api, etat, cb, categories) {
       ev.preventDefault();
       const champs = lireChamps(form, facon, regle);
       if (typeof champs === "string") { toast(champs); return; }
-      // Montant DE CE MOIS (D-051) : vide → pas de ligne ce mois (supprimée si elle existait) ;
+      // Montant DE CE MOIS (D-052) : vide → pas de ligne ce mois (supprimée si elle existait) ;
       // sinon écrit sur `lignes`, jamais sur la charge. Lu avant d'écrire quoi que ce soit, pour
       // refuser la saisie illisible sans avoir déjà enregistré le reste de la feuille.
       const brutMois = form.elements.montant_mois.value.trim();

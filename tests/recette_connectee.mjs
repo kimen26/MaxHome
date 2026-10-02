@@ -96,7 +96,7 @@ try {
   console.log("Ce mois :", (await page.textContent("#sous-mois")).trim());
   await page.screenshot({ path: path.join(SORTIE, "mois-mobile.png"), fullPage: true });
 
-  // Liste unifiée (D-051) : vue Catégories, pour atteindre directement un mouvement et une
+  // Liste unifiée (D-052) : vue Catégories, pour atteindre directement un mouvement et une
   // ligne de charge sans dépendre des trajets réels en base (l'ancienne vue Destinataires
   // groupe tout sous un trajet replié par défaut — la vue Catégories isole le bucket
   // « Virements », toujours en tête, des catégories de charges).
@@ -141,8 +141,8 @@ try {
     console.log("Aucun mouvement à faire ce mois — coche non testée");
   }
 
-  // ---------- charges (fusionnées dans l'écran Mois, liste unifiée D-051) ----------
-  // L'ancien écran « Charges » n'existe plus, et depuis D-051 chaque charge est une ligne de la
+  // ---------- charges (fusionnées dans l'écran Mois, liste unifiée D-052) ----------
+  // L'ancien écran « Charges » n'existe plus, et depuis D-052 chaque charge est une ligne de la
   // liste unifiée, groupée par catégorie dans cette vue (ui-mois-liste.js / groupes-categories.js).
   const groupesCategorie = await page.$$eval('[data-ml-groupe]:not([data-ml-groupe^="false:__virements__"]):not([data-ml-groupe^="true:__virements__"]) .mvt-titre',
     (e) => e.map((x) => x.textContent.trim()));

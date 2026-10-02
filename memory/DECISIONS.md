@@ -760,3 +760,52 @@ de CB on a besoin pour xyz ». Sélecteur au-dessus des charges, mémorisé par 
 comprises ; pied « Total qui part de <compte> » quand plusieurs cartes partagent la source.
 Logique pure dans par-destinataire.js (distinct de groupes-virements.js, qui ne liste que ce
 qui reste à virer). Cible du sélecteur 48 px. Nom de compte jamais rogné (passe à la ligne).
+
+## D-052 — Écran Mois : une liste unique À faire/Fait, Destinataires par défaut, plus de saisie en liste (2026-10-02)
+
+Plainte Yann/Claudia (mobile, 360 px) : arrivée sur l'écran Mois, on ne sait pas quoi faire, et
+chaque virement/charge se lisait 2 à 3 fois (bloc « Virements à faire » groupé par trajet, puis
+la liste de mouvements À faire/Fait, puis la grille de charges par catégorie — chacun avec sa
+propre case de validation pour la MÊME ligne). Refonte :
+
+1. **Une seule liste** (`ui-mois-liste.js`, nouveau) fusionne lignes de charge + mouvements dans
+   `#mvts-a-faire`/`#mvts-faits` ; les anciens blocs séparés (`ui-groupes-virements.js`, la grille
+   `#mois-categories`) sont retirés. Deux vues au choix (sélecteur segmenté mémorisé par
+   appareil, `localStorage`), Destinataires PAR DÉFAUT (avant : Catégories) — Yann : « je vois
+   d'abord de quel compte part quoi », retrouvé plus souvent que le classement comptable.
+   - Destinataires : un groupe par trajet (`groupes-virements.js`, logique pure inchangée),
+     replié par défaut, sa case valide tout le groupe (cycle D-048 inchangé) ; tap sur la ligne
+     (hors case) déplie ses éléments, chacun avec sa propre case.
+   - Catégories : nouveau `groupes-categories.js` (miroir pur de `groupes-virements.js`) groupe
+     les lignes de charge par catégorie et les mouvements seuls dans un bucket « Virements »
+     toujours en tête — jamais la même case affichée deux fois pour un even­tuel mouvement lié à
+     une charge en mode "charge" (la ligne de charge porte déjà sa validation, D-046).
+   - **Un seul pli par catégorie**, pas un par À faire/Fait : valider une ligne dépliée la
+     déplace de section sans jamais la faire disparaître dans une section Fait restée repliée
+     (bug trouvé par `recette_connectee.mjs` en vraie base : le mouvement validé devenait
+     introuvable).
+2. **Plus de saisie de montant dans la liste.** L'ancien champ `.champ-montant` inline par ligne
+   de charge est retiré : une ligne sans montant dit « Montant à saisir » (ambre), le tap ouvre
+   la feuille de réglage de la charge — SEUL endroit où on tape un montant désormais. La feuille
+   (`ui-charge-feuille.js`) gagne un champ « Montant de ce mois » en tête (distinct de « Le
+   montant, chaque mois » = `montant_defaut`, qui ne règle que les mois SUIVANTS) : vide → ligne
+   supprimée si elle existait, sinon upsert sur `lignes`.
+3. **En-tête : une seule phrase d'action** (`etat-mois.js::etatDuMois`), plus de bandeau séparé
+   en plus pour dire la même chose : salaire manquant nommé, puis, s'il ne reste QU'UNE charge
+   sans montant, elle est nommée (« Montant à saisir : Impôts » — avant : « 1 charge à remplir »,
+   jamais laquelle), sinon le compte ; puis le nombre de virements/lignes à valider. Le bandeau
+   « X charges sans montant » de `ui-mois-charges.js` reste (bouton « Remplir avec les montants
+   habituels »), mais ne porte plus la seule info : la phrase d'en-tête suffit à savoir quoi faire
+   sans le lire.
+
+Pourquoi pas une fusion plus radicale (une seule vue, sans bascule) : Yann voulait explicitement
+« regrouper par compte vers où ça part » ET garder la vue par catégorie (D-051) — les deux
+cohabitent, elles ne lisent jamais le même HTML deux fois (D-024).
+
+Piège de recette trouvé en écrivant les gestes Playwright : le premier groupe de la vue
+Catégories est TOUJOURS « Virements » (mouvements, pas des lignes de charge) — un geste qui
+clique le premier groupe venu pour tester la feuille de réglage d'une charge ouvre en fait le
+détail d'un mouvement. Et un clic à coordonnées fixes (`page.mouse.click`) peut silencieusement
+toucher le FAB « + Ajouter » (`position:fixed`) si la ligne ciblée tombe sous lui après un
+défilement — aucune erreur, la feuille attendue n'ouvre juste jamais : préférer `locator.click()`
+(vérifie l'absence d'élément qui intercepte avant de taper) à des coordonnées calculées à la main.

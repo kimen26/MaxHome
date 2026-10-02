@@ -488,3 +488,27 @@ repo public (8b62bcd), retiré au commit suivant mais resté dans l'historique. 
 sous-agent, n'écrire QUE des exemples fictifs (DUPONT, 1234-56) ; les vraies valeurs vont
 directement en base, par une tâche de données à part. Et grep les vraies valeurs dans le diff
 indexé AVANT le commit, pas après le push.
+
+## L-050 — un `page.mouse.click(x,y)` qui touche le FAB plutôt que la ligne échoue en silence (2026-10-02)
+
+En réécrivant un geste `recette_ecrans.mjs` pour la nouvelle liste unifiée de l'écran Mois
+(D-052), un clic à coordonnées calculées (`boundingBox()` puis `page.mouse.click(x,y)`) tombait
+sur le FAB « + Ajouter » (`position:fixed`, toujours au même endroit à l'écran) au lieu de la
+ligne visée, qui avait glissé dessous après un défilement. Aucune erreur : le FAB absorbe le tap,
+la feuille attendue n'ouvre jamais, et `page.waitForSelector(..., {timeout})` échoue après coup
+sans dire pourquoi — 20 minutes perdues à soupçonner un blocage infini côté app avant de
+redécouvrir la vraie cause avec `document.elementFromPoint(x, y)`. Règle : dans un geste
+Playwright, `locator.click()` sur l'élément réel (il vérifie lui-même qu'aucun élément ne
+l'intercepte, et lève une erreur PARLANTE sinon) — jamais des coordonnées recalculées à la main,
+qui ne détectent rien et font échouer un `waitForSelector` sans piste.
+
+## L-051 — un seul pli par catégorie, jamais un par section À faire/Fait (2026-10-02)
+
+Première version de la liste unifiée (D-052) : une clé de pli (`deplies`) par section, genre
+`"false:Logement"` (à faire) et `"true:Logement"` (fait). Valider une ligne dépliée dans « à
+faire » la fait basculer dans « fait » — qui restait replié, puisque sa propre clé n'avait jamais
+été ouverte. La ligne validée disparaissait de l'écran sans message d'erreur ; trouvé seulement
+par `recette_connectee.mjs` sur la vraie base (un `waitForSelector` sur l'élément attendu
+n'aboutissait jamais). Correctif : une seule clé par catégorie (`"cat:Logement"`), partagée par
+les deux variantes de rendu — déplier une catégorie montre ses lignes à faire ET ses lignes
+faites ensemble.

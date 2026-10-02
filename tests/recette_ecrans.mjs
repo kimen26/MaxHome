@@ -93,7 +93,7 @@ const GESTES = [
   // bande juste à droite de la case et un bouton étroit autour du seul texte laissait un blanc
   // mort avant le champ montant — un tap sur la ligne, hors case et hors champ, n'ouvrait plus
   // rien nulle part sur la ligne.
-  // Liste unifiée (D-051), vue Catégories : un groupe de charges se déplie au tap, puis le tap
+  // Liste unifiée (D-052), vue Catégories : un groupe de charges se déplie au tap, puis le tap
   // sur une ligne dépliée ouvre sa feuille de réglage.
   { ecran: "mois", moduleDefaut: "mois", nom: "reglage-charge",
     geste: async (page) => {
@@ -135,7 +135,7 @@ const GESTES = [
   // carte de trajet et la carte « reste sur le commun ».
   { ecran: "mois", moduleDefaut: "mois", nom: "mois-destinataires",
     geste: async (page) => {
-      // Destinataires est la vue par défaut (D-051) : la reprendre explicitement après le geste
+      // Destinataires est la vue par défaut (D-052) : la reprendre explicitement après le geste
       // précédent (qui a basculé sur Catégories), rien à attendre d'autre que le re-rendu.
       await page.click('#mois-vue-charges [data-vue-charges="destinataires"]');
       await page.waitForSelector("#mvts-a-faire .gv-groupe, #mvts-faits .gv-groupe", { timeout: 3000 });
@@ -143,8 +143,8 @@ const GESTES = [
     } },
   // Groupe de virements dont le compte de destination est VARIABLE et sans valeur ce mois
   // (D-050, Compte École dans donnees_factices.mjs) : déplié (tap sur la ligne, hors case,
-  // D-051), il montre en ligne le bandeau ambre « Libellé à compléter ce mois », champ
-  // pré-rempli du modèle, bouton Enregistrer — plus une feuille de détail séparée depuis D-051.
+  // D-052), il montre en ligne le bandeau ambre « Libellé à compléter ce mois », champ
+  // pré-rempli du modèle, bouton Enregistrer — plus une feuille de détail séparée depuis D-052.
   { ecran: "mois", moduleDefaut: "mois", nom: "detail-groupe-libelle-a-completer",
     geste: async (page) => {
       await page.click('#mois-vue-charges [data-vue-charges="destinataires"]');

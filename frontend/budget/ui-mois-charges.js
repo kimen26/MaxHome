@@ -1,7 +1,7 @@
 // Partie « charges » de l'écran Mois : le bandeau « à compléter » (tant qu'il manque des
 // montants, propose de les remplir d'un geste avec les montants habituels, D-040, habituel.js)
 // et la feuille de réglage d'une charge (ui-charge-feuille.js, ouverte au tap d'une ligne dans
-// la liste unifiée de ui-mois-liste.js). Depuis la refonte D-051 (chaque virement/charge une
+// la liste unifiée de ui-mois-liste.js). Depuis la refonte D-052 (chaque virement/charge une
 // seule fois), ce fichier ne dessine plus sa propre grille de cartes par catégorie/destinataire
 // — c'est ui-mois-liste.js qui affiche les lignes, cette source de données et cette feuille
 // restent ici (exportées : `proposees`/`affichees`) pour ne pas dupliquer la règle D-043.
