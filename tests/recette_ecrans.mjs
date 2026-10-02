@@ -93,35 +93,26 @@ const GESTES = [
   // bande juste à droite de la case et un bouton étroit autour du seul texte laissait un blanc
   // mort avant le champ montant — un tap sur la ligne, hors case et hors champ, n'ouvrait plus
   // rien nulle part sur la ligne.
+  // Liste unifiée (D-051), vue Catégories : un groupe de charges se déplie au tap, puis le tap
+  // sur une ligne dépliée ouvre sa feuille de réglage.
   { ecran: "mois", moduleDefaut: "mois", nom: "reglage-charge",
     geste: async (page) => {
-      const ligne = page.locator("#mois-categories .mois-charge").first();
-      await ligne.scrollIntoViewIfNeeded();
-      const box = await ligne.boundingBox();
-      const libelle = await ligne.locator(".mc-libelle").boundingBox();
-      if (!box || !libelle) throw new Error("reglage-charge : ligne de charge introuvable.");
-      // Milieu du texte du libellé : la zone la plus probable d'un vrai tap, jamais le bord
-      // gauche (à côté de la case) ni le bord droit (à côté du champ montant).
-      await page.mouse.click(libelle.x + libelle.width / 2, box.y + box.height / 2);
+      await page.click('#mois-vue-charges [data-vue-charges="categories"]');
+      // Le premier groupe est toujours « Virements » (groupes-categories.js, CLE_VIREMENTS en
+      // tête) : ses lignes sont des MOUVEMENTS (ouvrent le détail du mouvement, pas la feuille
+      // de réglage) — on cible donc un groupe de CATÉGORIE DE CHARGE, jamais le premier venu.
+      const groupeCharge = page.locator('#mvts-a-faire [data-ml-groupe]:not([data-ml-groupe*="__virements__"])').first();
+      await groupeCharge.click();
+      // `.click()` sur le LIBELLÉ via un locator (pas des coordonnées manuelles, L-016) : Playwright
+      // scrolle et vérifie lui-même qu'aucun élément `position:fixed` (le FAB « + Ajouter », en
+      // bas de l'écran) ne recouvre la cible avant de taper — une ligne dépliée en bas de liste
+      // peut tomber sous le FAB selon le défilement, un clic à coordonnées fixes le découvrirait
+      // trop tard (silencieux : le FAB absorbe le tap, la feuille attendue n'ouvre jamais).
+      const libelle = page.locator("#mvts-a-faire .ml-element.mois-charge .mc-libelle").first();
+      if (!(await libelle.count())) throw new Error("reglage-charge : ligne de charge introuvable.");
+      await libelle.click();
       await page.waitForSelector("form.reglages", { state: "visible", timeout: 3000 });
       await page.waitForTimeout(250); // la feuille glisse en 200 ms
-    } },
-  // Même tap, mais dans le GAP entre le libellé et le champ montant (bande la plus étroite de
-  // la ligne, la plus facile à rater si un futur changement de layout la referme) : doit aussi
-  // ouvrir la feuille, puisque c'est `.mois-charge` entière qui est cliquable, pas un bouton
-  // isolé autour du texte.
-  { ecran: "mois", moduleDefaut: "mois", nom: "reglage-charge-gap",
-    geste: async (page) => {
-      const ligne = page.locator("#mois-categories .mois-charge").first();
-      await ligne.scrollIntoViewIfNeeded();
-      const box = await ligne.boundingBox();
-      const libelle = await ligne.locator(".mc-libelle").boundingBox();
-      const champ = await ligne.locator(".champ-montant").boundingBox();
-      if (!box || !libelle || !champ) throw new Error("reglage-charge-gap : ligne de charge introuvable.");
-      const xGap = (libelle.x + libelle.width + champ.x) / 2;
-      await page.mouse.click(xGap, box.y + box.height / 2);
-      await page.waitForSelector("form.reglages", { state: "visible", timeout: 3000 });
-      await page.waitForTimeout(250);
     } },
   // Même feuille ouverte depuis Réglages · Charges (toujours en feuille, même sur PC : cet
   // écran n'a pas de colonne de droite).
@@ -144,17 +135,20 @@ const GESTES = [
   // carte de trajet et la carte « reste sur le commun ».
   { ecran: "mois", moduleDefaut: "mois", nom: "mois-destinataires",
     geste: async (page) => {
+      // Destinataires est la vue par défaut (D-051) : la reprendre explicitement après le geste
+      // précédent (qui a basculé sur Catégories), rien à attendre d'autre que le re-rendu.
       await page.click('#mois-vue-charges [data-vue-charges="destinataires"]');
-      await page.waitForSelector("#mois-categories .carte-destinataire", { timeout: 3000 });
+      await page.waitForSelector("#mvts-a-faire .gv-groupe, #mvts-faits .gv-groupe", { timeout: 3000 });
       await page.waitForTimeout(100);
     } },
-  // Détail d'un groupe de virements dont le compte de destination est VARIABLE et sans valeur
-  // ce mois (D-050, Compte École dans donnees_factices.mjs) : bandeau ambre « Libellé à
-  // compléter ce mois », champ pré-rempli du modèle, bouton Enregistrer — tap sur la ligne de
-  // groupe elle-même (hors case, D-048 §1), comme reglage-charge plus haut.
+  // Groupe de virements dont le compte de destination est VARIABLE et sans valeur ce mois
+  // (D-050, Compte École dans donnees_factices.mjs) : déplié (tap sur la ligne, hors case,
+  // D-051), il montre en ligne le bandeau ambre « Libellé à compléter ce mois », champ
+  // pré-rempli du modèle, bouton Enregistrer — plus une feuille de détail séparée depuis D-051.
   { ecran: "mois", moduleDefaut: "mois", nom: "detail-groupe-libelle-a-completer",
     geste: async (page) => {
-      const groupe = page.locator("#groupes-virements .gv-groupe").filter({ hasText: "École" }).first();
+      await page.click('#mois-vue-charges [data-vue-charges="destinataires"]');
+      const groupe = page.locator("#mvts-a-faire .gv-groupe, #mvts-faits .gv-groupe").filter({ hasText: "École" }).first();
       await groupe.scrollIntoViewIfNeeded();
       // Tap dans le corps du texte (.mvt-corps), jamais au centre de l'élément entier : la case
       // cycle (::before élargi, D-048) occupe la zone de gauche et volerait le clic (même piège
@@ -162,8 +156,8 @@ const GESTES = [
       const corps = await groupe.locator(".mvt-corps").boundingBox();
       if (!corps) throw new Error("detail-groupe-libelle-a-completer : groupe École introuvable.");
       await page.mouse.click(corps.x + corps.width / 2, corps.y + corps.height / 2);
-      await page.waitForSelector("#feuille-corps .gv-libelle-manquant", { timeout: 3000 });
-      await page.waitForTimeout(250);
+      await page.waitForSelector(".ml-groupe.ouvert .gv-libelle-manquant", { timeout: 3000 });
+      await page.waitForTimeout(150);
     } },
   // Fiche d'une tâche (D-041) : Réglages · Tâches, tap sur une ligne.
   { ecran: "taches-rec", moduleDefaut: "taches-rec", nom: "fiche-tache",

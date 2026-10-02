@@ -68,6 +68,7 @@ export function construireGroupes(etat) {
     groupe(de, compteVers).lignes.push({
       type: "ligne", id: c.id, libelle: c.libelle,
       montant_centimes: montantLigne(l), valeur: valeurCourante(l),
+      fait_le: l.fait_le ?? null, fait_par: l.fait_par ?? null,
     });
   }
 
@@ -82,6 +83,7 @@ export function construireGroupes(etat) {
     groupe(t.de, t.vers).lignes.push({
       type: "mouvement", id: m.id, libelle: m.titre,
       montant_centimes: montant, valeur: valeurCourante(m),
+      fait_le: m.fait_le ?? null, fait_par: m.fait_par ?? null,
     });
   }
 

@@ -123,13 +123,9 @@
    virement : déplacés dans budget-virements.css (D-036 §CSS par module, extraction quand
    budget.css a dépassé 400 lignes, D-050). */
 
-/* ================= Charges par catégorie, écran « Mois » ================= */
-/* Une colonne sur téléphone, deux au-dessus de 640 px (D-039) : à 360 px, deux colonnes
-   laissaient ~90 px au libellé (« Crédit immobilie », « Alimentat »). Le libellé passe à la
-   ligne, il n'est jamais rogné ; le champ garde la place d'un « -1 450,30 » en 15 px. */
-#mois-categories { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; margin:10px 0; }
-#mois-categories .carte + .carte { margin-top:0; }
-@media (min-width:640px) { #mois-categories { grid-template-columns:repeat(2, minmax(0,1fr)); align-items:start; } }
+/* ================= Charges, liste unifiée « À faire »/« Fait » (ui-mois-liste.js, D-051) ===== */
+/* `.mois-charge` : gabarit d'une ligne de charge dépliée dans `#mvts-a-faire`/`#mvts-faits`
+   (`.ml-sous-lignes`), plus utilisée en grille séparée depuis la fusion D-051. */
 .carte-charges { padding:10px 12px; }
 .mois-charge {
   display:flex; align-items:center; gap:10px; min-height:52px; padding:4px 0;
@@ -148,8 +144,6 @@
 .mois-charge:hover .mc-nom { color:var(--bleu); }
 .mc-infos { font-size:12px; color:var(--texte-2); line-height:1.3; }
 .mois-charge.a-faire .mc-infos, .mois-charge.differe .mc-infos { color:var(--ambre-texte); }
-.mois-charge .champ-montant { flex:none; width:112px; min-height:44px; font-size:15px; padding:0 8px; }
-.mois-charge.a-faire .champ-montant { color:var(--ambre-texte); border-color:var(--ambre-bordure); background:var(--ambre-champ); }
 /* Validation ligne à ligne (D-046, Yann 2026-09-29) : « ✓ Prénom · jj/mm » en vert, jamais la
    couleur seule (le mot « fait » n'est pas répété, le ✓ + le vert + la date suffisent car le
    texte lui-même dit l'état, pas juste sa couleur). */

@@ -26,7 +26,8 @@ const pluriel = (n) => (n > 1 ? "s" : "");
 export function etatDuMois({ mois, membres, revenus, charges, lignes, mouvements, recurrents = [] }) {
   const salaires = membres.filter((m) => !revenus[m.prenom]).map((m) => m.prenom);
   const actives = charges.filter((c) => c.actif !== false && !c.ponctuel);
-  const chargesVides = actives.filter((c) => lignes[c.id] === undefined).length;
+  const videsListe = actives.filter((c) => lignes[c.id] === undefined);
+  const chargesVides = videsListe.length;
 
   const modeCharge = (m) => recurrents.find((r) => r.id === m.recurrent_id)?.mode === "charge";
   const mouvementsAFaire = mouvements.filter((m) => !m.fait_le && !modeCharge(m)).length;
@@ -43,14 +44,19 @@ export function etatDuMois({ mois, membres, revenus, charges, lignes, mouvements
       : aFaire ? "virements"
         : total ? "fait" : "aucun";
   const nomMois = MOIS[mois - 1];
+  // Une seule charge manquante : la nommer plutôt que dire juste « 1 charge à remplir » — la
+  // phrase d'en-tête doit dire QUOI faire, pas juste QUE quelque chose reste à faire (plainte
+  // Yann : « on ne sait pas laquelle »). Plusieurs manquantes : rester au compte, sinon la
+  // phrase déborde à 360 px.
+  const chargeManquante = chargesVides === 1 ? videsListe[0] : null;
   const phrase = {
     salaires: salaires.length === 1 ? `Salaire de ${salaires[0]} à noter` : "Salaires à noter",
-    charges: `${chargesVides} charge${pluriel(chargesVides)} à remplir`,
+    charges: chargeManquante ? `Montant à saisir : ${chargeManquante.libelle}` : `${chargesVides} charges à remplir`,
     virements: `${aFaire} à valider en ${nomMois}`,
     fait: `Tout est validé pour ${nomMois}`,
     aucun: "Aucun virement prévu",
   }[statut];
-  return { statut, salaires, charges: chargesVides, aFaire, total, phrase };
+  return { statut, salaires, charges: chargesVides, chargeManquante, aFaire, total, phrase };
 }
 
 /** Texte de la carte « À faire » quand plus rien n'y est à cocher côté mouvements. Jamais

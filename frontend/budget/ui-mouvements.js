@@ -1,22 +1,23 @@
-// Écran « Mois » (budget.png, D-036 §4) : fusion de l'ancien « Ce mois » et de l'ancien
-// « Charges ». Bande de mois plate + titre en en-tête (index.html), puis dans l'ordre :
-// salaires Y/C + clé, trois chiffres, À faire / Fait (mouvements, comportement inchangé de
-// blocs-checklist), charges par catégorie en deux colonnes (déléguées à ui-mois-charges.js),
-// « Ce mois seulement » (ex-ajustements), FAB « + Ajouter » qui ouvre la feuille
-// « Ligne de ce mois ».
+// Écran « Mois » (budget.png, D-036 §4 ; refonte D-051). En-tête : mois + UNE phrase d'action
+// (etat-mois.js), salaires Y/C + clé, trois chiffres, puis la liste unifiée « À faire » / « Fait »
+// (ui-mois-liste.js : virements ET charges, chacun une seule fois, Destinataires par défaut),
+// « Ce mois seulement » (ex-ajustements), FAB « + Ajouter » qui ouvre la feuille « Ligne de ce
+// mois ». Les anciens blocs séparés (groupes de virements, liste de mouvements, grille de
+// charges par catégorie, chacun avec sa propre case pour la même ligne) ont fusionné dans
+// ui-mois-liste.js : ce fichier assemble, il ne redessine pas (D-024).
 
 import { euros, versCentimes, montantTheorique } from "./calc.js";
-import { $, $$, txt, toast, copier, montrerEcran, ouvrirFeuille, fermerFeuille, confirmer, MOIS } from "../socle/ui-base.js";
-import { ligneCoche, carteListe, enteteDetail, trajetComptes, choixDetaille, marquerChoix } from "../socle/blocs.js";
+import { $, $$, txt, toast, copier, montrerEcran, ouvrirFeuille, fermerFeuille, MOIS } from "../socle/ui-base.js";
+import { enteteDetail, trajetComptes, choixDetaille, marquerChoix } from "../socle/blocs.js";
 import { creerCheckList } from "../socle/blocs-checklist.js";
 import { champ, select, membresOptions, lire } from "../socle/blocs-form.js";
 import { creerUiMoisCharges } from "./ui-mois-charges.js";
 import { creerUiRegularisations } from "./ui-regularisations.js";
 import { creerUiExtras } from "./ui-extras.js";
 import { optionsRegle, detailRegle } from "./repartition.js";
-import { etatDuMois, texteAFaireVide } from "./etat-mois.js";
-import { valeurCourante, valeurAffichee, prochaineValeur } from "./coche-ligne.js";
-import { creerUiGroupesVirements } from "./ui-groupes-virements.js";
+import { etatDuMois } from "./etat-mois.js";
+import { valeurCourante, prochaineValeur } from "./coche-ligne.js";
+import { creerUiMoisListe } from "./ui-mois-liste.js";
 import { htmlBlocLibelle, brancherBlocLibelle } from "./bloc-libelle-virement.js";
 
 const ASIDE = "#detail-pc";
@@ -43,8 +44,6 @@ export function creerUiMouvements(api, etat, cb) {
   const recurrentDe = (m) => etat.recurrents.find((r) => r.id === m.recurrent_id);
   const compte = (id) => etat.comptes.find((c) => c.id === id);
   const nomCompte = (id) => compte(id)?.nom ?? null;
-  // Le virement au commun part du compte perso de chacun, qui n'est pas en base : on nomme la
-  // personne plutôt que d'afficher « compte à définir ».
   const trajet = (m) => (m.compte_de == null && m.qui && m.compte_vers != null
     ? `Compte de ${m.qui} → ${nomCompte(m.compte_vers) ?? "compte à définir"}`
     : trajetComptes(etat.comptes, m.compte_de, m.compte_vers));
@@ -52,12 +51,6 @@ export function creerUiMouvements(api, etat, cb) {
     const c = compte(id);
     return c?.iban_masque ? `····${c.iban_masque}` : (c?.titulaire ?? "");
   };
-  // Un mouvement dont le récurrent est en mode "charge" (crédit immo → Caisse Épargne Joint,
-  // par ex.) ne s'affiche plus ici : sa case, c'est désormais celle de sa ligne de charge
-  // (ui-mois-charges.js, D-046). Il reste en base pour le bot et le rappel Telegram.
-  const modeCharge = (m) => recurrentDe(m)?.mode === "charge";
-  const aFaire = () => etat.mouvements.filter((m) => !m.fait_le && !modeCharge(m));
-  const faits = () => etat.mouvements.filter((m) => m.fait_le && !modeCharge(m));
 
   const cbCharges = { ...cb, rendreMois: () => rendre() };
   const charges = creerUiMoisCharges(api, etat, cbCharges);
@@ -67,12 +60,6 @@ export function creerUiMouvements(api, etat, cb) {
     if (m.fait_le) return m.montant_centimes;
     const t = montantTheorique(recurrentDe(m), etat);
     return t === null ? m.montant_centimes : t;
-  };
-
-  /** Un mouvement est en alerte si son montant vient d'une charge sans montant saisi. */
-  const enAlerte = (m) => {
-    const r = recurrentDe(m);
-    return !!r && r.mode === "charge" && !etat.lignes[r.charge_id]?.montant_centimes;
   };
 
   const explication = (m) => {
@@ -96,57 +83,23 @@ export function creerUiMouvements(api, etat, cb) {
     return Math.round(Number(n[1].replace(",", ".")) * 100);
   }
 
-  // ---------- lignes de mouvement (À faire / Fait) ----------
-  const [p1] = etat.membres.map((mb) => mb.prenom);
-
-  function ligneAFaire(m) {
-    const r = recurrentDe(m);
-    const consigne = m.consigne ?? r?.consigne ?? "";
-    return ligneCoche({
-      id: m.id, titre: m.titre, sous: trajet(m), prioritaire: aFaire()[0]?.id === m.id,
-      alerte: enAlerte(m), // pas de pastille : le trajet dit déjà de qui part le virement (maquette)
-      notes: [consigne, enAlerte(m) ? "Montant en attente : la charge liée n’a pas de montant ce mois." : null],
-      droite: `<span class="mono mvt-montant">${euros(montantAffiche(m))}</span>`,
-      cycle: { valeur: valeurAffichee(valeurCourante(m)), p1 },
-    });
-  }
-
-  /** Coché, le montant est figé (D-015) ; s'il ne correspond plus au calcul du jour (salaires
-   *  ou charges saisis après la coche), on le DIT — pas de recalcul silencieux d'un virement
-   *  peut-être déjà parti (D-042). Écart d'1 centime toléré : arrondi du prorata. */
-  function ecartFige(m) {
-    const t = montantTheorique(recurrentDe(m), etat);
-    if (t === null || Math.abs(t - m.montant_centimes) <= 1) return null;
-    return `Coché à ${euros(m.montant_centimes)} ; le calcul donne maintenant ${euros(t)}. Décoche puis recoche pour mettre à jour.`;
-  }
-
-  /** jj/mm d'une date ISO — factorisé : utilisé par la ligne « Fait » et son détail. */
+  /** jj/mm d'une date ISO — utilisé par le détail d'un mouvement. */
   const jourMois = (iso) => {
     const date = new Date(iso);
     return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
   };
 
-  function ligneFaite(m) {
-    const quand = jourMois(m.fait_le);
-    const ecart = ecartFige(m);
-    return ligneCoche({
-      id: m.id, titre: m.titre, cochee: true, sous: m.fait_par ? `${quand} · ${m.fait_par}` : quand,
-      alerte: !!ecart, notes: [ecart],
-      droite: `<span class="mono mvt-montant pale">${euros(m.montant_centimes)}</span>`,
-      cycle: { valeur: valeurAffichee(valeurCourante(m)), p1 },
-    });
-  }
-
-  // ---------- détail ----------
+  // ---------- détail d'un mouvement (panneau PC / feuille mobile) ----------
   function htmlDetail(m) {
     const r = recurrentDe(m);
     const somme = montantAffiche(m);
     const perm = permanent(m);
-    const aCopier = perm ? somme + perm : somme; // montant négatif, permanent positif
+    const aCopier = perm ? somme + perm : somme;
     const consigne = m.consigne ?? r?.consigne ?? "";
     const sousTitre = r
       ? `Récurrent · chaque mois${r.qui ? ` · ${r.qui}` : ""}`
       : `Ponctuel${m.qui ? ` · ${m.qui}` : ""}`;
+    const [p1] = etat.membres.map((mb) => mb.prenom);
     return `<div class="detail" data-id="${m.id}">
       ${enteteDetail(m.titre, sousTitre)}
       <div class="detail-montant">
@@ -175,8 +128,6 @@ export function creerUiMouvements(api, etat, cb) {
         <button class="btn" data-copier="${Math.abs(aCopier / 100).toFixed(2).replace(".", ",")}"
                 title="Copier ${euros(aCopier)}">⧉</button>
         ${(() => {
-          // Même cycle que la case (D-048) : ce bouton avance d'un cran, son libellé dit
-          // vers quoi — jamais un simple binaire fait/pas fait qui ne dirait plus qui valide.
           const suivant = prochaineValeur([null, ...etat.membres.map((mb) => mb.prenom)], valeurCourante(m));
           return `<button class="btn ${suivant === null ? "" : "btn-vert"} grandir" data-basculer>
             ${suivant === null ? "Annuler la validation" : `✓ Valider pour ${txt(suivant)}`}</button>`;
@@ -189,7 +140,7 @@ export function creerUiMouvements(api, etat, cb) {
   const liste = creerCheckList({
     ecran: "#ecran-mois", aside: ASIDE,
     trouver: (id) => etat.mouvements.find((m) => m.id === id),
-    premier: () => aFaire()[0] ?? faits()[0],
+    premier: () => null, // la liste unifiée choisit elle-même quoi afficher déplié ; pas d'ouverture d'office ici.
     htmlDetail, rendre, echec: cb.echec,
     brancherDetail: (m, racine, { fermer }) => {
       racine.querySelector("[data-copier]")?.addEventListener("click", (e) => copier(e.currentTarget.dataset.copier));
@@ -205,19 +156,11 @@ export function creerUiMouvements(api, etat, cb) {
       });
     },
     basculer: {
-      // Le montant se fige à la PREMIÈRE coche (D-048, rien → quelqu'un) : il est lu AVANT
-      // toute mutation, sinon montantAffiche() renvoie déjà la valeur figée de la ligne (L-008).
-      // Aux changements de personne suivants (quelqu'un → l'autre), il reste tel quel.
       figer: (m) => montantAffiche(m),
-      // `options.valeurCible`/`options.dateCible` (D-048 §3) : un groupe de virements impose
-      // LA MÊME personne ET LA MÊME date à toutes ses lignes non faites en un seul tap, au
-      // lieu du cycle indépendant par ligne (jamais un `new Date()` par ligne, qui divergerait).
       appliquer: (m, fige, options = {}) => {
         const courant = valeurCourante(m);
         const suivant = options.valeurCible !== undefined
           ? options.valeurCible : prochaineValeur([null, ...etat.membres.map((mb) => mb.prenom)], courant);
-        // Première coche = le mouvement n'était PAS coché du tout (courant null) — depuis
-        // SANS_PRENOM (D-048), fait_le existe déjà, le montant reste tel quel (déjà figé).
         const premiereCoche = courant === null && suivant !== null;
         m.fait_le = suivant === null ? null : (m.fait_le ?? options.dateCible ?? new Date().toISOString());
         m.fait_par = suivant;
@@ -225,15 +168,23 @@ export function creerUiMouvements(api, etat, cb) {
         return { fait_le: m.fait_le, montant_centimes: m.montant_centimes, fait_par: m.fait_par };
       },
       ecrire: (id, champs) => api.majMouvement(id, champs),
-      // `avant` (snapshot pré-mutation) n'a pas de notion de SANS_PRENOM (c'est fait_par tel
-      // qu'écrit en base) : `_m.fait_par` (post-mutation) dit qui valide maintenant, `null` en
-      // sortie de cycle. Le sens (annulé vs validé) se lit sur fait_le, pas sur fait_par seul.
       message: (_m, avant) => (avant.fait_le && !_m.fait_le ? "Validation annulée." : `Validé pour ${_m.fait_par}.`),
     },
   });
 
-  // ---------- « Virements à faire » : regroupement par trajet (D-048 §3, ui-groupes-virements.js) ----------
-  const groupesVirements = creerUiGroupesVirements(api, etat, cb, { basculerMouvement: liste.basculer });
+  // ---------- liste unifiée « À faire » / « Fait » (ui-mois-liste.js, D-051) ----------
+  const cbListe = {
+    ...cb,
+    rendreMois: () => rendre(),
+    ouvrirReglagesCharge: (id) => charges.ouvrirReglages(id, { apres: () => rendre() }),
+    ouvrirDetailMouvement: (id) => liste.ouvrirDetail(id),
+    chargesAffichees: () => charges.affichees(),
+    majEnTeteAFaire: (n, total) => {
+      $("#afaire-tete-total").textContent = n ? `${n} · ${euros(total)}` : "0";
+    },
+    majEnTeteFait: (n) => { $("#fait-tete-total").textContent = String(n); },
+  };
+  const moisListe = creerUiMoisListe(api, etat, cbListe, { basculerMouvement: liste.basculer });
 
   // ---------- revenus (salaires + part de chacun au prorata) ----------
   function rendreSalaires() {
@@ -264,7 +215,6 @@ export function creerUiMouvements(api, etat, cb) {
 
   function rendreExtras() {
     $("#ce-mois-tete-total").textContent = euros(extras.total());
-    // Charges ponctuelles puis régularisations entre nous : les deux ne valent que ce mois-ci.
     $("#ajustements").innerHTML = extras.html() + regularisations.html();
     extras.brancher($("#ajustements"), rendre);
     regularisations.brancher($("#ajustements"), rendre);
@@ -300,8 +250,6 @@ export function creerUiMouvements(api, etat, cb) {
       try {
         const v = lire(ev.target);
         const montant = Math.abs(versCentimes(v.montant));
-        // Une charge ponctuelle, active seulement, sans référence (montant_defaut) — elle ne
-        // doit pas se répéter ni se préafficher un autre mois (D-036 §4).
         const charge = await api.creerCharge({
           libelle: v.titre, categorie: "Autre", regle: regleChoisie,
           ponctuel: true, actif: true, montant_defaut: null, defaut_dernier: false,
@@ -344,23 +292,18 @@ export function creerUiMouvements(api, etat, cb) {
 
   // ---------- rendu ----------
   function rendre() {
-    const restants = aFaire();
-    const termines = faits();
     const r = etat.resultat;
     const statut = etatDuMois(etat);
 
     const commun = etat.comptes.find((c) => c.commun);
     $("#commun-mois").textContent = commun ? `Commun · ${commun.nom}` : "";
 
-    // « (fin de mois) » est écrit à côté, dans index.html : le salaire noté ici est celui reçu
-    // à la fin de ce mois-là (D-042).
     const nomMois = `${MOIS[etat.mois - 1][0].toUpperCase()}${MOIS[etat.mois - 1].slice(1)} ${etat.annee}`;
     $("#titre-mois").textContent = nomMois;
-    // Sans salaire, la clé de prorata n'est pas encore connue (100 / 0 ou 50 / 50 par défaut) :
-    // on ne l'affiche qu'une fois les salaires notés. Espaces insécables : à 360 px, « clé 47 »
-    // et « / 53 » tombaient sur deux lignes.
-    const cle = etat.membres.map((m) => Math.round((r.ratio[m.prenom] ?? 0) * 100)).join("\u00a0/\u00a0");
-    $("#sous-mois").textContent = statut.statut === "salaires" ? statut.phrase : `${statut.phrase} · clé\u00a0${cle}`;
+    const cle = etat.membres.map((m) => Math.round((r.ratio[m.prenom] ?? 0) * 100)).join(" / ");
+    // Phrase d'action unique en en-tête (D-051) : dit QUOI faire — salaire manquant, charge
+    // précise à saisir, ou nombre de virements restants — jamais un bandeau séparé en plus.
+    $("#sous-mois").textContent = statut.statut === "salaires" ? statut.phrase : `${statut.phrase} · clé ${cle}`;
     $("#total-charges-mois").textContent = euros(r.total);
 
     rendreSalaires();
@@ -371,17 +314,10 @@ export function creerUiMouvements(api, etat, cb) {
       ${etat.membres.map((m) => `<div class="carte chiffre-carte"><span class="chiffre-etiquette">Reste ${txt(m.prenom)}</span>
         <span class="mono chiffre-valeur ${(r.reste[m.prenom] ?? 0) < 0 ? "accent-rouge" : "accent-vert"}">${euros(r.reste[m.prenom] ?? 0)}</span></div>`).join("")}`;
 
-    $("#afaire-tete-total").textContent = String(restants.length);
-    $("#fait-tete-total").textContent = String(termines.length);
-    $("#mvts-a-faire").innerHTML = carteListe(restants.map(ligneAFaire), texteAFaireVide(statut));
-    $("#mvts-faits").innerHTML = carteListe(termines.map(ligneFaite), "Rien de coché pour l’instant.");
-    liste.apresRendu();
+    moisListe.rendre();
 
     charges.rendre();
     rendreExtras();
-
-    $("#groupes-virements").innerHTML = groupesVirements.html();
-    groupesVirements.brancher($("#groupes-virements"));
   }
 
   $("#btn-mvt-ponctuel").addEventListener("click", formulairePonctuel);

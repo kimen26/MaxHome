@@ -1,41 +1,14 @@
-// Partie « charges » de l'écran Mois : une carte par catégorie, une colonne sur téléphone, deux
-// au-dessus de 640 px (D-039). Chaque ligne : libellé entier, dessous sa répartition et, en
-// ambre et en toutes lettres, « à saisir » ou l'écart au montant habituel. En tête d'écran,
-// tant qu'il manque des montants, un bandeau le dit et propose de les remplir d'un geste avec
-// les montants habituels (D-040, habituel.js). Le réglage d'une charge vit dans sa feuille
-// (ui-charge-feuille.js), ouverte au tap sur le libellé.
-//
-// Deuxième vue « Destinataires » (Yann : « regroupe ce qu'il y a à faire par compte vers où on
-// déplace, de CB on a besoin de X ») : un sélecteur segmenté au-dessus des cartes bascule entre
-// Catégories (défaut) et Destinataires, mémorisé par appareil (localStorage). Les deux vues
-// lisent le même état et la même fonction `ligneCharge` — seul le regroupement change
-// (par-destinataire.js, pur, testé en node comme groupes-virements.js).
+// Partie « charges » de l'écran Mois : le bandeau « à compléter » (tant qu'il manque des
+// montants, propose de les remplir d'un geste avec les montants habituels, D-040, habituel.js)
+// et la feuille de réglage d'une charge (ui-charge-feuille.js, ouverte au tap d'une ligne dans
+// la liste unifiée de ui-mois-liste.js). Depuis la refonte D-051 (chaque virement/charge une
+// seule fois), ce fichier ne dessine plus sa propre grille de cartes par catégorie/destinataire
+// — c'est ui-mois-liste.js qui affiche les lignes, cette source de données et cette feuille
+// restent ici (exportées : `proposees`/`affichees`) pour ne pas dupliquer la règle D-043.
 
-import { euros, versCentimes, regleEffective } from "./calc.js";
-import { $, $$, txt, toast } from "../socle/ui-base.js";
-import { enEuros } from "../socle/blocs-form.js";
-import { caseCycle, creerFileEcritures, brancherCoches } from "../socle/blocs.js";
-import { brancherCycles } from "../socle/blocs-cycle.js";
-import { REGLES_COURANTES, libelleRegle, detailRegle } from "./repartition.js";
+import { $ } from "../socle/ui-base.js";
 import { montantHabituel } from "./habituel.js";
 import { creerFeuilleCharge } from "./ui-charge-feuille.js";
-import { compteDeCharge, nomDuCompte } from "./compte-charge.js";
-import { preparerBascule, appliquerBascule, annulerBascule, ecrireBascule, valeurCourante, valeurAffichee } from "./coche-ligne.js";
-import { construireGroupesDestinataires, totalGroupe, comptageValidation, trierGroupesDestinataires, totauxParSource } from "./par-destinataire.js";
-
-/** Vue mémorisée par appareil : « categories » (défaut) ou « destinataires ». Jamais rien ne
- *  change pour qui ne touche pas au sélecteur (localStorage absent ou en échec → défaut). */
-const CLE_VUE = "maxhome.budget.vueCharges";
-const lireVue = () => { try { return localStorage.getItem(CLE_VUE) === "destinataires" ? "destinataires" : "categories"; } catch { return "categories"; } };
-const ecrireVue = (v) => { try { localStorage.setItem(CLE_VUE, v); } catch { /* stockage indisponible : pas mémorisé, pas bloquant */ } };
-
-/** jj/mm d'une date ISO — même calcul que jourMois() de ui-mouvements.js (pas d'import croisé :
- *  deux fichiers pairs, chacun garde sa petite fonction plutôt qu'un troisième module pour trois
- *  lignes). */
-const jourMoisCourt = (iso) => {
-  const d = new Date(iso);
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
-};
 
 export const CATEGORIES = ["Logement", "Max", "Épargne", "Alimentation", "Impôts", "Banque", "Autre"];
 
@@ -47,15 +20,11 @@ export const categoriesPresentes = (parCat) => [
 ];
 
 export function creerUiMoisCharges(api, etat, cb) {
-  let vue = lireVue();
-  const ligne = (id) => etat.lignes[id];
-  const montantDe = (id) => ligne(id)?.montant_centimes ?? 0;
-  const saisie = (id) => ligne(id) !== undefined;
-
+  const saisie = (id) => etat.lignes[id] !== undefined;
   const habituel = (c) => montantHabituel(c, etat.derniers);
 
   // Les charges ponctuelles (« Ligne de ce mois ») vivent dans la carte « Ce mois seulement »
-  // de ui-mouvements.js, pas dans la grille par catégorie.
+  // de ui-mouvements.js, pas dans la liste unifiée.
   // Deux notions (D-043) : PROPOSÉES = actives, celles qu'on peut encore saisir ce mois-ci ou
   // remplir d'un geste. AFFICHÉES = actives + une charge terminée qui a déjà une ligne ce mois —
   // un mois passé garde ce qui a été payé, sinon son montant compterait dans le total sans être
@@ -64,86 +33,9 @@ export function creerUiMoisCharges(api, etat, cb) {
   const affichees = () => etat.charges.filter((c) => !c.ponctuel
     && (c.actif !== false || saisie(c.id)));
 
-  // ---------- rendu ----------
-  /** Sélecteur segmenté Catégories | Destinataires — même markup que `.segment` du socle
-   *  (ui-base.js::segmentEcrans), câblé localement (pas de navigation d'écran ici). */
-  function htmlSelecteurVue() {
-    const options = [["categories", "Catégories"], ["destinataires", "Destinataires"]];
-    return `<div class="segment segment-vue-charges" role="radiogroup" aria-label="Regrouper les charges par">
-      ${options.map(([v, l]) => `<button type="button" role="radio" aria-checked="${v === vue}"
-        class="${v === vue ? "actif" : ""}" data-vue-charges="${v}">${txt(l)}</button>`).join("")}
-    </div>`;
-  }
-
-  function rendre() {
-    $("#mois-vue-charges").innerHTML = htmlSelecteurVue();
-    for (const b of $$("#mois-vue-charges [data-vue-charges]")) {
-      b.addEventListener("click", () => {
-        if (b.dataset.vueCharges === vue) return;
-        vue = b.dataset.vueCharges;
-        ecrireVue(vue);
-        rendre();
-      });
-    }
-    if (vue === "destinataires") rendreDestinataires(); else rendreCategories();
-    // PROPOSÉES seulement (jamais une terminée) : « à remplir » et « montants habituels »
-    // ne portent que sur ce qui reste à saisir pour de vrai ce mois-ci — commun aux deux vues.
-    rendreACompleter(proposees());
-    brancher();
-  }
-
-  function rendreCategories() {
-    const liste = affichees();
-    const parCat = {};
-    for (const c of liste) (parCat[c.categorie] ??= []).push(c);
-    $("#mois-categories").innerHTML = categoriesPresentes(parCat).map((k) => {
-      const items = parCat[k];
-      const remplies = items.filter((c) => montantDe(c.id)).length;
-      const complet = remplies === items.length;
-      return `<div class="carte carte-charges">
-        <div class="carte-tete${complet ? " complete" : ""}">
-          <span>${txt(k.toUpperCase())}</span><span class="mono">${remplies}/${items.length}</span>
-        </div>
-        ${items.map(ligneCharge).join("")}
-      </div>`;
-    }).join("");
-  }
-
-  /** Vue Destinataires (règle 2 du brief) : une carte par compte où va l'argent, triées par
-   *  total décroissant, « reste sur le commun » toujours en dernier ; pied « Total qui part de
-   *  <compte> » par source quand plusieurs cartes en partagent une. Regroupement pur délégué à
-   *  par-destinataire.js ; les lignes réutilisent EXACTEMENT `ligneCharge` de la vue Catégories. */
-  function rendreDestinataires() {
-    const liste = affichees();
-    const groupes = construireGroupesDestinataires(liste, etat.recurrents, etat.comptes);
-    const totalParGroupe = new Map(groupes.map((g) => [g.cle, totalGroupe(g, montantDe)]));
-    const tries = trierGroupesDestinataires(groupes, totalParGroupe);
-    const faitDe = (id) => ligne(id)?.fait_le ?? null;
-
-    const carteGroupe = (g) => {
-      const total = totalParGroupe.get(g.cle);
-      const { faites, total: n, complet } = comptageValidation(g, faitDe);
-      const entete = g.compteId == null ? g.libelleVers : `${g.libelleDe} → ${g.libelleVers}`;
-      return `<div class="carte carte-charges carte-destinataire">
-        <div class="carte-tete${complet ? " complete" : ""}">
-          <span>${txt(entete)}</span><span class="mono">${euros(total)}</span>
-        </div>
-        <div class="cd-validees">${faites}/${n} validées</div>
-        ${g.charges.map(ligneCharge).join("")}
-      </div>`;
-    };
-
-    const pieds = totauxParSource(tries, totalParGroupe, etat.comptes);
-    const piedHtml = pieds.length
-      ? `<div class="cd-totaux-source">${pieds.map((p) => `<p class="cd-total-source">
-          Total qui part de ${txt(p.libelle)} : <span class="mono">${euros(p.total)}</span></p>`).join("")}</div>`
-      : "";
-
-    $("#mois-categories").innerHTML = tries.map(carteGroupe).join("") + piedHtml;
-  }
-
   /** Bandeau de tête : ce qui manque ce mois-ci, et le geste qui le remplit. Vide si complet. */
-  function rendreACompleter(liste) {
+  function rendreACompleter() {
+    const liste = proposees();
     const manquantes = liste.filter((c) => !saisie(c.id));
     const remplissables = manquantes.filter((c) => habituel(c) != null);
     const zone = $("#mois-a-completer");
@@ -155,7 +47,7 @@ export function creerUiMoisCharges(api, etat, cb) {
       Les virements ne sont justes qu'une fois toutes les charges remplies.</p>
       ${remplissables.length ? `<button type="button" class="btn btn-bleu" data-remplir>
         Remplir avec les montants habituels (${remplissables.length})</button>` : ""}
-      ${aTaper ? `<p class="sous">${aTaper} à taper à la main : en ambre plus bas.</p>` : ""}
+      ${aTaper ? `<p class="sous">${aTaper} à taper à la main : la liste dessous le dit.</p>` : ""}
     </div>`;
     zone.querySelector("[data-remplir]")?.addEventListener("click", () => remplir(remplissables));
   }
@@ -167,107 +59,11 @@ export function creerUiMoisCharges(api, etat, cb) {
       for (const l of lignes) etat.lignes[l.charge_id] = { montant_centimes: l.montant_centimes, regle: null };
       cb.recalculer();
       cb.rendreMois();
-      toast(`${lignes.length} montant${lignes.length > 1 ? "s" : ""} rempli${lignes.length > 1 ? "s" : ""}. Corrige ceux qui ont changé.`);
     } catch (e) { cb.echec(e); }
   }
 
-  function ligneCharge(c) {
-    const m = montantDe(c.id);
-    const hab = habituel(c);
-    const manque = !saisie(c.id);
-    // Écart dit seulement pour un montant « Toujours le même » : un montant qui change chaque
-    // mois diffère du précédent par nature.
-    const differe = !manque && !c.defaut_dernier && hab !== null && m !== hab;
-    const regle = regleEffective(c, ligne(c.id));
-    // L'écart se DIT (« habituel −1 200,00 € »), jamais par une pastille de couleur seule. Une
-    // règle rare dit aussi la part de chacun : « Clé fixe » seul ne dit pas qui paie quoi.
-    const nomRegle = REGLES_COURANTES.includes(regle)
-      ? libelleRegle(regle) : `${libelleRegle(regle)} (${detailRegle(regle, etat, c)})`;
-    const compteId = compteDeCharge(c, etat.recurrents);
-    const infos = [
-      `${nomRegle}${regle !== c.regle ? " ce mois" : ""}`,
-      manque ? "à saisir" : "",
-      differe ? `habituel ${euros(hab)}` : "",
-      compteId != null ? `va sur ${nomDuCompte(etat.comptes, compteId)}` : "",
-    ].filter(Boolean).join(" · ");
-    const fait = ligne(c.id)?.fait_le;
-    // Sans montant, la case reste affichée (elle dit qu'une validation existe pour cette
-    // charge) mais un tap refuse et le dit — cf. basculerLigneCharge (règle 3 du brief).
-    // Toute la ligne ouvre les réglages (data-id, motif brancherCoches du socle, D-024) : un
-    // petit bouton étroit autour du seul libellé laissait une bande morte à côté de la case
-    // (zone de tap élargie de `.case::before`, inset -11px) où le tap ne faisait plus rien —
-    // bug remonté par Yann après D-046. La case et le champ montant coupent la remontée du
-    // clic vers la ligne (stopPropagation), comme `.mvt[data-cocher]` ailleurs.
-    const valeur = valeurCourante(ligne(c.id));
-    const [p1] = etat.membres.map((mb) => mb.prenom);
-    return `<div class="mois-charge${manque ? " a-faire" : ""}${differe ? " differe" : ""}${fait ? " fait" : ""} cliquable" data-id="${c.id}">
-      ${caseCycle({ id: c.id, valeur: valeurAffichee(valeur), p1, titre: c.libelle })}
-      <div class="mc-libelle">
-        <span class="mc-nom">${txt(c.libelle)}</span>
-        <span class="mc-infos">${txt(infos)}</span>
-        ${fait ? `<span class="mc-fait">✓ ${[ligne(c.id).fait_par, jourMoisCourt(fait)].filter(Boolean).join(" · ")}</span>` : ""}
-      </div>
-      <input class="champ champ-montant${m > 0 ? " pos" : ""}${manque ? " oubli" : ""}" inputmode="decimal"
-             aria-label="Montant de ce mois : ${txt(c.libelle)}"
-             data-montant="${c.id}" value="${saisie(c.id) ? enEuros(m) : ""}"
-             placeholder="${hab !== null ? enEuros(hab) : "0,00"}">
-    </div>`;
-  }
-
-  // ---------- écritures ----------
-  async function ecrireLigne(chargeId, champs) {
-    try {
-      await api.majLigne(etat.annee, etat.mois, chargeId, champs);
-      etat.lignes[chargeId] = { ...(etat.lignes[chargeId] ?? { montant_centimes: 0, regle: null }), ...champs };
-      cb.recalculer();
-      cb.rendreMois();
-    } catch (e) { cb.echec(e); }
-  }
-
-  // Une charge à la fois : deux taps rapprochés sur la même case (coche puis décoche) doivent
-  // écrire dans l'ordre, pas partir en parallèle (creerFileEcritures, blocs.js).
-  const enFileValidation = creerFileEcritures();
-
-  async function basculerValidation(chargeId) {
-    const prep = preparerBascule(etat, chargeId);
-    if (!prep.ok) { toast(prep.message, true); return; }
-    // Optimiste : on mute et on rend AVANT l'écriture réseau, comme ecrireLigne/remplir.
-    const restaure = appliquerBascule(etat, chargeId, prep);
-    cb.recalculer();
-    cb.rendreMois();
-    try {
-      await enFileValidation(chargeId, () => ecrireBascule(api, etat, chargeId, prep));
-      toast(prep.message);
-    } catch (e) {
-      annulerBascule(etat, chargeId, restaure, prep.mouvementLie);
-      cb.recalculer();
-      cb.rendreMois();
-      cb.echec(e);
-    }
-  }
-
-  function brancher() {
-    brancherCycles($("#mois-categories"), basculerValidation);
-    brancherCoches($("#mois-categories"), null, ouvrirReglages);
-    for (const el of $$("#mois-categories [data-montant]")) {
-      // Le champ montant reste dans la ligne (cliquable) : un tap dedans ne doit pas ouvrir
-      // les réglages par-dessus le clavier — coupe la remontée du clic vers `.mois-charge`.
-      el.addEventListener("click", (e) => e.stopPropagation());
-      el.addEventListener("change", async () => {
-        const id = Number(el.dataset.montant);
-        if (!el.value.trim()) {
-          try {
-            await api.supprimerLigne(etat.annee, etat.mois, id);
-            delete etat.lignes[id];
-            cb.recalculer();
-            cb.rendreMois();
-          } catch (e) { cb.echec(e); }
-          return;
-        }
-        try { await ecrireLigne(id, { montant_centimes: versCentimes(el.value) }); }
-        catch (e) { cb.echec(e); }
-      });
-    }
+  function rendre() {
+    rendreACompleter();
   }
 
   // ---------- réglages d'une charge : feuille dédiée (ui-charge-feuille.js) ----------
@@ -275,5 +71,5 @@ export function creerUiMoisCharges(api, etat, cb) {
   const ouvrirReglages = (id, options) => feuille.ouvrir(id, options);
   const fermerReglages = () => feuille.fermer();
 
-  return { rendre, fermerReglages, ouvrirReglages };
+  return { rendre, fermerReglages, ouvrirReglages, proposees, affichees };
 }

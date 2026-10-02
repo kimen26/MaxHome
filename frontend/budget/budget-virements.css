@@ -48,3 +48,26 @@
 .gv-libelle, .compte-libelle { margin:10px 0; font-size:13px; }
 .gv-libelle-manquant input { width:100%; margin:6px 0; }
 .gv-libelle-alerte { display:block; }
+
+/* ================= Liste unifiée « À faire » / « Fait » (ui-mois-liste.js, D-051) =============
+   Un groupe (trajet ou catégorie) replié par défaut ; le tap sur sa ligne (hors case) déplie ses
+   éléments juste en dessous, en retrait, chacun avec sa propre case. Jamais une ligne affichée
+   deux fois : repliée, seul le groupe se voit ; dépliée, ses éléments remplacent le silence. */
+.ml-groupe .gv-groupe { border-bottom:0; }
+.ml-groupe + .ml-groupe .gv-groupe { border-top:1px solid var(--separateur); }
+.ml-sous-lignes { padding-left:16px; border-bottom:1px solid var(--separateur); }
+.ml-sous-lignes .mois-charge:last-child { border-bottom:0; }
+/* Un bouton (vue Catégories, pas de case cycle sur l'en-tête) garde le même gabarit visuel que
+   `.mvt` mais doit rester plein-largeur et sans fond de bouton natif. */
+button.gv-groupe {
+  width:100%; background:none; border:0; border-bottom:1px solid var(--separateur);
+  text-align:left; font:inherit; color:inherit; cursor:pointer;
+}
+/* Montant pas encore saisi : jamais de case à cocher ni de champ de saisie dans la liste (le
+   montant se tape dans la feuille de réglage, ouverte au tap) — le texte le dit, en ambre. */
+.mc-manque {
+  flex:none; align-self:center; font-size:13px; font-weight:600; color:var(--ambre-texte);
+  white-space:nowrap;
+}
+.ml-element.a-faire { background:var(--ambre-ligne); margin:0 -12px; padding:4px 12px; }
+.ml-element .case-cycle-vide { flex:none; }

@@ -96,8 +96,21 @@ try {
   console.log("Ce mois :", (await page.textContent("#sous-mois")).trim());
   await page.screenshot({ path: path.join(SORTIE, "mois-mobile.png"), fullPage: true });
 
-  // Détail d'un mouvement + coche, si au moins un mouvement existe.
-  const mouvements = await page.$$("#mvts-a-faire .mvt");
+  // Liste unifiée (D-051) : vue Catégories, pour atteindre directement un mouvement et une
+  // ligne de charge sans dépendre des trajets réels en base (l'ancienne vue Destinataires
+  // groupe tout sous un trajet replié par défaut — la vue Catégories isole le bucket
+  // « Virements », toujours en tête, des catégories de charges).
+  await page.click('#mois-vue-charges [data-vue-charges="categories"]');
+  await page.waitForSelector("#mvts-a-faire [data-ml-groupe], #mvts-faits [data-ml-groupe]", { timeout: 10000 });
+
+  // Détail d'un mouvement + coche, si au moins un mouvement (hors ligne de charge) existe : le
+  // groupe « Virements » est le premier groupe de la vue Catégories, à déplier d'abord.
+  const groupeVirements = page.locator('[data-ml-groupe^="false:__virements__"], [data-ml-groupe^="true:__virements__"]').first();
+  if (await groupeVirements.count()) {
+    await groupeVirements.click();
+    await page.waitForSelector(".ml-groupe.ouvert .ml-element[data-ml-type=mouvement]", { timeout: 5000 }).catch(() => {});
+  }
+  const mouvements = await page.$$('.ml-element[data-ml-type="mouvement"]');
   if (mouvements.length) {
     const idMouvement = await mouvements[0].getAttribute("data-id");
     await mouvements[0].click();
@@ -106,44 +119,49 @@ try {
     console.log("Détail mouvement :", (await page.textContent("#feuille .detail-montant .grand")).trim());
     await page.screenshot({ path: path.join(SORTIE, "detail-mobile.png"), fullPage: true });
     await page.click("#feuille [data-basculer]");
-    const selecteurMouvement = `#mvts-faits .mvt[data-id="${idMouvement}"]`;
-    await page.waitForSelector(selecteurMouvement, { timeout: 10000 });
+    const selecteurMouvement = `.ml-element[data-ml-type="mouvement"][data-id="${idMouvement}"]`;
+    await page.waitForSelector(`${selecteurMouvement}.fait`, { timeout: 10000 });
     console.log("Mouvement coché OK");
     // Cycle de validation (D-048) : la case n'est plus un binaire fait/pas fait mais rien →
     // un membre → l'autre → rien — autant de taps que de membres du foyer pour revenir à rien
     // depuis N'IMPORTE QUELLE position de départ dans le cycle (fait_par vaut ici le prénom
     // connecté, pas forcément le premier membre du cycle) : on cible CE mouvement précis par
     // son id (d'autres mouvements peuvent déjà être « faits » en base, indépendamment de ce
-    // test), on tape jusqu'à ce qu'il quitte « faits », avec une limite de sécurité.
+    // test), on tape jusqu'à ce qu'il quitte « fait », avec une limite de sécurité.
     const nbMembres = (await page.evaluate(() => document.querySelectorAll("#salaires [data-revenu]").length)) || 2;
     let taps = 0;
-    while (await page.locator(selecteurMouvement).count() > 0 && taps <= nbMembres) {
-      await page.locator(`${selecteurMouvement} [data-cycle]`).click();
+    while (await page.locator(`${selecteurMouvement}.fait`).count() > 0 && taps <= nbMembres) {
+      await page.locator(`${selecteurMouvement} [data-cycle-mouvement]`).click();
       await page.waitForTimeout(300); // écriture optimiste + réseau, comme les autres bascules du test
       taps++;
     }
-    await page.waitForSelector(selecteurMouvement, { state: "detached", timeout: 10000 });
+    await page.waitForSelector(`${selecteurMouvement}.fait`, { state: "detached", timeout: 10000 });
     console.log(`Cycle de validation ramené à rien OK (${taps} tap${taps > 1 ? "s" : ""})`);
   } else {
     console.log("Aucun mouvement à faire ce mois — coche non testée");
   }
 
-  // ---------- charges (fusionnées dans l'écran Mois, D-036 §4) ----------
-  // L'ancien écran « Charges » n'existe plus : les catégories vivent en deux colonnes dans
-  // l'écran Mois lui-même (#mois-categories, ui-mois-charges.js), déjà affiché ci-dessus.
-  await page.waitForSelector("#mois-categories .carte-charges", { timeout: 20000 });
-  const sections = await page.$$eval("#mois-categories .carte-tete span:first-child", (e) => e.map((x) => x.textContent.trim()));
-  console.log("Catégories :", sections.join(" | "));
-  if (!sections.map((s) => s.toUpperCase()).includes("LOGEMENT")) throw new Error("catégorie Logement absente");
+  // ---------- charges (fusionnées dans l'écran Mois, liste unifiée D-051) ----------
+  // L'ancien écran « Charges » n'existe plus, et depuis D-051 chaque charge est une ligne de la
+  // liste unifiée, groupée par catégorie dans cette vue (ui-mois-liste.js / groupes-categories.js).
+  const groupesCategorie = await page.$$eval('[data-ml-groupe]:not([data-ml-groupe^="false:__virements__"]):not([data-ml-groupe^="true:__virements__"]) .mvt-titre',
+    (e) => e.map((x) => x.textContent.trim()));
+  console.log("Catégories :", [...new Set(groupesCategorie)].join(" | "));
+  if (!groupesCategorie.map((s) => s.toUpperCase()).includes("LOGEMENT")) throw new Error("catégorie Logement absente");
+
+  // Déplier la première catégorie non-Virements pour atteindre une ligne de charge.
+  const premierGroupeCharge = page.locator('[data-ml-groupe]:not([data-ml-groupe*="__virements__"])').first();
+  await premierGroupeCharge.click();
+  await page.waitForSelector('.ml-groupe.ouvert .ml-element[data-ml-type="ligne"]', { timeout: 5000 }).catch(() => {});
 
   // Validation d'une ligne de charge (D-046/D-048) : une charge avec un montant saisi ce
   // mois-ci (jamais « a-faire », règle 3 du brief) ; la case est un CYCLE (rien → un membre →
   // l'autre → rien, D-048) — on avance d'autant de crans que de membres du foyer pour revenir
   // exactement à l'état de départ (même prénom validateur, ou rien), quel qu'il soit en base.
-  const ligneAvecMontant = "#mois-categories .mois-charge:not(.a-faire) [data-cycle]";
+  const ligneAvecMontant = '.ml-element[data-ml-type="ligne"]:not(.a-faire) [data-cycle-ligne]';
   if (await page.$(ligneAvecMontant)) {
-    const idCharge = await page.getAttribute(ligneAvecMontant, "data-cycle");
-    const selecteurLigne = `#mois-categories .mois-charge[data-id="${idCharge}"]`;
+    const idCharge = await page.getAttribute(ligneAvecMontant, "data-cycle-ligne");
+    const selecteurLigne = `.ml-element[data-ml-type="ligne"][data-id="${idCharge}"]`;
     const etaitFaite = await page.locator(selecteurLigne).evaluate((el) => el.classList.contains("fait"));
     const nbMembres = await page.evaluate(() => document.querySelectorAll("#salaires [data-revenu]").length) || 2;
 
@@ -155,7 +173,7 @@ try {
       // n'importe quel sens, avant de continuer (l'assertion forte porte sur l'état FINAL).
       const attente = page.waitForResponse((r) => ["POST", "PATCH"].includes(r.request().method())
         && r.url().includes("/rest/v1/lignes"), { timeout: 10000 });
-      await page.click(`${selecteurLigne} [data-cycle]`);
+      await page.click(`${selecteurLigne} [data-cycle-ligne]`);
       const reponse = await Promise.race([attente, page.waitForTimeout(4000).then(() => null)]);
       if (!reponse) {
         const toastTexte = await page.textContent("#toast").catch(() => "");

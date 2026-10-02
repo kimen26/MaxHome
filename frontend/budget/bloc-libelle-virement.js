@@ -1,5 +1,6 @@
-// Bloc d'affichage + comportement du libellé de virement (D-050), partagé entre le détail d'un
-// groupe (ui-groupes-virements.js) et le détail d'un mouvement seul (ui-mouvements.js) — D-024 :
+// Bloc d'affichage + comportement du libellé de virement (D-050), partagé entre un groupe
+// déplié de la liste unifiée (ui-mois-liste.js) et le détail d'un mouvement seul
+// (ui-mouvements.js) — D-024 :
 // un écran assemble, il n'écrit pas deux fois le même HTML ni le même cycle d'écriture. La règle
 // (quelle valeur, à compléter ou non) reste pure dans libelle-virement.js, testée sans DOM.
 

@@ -144,8 +144,10 @@ const moisComplet = {
   mois: 9, membres: [{ prenom: "Yann" }, { prenom: "Claudia" }],
   revenus: { Yann: 280000, Claudia: 250000 },
   charges: [
-    { id: 1, actif: true, ponctuel: false }, { id: 2, actif: true, ponctuel: false },
-    { id: 3, actif: false, ponctuel: false }, { id: 4, actif: true, ponctuel: true },
+    { id: 1, libelle: "Charge A", actif: true, ponctuel: false },
+    { id: 2, libelle: "Charge B", actif: true, ponctuel: false },
+    { id: 3, libelle: "Charge C", actif: false, ponctuel: false },
+    { id: 4, libelle: "Charge D", actif: true, ponctuel: true },
   ],
   // Les deux lignes de charges actives sont déjà validées ; « 0 saisi » compte comme rempli
   // (règle inchangée de ui-mois-charges.js::saisie).
@@ -171,7 +173,10 @@ assert.equal(deuxSalaires.phrase, "Salaires à noter", "le salaire passe avant l
 const chargesVides = etatDuMois({ ...moisComplet, lignes: {} });
 assert.equal(chargesVides.statut, "charges");
 assert.equal(chargesVides.phrase, "2 charges à remplir");
-assert.equal(etatDuMois({ ...moisComplet, lignes: { 1: moisComplet.lignes[1] } }).phrase, "1 charge à remplir");
+// Une seule charge manquante : la phrase la NOMME (plainte Yann : « on ne sait pas laquelle »).
+const uneChargeVide = etatDuMois({ ...moisComplet, lignes: { 1: moisComplet.lignes[1] } });
+assert.equal(uneChargeVide.phrase, "Montant à saisir : Charge B");
+assert.equal(uneChargeVide.chargeManquante.id, 2);
 assert.ok(!texteAFaireVide(chargesVides).includes("Tout est fait"), "jamais « tout est fait » avec une charge vide");
 
 // Un mouvement non fait à valider.

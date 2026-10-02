@@ -1,5 +1,9 @@
 // Feuille de réglage d'UNE charge, ouverte au tap sur son libellé (écran Mois) ou sur son
-// nom (Réglages · Charges). Quatre questions, dans l'ordre où on se les pose (D-040, D-042) :
+// nom (Réglages · Charges). Cinq questions, dans l'ordre où on se les pose (D-040, D-042,
+// D-051) :
+//   0. Le montant DE CE MOIS (etat.lignes) — seul endroit où on le tape depuis la refonte
+//      D-051 (plus de champ inline dans la liste) ; absent tant qu'aucun mois n'est ouvert
+//      (Réglages · Charges, hors contexte d'un mois) ;
 //   1. Le montant revient-il chaque mois ? « Toujours le même » (noté ici) ou « Change chaque
 //      mois » (on reprend le dernier) ;
 //   2. Qui paie quoi ? 50/50, prorata, clé fixe, un seul paie — la part de chacun sous chaque option ;
@@ -34,10 +38,19 @@ export function creerFeuilleCharge(api, etat, cb, categories) {
     // Écart utile seulement pour « Toujours le même » : ce mois diffère du montant noté.
     const ecart = !c.defaut_dernier && saisi && c.montant_defaut != null && m !== c.montant_defaut;
     const cats = categories.includes(c.categorie) ? categories : [...categories, c.categorie];
+    // Montant DE CE MOIS (etat.annee/mois) : seul champ qui écrit sur `lignes`, pas sur la
+    // charge — distinct de « Le montant, chaque mois » (montant_defaut) qui règle les mois
+    // SUIVANTS. Toujours affiché depuis l'écran Mois (ouvert sur un mois précis, D-051) ;
+    // `etat.mois` vaut toujours un mois réel ici (Réglages · Charges ne passe jamais par cette
+    // feuille sans contexte de mois — ui-charges-ref.js ouvre toujours sur le mois courant).
     return `<form class="pile reglages" data-charge="${c.id}" novalidate>
       <div class="detail-tete"><div><h2>${txt(c.libelle)}</h2>
         <span class="sous">${txt(c.categorie)}${habituel != null ? ` · habituellement ${txt(euros(habituel))}` : ""}</span></div>
         <button type="button" class="btn-lien" data-fermer-reglages>Fermer</button></div>
+
+      <label class="champ-label montant-mois"><span class="etiquette">Montant de ce mois</span>
+        <input class="champ champ-montant grand-montant" name="montant_mois" inputmode="decimal"
+               value="${saisi ? enEuros(m) : ""}" placeholder="${habituel != null ? enEuros(habituel) : "0,00"}"></label>
 
       ${ecart ? `<div class="ecart-mois">
         <span>Ce mois : <strong class="mono">${euros(m)}</strong> au lieu de ${euros(c.montant_defaut)}</span>
@@ -168,10 +181,28 @@ export function creerFeuilleCharge(api, etat, cb, categories) {
       ev.preventDefault();
       const champs = lireChamps(form, facon, regle);
       if (typeof champs === "string") { toast(champs); return; }
+      // Montant DE CE MOIS (D-051) : vide → pas de ligne ce mois (supprimée si elle existait) ;
+      // sinon écrit sur `lignes`, jamais sur la charge. Lu avant d'écrire quoi que ce soit, pour
+      // refuser la saisie illisible sans avoir déjà enregistré le reste de la feuille.
+      const brutMois = form.elements.montant_mois.value.trim();
+      let montantMois = null;
+      if (brutMois) {
+        try { montantMois = versCentimes(brutMois); }
+        catch { toast(`Montant du mois illisible : « ${brutMois} ».`); return; }
+      }
       const compte = form.elements.compte.value ? Number(form.elements.compte.value) : null;
       enregistrerPuisFermer(async () => {
         await api.majCharge(c.id, champs);
         Object.assign(c, champs);
+        if (montantMois == null) {
+          if (ligne(c.id) !== undefined) {
+            await api.supprimerLigne(etat.annee, etat.mois, c.id);
+            delete etat.lignes[c.id];
+          }
+        } else if (ligne(c.id)?.montant_centimes !== montantMois) {
+          await api.majLigne(etat.annee, etat.mois, c.id, { montant_centimes: montantMois });
+          etat.lignes[c.id] = { ...(ligne(c.id) ?? { regle: null }), montant_centimes: montantMois };
+        }
         // Après la charge : le titre du virement et son compte de départ suivent le nom et la
         // règle qu'on vient d'écrire. Sans changement, choisirCompte n'écrit rien.
         return choisirCompte(api, etat, c, compte);
