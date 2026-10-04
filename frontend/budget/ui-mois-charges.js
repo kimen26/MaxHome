@@ -39,7 +39,7 @@ export function creerUiMoisCharges(api, etat, cb) {
    *  revient au compte pour ne pas déborder à 360 px). */
   function rendreACompleter() {
     const liste = proposees();
-    const manquantes = liste.filter((c) => !saisie(c.id));
+    const manquantes = liste.filter((c) => !saisie(c.id) && c.montant_defaut !== 0);
     const remplissables = manquantes.filter((c) => habituel(c) != null);
     const zone = $("#mois-a-completer");
     if (!manquantes.length) { zone.innerHTML = ""; return; }

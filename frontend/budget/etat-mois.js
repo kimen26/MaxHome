@@ -26,7 +26,8 @@ const pluriel = (n) => (n > 1 ? "s" : "");
 export function etatDuMois({ mois, membres, revenus, charges, lignes, mouvements, recurrents = [] }) {
   const salaires = membres.filter((m) => !revenus[m.prenom]).map((m) => m.prenom);
   const actives = charges.filter((c) => c.actif !== false && !c.ponctuel);
-  const videsListe = actives.filter((c) => lignes[c.id] === undefined);
+  // Montant habituel 0 (ex. une enveloppe d'extras) : rien à saisir, la charge vaut 0 par défaut.
+  const videsListe = actives.filter((c) => lignes[c.id] === undefined && c.montant_defaut !== 0);
   const chargesVides = videsListe.length;
 
   const modeCharge = (m) => recurrents.find((r) => r.id === m.recurrent_id)?.mode === "charge";

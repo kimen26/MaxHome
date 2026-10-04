@@ -512,3 +512,11 @@ par `recette_connectee.mjs` sur la vraie base (un `waitForSelector` sur l'élém
 n'aboutissait jamais). Correctif : une seule clé par catégorie (`"cat:Logement"`), partagée par
 les deux variantes de rendu — déplier une catégorie montre ses lignes à faire ET ses lignes
 faites ensemble.
+
+## L-052 — livré = poussé : vérifier origin/master avant de dire « publié » (2026-10-04)
+
+Trois commits de la refonte de l'écran Mois sont restés en local ; on a annoncé « publié »,
+le téléphone montrait l'ancien écran. Avant de dire qu'une chose est en ligne :
+`git log origin/master -1` doit montrer le commit. Et une recette sur maquette ne suffit pas
+pour l'écran Mois : `node tests/recette_mois_reel.mjs` (vraies données, lecture seule) a révélé
+la charge « montant habituel 0 » prise pour une charge à remplir.
