@@ -23,8 +23,8 @@ export function creerFicheVoyage(api, etat, cb) {
   let blocs = [];
   let enveloppes = [];
 
-  const resas_actif = () => creerFicheResas(api, etat, cb, { voyage: () => voyage, resas: () => resas, pieces: () => pieces, rafraichir, revenirALaFiche: () => revenirALaFiche("resas") });
-  const lieux_actif = () => creerFicheLieux(api, etat, cb, { voyage: () => voyage, lieux: () => lieux, rafraichir, revenirALaFiche: () => revenirALaFiche("lieux") });
+  const resas_actif = () => creerFicheResas(api, etat, cb, { voyage: () => voyage, resas: () => resas, pieces: () => pieces, lieux: () => lieux, rafraichir, revenirALaFiche: () => revenirALaFiche("resas") });
+  const lieux_actif = () => creerFicheLieux(api, etat, cb, { voyage: () => voyage, lieux: () => lieux, resas: () => resas, rafraichir, revenirALaFiche: () => revenirALaFiche("lieux") });
   const blocs_actif = () => creerFicheBlocs(api, etat, cb, { voyage: () => voyage, blocs: () => blocs, rafraichir, revenirALaFiche: () => revenirALaFiche("resume") });
   const budget_actif = () => creerFicheBudget(api, etat, cb, { voyage: () => voyage, resas: () => resas, enveloppes: () => enveloppes, rafraichir, revenirALaFiche: () => revenirALaFiche("budget") });
 

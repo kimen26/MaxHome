@@ -3,7 +3,8 @@ import { paques, feries, grilleMois, evenementsDuMois, prochaines, nbJours, form
   couvre, chevauche } from "../frontend/agenda/calendrier.js";
 import { parserVacances, chargerVacances, jourParis, cleCache, TTL_CACHE_MS } from "../frontend/agenda/vacances.js";
 import { lieuxParJour, totauxResas, joursAvant, CATEGORIES_LIEU, TYPES_RESA,
-  POSTES, TYPES_BLOC, posteDe, budgetParPoste, prochaineEtape, couleurVoyage, TEINTES_VOYAGE } from "../frontend/agenda/carnet.js";
+  POSTES, TYPES_BLOC, posteDe, budgetParPoste, prochaineEtape, couleurVoyage, TEINTES_VOYAGE,
+  resaDuLieu, sectionsLieux } from "../frontend/agenda/carnet.js";
 import { rendreTopo } from "../frontend/agenda/topo.js";
 
 // ---------- Pâques et fériés ----------
@@ -256,5 +257,47 @@ assert.equal(rendreTopo("<script>alert(1)</script>"), "<p>&lt;script&gt;alert(1)
 assert.equal(rendreTopo("[x](javascript:alert(1))"), "<p>[x](javascript:alert(1))</p>", "schéma non http(s) : reste du texte, jamais un lien");
 assert.equal(rendreTopo('<img src=x onerror="alert(1)">'), "<p>&lt;img src=x onerror=&quot;alert(1)&quot;&gt;</p>");
 assert.equal(rendreTopo("## <b>Titre</b> **gras**"), "<h3>&lt;b&gt;Titre&lt;/b&gt; <strong>gras</strong></h3>", "titre : HTML échappé, gras transformé");
+
+// ---------- carnet de voyage : resaDuLieu ----------
+const lieuA = { id: 1, nom: "Musée A" };
+const lieuB = { id: 2, nom: "Parc B" };
+const lieuC = { id: 3, nom: "Café C" };
+const resasLiees = [
+  { id: 10, lieu_id: 1, statut: "a_reserver", debut: "2026-11-02T10:00:00" },
+  { id: 11, lieu_id: 1, statut: "reserve", debut: "2026-11-03T14:00:00" },
+  { id: 12, lieu_id: 2, statut: "annule", debut: "2026-11-01T09:00:00" },
+];
+assert.equal(resaDuLieu(lieuA, resasLiees).id, 11, "la réservée est préférée à l'à-réserver");
+assert.equal(resaDuLieu(lieuB, resasLiees), null, "seule résa liée annulée : aucune résa retenue");
+assert.equal(resaDuLieu(lieuC, resasLiees), null, "aucune résa liée");
+assert.equal(resaDuLieu({ id: 1 }, [{ lieu_id: 1, statut: "a_reserver", debut: null }]).statut, "a_reserver",
+  "une seule résa liée non réservée : c'est quand même elle, pas null");
+
+// ---------- carnet de voyage : sectionsLieux ----------
+const lieuxSections = [
+  { id: 1, nom: "Musée A", categorie: "a_voir", statut: "prevu", jour: "2026-11-02" },
+  { id: 2, nom: "Parc B", categorie: "activite", statut: "fait", jour: "2026-11-01" },
+  // Idée sans date propre, mais réservée : rejoint le programme, daté par la résa.
+  { id: 3, nom: "Resto C", categorie: "resto", statut: "idee", jour: null },
+  { id: 4, nom: "Plage D", categorie: "a_voir", statut: "idee", jour: null },
+  { id: 5, nom: "Musée E", categorie: "a_voir", statut: "idee", jour: null },
+  { id: 6, nom: "Café F", categorie: "resto", statut: "idee", jour: null },
+  { id: 7, nom: "Vieux pont", categorie: "autre", statut: "ecarte", jour: null },
+];
+const resasSections = [
+  { lieu_id: 3, statut: "reserve", debut: "2026-11-04T19:30:00" },
+];
+const sections = sectionsLieux(lieuxSections, resasSections);
+assert.deepEqual(sections.programme.map((g) => g.jour), ["2026-11-01", "2026-11-02", "2026-11-04"],
+  "programme groupé par jour croissant, y compris le jour déduit de la résa");
+assert.deepEqual(sections.programme.find((g) => g.jour === "2026-11-04").lieux.map((l) => l.nom), ["Resto C"],
+  "idée réservée datée par sa résa, rejoint le programme");
+assert.deepEqual(sections.idees.map((g) => g.categorie), ["a_voir", "resto"],
+  "idées groupées par catégorie, ordre de CATEGORIES_LIEU, groupes vides omis");
+assert.deepEqual(sections.idees.find((g) => g.categorie === "a_voir").lieux.map((l) => l.nom), ["Plage D", "Musée E"]);
+assert.deepEqual(sections.idees.find((g) => g.categorie === "resto").lieux.map((l) => l.nom), ["Café F"],
+  "Resto C est au programme (réservé), pas ici");
+assert.deepEqual(sections.ecartes.map((l) => l.nom), ["Vieux pont"]);
+assert.deepEqual(sectionsLieux([], []), { programme: [], idees: [], ecartes: [] }, "aucun lieu : tout vide");
 
 console.log("test_agenda OK");

@@ -8,14 +8,19 @@ import { $, txt, ouvrirFeuille, fermerFeuille, toast, copier, confirmer } from "
 import { titreSection, caseACocher } from "../socle/blocs.js";
 import { champ, select, zone, membresOptions, lire, enEuros } from "../socle/blocs-form.js";
 import { euros, versCentimes } from "../budget/calc.js";
-import { TYPES_RESA, POSTES, posteDe } from "./carnet.js";
+import { TYPES_RESA, POSTES, posteDe, COMPTE_COMMUN } from "./carnet.js";
 import { ouvrirPieceEnPlein } from "./ui-piece-plein-ecran.js";
 
-export function creerFicheResas(api, etat, cb, { voyage, resas, pieces, rafraichir, revenirALaFiche }) {
+export function creerFicheResas(api, etat, cb, { voyage, resas, pieces, lieux, rafraichir, revenirALaFiche }) {
   let annuleesDepliees = false;
 
   function piecesDe(resaId) {
     return pieces().filter((p) => p.resa_id === resaId);
+  }
+
+  /** Lieux non écartés triés par nom, pour le select « Lieu » du formulaire dépense. */
+  function lieuxOptions() {
+    return [...lieux()].filter((l) => l.statut !== "ecarte").sort((a, b) => a.nom.localeCompare(b.nom, "fr")).map((l) => [l.id, l.nom]);
   }
 
   function ligne(r) {
@@ -137,6 +142,22 @@ export function creerFicheResas(api, etat, cb, { voyage, resas, pieces, rafraich
       r.statut = avant;
       rendre();
       cb.echec(e);
+      return;
+    }
+    if (await promouvoirLieu(r.lieu_id, r.statut)) await rafraichir();
+  }
+
+  /** Un lieu dont la résa liée est faite n'est plus une idée : il passe « prévu », sinon sa fiche
+   *  montrait « ✓ Réservé » et « Idée » côte à côte. Vrai si le lieu a changé. */
+  async function promouvoirLieu(lieuId, statutResa) {
+    const lieu = lieuId != null && statutResa === "reserve" ? lieux().find((l) => l.id === lieuId) : null;
+    if (lieu?.statut !== "idee") return false;
+    try {
+      await api.majLieu(lieu.id, { statut: "prevu" });
+      return true;
+    } catch (e) {
+      cb.echec(e);
+      return false;
     }
   }
 
@@ -158,7 +179,8 @@ export function creerFicheResas(api, etat, cb, { voyage, resas, pieces, rafraich
       ${champ("prestataire", "Prestataire", { valeur: r?.prestataire, placeholder: "ex. Vueling" })}
       ${champ("code", "Code de réservation", { valeur: r?.code, placeholder: "ex. AB12CD" })}
       ${champ("prix", "Prix (€)", { valeur: r?.prix_centimes != null ? enEuros(r.prix_centimes) : "", placeholder: "0,00" })}
-      ${select("paye_par", "Payé par", membresOptions(etat), r?.paye_par, { vide: "Pas encore payé" })}
+      ${select("paye_par", "Payé par", [...membresOptions(etat), [COMPTE_COMMUN, COMPTE_COMMUN]], r?.paye_par, { vide: "Pas encore payé" })}
+      ${select("lieu_id", "Lieu", lieuxOptions(), r?.lieu_id, { vide: "Aucun lieu" })}
       ${zone("note", "Note", r?.note, { lignes: 2 })}
       <div class="detail-actions">
         ${r ? `<button type="button" class="btn-lien" data-retirer-resa>Retirer</button>` : ""}
@@ -171,7 +193,7 @@ export function creerFicheResas(api, etat, cb, { voyage, resas, pieces, rafraich
     form.querySelector("[data-annuler-resa]")?.addEventListener("click", () => annulerResa(r));
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
-      const v = lire(form);
+      const v = lire(form, { nombres: ["lieu_id"] });
       if (!v.titre) { toast("Le titre est obligatoire."); return; }
       let prix_centimes = null;
       if (v.prix) {
@@ -180,11 +202,12 @@ export function creerFicheResas(api, etat, cb, { voyage, resas, pieces, rafraich
       }
       const champs = {
         type: v.type, poste: v.poste || null, titre: v.titre, debut: v.debut || null, fin: v.fin || null,
-        prestataire: v.prestataire, code: v.code, prix_centimes, paye_par: v.paye_par, note: v.note,
+        prestataire: v.prestataire, code: v.code, prix_centimes, paye_par: v.paye_par, lieu_id: v.lieu_id, note: v.note,
       };
       try {
         if (r) await api.majResa(r.id, champs);
         else await api.creerResa({ ...champs, voyage_id: voyage().id, statut: "a_reserver", cree_par: etat.prenom });
+        await promouvoirLieu(champs.lieu_id, r?.statut);
         fermerFeuille(); // déclenche onFermer -> revenirALaFiche (rafraîchit + scroll Réservations)
         toast(r ? "Dépense enregistrée." : "Dépense ajoutée.");
       } catch (e) { cb.echec(e); }

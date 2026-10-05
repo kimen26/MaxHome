@@ -520,3 +520,11 @@ le téléphone montrait l'ancien écran. Avant de dire qu'une chose est en ligne
 `git log origin/master -1` doit montrer le commit. Et une recette sur maquette ne suffit pas
 pour l'écran Mois : `node tests/recette_mois_reel.mjs` (vraies données, lecture seule) a révélé
 la charge « montant habituel 0 » prise pour une charge à remplir.
+
+## L-053 — La base MaxHome se lit par `scripts/sql.py`, pas par les serveurs MCP Supabase (2026-10-06)
+
+On a cherché les données Auvergne via les serveurs MCP : `supabase-maxvoyage` est le projet
+de la migration v3 abandonnée de MaxVoyage (tables vides, MaxVoyage est revenu à SQLite le
+19/08), `supabase` est MaxPlay. Une demi-session perdue en « timeout » et en fausses pistes.
+La base MaxHome se lit et s'écrit par `python scripts/sql.py <fichier.sql>` (Management API,
+`.env`) ; une requête de lecture va dans un fichier hors du repo.

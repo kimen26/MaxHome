@@ -400,12 +400,14 @@ export const VACANCES_CACHE = [
 ];
 
 // ---------- module Agenda : carnet de voyage (voyage 1, « Week-end à la mer ») ----------
-// 5 résas/dépenses (D-047 §V2 : une résa EST une ligne de dépense) : vol coché/payé (poste
+// 6 résas/dépenses (D-047 §V2 : une résa EST une ligne de dépense) : vol coché/payé (poste
 // transport, déduit du type, dépasse l'enveloppe 80 € à lui seul avec le billet retour à venir),
 // billet retour PAS coché (à_reserver, teste la case décochée et « à venir » du budget), logement
-// coché sans payeur (teste « non payé »), voiture annulée (exclue des totaux), et un repas SANS
+// coché sans payeur (teste « non payé »), voiture annulée (exclue des totaux), un repas SANS
 // DATE ni code (poste sur_place au lieu du type déduit « repas » → transport : teste `poste`
-// explicite, une dépense « repas sur place » sans date est normale — brief §V2).
+// explicite, une dépense « repas sur place » sans date est normale — brief §V2), et une résa
+// liée au lieu 3 (Restaurant Le Ponton) pour tester le badge « ✓ Réservé » des fiches lieu
+// (brief lot « fiches visuelles »).
 export const VOYAGE_RESAS = [
   { id: 1, voyage_id: 1, type: "vol", poste: null, titre: "Aller Paris → Deauville", debut: `${ilYA(1)}T07:30:00`, fin: `${ilYA(1)}T08:45:00`,
     prestataire: "Air Littoral", code: "XR7K2P", prix_centimes: 8900, paye_par: "Yann", statut: "reserve",
@@ -422,28 +424,48 @@ export const VOYAGE_RESAS = [
   { id: 5, voyage_id: 1, type: "repas", poste: "sur_place", titre: "Repas sur place", debut: null, fin: null,
     prestataire: null, code: null, prix_centimes: 4000, paye_par: "Claudia", statut: "reserve",
     lieu_id: null, note: "Estimation pour les deux jours.", cree_par: "Claudia", cree_le: ilYA(5) },
+  { id: 6, voyage_id: 1, type: "activite", poste: null, titre: "Table réservée", debut: `${ilYA(0)}T19:30:00`, fin: null,
+    prestataire: "Le Ponton", code: null, prix_centimes: null, paye_par: null, statut: "reserve",
+    lieu_id: 3, note: null, cree_par: "Claudia", cree_le: ilYA(14) },
 ];
 
 // 8 lieux : 2 sans position (« à localiser »), 3 datés sur 2 jours différents, le reste sans
 // date. Catégories variées pour peupler la légende de la carte (carnet.js::CATEGORIES_LIEU).
+// Lieu 1 : photo + topo + horaires (teste la fiche visuelle avec photo, brief lot « fiches
+// visuelles »). Lieu 3 : idée + résa liée réservée (id 6 ci-dessus) → rejoint « Au programme »
+// avec le badge « ✓ Réservé » (carnet.js::sectionsLieux).
 export const VOYAGE_LIEUX = [
   { id: 1, voyage_id: 1, nom: "Plage de Deauville", categorie: "a_voir", statut: "prevu", jour: ilYA(1), ordre: 1,
-    lat: 49.3573, lng: 0.0708, adresse: "Plage de Deauville, 14800 Deauville", note: "Planches en bois célèbres.", lien: null, cree_par: "Yann", cree_le: ilYA(29) },
+    lat: 49.3573, lng: 0.0708, adresse: "Plage de Deauville, 14800 Deauville", note: "Planches en bois célèbres.", lien: "https://exemple.fr/plage-deauville",
+    photo_chemin: "1/lieux/plage-deauville.png", topo: "De longues planches en bois le long de la plage, bordées de cabines colorées.",
+    horaires: "Accès libre, surveillée 10h-18h en saison.", cree_par: "Yann", cree_le: ilYA(29) },
   { id: 2, voyage_id: 1, nom: "Marché de Deauville", categorie: "a_voir", statut: "idee", jour: ilYA(1), ordre: 2,
-    lat: 49.3565, lng: 0.0721, adresse: "Marché, place Morny, 14800 Deauville", note: null, lien: null, cree_par: "Yann", cree_le: ilYA(29) },
-  { id: 3, voyage_id: 1, nom: "Restaurant Le Ponton", categorie: "resto", statut: "prevu", jour: ilYA(0), ordre: 1,
-    lat: 49.3601, lng: 0.0755, adresse: "Le Ponton, quai de la Marine, 14800 Deauville", note: "Réserver pour 19 h 30.", lien: null, cree_par: "Claudia", cree_le: ilYA(15) },
+    lat: 49.3565, lng: 0.0721, adresse: "Marché, place Morny, 14800 Deauville", note: null, lien: null,
+    photo_chemin: null, topo: null, horaires: "Dimanche matin seulement.", cree_par: "Yann", cree_le: ilYA(29) },
+  { id: 3, voyage_id: 1, nom: "Restaurant Le Ponton", categorie: "resto", statut: "idee", jour: null, ordre: 1,
+    lat: 49.3601, lng: 0.0755, adresse: "Le Ponton, quai de la Marine, 14800 Deauville", note: "Réserver pour 19 h 30.", lien: null,
+    photo_chemin: null, topo: "Cuisine de la mer, vue sur le port.", horaires: null, cree_par: "Claudia", cree_le: ilYA(15) },
   { id: 4, voyage_id: 1, nom: "Gîte les Embruns", categorie: "logement", statut: "prevu", jour: null, ordre: 0,
-    lat: 49.3540, lng: 0.0690, adresse: "12 rue des Embruns, 14800 Deauville", note: null, lien: null, cree_par: "Yann", cree_le: ilYA(28) },
+    lat: 49.3540, lng: 0.0690, adresse: "12 rue des Embruns, 14800 Deauville", note: null, lien: null,
+    photo_chemin: null, topo: null, horaires: null, cree_par: "Yann", cree_le: ilYA(28) },
   { id: 5, voyage_id: 1, nom: "Gare de Deauville", categorie: "transport", statut: "fait", jour: null, ordre: 0,
-    lat: 49.3465, lng: 0.0819, adresse: "Gare de Deauville-Trouville", note: null, lien: null, cree_par: "Yann", cree_le: ilYA(30) },
+    lat: 49.3465, lng: 0.0819, adresse: "Gare de Deauville-Trouville", note: null, lien: null,
+    photo_chemin: null, topo: null, horaires: null, cree_par: "Yann", cree_le: ilYA(30) },
   { id: 6, voyage_id: 1, nom: "Aquarium de Trouville", categorie: "activite", statut: "idee", jour: null, ordre: 0,
-    lat: null, lng: null, adresse: null, note: "À localiser : deux communes portent ce nom.", lien: null, cree_par: "Claudia", cree_le: ilYA(12) },
+    lat: null, lng: null, adresse: null, note: "À localiser : deux communes portent ce nom.", lien: null,
+    photo_chemin: null, topo: null, horaires: null, cree_par: "Claudia", cree_le: ilYA(12) },
   { id: 7, voyage_id: 1, nom: "Vieille ville", categorie: "a_voir", statut: "idee", jour: null, ordre: 0,
-    lat: null, lng: null, adresse: null, note: null, lien: null, cree_par: "Claudia", cree_le: ilYA(11) },
+    lat: null, lng: null, adresse: null, note: null, lien: null,
+    photo_chemin: null, topo: null, horaires: null, cree_par: "Claudia", cree_le: ilYA(11) },
   { id: 8, voyage_id: 1, nom: "Cabane à huîtres oubliée", categorie: "resto", statut: "ecarte", jour: null, ordre: 0,
-    lat: 49.3610, lng: 0.0740, adresse: "Cabane à huîtres, Deauville", note: "Fermée hors saison.", lien: null, cree_par: "Yann", cree_le: ilYA(9) },
+    lat: 49.3610, lng: 0.0740, adresse: "Cabane à huîtres, Deauville", note: "Fermée hors saison.", lien: null,
+    photo_chemin: null, topo: null, horaires: null, cree_par: "Yann", cree_le: ilYA(9) },
 ];
+
+// Photo factice du lieu 1 : même génératrice que le billet QR (tests/qr_factice.mjs), servie en
+// data: par le bouchon Storage — pas une vraie photo, assez pour juger si la fiche lieu affiche
+// une image (ratio 16/9, object-fit:cover) plutôt qu'un bandeau de catégorie.
+export const PHOTO_LIEU_PNG_DATA_URL = genererQrFactieDataUrl();
 
 // Une pièce image qui RESSEMBLE à un QR (damier 21x21 + 3 carrés de repérage, tests/qr_factice.mjs),
 // servie en data: par le bouchon Storage — jamais un vrai QR encodé, la recette ne scanne rien,

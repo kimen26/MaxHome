@@ -242,46 +242,82 @@
 
 /* ---- Carte ---- */
 .fiche-carte { display:flex; flex-direction:column; gap:8px; }
-.carte-cadre { width:100%; min-height:220px; border-radius:11px; overflow:hidden; border:1px solid var(--bordure); background:var(--fond-bandeau); }
+/* Mobile : la carte restait à 220px quelle que soit la hauteur de l'écran, minuscule sur un
+   P30 Pro — clamp sur la hauteur de viewport (45vh, borné 280-420px) lui donne vraiment de la
+   place sans déborder sur petit écran en paysage. PC (brief §V2 « Carte haute ») : 420px fixe,
+   la colonne de droite (Étape/Budget/Résas) fournit déjà son propre défilement. */
+.carte-cadre { width:100%; min-height:clamp(280px, 45vh, 420px); border-radius:11px; overflow:hidden; border:1px solid var(--bordure); background:var(--fond-bandeau); }
 /* Leaflet a besoin d'une hauteur explicite sur son conteneur (pas de hauteur intrinsèque) :
    min-height ci-dessus suffit, .leaflet-container hérite de 100% (CSS de la librairie). */
-.leaflet-container { min-height:220px; }
+.leaflet-container { min-height:280px; }
+@media (min-width:1024px) {
+  .carte-cadre { min-height:420px; }
+  .leaflet-container { min-height:420px; }
+}
 .carte-indisponible { padding:16px; text-align:center; color:var(--texte-2); font-size:13px; }
 .carte-legende { display:flex; flex-wrap:wrap; gap:6px 12px; }
 .carte-legende-item { display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--texte-2); }
 .carte-legende-puce { width:10px; height:10px; border-radius:50%; flex:none; }
 .carte-marqueur span { display:block; width:16px; height:16px; border-radius:50%; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,.4); }
 
-/* ---- Lieux ---- */
-.fiche-lieux { display:flex; flex-direction:column; gap:10px; }
-.lieux-grille { display:flex; flex-direction:column; gap:10px; }
-/* Grille 2 colonnes sur PC (relecture point 7) : sous Lieux, la colonne de gauche ne laisse plus
-   un grand vide pendant que la droite (Étape/Budget/Résas) continue de défiler. */
-@media (min-width:1024px) { .lieux-grille { display:grid; grid-template-columns:1fr 1fr; gap:10px 20px; align-items:start; } }
-.lieux-groupe { display:flex; flex-direction:column; gap:2px; }
+/* ---- Lieux : fiches visuelles (brief carnet-voyage.md, lot « fiches visuelles ») ----
+   Au programme (par jour) → Idées à piocher (repliable, par catégorie) → Écartés (repliable).
+   Grille responsive : une colonne < 640 px (mobile-parents : jamais moins de place), auto-fill
+   minmax(260px, 1fr) au-dessus — jamais une hauteur fixe sur la carte (le texte peut grandir). */
+.fiche-lieux { display:flex; flex-direction:column; gap:14px; }
+.lieux-groupe { display:flex; flex-direction:column; gap:8px; }
 /* Pas de text-transform:capitalize (mettait une majuscule à CHAQUE mot : « Lundi 28
    Septembre », « Sans Date » — relecture carnet-voyage §H) : la casse vient déjà du texte
    posé par ui-fiche-lieux.js (formatJour, « Sans date »), une seule majuscule initiale. */
-.lieux-groupe-titre { font-size:13px; font-weight:600; color:var(--texte-2); margin:6px 0 2px; }
-.ligne-lieu { display:flex; align-items:center; gap:8px; min-height:48px; padding:2px 0; border-bottom:1px solid var(--separateur); }
-.ligne-lieu:last-child { border-bottom:0; }
-.ligne-lieu.ecarte { opacity:.6; }
-/* min-height 44 px directement (pas seulement via .cible44, dont le ::before agrandit la
-   zone tapable sans agrandir la case visuelle) : ce bouton EST la case tapable, elle doit
-   être grande pour de vrai, pas juste invisible-étendue. */
-/* Largeur FIXE (pas seulement min-height) : les trois libellés (Idée, Prévu, Fait) doivent
-   occuper le même espace pour que les noms de lieux démarrent tous sur la même verticale
-   (relecture carnet-voyage §H) — 68 px tient « Prévu » à 320 px sans jamais le tronquer. */
+.lieux-groupe-titre { font-size:13px; font-weight:600; color:var(--texte-2); margin:0; }
+.lieux-grille-cartes { display:grid; grid-template-columns:1fr; gap:12px; }
+@media (min-width:640px) { .lieux-grille-cartes { grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); } }
+
+/* Repli Idées / Écartés : même patron que .resas-annulees (D-036 §CSS par module : une règle ne
+   vit qu'à un endroit, dupliquée volontairement ici). */
+.lieux-repli .ct-entete {
+  display:flex; justify-content:space-between; align-items:center; width:100%; min-height:48px;
+  border:0; background:none; cursor:pointer; font-size:13px; font-weight:600; color:var(--texte);
+}
+.lieux-repli .ct-voir { color:var(--bleu); font-weight:600; }
+.lieux-repli > div:last-child { margin-top:4px; display:flex; flex-direction:column; gap:10px; }
+
+/* Carte lieu : coins arrondis façon carte-bloc (même langage visuel), AUCUNE hauteur fixe sur
+   le texte — min-height seulement sur la zone photo/bandeau, le reste grandit librement. */
+/* Liseré gauche = couleur de catégorie (posée en style inline), le mot est écrit dans la carte.
+   Pas d'overflow:hidden sur la carte (texte dedans) : seule la photo est rognée à ses coins. Les
+   écartés ne sont plus pâlis par opacité (le contraste tombait sous 4.5:1) : ils vivent dans
+   leur repli « Écartés » et leur bouton dit « Écarté ». */
+.carte-lieu {
+  display:flex; flex-direction:column; border-radius:12px; cursor:pointer;
+  border:1px solid var(--bordure); border-left:5px solid var(--bordure);
+  box-shadow:0 1px 3px rgba(0,0,0,.06); background:#fff;
+}
+.fl-photo { aspect-ratio:16/9; min-height:120px; background:var(--fond-bandeau); overflow:hidden; border-radius:7px 11px 0 0; }
+.fl-photo img { width:100%; height:100%; object-fit:cover; display:block; }
+.fl-corps { display:flex; flex-direction:column; gap:6px; padding:12px; }
+.fl-tete { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+.fl-nom { font-size:15px; font-weight:700; overflow-wrap:anywhere; flex:1; min-width:0; }  /* jamais tronqué (mobile-parents) */
+/* Largeur FIXE (pas seulement min-height) : les trois libellés (Idée, Prévu, Fait) occupent le
+   même espace (relecture carnet-voyage §H) — 68 px tient « Prévu » à 320 px sans le tronquer. */
 .lieu-statut {
   flex:0 0 auto; width:68px; min-height:44px; padding:0 6px; border:1.5px solid var(--bordure); border-radius:999px;
   background:#fff; font-size:11px; font-weight:600; color:var(--texte-2); cursor:pointer; text-align:center;
 }
-.ligne-lieu[data-lieu] .lieu-statut { color:var(--bleu); border-color:var(--bleu); }
-.lieu-corps { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; min-height:44px; justify-content:center; border:0; background:none; text-align:left; cursor:pointer; padding:0; }
-.lieu-nom { font-size:14px; font-weight:600; overflow-wrap:anywhere; }  /* passe à la ligne, jamais tronqué (mobile-parents) */
+.carte-lieu .lieu-statut { color:var(--bleu); border-color:var(--bleu); }
 .lieu-categorie { display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--texte-2); }
 .lieu-puce { width:8px; height:8px; border-radius:50%; flex:none; }
-.lieu-alocaliser { flex:0 0 auto; font-size:11px; font-weight:600; color:var(--ambre-texte); background:var(--ambre-fond); border-radius:6px; padding:2px 7px; }
+.lieu-alocaliser { align-self:flex-start; font-size:11px; font-weight:600; color:var(--ambre-texte); background:var(--ambre-fond); border-radius:6px; padding:2px 7px; }
+/* Badge « ✓ Réservé » : mot ET couleur, jamais la couleur seule (mobile-parents). */
+.fl-badge-reserve { align-self:flex-start; font-size:11px; font-weight:700; color:#fff; background:var(--vert); border-radius:6px; padding:3px 8px; }
+.fl-topo { font-size:13px; color:var(--texte); margin:0; overflow-wrap:anywhere; white-space:pre-line; }
+.fl-detail { font-size:12px; color:var(--texte-2); margin:0; overflow-wrap:anywhere; }
+.fl-lien { align-self:flex-start; min-height:44px; display:inline-flex; align-items:center; padding:0; }
+
+/* ---- Formulaire lieu : aperçu photo ---- */
+.lieu-photo { display:flex; flex-direction:column; gap:6px; }
+#lieu-photo-apercu:empty { display:none; }
+.lieu-photo-vignette { display:block; width:100%; max-width:220px; aspect-ratio:16/9; object-fit:cover; border-radius:8px; border:1px solid var(--bordure); }
 /* ---- Recherche de position (formulaire + Lieu, choixDetaille du socle, relecture §C) ---- */
 .lieu-position { display:flex; flex-direction:column; gap:6px; }
 .lieu-position-titre { font-size:13px; font-weight:600; color:var(--texte-2); }

@@ -123,7 +123,46 @@ export function creerApi(sb) {
     voyageLieux: (voyageId) => sb.from("voyage_lieux").select("*").eq("voyage_id", voyageId).order("jour").order("ordre").order("id").then(rendre),
     creerLieu: (champs) => sb.from("voyage_lieux").insert(champs).select().single().then(rendre),
     majLieu: (id, champs) => sb.from("voyage_lieux").update(champs).eq("id", id).then(rendre),
-    supprimerLieu: (id) => sb.from("voyage_lieux").delete().eq("id", id).then(rendre),
+    /** Supprime le lieu puis, s'il avait une photo, l'objet du bucket — jamais l'inverse : un
+     *  objet orphelin (lieu déjà parti) ne gêne personne, l'inverse laisserait un lieu sans
+     *  photo visible pendant que l'objet reste facturé pour rien. `lieu` complet requis (pas
+     *  seulement l'id) : c'est la seule façon de savoir s'il y a un objet à retirer. */
+    async supprimerLieu(lieu) {
+      await sb.from("voyage_lieux").delete().eq("id", lieu.id).then(rendre);
+      if (lieu.photo_chemin) await sb.storage.from("voyages").remove([lieu.photo_chemin]);
+    },
+    /** Dépose la photo d'un lieu : upload puis `photo_chemin` ; si l'update échoue, retire
+     *  l'objet déjà uploadé (même logique que `deposerPiece`, jamais d'objet orphelin). Si le
+     *  lieu avait déjà une photo, l'ancien objet n'est retiré qu'APRÈS l'update réussi — un
+     *  échec ne doit jamais laisser le lieu sans aucune photo valide. */
+    async deposerPhotoLieu(lieu, fichier) {
+      const extension = fichier.name.includes(".") ? fichier.name.split(".").pop() : "bin";
+      const chemin = `${lieu.voyage_id}/lieux/${crypto.randomUUID()}.${extension}`;
+      const { error: erreurUpload } = await sb.storage.from("voyages").upload(chemin, fichier, { contentType: fichier.type });
+      if (erreurUpload) throw erreurUpload;
+      try {
+        const maj = await sb.from("voyage_lieux").update({ photo_chemin: chemin }).eq("id", lieu.id).select().single().then(rendre);
+        if (lieu.photo_chemin) await sb.storage.from("voyages").remove([lieu.photo_chemin]);
+        return maj;
+      } catch (erreur) {
+        await sb.storage.from("voyages").remove([chemin]);
+        throw erreur;
+      }
+    },
+    /** Retire la photo d'un lieu : objet du bucket puis `photo_chemin` à null. */
+    async retirerPhotoLieu(lieu) {
+      if (lieu.photo_chemin) await sb.storage.from("voyages").remove([lieu.photo_chemin]);
+      return sb.from("voyage_lieux").update({ photo_chemin: null }).eq("id", lieu.id).select().single().then(rendre);
+    },
+    /** URLs signées (1 h) de plusieurs photos en un seul appel — un rendu de la section Lieux
+     *  ne doit jamais faire une requête par lieu. `{ chemin: url }`, chemins introuvables omis
+     *  (hors ligne ou objet manquant : l'appelant retombe sur le bandeau catégorie). */
+    async urlsPhotos(chemins) {
+      if (!chemins.length) return {};
+      const { data, error } = await sb.storage.from("voyages").createSignedUrls(chemins, 3600);
+      if (error) throw error;
+      return Object.fromEntries(data.filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
+    },
 
     /** `voyage_id` de chaque lieu et résa (+ champs de budget des résas et les enveloppes) et le
      *  bloc résumé de chaque voyage, tous voyages confondus : de quoi compter « n résas · n

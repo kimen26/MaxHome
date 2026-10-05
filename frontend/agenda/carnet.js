@@ -44,6 +44,11 @@ export const TYPES_BLOC = [
   { valeur: "attention", libelle: "Attention", emoji: "⚠️", fond: "#fff1f2", bord: "#b91c1c" },
 ];
 
+/** Valeur spéciale de `paye_par` : le compte commun du foyer a payé, pas un membre précis
+ *  (ex. prélèvement direct). `paye_par` reste du texte libre (pas de lien vers la table
+ *  comptes du Budget — les dépenses voyage n'y touchent pas, brief carnet-voyage.md). */
+export const COMPTE_COMMUN = "Compte commun";
+
 /** Déduit le poste d'une résa depuis son type quand `poste` n'est pas renseigné (même règle
  *  que la migration 021 et `scripts/bot/voyages.py`). */
 export function posteDe(resa) {
@@ -153,6 +158,46 @@ export function prochaineEtape(resas, maintenant) {
   const candidates = resas.filter((r) => r.statut !== "annule" && r.debut && r.debut >= maintenant);
   if (!candidates.length) return null;
   return [...candidates].sort((a, b) => a.debut.localeCompare(b.debut))[0];
+}
+
+/**
+ * La résa non annulée liée à un lieu (`lieu_id === lieu.id`), la `reserve` d'abord si plusieurs
+ * (ex. une annulée puis rebookée) ; null si aucune. Sert à distinguer un lieu « au programme
+ * parce que réservé » d'une simple idée (fiches visuelles, brief lot « fiches lieu »).
+ */
+export function resaDuLieu(lieu, resas) {
+  const liees = resas.filter((r) => r.lieu_id === lieu.id && r.statut !== "annule");
+  if (!liees.length) return null;
+  return liees.find((r) => r.statut === "reserve") ?? liees[0];
+}
+
+/**
+ * Répartit les lieux d'un voyage en trois sections pour la fiche (brief lot « fiches lieu ») :
+ * - `programme` : lieux `prevu`/`fait`, OU `idee` avec une résa liée `reserve` (réservé devance
+ *   l'étiquette de statut) — groupés par jour (`lieuxParJour`) ; le jour d'un lieu sans `jour`
+ *   mais avec résa datée est celui de `resa.debut` (date seule, avant le "T").
+ * - `idees` : `idee` sans résa `reserve`, groupées par catégorie dans l'ordre de `CATEGORIES_LIEU`
+ *   (`[{ categorie, lieux }]`, groupes vides omis).
+ * - `ecartes` : statut `ecarte`, à plat.
+ * → { programme: [{ jour, lieux }], idees: [{ categorie, lieux }], ecartes: [lieu] }
+ */
+export function sectionsLieux(lieux, resas) {
+  const auProgramme = (l) => {
+    if (l.statut === "prevu" || l.statut === "fait") return true;
+    if (l.statut !== "idee") return false;
+    return resaDuLieu(l, resas)?.statut === "reserve";
+  };
+  const jourEffectif = (l) => l.jour ?? resaDuLieu(l, resas)?.debut?.slice(0, 10) ?? null;
+
+  const programme = lieux.filter(auProgramme).map((l) => ({ ...l, jour: jourEffectif(l) }));
+  const idees = lieux.filter((l) => l.statut === "idee" && !auProgramme(l));
+  const ecartes = lieux.filter((l) => l.statut === "ecarte");
+
+  const ideesParCategorie = CATEGORIES_LIEU
+    .map((c) => ({ categorie: c.valeur, lieux: idees.filter((l) => l.categorie === c.valeur) }))
+    .filter((g) => g.lieux.length);
+
+  return { programme: lieuxParJour(programme), idees: ideesParCategorie, ecartes };
 }
 
 /** 6 teintes d'accent du socle, contrastées (texte blanc ≥ 4.5:1) — une par voyage, stable

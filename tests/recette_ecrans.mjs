@@ -262,6 +262,19 @@ const GESTES = [
       await page.evaluate(() => document.querySelector("#fiche-lieux-corps")?.scrollIntoView({ block: "start" }));
       await page.waitForTimeout(150);
     } },
+  // « Idées à piocher » et « Écartés » repliés par défaut (brief lot « fiches visuelles ») :
+  // capture dédiée, dépliés, pour juger ces deux sections à l'œil (une capture de la section
+  // fermée ne montre que les boutons de repli).
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-fiche-lieux-idees",
+    geste: async (page) => {
+      await page.click('#voyages-liste-corps [data-voyage="1"]');
+      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+      await page.waitForSelector(".leaflet-container, .carte-indisponible", { timeout: 8000 }).catch(() => {});
+      await page.click("#fiche-lieux-corps [data-plier-idees]");
+      await page.click("#fiche-lieux-corps [data-plier-ecartes]");
+      await page.evaluate(() => document.querySelector("#fiche-lieux-corps [data-repli=idees]")?.scrollIntoView({ block: "start" }));
+      await page.waitForTimeout(150);
+    } },
   { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-fiche-blocs",
     geste: async (page) => {
       await page.click('#voyages-liste-corps [data-voyage="1"]');
@@ -354,7 +367,7 @@ const GESTES = [
       await page.click('#feuille #lieu-resultats-recherche [data-resultat="__sans_position__"]');
       await page.click('#feuille [data-form-lieu] button[type="submit"]');
       await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
-      const lieuAjoute = await page.locator('#fiche-lieux-corps .lieu-nom', { hasText: "Phare de Biarritz" }).count();
+      const lieuAjoute = await page.locator('#fiche-lieux-corps .fl-nom', { hasText: "Phare de Biarritz" }).count();
       if (!lieuAjoute) throw new Error("voyage-retour-fiche : le nouveau lieu n'apparaît pas dans la liste des lieux après Ajouter.");
       // + Réservation, puis fermeture par le voile (équivalent d'Annuler) : la fiche doit rester visible.
       await page.click("#fiche-resas-corps [data-nouvelle-resa]");
@@ -545,9 +558,13 @@ function scriptBouchon(donnees) {
     }
 
     // Storage bouchonné : un seul bucket utilisé (« voyages »), objets tenus en mémoire par
-    // chemin. La pièce factice (VOYAGE_PIECES) est préchargée avec le petit PNG en data:, pour
-    // que urlPiece()/le cache hors ligne aient un vrai contenu à servir sans réseau.
-    window.__bouchonStorage = { "1/billet-avion.png": ${JSON.stringify(donnees.PIECE_QR_PNG_DATA_URL ?? "")} };
+    // chemin. La pièce factice (VOYAGE_PIECES) et la photo du lieu 1 (VOYAGE_LIEUX) sont
+    // préchargées avec un petit PNG en data:, pour que urlPiece()/urlsPhotos()/le cache hors
+    // ligne aient un vrai contenu à servir sans réseau.
+    window.__bouchonStorage = {
+      "1/billet-avion.png": ${JSON.stringify(donnees.PIECE_QR_PNG_DATA_URL ?? "")},
+      "1/lieux/plage-deauville.png": ${JSON.stringify(donnees.PHOTO_LIEU_PNG_DATA_URL ?? "")},
+    };
 
     function storageBucket(bucket) {
       return {
@@ -569,6 +586,12 @@ function scriptBouchon(donnees) {
           const dataUrl = window.__bouchonStorage[chemin];
           if (!dataUrl) return { data: null, error: new Error("objet introuvable : " + chemin) };
           return { data: { signedUrl: dataUrl }, error: null };
+        },
+        async createSignedUrls(chemins) {
+          // Un objet introuvable est juste omis (comme le ferait Supabase pour une liste
+          // partiellement valide) : api.js::urlsPhotos retombe sur le bandeau de catégorie,
+          // jamais une erreur qui casserait toute la section Lieux.
+          return { data: chemins.map((chemin) => ({ path: chemin, signedUrl: window.__bouchonStorage[chemin] ?? null, error: null })), error: null };
         },
       };
     }

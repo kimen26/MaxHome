@@ -34,6 +34,9 @@ PLACE_RANK_MIN_PRECIS = 20
 TYPES_RESA = ("vol", "train", "logement", "voiture", "activite", "repas", "autre")
 CATEGORIES_LIEU = ("a_voir", "activite", "logement", "resto", "transport", "autre")
 POSTES = ("transport", "logement", "activites", "repas", "sur_place", "autre")
+# Même valeur que COMPTE_COMMUN de frontend/agenda/carnet.js : le compte commun du foyer a
+# payé, pas un membre précis (ex. prélèvement direct).
+COMPTE_COMMUN = "Compte commun"
 
 # Même règle que frontend/agenda/carnet.js::posteDe et la migration 021 : déduit le poste
 # depuis le type de résa quand il n'est pas donné explicitement.
@@ -326,10 +329,13 @@ def valider_resa(champs, voyages, membres):
 
     paye_par = champs.get("paye_par")
     if paye_par:
-        trouve_payeur = next((m for m in membres if normaliser(m) == normaliser(paye_par)), None)
-        if not trouve_payeur:
-            return None, f"Payeur inconnu : « {paye_par} » (membres : {', '.join(membres)})."
-        paye_par = trouve_payeur
+        if normaliser(paye_par) == normaliser(COMPTE_COMMUN):
+            paye_par = COMPTE_COMMUN
+        else:
+            trouve_payeur = next((m for m in membres if normaliser(m) == normaliser(paye_par)), None)
+            if not trouve_payeur:
+                return None, f"Payeur inconnu : « {paye_par} » (membres : {', '.join(membres)}, ou « {COMPTE_COMMUN} »)."
+            paye_par = trouve_payeur
 
     resa = {
         "voyage_id": voyage["id"], "voyage_titre": voyage["titre"], "type": type_resa, "titre": titre,
