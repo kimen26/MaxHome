@@ -20,7 +20,8 @@ const jourMois = (iso) => {
 };
 
 export function creerUiExtras(api, etat, cb) {
-  const ponctuelles = () => etat.charges.filter((c) => c.ponctuel && c.actif !== false);
+  // Une ponctuelle n'existe que dans le mois où elle a sa ligne : ailleurs, rien à afficher.
+  const ponctuelles = () => etat.charges.filter((c) => c.ponctuel && c.actif !== false && etat.lignes[c.id] !== undefined);
   // Une charge à la fois, file indépendante de celle des catégories (creerFileEcritures, blocs.js).
   const enFileValidation = creerFileEcritures();
 
