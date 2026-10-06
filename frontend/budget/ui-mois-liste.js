@@ -55,16 +55,21 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
   const recurrentReserveDe = (chargeId) => etat.recurrents.find((r) =>
     r.actif && r.mode === "charge" && r.charge_id === chargeId && aReserve(r)) ?? null;
 
-  /** Mouvement d'étape 2 (paiement) du mois pour ce récurrent : identifié par recurrent_id +
-   *  compte_de = tampon (brief : aucun mouvement existant ne partage cette combinaison, voir
-   *  compte_vers de l'étape 1 qui, lui, est le compte SOURCE de la charge, jamais le tampon). */
+  /** Mouvement d'étape 2 (paiement) du mois pour ce récurrent : recurrent_id + etape = 2
+   *  (028_mouvements_etape.sql — l'étape 1 est le virement habituel du même récurrent). */
   const mouvementPaiementDe = (recurrent) => etat.mouvements.find((m) =>
-    m.recurrent_id === recurrent.id && m.compte_de === recurrent.compte_vers) ?? null;
+    m.recurrent_id === recurrent.id && m.etape === 2) ?? null;
 
   const ligneDuMoisPasse = (chargeId) => (annee, mois) => {
     if (annee === etat.annee && mois === etat.mois) return ligneDe(chargeId)?.montant_centimes;
     return etat.reserveHistorique[chargeId]?.[`${annee}-${mois}`];
   };
+
+  /** Montant à payer : celui du virement déjà posé pour ce mois (montant réel de l'appel, qui
+   *  peut différer du cumul mis de côté), sinon le cumul du cycle. */
+  const montantPaiement = (recurrent, chargeId, mouvement) => mouvement?.montant_centimes
+    ? Math.abs(mouvement.montant_centimes)
+    : montantCumule(recurrent, etat, ligneDuMoisPasse(chargeId));
 
   /** Repère sous le libellé d'une ligne en réserve : état « mis de côté » hors mois de paiement,
    *  ou rien ici (la case de paiement, affichée séparément, porte alors l'information). */
@@ -86,9 +91,8 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
   function caseEtapePaiement(recurrent, chargeId) {
     const mouvement = mouvementPaiementDe(recurrent);
     const compteFinal = compteDe(recurrent.relais_vers);
-    const cumul = montantCumule(recurrent, etat, ligneDuMoisPasse(chargeId));
     const cochee = Boolean(mouvement?.fait_le);
-    const titre = `Payer ${euros(cumul)} → ${compteFinal?.nom ?? "compte à définir"}`;
+    const titre = `Payer ${euros(montantPaiement(recurrent, chargeId, mouvement))} → ${compteFinal?.nom ?? "compte à définir"}`;
     return `<div class="mc-paiement-bloc">
       <div class="mc-paiement${cochee ? " fait" : ""}" data-paiement-reserve="${chargeId}">
         ${caseACocher({ id: chargeId, cochee, titre, attr: "paiement-reserve" })}
@@ -280,13 +284,29 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
   async function basculerEtapePaiement(chargeId) {
     const recurrent = recurrentReserveDe(chargeId);
     if (!recurrent) return;
-    const mouvement = mouvementPaiementDe(recurrent);
-    if (!mouvement) { toast("Aucun virement de paiement trouvé pour ce mois.", true); return; }
+    const existant = mouvementPaiementDe(recurrent);
+    const montant = -montantPaiement(recurrent, chargeId, existant);
+    if (!existant) {
+      // Premier coche du mois : le virement de paiement n'existe pas encore, on le crée fait.
+      try {
+        const compteFinal = compteDe(recurrent.relais_vers);
+        const [cree] = await api.creerMouvements([{
+          annee: etat.annee, mois: etat.mois, recurrent_id: recurrent.id,
+          titre: `Paiement → ${compteFinal?.nom ?? "compte final"}`,
+          compte_de: recurrent.compte_vers, compte_vers: recurrent.relais_vers,
+          montant_centimes: montant, fait_le: new Date().toISOString(), etape: 2,
+        }]);
+        etat.mouvements = [...etat.mouvements, cree];
+        cb.rendreMois();
+        toast("Paiement validé.");
+      } catch (e) { cb.echec(e); }
+      return;
+    }
+    const mouvement = existant;
     const avant = { ...mouvement };
     const champs = mouvement.fait_le
       ? { fait_le: null, fait_par: null }
-      : { fait_le: new Date().toISOString(), fait_par: null,
-        montant_centimes: -montantCumule(recurrent, etat, ligneDuMoisPasse(chargeId)) };
+      : { fait_le: new Date().toISOString(), fait_par: null, montant_centimes: montant };
     Object.assign(mouvement, champs);
     cb.rendreMois();
     try {

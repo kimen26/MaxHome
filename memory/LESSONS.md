@@ -528,3 +528,11 @@ de la migration v3 abandonnée de MaxVoyage (tables vides, MaxVoyage est revenu 
 19/08), `supabase` est MaxPlay. Une demi-session perdue en « timeout » et en fausses pistes.
 La base MaxHome se lit et s'écrit par `python scripts/sql.py <fichier.sql>` (Management API,
 `.env`) ; une requête de lecture va dans un fichier hors du repo.
+
+## L-054 — Une spec qui ajoute une ligne en base vérifie d'abord les index uniques (2026-10-06)
+
+Le brief réserve disait « vérifier que rien n'empêche un second mouvement du même récurrent ».
+L'agent a vérifié le code, pas la base : l'index unique `mouvements_recurrent_mois`
+(annee, mois, recurrent_id) refusait toute création, et seule l'écriture sur les données réelles
+l'a montré. Avant de concevoir une nouvelle ligne dans une table existante, lister ses index
+(`pg_indexes`) ; et la recette simulée ne prouve rien sur les contraintes de la base.

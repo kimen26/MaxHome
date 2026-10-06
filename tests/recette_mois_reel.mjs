@@ -56,6 +56,12 @@ try {
     await page.screenshot({ path: path.join(SORTIE, `mois-reel-${hash}-360.png`), fullPage: true });
     nbCaptures++;
   }
+  // Groupes dépliés (tap sur le titre : pur affichage, aucune écriture) : montre les réserves
+  // (D-054) — repère « mis de côté » et case « Payer » du mois de paiement.
+  for (const titre of await page.locator("[data-ml-groupe] .mvt-titre").all()) await titre.click();
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: path.join(SORTIE, `mois-reel-${MOIS.at(-1)}-deplie-360.png`), fullPage: true });
+  nbCaptures++;
   await page.close();
 } finally {
   await navigateur.close();

@@ -28,7 +28,7 @@ export const STRATEGIE_MOUVEMENTS = {
   existantes: (etat) => etat.mouvements,
   perimees: () => [],
   manquantes: (etat, existantes) => {
-    const dejaLa = new Set(existantes.map((m) => m.recurrent_id).filter(Boolean));
+    const dejaLa = new Set(existantes.filter((m) => m.etape !== 2).map((m) => m.recurrent_id).filter(Boolean));
     return etat.recurrents.filter((r) => r.actif && !dejaLa.has(r.id)).map((r) => ({
       annee: etat.annee, mois: etat.mois, recurrent_id: r.id, titre: r.titre,
       compte_de: r.compte_de, compte_vers: r.compte_vers,

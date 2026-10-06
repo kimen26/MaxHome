@@ -833,3 +833,17 @@ Retour coordinateur sur D-052 (capture `mois-360.png`) : cinq points.
    ni dans `charges.affichees()` (filtrées par `c.ponctuel`) — jamais doublée dans la liste
    unifiée, confirmé sur capture.
 5. Le paragraphe d'aide en pied d'écran est retiré : l'écran doit se comprendre sans légende.
+
+## D-054 — Réserve : une charge mise de côté puis payée, une seule ligne (2026-10-06)
+
+Certaines charges passent par l'épargne commune avant de partir chez le destinataire : on met
+de côté chaque mois (c'est la dépense, comptée dans la répartition), puis le tampon paie à son
+rythme (mensuel pour l'école, trimestriel pour les charges de copropriété). Pour l'utilisateur,
+« ce n'est pas deux dépenses, c'est une réserve et une dépense ».
+Choix : le virement habituel de la charge (`mouvements_recurrents`) reçoit `relais_vers`,
+`relais_tous_les` et `relais_depart`. Son `compte_vers` reste le tampon. Le paiement est un
+mouvement `etape = 2` du même récurrent : jamais compté dans calc.js, affiché comme une seconde
+case sous la ligne de la charge, et seulement le mois du paiement. Son montant vient du
+mouvement déjà posé (montant réel de l'appel), sinon du cumul mis de côté sur le cycle. Hors
+mois de paiement, le repère dit « réserve X / Y · payé en <mois> ». Brief :
+docs/briefs/reserve-relais.md.
