@@ -16,8 +16,8 @@
 // feuille de réglage, ouverte au tap) : elle dit « Montant à saisir ».
 
 import { euros } from "./calc.js";
-import { $, txt, toast } from "../socle/ui-base.js";
-import { caseCycle } from "../socle/blocs.js";
+import { $, txt, toast, MOIS } from "../socle/ui-base.js";
+import { caseACocher, caseCycle } from "../socle/blocs.js";
 import { brancherCycles } from "../socle/blocs-cycle.js";
 import { construireGroupes, preparerBasculeGroupe } from "./groupes-virements.js";
 import { construireGroupesCategories, CLE_VIREMENTS } from "./groupes-categories.js";
@@ -25,6 +25,7 @@ import { SANS_PRENOM, valeurAffichee, preparerBascule as preparerBasculeLigne, a
   annulerBascule as annulerBasculeLigne, ecrireBascule as ecrireBasculeLigne } from "./coche-ligne.js";
 import { libelleACompleter } from "./libelle-virement.js";
 import { htmlBlocLibelle, brancherBlocLibelle } from "./bloc-libelle-virement.js";
+import { aReserve, estMoisPaiement, montantCumule, montantCycleEstime, prochainMoisPaiement } from "./reserve.js";
 
 const CLE_VUE = "maxhome.budget.vueCharges";
 const lireVue = () => { try { return localStorage.getItem(CLE_VUE) === "categories" ? "categories" : "destinataires"; } catch { return "destinataires"; } };
@@ -49,6 +50,54 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
    *  mouvement a toujours un montant (théorique ou figé), jamais « à saisir ». */
   const manqueMontant = (e) => e.type === "ligne" && ligneDe(e.id) === undefined;
 
+  // ---------- réserve relais (D-054) ----------
+  /** Récurrent en mode "charge" avec une réserve, pour une ligne de charge — ou null. */
+  const recurrentReserveDe = (chargeId) => etat.recurrents.find((r) =>
+    r.actif && r.mode === "charge" && r.charge_id === chargeId && aReserve(r)) ?? null;
+
+  /** Mouvement d'étape 2 (paiement) du mois pour ce récurrent : identifié par recurrent_id +
+   *  compte_de = tampon (brief : aucun mouvement existant ne partage cette combinaison, voir
+   *  compte_vers de l'étape 1 qui, lui, est le compte SOURCE de la charge, jamais le tampon). */
+  const mouvementPaiementDe = (recurrent) => etat.mouvements.find((m) =>
+    m.recurrent_id === recurrent.id && m.compte_de === recurrent.compte_vers) ?? null;
+
+  const ligneDuMoisPasse = (chargeId) => (annee, mois) => {
+    if (annee === etat.annee && mois === etat.mois) return ligneDe(chargeId)?.montant_centimes;
+    return etat.reserveHistorique[chargeId]?.[`${annee}-${mois}`];
+  };
+
+  /** Repère sous le libellé d'une ligne en réserve : état « mis de côté » hors mois de paiement,
+   *  ou rien ici (la case de paiement, affichée séparément, porte alors l'information). */
+  function repereReserve(recurrent, chargeId) {
+    const tampon = compteDe(recurrent.compte_vers)?.nom ?? "le tampon";
+    if (estMoisPaiement(recurrent, etat.mois)) return "";
+    const cumul = montantCumule(recurrent, etat, ligneDuMoisPasse(chargeId));
+    const montantDuMois = ligneDe(chargeId)?.montant_centimes ?? 0;
+    const cycleEstime = montantCycleEstime(recurrent, montantDuMois);
+    const prochain = prochainMoisPaiement(recurrent, etat.mois);
+    const nomMoisProchain = prochain ? MOIS[prochain - 1] : "?";
+    return `<span class="mc-reserve">Mis de côté sur ${txt(tampon)} · réserve ${euros(cumul)} / ${euros(cycleEstime)}` +
+      ` · payé en ${txt(nomMoisProchain)}</span>`;
+  }
+
+  /** Deuxième case du mois de paiement : « Payer Y € → <relais_vers> », avec le bloc libellé de
+   *  virement du compte final — même item que la ligne de charge, la ligne entière ne passe
+   *  en « Fait » que lorsque les deux cases le sont (D-054). */
+  function caseEtapePaiement(recurrent, chargeId) {
+    const mouvement = mouvementPaiementDe(recurrent);
+    const compteFinal = compteDe(recurrent.relais_vers);
+    const cumul = montantCumule(recurrent, etat, ligneDuMoisPasse(chargeId));
+    const cochee = Boolean(mouvement?.fait_le);
+    const titre = `Payer ${euros(cumul)} → ${compteFinal?.nom ?? "compte à définir"}`;
+    return `<div class="mc-paiement-bloc">
+      <div class="mc-paiement${cochee ? " fait" : ""}" data-paiement-reserve="${chargeId}">
+        ${caseACocher({ id: chargeId, cochee, titre, attr: "paiement-reserve" })}
+        <span class="mc-paiement-libelle">${txt(titre)}</span>
+      </div>
+      ${htmlBlocLibelle(mouvement, compteFinal)}
+    </div>`;
+  }
+
   function htmlSelecteurVue() {
     const options = [["destinataires", "Destinataires"], ["categories", "Catégories"]];
     return `<div class="segment segment-vue-charges" role="radiogroup" aria-label="Regrouper par">
@@ -64,18 +113,26 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
   function ligneElement(e) {
     const manque = manqueMontant(e);
     const fait = e.fait_le ?? null;
+    const recurrentReserve = e.type === "ligne" ? recurrentReserveDe(e.id) : null;
+    const estPaiement = recurrentReserve && estMoisPaiement(recurrentReserve, etat.mois);
+    // Avec une réserve en mois de paiement (D-054), la ligne ne passe en « Fait » que quand
+    // l'étape 1 (mise de côté, e.valeur) ET l'étape 2 (paiement, son propre mouvement) sont
+    // cochées toutes les deux — jamais l'une sans l'autre.
+    const paiementFait = estPaiement ? Boolean(mouvementPaiementDe(recurrentReserve)?.fait_le) : true;
+    const toutFait = e.valeur !== null && paiementFait;
     const droite = manque
       ? `<span class="mc-manque">Montant à saisir</span>`
       : `<span class="mono mvt-montant${e.valeur !== null ? " pale" : ""}">${euros(Math.abs(e.montant_centimes))}</span>`;
-    return `<div class="mois-charge ml-element${manque ? " a-faire" : ""}${e.valeur !== null ? " fait" : ""} cliquable"
+    return `<div class="mois-charge ml-element${manque ? " a-faire" : ""}${toutFait ? " fait" : ""} cliquable"
         data-ml-type="${e.type}" data-id="${e.id}">
       ${manque ? '<span class="case case-cycle-vide" aria-hidden="true"></span>'
         : caseCycle({ id: e.id, valeur: valeurAffichee(e.valeur), p1, titre: e.libelle, attr: `cycle-${e.type}` })}
       <div class="mc-libelle"><span class="mc-nom">${txt(e.libelle)}</span>
         ${fait ? `<span class="mc-fait">✓ ${[e.fait_par, jourMois(fait)].filter(Boolean).join(" · ")}</span>` : ""}
+        ${recurrentReserve && !estPaiement ? repereReserve(recurrentReserve, e.id) : ""}
       </div>
       ${droite}
-    </div>`;
+    </div>${estPaiement ? caseEtapePaiement(recurrentReserve, e.id) : ""}`;
   }
 
   /** Tap sur un élément déplié (hors case) : la ligne de charge ouvre toujours sa feuille de
@@ -215,6 +272,29 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
     } catch (e) { annulerBasculeLigne(etat, id, restaure, prep.mouvementLie); cb.recalculer(); cb.rendreMois(); cb.echec(e); }
   }
 
+  /** Bascule la case de paiement (étape 2, D-054) : simple bascule fait/pas fait, jamais un
+   *  cycle à prénom (une seule case, pas une par membre — le brief ne demande qu'un paiement
+   *  coché, pas « par qui »). PAS basculerMouvement/montantTheorique (ui-mouvements.js) : son
+   *  mode "charge" calcule le montant du MOIS COURANT de la charge, alors que cette case doit
+   *  rester figée au montant CUMULÉ du cycle, calculé une seule fois à la première coche. */
+  async function basculerEtapePaiement(chargeId) {
+    const recurrent = recurrentReserveDe(chargeId);
+    if (!recurrent) return;
+    const mouvement = mouvementPaiementDe(recurrent);
+    if (!mouvement) { toast("Aucun virement de paiement trouvé pour ce mois.", true); return; }
+    const avant = { ...mouvement };
+    const champs = mouvement.fait_le
+      ? { fait_le: null, fait_par: null }
+      : { fait_le: new Date().toISOString(), fait_par: null,
+        montant_centimes: -montantCumule(recurrent, etat, ligneDuMoisPasse(chargeId)) };
+    Object.assign(mouvement, champs);
+    cb.rendreMois();
+    try {
+      await api.majMouvement(mouvement.id, champs);
+      toast(champs.fait_le ? "Paiement validé." : "Validation annulée.");
+    } catch (e) { Object.assign(mouvement, avant); cb.rendreMois(); cb.echec(e); }
+  }
+
   function brancher() {
     const racine = $("#ecran-mois");
     for (const b of racine.querySelectorAll("#mois-vue-charges [data-vue-charges]")) {
@@ -261,6 +341,18 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
         const g = groupes.find((x) => x.cle === cle);
         if (g) brancherBlocLibelle(zone, api, etat, cb, () => rendre());
       }
+    }
+    // Deuxième case « Payer » du mois de paiement d'une réserve (D-054) : propre item, hors
+    // `.ml-element` (qui bascule l'étape 1), avec son propre bloc libellé de virement.
+    for (const enveloppe of racine.querySelectorAll(".mc-paiement-bloc")) {
+      const ligne = enveloppe.querySelector("[data-paiement-reserve]");
+      const chargeId = Number(ligne?.dataset.paiementReserve);
+      ligne?.querySelector(".case[data-paiement-reserve]")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        basculerEtapePaiement(chargeId);
+      });
+      const recurrent = recurrentReserveDe(chargeId);
+      if (recurrent) brancherBlocLibelle(enveloppe, api, etat, cb, () => rendre());
     }
   }
 

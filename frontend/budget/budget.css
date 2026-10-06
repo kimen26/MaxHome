@@ -156,6 +156,16 @@
    texte lui-même dit l'état, pas juste sa couleur). */
 .mc-fait { font-size:12px; color:var(--vert); font-weight:600; line-height:1.3; }
 
+/* Réserve relais (D-054) : repère « Mis de côté… » sous le libellé (texte courant, jamais
+   tronqué — min-height sur `.mc-libelle` grandit déjà), et l'item de paiement du mois de
+   paiement, en retrait sous la ligne de charge, même gabarit de case que le reste (48 px). */
+.mc-reserve { font-size:12px; color:var(--texte-2); line-height:1.3; }
+.mc-paiement-bloc { padding-left:36px; border-bottom:1px solid var(--separateur); }
+.mc-paiement { display:flex; align-items:center; gap:10px; min-height:48px; padding:4px 0; }
+.mc-paiement.fait .mc-paiement-libelle { color:var(--vert); }
+.mc-paiement-libelle { flex:1; min-width:0; font-size:13px; }
+.mc-paiement-bloc .gv-libelle { padding:0 0 8px; }
+
 /* réglages d'une charge (feuille ouverte au tap du libellé) */
 .reglages .grand-montant { width:100%; text-align:left; font-size:18px; min-height:48px; }
 .reglages .case-a-cocher { flex-direction:row; align-items:center; gap:8px; margin-top:10px; color:var(--texte); font-size:14px; }

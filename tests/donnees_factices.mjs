@@ -43,6 +43,12 @@ export const COMPTES = [
     libelle_virement: "CL-48217", libelle_variable: false },
   { id: 4, nom: "Compte École", titulaire: null, iban_masque: null, note: null, commun: false,
     libelle_virement: "Prénom Nom Facture n°", libelle_variable: true },
+  // Réserve relais (D-054) : compte TAMPON où la charge est mise de côté chaque mois.
+  { id: 5, nom: "Livret réserve", titulaire: null, iban_masque: "3344", note: null, commun: false,
+    libelle_virement: null, libelle_variable: false },
+  // Réserve relais : compte FINAL où le tampon paie, à son rythme.
+  { id: 6, nom: "Assureur auto", titulaire: null, iban_masque: "7788", note: null, commun: false,
+    libelle_virement: "Contrat AX-5521", libelle_variable: false },
 ];
 
 // Charges en montants NÉGATIFS, comme en base (docs/regles-repartition.md). Chaque état qu'un
@@ -72,6 +78,17 @@ export const CHARGES = [
   // plus bas (MOUVEMENTS_RECURRENTS id 4, MOUVEMENTS id 4) pour peupler le groupe « à compléter ».
   { id: 9, libelle: "École", ordre: 55, categorie: "Léo", type: "egales", regle: "egales",
     cle_pct: null, payeur: null, ponctuel: false, montant_defaut: -91000, defaut_dernier: false },
+  // Réserve relais (D-054) : mise de côté chaque mois sur le tampon (compte 5), payée au
+  // trimestre vers l'assureur (compte 6, MOUVEMENTS_RECURRENTS id 5). Montant du mois voulu
+  // rond pour que réserve et cycle complet se lisent facilement sur la capture.
+  { id: 10, libelle: "Assurance auto", ordre: 65, categorie: "Logement", type: "egales", regle: "egales",
+    cle_pct: null, payeur: null, ponctuel: false, montant_defaut: -5000, defaut_dernier: false },
+  // Deuxième charge en réserve (D-054), même tampon, mais dont le mois de paiement n'est PAS ce
+  // mois-ci (MOUVEMENTS_RECURRENTS id 6, relais_depart décalé) : montre le repère « Mis de
+  // côté… » seul, sans la case de paiement — les DEUX états du brief sur le même groupe de
+  // trajet (Compte commun → Livret réserve).
+  { id: 11, libelle: "Entretien chaudière", ordre: 66, categorie: "Logement", type: "egales", regle: "egales",
+    cle_pct: null, payeur: null, ponctuel: false, montant_defaut: -2000, defaut_dernier: false },
 ];
 
 const MONTANT_DU_MOIS = { 1: -125000, 7: -8640 }; // Crédit immobilier ≠ référence ; Resto ponctuel
@@ -119,6 +136,20 @@ export const MOUVEMENTS_RECURRENTS = [
   { id: 4, titre: "École → Compte École", compte_de: 1, compte_vers: 4, mode: "charge",
     montant_centimes: null, charge_id: 9, prenom_part: null, qui: null, jour: 5,
     consigne: null, ordre: 4, actif: true },
+  // Réserve relais (D-054) : Assurance auto (charge 10) mise de côté chaque mois sur le Livret
+  // réserve (compte 5), payée tous les 3 mois vers l'Assureur auto (compte 6). `relais_depart`
+  // posé sur le mois COURANT pour que la capture montre l'état « mois de paiement » (deuxième
+  // case) sans attendre — le mois du cycle précédent montrerait le simple repère « Mis de côté ».
+  { id: 5, titre: "Assurance auto → Livret réserve", compte_de: 1, compte_vers: 5, mode: "charge",
+    montant_centimes: null, charge_id: 10, prenom_part: null, qui: null, jour: 5,
+    consigne: null, ordre: 5, actif: true,
+    relais_vers: 6, relais_tous_les: 3, relais_depart: MOIS },
+  // Entretien chaudière → même tampon, mais `relais_depart` décalé d'un mois (hors cycle ce
+  // mois-ci, voir note sur CHARGES id 11) : montre le repère seul, sans case de paiement.
+  { id: 6, titre: "Entretien chaudière → Livret réserve", compte_de: 1, compte_vers: 5, mode: "charge",
+    montant_centimes: null, charge_id: 11, prenom_part: null, qui: null, jour: 5,
+    consigne: null, ordre: 6, actif: true,
+    relais_vers: 6, relais_tous_les: 3, relais_depart: ((MOIS) % 12) + 1 },
 ];
 
 export const MOUVEMENTS = [
@@ -138,6 +169,22 @@ export const MOUVEMENTS = [
   { id: 4, annee: ANNEE, mois: MOIS, recurrent_id: 4, titre: "École → Compte École",
     compte_de: 1, compte_vers: 4, montant_centimes: -91000, qui: null, consigne: null,
     fait_le: null, fait_par: null, libelle_virement: null },
+  // Réserve relais (D-054) — étape 1 (mise de côté) : pas encore validée ce mois, comme la ligne
+  // de sa charge (LIGNES, charge_id 10).
+  { id: 5, annee: ANNEE, mois: MOIS, recurrent_id: 5, titre: "Assurance auto → Livret réserve",
+    compte_de: 1, compte_vers: 5, montant_centimes: -5000, qui: null, consigne: null,
+    fait_le: null, fait_par: null },
+  // Réserve relais — étape 2 (paiement du trimestre) : identifié par recurrent_id 5 +
+  // compte_de = 5 (le tampon), jamais une dépense, jamais compté dans calc.js. Pas encore
+  // validée non plus, pour que la capture montre la case de paiement dans son état « à faire ».
+  { id: 6, annee: ANNEE, mois: MOIS, recurrent_id: 5, titre: "Livret réserve → Assureur auto",
+    compte_de: 5, compte_vers: 6, montant_centimes: -15000, qui: null, consigne: null,
+    fait_le: null, fait_par: null },
+  // Entretien chaudière — étape 1 seulement (pas de mois de paiement ce mois-ci, voir
+  // MOUVEMENTS_RECURRENTS id 6) : le repère « Mis de côté… » se lit sans deuxième case.
+  { id: 7, annee: ANNEE, mois: MOIS, recurrent_id: 6, titre: "Entretien chaudière → Livret réserve",
+    compte_de: 1, compte_vers: 5, montant_centimes: -2000, qui: null, consigne: null,
+    fait_le: null, fait_par: null },
 ];
 
 // ---------- module Tâches ----------

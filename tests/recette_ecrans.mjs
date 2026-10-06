@@ -159,6 +159,24 @@ const GESTES = [
       await page.waitForSelector(".ml-groupe.ouvert .gv-libelle-manquant", { timeout: 3000 });
       await page.waitForTimeout(150);
     } },
+  // Réserve relais (D-054, Assurance auto -> Livret réserve -> Assureur auto dans
+  // donnees_factices.mjs) : groupe de trajet déplié, la ligne de charge montre la deuxième case
+  // de paiement (le récurrent factice a son relais_depart posé sur le mois courant) — la
+  // capture doit montrer À LA FOIS le repère « Mis de côté… » (ligne de charge) ET la case
+  // « Payer… » (mois de paiement), les deux états demandés par le brief.
+  { ecran: "mois", moduleDefaut: "mois", nom: "mois-reserve-paiement",
+    geste: async (page) => {
+      await page.click('#mois-vue-charges [data-vue-charges="destinataires"]');
+      // Un groupe laissé ouvert par un geste précédent (École, detail-groupe-libelle-a-completer)
+      // décale la position du groupe visé et peut glisser sous le FAB fixe (L-016 piège connu de
+      // ce fichier) : le refermer d'abord, comme reglage-charge referme son propre état avant de
+      // rouvrir ailleurs.
+      for (const ouvert of await page.locator(".ml-groupe.ouvert [data-ml-groupe]").all()) await ouvert.click();
+      const groupe = page.locator("#mvts-a-faire .gv-groupe, #mvts-faits .gv-groupe").filter({ hasText: "Livret réserve" }).first();
+      await groupe.locator(".mvt-corps").click();
+      await page.waitForSelector(".ml-groupe.ouvert .mc-paiement", { timeout: 3000 });
+      await page.waitForTimeout(150);
+    } },
   // Fiche d'une tâche (D-041) : Réglages · Tâches, tap sur une ligne.
   { ecran: "taches-rec", moduleDefaut: "taches-rec", nom: "fiche-tache",
     geste: async (page) => {
