@@ -268,3 +268,13 @@ répétable oui/non, sa liste de tâches découpée. Arbitrages : D-041._
 - [ ] Déconnexion : vider le cache `maxhome-pieces` (billets restés sur l'appareil).
 - [ ] Plus tard, si demandé : une résa payée → « ajouter au mois » dans le Budget.
 
+## Lane L — Onglet Voyages + veille vols MaxVoyage (2026-10-07, D-055)
+- [x] Roue crantée, module Voyages (Nos voyages · Pépites), table veille_vols (029),
+      scripts/publier_pepites.py, export côté MaxVoyage, recettes.
+- [ ] Vérifier le premier relevé automatique du matin (07h15) arrivé dans l'app sans geste.
+- [ ] Plus tard, si demandé : bouton « En faire un voyage » sur une pépite.
+
+## Parking
+- Le carnet de voyage (ui-fiche-*, carnet.js, carte.js, geocode.js, topo.js, ui-voyages-liste.js)
+  vit encore dans frontend/agenda/ alors qu'il appartient au module Voyages (D-055).
+

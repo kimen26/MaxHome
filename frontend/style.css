@@ -38,23 +38,27 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .vide { color:var(--texte-2); font-style:italic; }
 .erreur { color:var(--rouge); }
 
-/* ---------- navigation mobile : barre basse GLOBALE, un bouton par module + Réglages (D-036 §3) ---------- */
-/* Tâches · Budget · Courses · Agenda · Réglages, dans l'ordre de modules.js — plus un menu
-   « Plus » à ouvrir : chaque module garde ses propres écrans dans le segmenté de son en-tête.
-   Colonnes automatiques : un module de plus ne se règle pas ici (D-037). */
+/* ---------- navigation mobile : barre basse GLOBALE, un bouton par module + la roue des Réglages (D-036 §3) ---------- */
+/* Tâches · Budget · Courses · Agenda · Voyages · ⚙, dans l'ordre de modules.js : chaque module
+   garde ses propres écrans dans le segmenté de son en-tête. Les modules se partagent la largeur
+   (un module de plus ne se règle pas ici, D-037) ; la roue, sans libellé, prend une colonne fixe
+   de 56 px, assez pour une cible de 48 px. */
 #onglets {
   position:fixed; left:0; right:0; bottom:0; z-index:20;
-  display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); height:var(--barre-basse);
+  display:flex; height:var(--barre-basse);
   padding:4px 0 9px; padding-bottom:calc(9px + env(safe-area-inset-bottom, 0px));
   background:#fff; border-top:1px solid var(--bordure);
 }
 #onglets button {
+  flex:1 1 0; min-width:0;
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
   background:none; border:0; cursor:pointer; font-size:11px; color:var(--texte-2); padding:0;
 }
+#onglets button.onglet-reglages { flex:0 0 56px; gap:2px; }
 #onglets button::before { content:""; width:22px; height:3px; border-radius:2px; background:transparent; }
 #onglets button.actif { color:var(--bleu); font-weight:600; }
 #onglets button.actif::before { background:var(--bleu); }
+.roue { display:block; width:24px; height:24px; flex:none; }
 
 /* ---------- navigation PC : barre haute ---------- */
 #barre-pc { display:none; }
@@ -167,6 +171,7 @@ main { padding:8px 12px calc(var(--barre-basse) + 84px); }
     border:0; background:none; color:var(--texte-2); border-radius:8px; padding:8px 11px; font-size:14px; cursor:pointer; min-height:40px; white-space:nowrap;
   }
   #barre-pc button.onglet.actif { background:var(--bleu-clair); color:var(--bleu); font-weight:600; }
+  #barre-pc button.onglet-reglages { min-width:44px; min-height:44px; padding:8px 10px; display:inline-flex; align-items:center; justify-content:center; }
   #barre-pc .droite { margin-left:auto; display:flex; align-items:center; gap:8px; }
   main { padding:0 32px 40px; max-width:1280px; margin:0 auto; }
   .tete-ecran { background:none; border:0; padding:24px 0 0; position:static; }

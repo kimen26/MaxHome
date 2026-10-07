@@ -101,30 +101,34 @@ function remplirSegments(module, nom) {
   }
 }
 
+// Réglages n'a pas de nom dans les barres : une roue crantée, universelle, qui laisse la place
+// aux modules (un sixième bouton, Voyages, ne tenait plus à 320 px avec un libellé de plus).
+// Le nom reste lu par les lecteurs d'écran (aria-label) et affiché au survol (title).
+const ROUE = `<svg class="roue" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M19.14 12.94a7.4 7.4 0 0 0 .05-.94 7.4 7.4 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7 7 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54a7 7 0 0 0-1.62.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58a7.4 7.4 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.5.38 1.04.7 1.62.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54a7 7 0 0 0 1.62-.94l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg>`;
+const boutonReglages = (ecran, actif, classe) =>
+  `<button data-ecran="${ecran}" class="${classe}${actif ? " actif" : ""}" aria-label="Réglages" title="Réglages">${ROUE}</button>`;
+
 function rendreOngletsGlobaux(nom) {
-  // Barre basse GLOBALE, 4 entrées fixes : un module par bouton (son écran `defaut`), puis
-  // Réglages (premier écran de réglages du premier module qui en a un). Actif = le module de
-  // l'écran courant, ou Réglages si l'écran courant en est un (D-036 §3).
+  // Barre basse GLOBALE : un module par bouton (son écran `defaut`), puis la roue des Réglages
+  // (premier écran de réglages du premier module qui en a un). Actif = le module de l'écran
+  // courant, ou la roue si l'écran courant est un réglage (D-036 §3).
   const reglagesDefaut = ORDRE.flatMap((m) => m.reglages)[0]?.[0] ?? null;
   const module = moduleDe(nom);
-  const entrees = [
-    ...ORDRE.map((m) => [m.defaut, m.nom, module === m.cle && !estReglages(nom)]),
-    reglagesDefaut ? [reglagesDefaut, "Réglages", estReglages(nom)] : null,
-  ].filter(Boolean);
-  $("#onglets").innerHTML = entrees.map(([e, l, actif]) =>
-    `<button data-ecran="${e}" class="${actif ? "actif" : ""}">${txt(l)}</button>`).join("");
+  const modulesHtml = ORDRE.map((m) => {
+    const actif = module === m.cle && !estReglages(nom);
+    return `<button data-ecran="${m.defaut}" class="${actif ? "actif" : ""}">${txt(m.nom)}</button>`;
+  }).join("");
+  $("#onglets").innerHTML = modulesHtml
+    + (reglagesDefaut ? boutonReglages(reglagesDefaut, estReglages(nom), "onglet-reglages") : "");
 }
 
 function rendreBarrePc(module, nom) {
   const m = module ? MODULES[module] : null;
   const reglagesDefaut = ORDRE.flatMap((mm) => mm.reglages)[0]?.[0] ?? null;
-  const entreesModules = [
-    ...ORDRE.map((mm) => [mm.defaut, mm.nom, mm.cle]),
-    reglagesDefaut ? [reglagesDefaut, "Réglages", "reglages"] : null,
-  ].filter(Boolean);
-  const cleActive = estReglages(nom) ? "reglages" : module;
-  $("#modules-pc").innerHTML = entreesModules.map(([e, l, cle]) =>
-    `<button class="onglet${cle === cleActive ? " actif" : ""}" data-ecran="${e}">${txt(l)}</button>`).join("");
+  const modulesHtml = ORDRE.map((mm) =>
+    `<button class="onglet${mm.cle === module && !estReglages(nom) ? " actif" : ""}" data-ecran="${mm.defaut}">${txt(mm.nom)}</button>`).join("");
+  $("#modules-pc").innerHTML = modulesHtml
+    + (reglagesDefaut ? boutonReglages(reglagesDefaut, estReglages(nom), "onglet onglet-reglages") : "");
   const entreesEcran = estReglages(nom) ? ORDRE.flatMap((mm) => mm.reglages) : (m?.onglets ?? []);
   $("#onglets-pc").innerHTML = entreesEcran.length ? segmentEcrans(entreesEcran, nom) : "";
 }

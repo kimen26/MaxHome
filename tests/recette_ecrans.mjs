@@ -466,6 +466,7 @@ const TABLES = {
   voyages: "VOYAGES", parametres: "PARAMETRES",
   voyage_lieux: "VOYAGE_LIEUX", voyage_resas: "VOYAGE_RESAS", voyage_pieces: "VOYAGE_PIECES",
   voyage_blocs: "VOYAGE_BLOCS", voyage_enveloppes: "VOYAGE_ENVELOPPES",
+  veille_vols: "VEILLE_VOLS",
 };
 
 /** Construit le script de bouchon : un thenable qui imite from().select().eq()... et

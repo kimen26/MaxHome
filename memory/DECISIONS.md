@@ -847,3 +847,21 @@ case sous la ligne de la charge, et seulement le mois du paiement. Son montant v
 mouvement déjà posé (montant réel de l'appel), sinon du cumul mis de côté sur le cycle. Hors
 mois de paiement, le repère dit « réserve X / Y · payé en <mois> ». Brief :
 docs/briefs/reserve-relais.md.
+
+## D-055 — Onglet Voyages (Nos voyages · Pépites) et roue crantée pour Réglages (2026-10-07)
+
+Demande de Yann : la liste des voyages sort de l'Agenda dans un onglet à elle, avec la veille vols
+de MaxVoyage (« Pépites »), et « Réglages » devient une roue crantée.
+- **Roue sans libellé** dans la barre basse et sur PC : `aria-label` et `title` « Réglages ». Six
+  boutons à 320 px ne tenaient plus avec un libellé de plus ; la roue prend une colonne fixe de
+  56 px (cible 48), les modules se partagent le reste (`#onglets` passe de grid à flex).
+- **Module `voyages`** (frontend/voyages/) : `voyages-liste` + `pepites`. Le carnet (fiche, liste)
+  reste physiquement dans frontend/agenda/ et est importé tel quel : déplacer ~15 fichiers et
+  leurs tests ne changeait rien pour l'utilisateur. Réglages · Voyages reste à l'Agenda.
+  `etat.voyages` est chargé par les deux modules (même requête, état partagé).
+- **Veille vols** : MaxVoyage écrit un instantané JSON à la fin de sa collecte et lance
+  `scripts/publier_pepites.py`, qui l'écrit dans `veille_vols` (une ligne, migration 029). C'est
+  MaxHome qui publie : sa clé service_role reste dans son seul `.env`. Le front n'affiche que
+  l'instantané, toujours avec sa date, et prévient au-delà de 2 jours (PC éteint).
+  Contrat : docs/briefs/veille-vols.md.
+

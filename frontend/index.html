@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="taches/taches.css">
 <link rel="stylesheet" href="courses/courses.css">
 <link rel="stylesheet" href="agenda/agenda.css">
+<link rel="stylesheet" href="voyages/voyages.css">
 </head>
 <body>
 
@@ -316,9 +317,16 @@
     </section>
     <section id="ecran-voyages-liste" class="ecran" hidden>
       <div class="tete-ecran">
-        <div class="tete-ligne"><h1 class="tete-titre">Voyages</h1><div class="segment" data-segment="agenda"></div></div>
+        <div class="tete-ligne"><h1 class="tete-titre">Voyages</h1><div class="segment" data-segment="voyages"></div></div>
       </div>
       <div id="voyages-liste-corps"></div>
+    </section>
+    <!-- ===== Voyages · Pépites (veille vols MaxVoyage, docs/briefs/veille-vols.md) ===== -->
+    <section id="ecran-pepites" class="ecran" hidden>
+      <div class="tete-ecran">
+        <div class="tete-ligne"><h1 class="tete-titre">Pépites</h1><div class="segment" data-segment="voyages"></div></div>
+      </div>
+      <div id="pepites-corps"></div>
     </section>
     <section id="ecran-voyages" class="ecran" hidden>
       <div class="tete-ecran"><div class="segment large" data-segment="reglages"></div></div>

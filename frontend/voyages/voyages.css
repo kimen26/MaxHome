@@ -1,0 +1,48 @@
+/* ---------- Voyages · Pépites : veille vols MaxVoyage ---------- */
+.pp-releve { font-size:12px; color:var(--texte-2); margin:4px 0 10px; line-height:1.4; }
+.pp-alerte {
+  margin:0 0 10px; padding:10px 12px; border-radius:10px; line-height:1.4;
+  background:var(--ambre-fond); border:1px solid var(--ambre-bordure); color:var(--texte);
+}
+
+.pp-periode-titre { margin:0 0 10px; font-size:15px; font-weight:600; color:var(--texte); line-height:1.3; }
+.pp-periode-sous { display:block; font-size:12px; font-weight:400; color:var(--texte-2); }
+.pp-offres { display:flex; flex-direction:column; gap:8px; }
+
+/* Toute l'offre est le lien : une grande cible, qui ouvre la recherche Google Flights. */
+.pp-offre {
+  display:flex; flex-direction:column; gap:4px; min-height:48px; padding:10px 12px;
+  border:1px solid var(--bordure); border-radius:10px; background:#fff;
+  color:var(--texte); text-decoration:none; line-height:1.35;
+}
+.pp-offre:active { background:var(--fond); }
+.pp-haut { display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.pp-ville { font-size:15px; font-weight:600; min-width:0; overflow-wrap:anywhere; }
+.pp-pays { font-weight:400; color:var(--texte-2); }
+.pp-prix { white-space:nowrap; color:var(--texte-2); font-size:12px; }
+.pp-prix b { font-size:18px; color:var(--bleu); font-variant-numeric:tabular-nums; }
+.pp-dates, .pp-vol { font-size:13px; color:var(--texte-2); }
+.pp-total { white-space:nowrap; }
+.pp-total::before { content:" · "; }
+.pp-reperes { display:flex; flex-wrap:wrap; gap:6px; margin-top:2px; }
+.pp-repere { font-size:12px; font-weight:600; padding:2px 8px; border-radius:999px; border:1px solid var(--bordure); color:var(--texte-2); }
+.pp-repere.bon { background:var(--vert-clair); border-color:var(--vert-bordure); color:var(--vert); }
+.pp-voir { font-size:13px; font-weight:600; color:var(--bleu); }
+
+.pp-plus {
+  display:block; width:100%; min-height:48px; margin-top:8px; border:1px dashed var(--tirets);
+  border-radius:10px; background:transparent; color:var(--bleu); font-size:13px; font-weight:600; cursor:pointer;
+}
+
+.pp-presse { display:flex; flex-direction:column; gap:8px; }
+.pp-article {
+  display:flex; flex-direction:column; gap:3px; min-height:48px; padding:8px 0;
+  border-bottom:1px solid var(--separateur); color:var(--texte); text-decoration:none; line-height:1.35;
+}
+.pp-article:last-child { border-bottom:0; }
+.pp-article-titre { font-weight:600; overflow-wrap:anywhere; }
+.pp-article-meta { font-size:12px; color:var(--texte-2); }
+
+@media (min-width:1024px) {
+  .pp-offres { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); }
+}

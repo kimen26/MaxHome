@@ -71,11 +71,16 @@ try {
     page.on("pageerror", (e) => erreurs.push(`${largeur}px: ${e.message}`));
     await connecter(page);
 
-    // ---------- Agenda › Voyages : la liste ----------
+    // ---------- Voyages › Pépites : le vrai dernier relevé MaxVoyage (veille_vols) ----------
     const nav = await page.isVisible("#barre-pc") ? "#barre-pc" : "#onglets";
-    await page.click(`${nav} button[data-ecran=agenda-mois]`);
-    await page.waitForSelector("#ecran-agenda-mois:not([hidden])", { timeout: 15000 });
-    await page.click(`#ecran-agenda-mois:not([hidden]) [data-ecran=voyages-liste]`);
+    await page.click(`${nav} button[data-ecran=voyages-liste]`);
+    await page.waitForSelector("#ecran-voyages-liste:not([hidden])", { timeout: 15000 });
+    await page.click(`#ecran-voyages-liste:not([hidden]) [data-ecran=pepites]`);
+    await page.waitForSelector("#pepites-corps .pp-releve, #pepites-corps .vide", { timeout: 15000 });
+    await capturer(page, "voyage-reel-pepites", largeur);
+
+    // ---------- Voyages › Nos voyages : la liste ----------
+    await page.click(`#ecran-pepites:not([hidden]) [data-ecran=voyages-liste]`);
     await page.waitForSelector("#ecran-voyages-liste:not([hidden]) #voyages-liste-corps", { timeout: 15000 });
     await page.waitForSelector("#voyages-liste-corps .carte-voyage, #voyages-liste-corps .vide", { timeout: 15000 });
     await capturer(page, "voyage-reel-liste", largeur);

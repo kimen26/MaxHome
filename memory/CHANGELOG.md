@@ -1,6 +1,12 @@
 # CHANGELOG
 _Se remplit à la release, en vidant les lanes terminées de TODO.md._
 
+## 2026-10-07 — Onglet Voyages et pépites de vols
+- Un onglet **Voyages** : nos voyages (le carnet de chacun) et **Pépites**, les prix de vols
+  relevés chaque matin par MaxVoyage autour de nos vacances, avec les bons plans repérés dans la
+  presse. Toucher une offre ouvre les vols sur Google Flights.
+- Réglages s'ouvre par la roue crantée, en bas à droite.
+
 ## 2026-09-22 — Agenda et aide à la saisie
 - Un quatrième onglet **Agenda** : le calendrier du mois avec nos voyages, les vacances
   scolaires de notre zone et les jours fériés ; la liste des prochaines vacances par zone.

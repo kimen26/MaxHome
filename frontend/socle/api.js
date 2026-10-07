@@ -169,6 +169,8 @@ export function creerApi(sb) {
      *  lieux », calculer la barre de budget totale (carnet.js::budgetParPoste) ET montrer un
      *  avant-goût du résumé sur chaque carte de la liste des voyages, sans charger le détail
      *  complet de chaque voyage (D-047 §V2 point 7, relecture point 4). */
+    /** Dernier instantané de la veille vols MaxVoyage (ligne unique, null si jamais publié). */
+    veilleVols: () => sb.from("veille_vols").select("genere_le,contenu").maybeSingle().then(rendre),
     async voyageCompteurs() {
       const [lieux, resas, enveloppes, resumes] = await Promise.all([
         sb.from("voyage_lieux").select("voyage_id").then(rendre),

@@ -529,3 +529,40 @@ export const COURSES_CLASSIQUES = [
   { libelle: "Œufs", quantite: "1 boîte", rayon: "Épicerie, alcool, lait", fois: 9, dernier_le: "2026-09-18T10:00:00Z" },
   { libelle: "Papier toilette", quantite: "1 pack", rayon: "Papier et lavage", fois: 5, dernier_le: "2026-09-01T10:00:00Z" },
 ];
+
+// ---------- module Voyages : veille vols MaxVoyage (docs/briefs/veille-vols.md) ----------
+// Instantané factice du jour : une période de vacances avec 7 offres (5 visibles + « Voir les 2
+// autres »), dont un bon plan en baisse et une nouvelle, une période de week-ends, deux articles
+// de presse. Destinations et prix inventés.
+const offreFactice = (destination, ville, pays, pp, extra = {}) => ({
+  destination, ville, pays, origine: "ORY", depart: ilYA(-35), retour: ilYA(-42), nuits: 7, voyageurs: 3,
+  prix_pp_centimes: pp, prix_total_centimes: pp * 3, escales: 0, compagnies: ["Compagnie Test"], duree_aller_min: 150,
+  seuil_pp_centimes: 20000, sous_seuil: pp <= 20000, tendance: null, baisse_pp_centimes: null,
+  lien: `https://flights.example/${destination}`, ...extra,
+});
+export const VEILLE_VOLS = [{
+  id: 1, genere_le: new Date(AUJOURDHUI).toISOString(),
+  contenu: {
+    version: 1, genere_le: new Date(AUJOURDHUI).toISOString(), releve_le: ilYA(0),
+    periodes: [
+      { cle: ilYA(-35), titre: "Vacances de test", type: "vacances", offres: [
+        offreFactice("AAA", "Port-Soleil", "Pays A", 17800, { tendance: "baisse", baisse_pp_centimes: 2100 }),
+        offreFactice("BBB", "Val-des-Pins", "Pays B", 21500, { tendance: "nouveau", escales: 1, compagnies: ["Air Un", "Air Deux"] }),
+        offreFactice("CCC", "Rocheclaire", "Pays C", 24900),
+        offreFactice("DDD", "Saint-Ondine-sur-Mer-la-Grande", "Pays D", 31000),
+        offreFactice("EEE", "Bellerive", "Pays E", 45600),
+        offreFactice("FFF", "Hautcastel", "Pays F", 62467),
+        offreFactice("GGG", "Lointaine", "Pays G", 124567, { escales: 2 }),
+      ] },
+      { cle: ilYA(-10), titre: "Week-ends hors vacances", type: "weekend", offres: [
+        offreFactice("HHH", "Petite-Ville", "Pays H", 8167, { nuits: 2 }),
+      ] },
+    ],
+    presse: [
+      { titre: "Vols à petit prix pour les vacances de test", lien: "https://presse.example/1", source: "Presse Test",
+        creneau: "Vacances de test", prix_pp_centimes: 9900, depart: null, retour: null, vu_le: ilYA(1) },
+      { titre: "Séjour tout compris, offre limitée", lien: "https://presse.example/2", source: "Presse Test",
+        creneau: "week-end", prix_pp_centimes: null, depart: null, retour: null, vu_le: ilYA(3) },
+    ],
+  },
+}];
