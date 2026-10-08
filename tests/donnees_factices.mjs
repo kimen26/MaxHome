@@ -558,6 +558,10 @@ export const VEILLE_VOLS = [{
         offreFactice("HHH", "Petite-Ville", "Pays H", 8167, { nuits: 2 }),
       ] },
     ],
+    aeroports: [
+      { code: "AAA", ville: "Port-Soleil", pays: "Pays A" }, { code: "BBB", ville: "Val-des-Pins", pays: "Pays B" },
+      { code: "CCC", ville: "Rocheclaire", pays: "Pays C" }, { code: "HHH", ville: "Petite-Ville", pays: "Pays H" },
+    ],
     presse: [
       { titre: "Vols à petit prix pour les vacances de test", lien: "https://presse.example/1", source: "Presse Test",
         creneau: "Vacances de test", prix_pp_centimes: 9900, depart: null, retour: null, vu_le: ilYA(1) },
@@ -566,3 +570,15 @@ export const VEILLE_VOLS = [{
     ],
   },
 }];
+
+// Alertes de veille (D-056) : une alerte de vacances active, une de week-ends en pause.
+export const VEILLE_ALERTES = [
+  { id: 1, nom: "Soleil de test", type: "vacances", periode_libelle: "Vacances de test", debut: ilYA(-35), fin: ilYA(-50),
+    zone: "Zone C", marge_avant: 2, marge_apres: 2, nuits_min: 7, nuits_max: 14, jours_depart: null,
+    origines: ["ORY", "CDG"], destinations: ["AAA", "BBB", "CCC", "ZZZ"], prix_max_pp_centimes: 20000,
+    directs_seulement: false, recherches_max: 8, adultes: 2, enfants_naissances: [], active: true, maj_le: ilYA(2) },
+  { id: 2, nom: "Week-ends de test", type: "weekend", periode_libelle: "Week-ends à venir", debut: ilYA(-10), fin: ilYA(-90),
+    zone: "Zone C", marge_avant: 0, marge_apres: 0, nuits_min: 2, nuits_max: 2, jours_depart: [4],
+    origines: ["ORY"], destinations: ["HHH"], prix_max_pp_centimes: 8000,
+    directs_seulement: true, recherches_max: 40, adultes: 2, enfants_naissances: [], active: false, maj_le: ilYA(5) },
+];

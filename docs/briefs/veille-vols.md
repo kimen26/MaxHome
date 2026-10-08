@@ -71,3 +71,39 @@ Montants en **centimes entiers** (invariant MaxHome n° 4). Dates `AAAA-MM-JJ`.
 - `presse` : bons plans de la veille presse des 14 derniers jours qui touchent un de nos
   créneaux (`matched_window` non nul), 15 au plus, du plus récent au plus ancien. Champs
   inconnus à `null`.
+
+## Les alertes : saisies dans MaxHome, relevées par MaxVoyage (D-056)
+
+Les alertes (quoi surveiller) se créent et se modifient dans l'app, onglet **Voyages › Alertes**.
+MaxHome fait foi : la table `veille_alertes` (migration 030) est la liste de référence.
+
+```
+MaxVoyage scripts/collect.py (07h15), AVANT la collecte
+  └─ lance MaxHome scripts/lire_alertes.py → JSON sur la sortie standard (toutes les lignes)
+     └─ recopie dans la table locale alerts, par id :
+          ligne présente  → créée ou mise à jour
+          ligne absente   → alerte locale désactivée (active = 0), historique gardé
+     └─ MaxHome injoignable → la collecte part avec les alertes locales de la veille
+```
+
+Correspondance des champs `veille_alertes` → `alerts` (MaxVoyage) :
+
+| MaxHome | MaxVoyage | Note |
+|---|---|---|
+| `id` | `id` | même numéro (les 11 alertes d'origine ont gardé le leur) |
+| `nom` | `name` | |
+| `type` `vacances` / `weekend` | `kind` `vacation` / `weekend` | |
+| `periode_libelle`, `debut`, `fin`, `zone` | `vacation_label`, `vacation_start`, `vacation_end`, `zone` | dates `AAAA-MM-JJ` |
+| `marge_avant`, `marge_apres` | `margin_before`, `margin_after` | |
+| `nuits_min`, `nuits_max` | `stay_days_min`, `stay_days_max` | |
+| `jours_depart` (0 = lundi) ou null | `weekdays_dep` (JSON) ou NULL | |
+| `origines`, `destinations` | `origins`, `destinations` (JSON) | codes IATA |
+| `prix_max_pp_centimes` ou null | `max_price` (€/pers, réel) ou NULL | ÷ 100 |
+| `directs_seulement` | `direct_only` | |
+| `recherches_max` | `max_queries` | |
+| `adultes`, `enfants_naissances` | `adults`, `child_birthdates` (JSON) | |
+| `active` | `active` | |
+
+Pour que l'app propose les destinations par nom de ville, l'instantané `pepites.json` porte aussi
+`aeroports` : la liste des aéroports connus de MaxVoyage, `[{"code", "ville", "pays"}]`, triée
+par ville (champ additif, version 1 inchangée).

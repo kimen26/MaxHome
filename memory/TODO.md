@@ -273,6 +273,9 @@ répétable oui/non, sa liste de tâches découpée. Arbitrages : D-041._
       scripts/publier_pepites.py, export côté MaxVoyage, recettes.
 - [ ] Vérifier le premier relevé automatique du matin (07h15) arrivé dans l'app sans geste.
 - [ ] Plus tard, si demandé : bouton « En faire un voyage » sur une pépite.
+- [x] Alertes gérées depuis l'app (D-056) : table veille_alertes (030), écran Voyages › Alertes,
+      synchro au début de la collecte MaxVoyage.
+- [ ] Vérifier au relevé du matin le log « Alertes relevées dans MaxHome » (data/collect.log).
 
 ## Parking
 - Le carnet de voyage (ui-fiche-*, carnet.js, carte.js, geocode.js, topo.js, ui-voyages-liste.js)

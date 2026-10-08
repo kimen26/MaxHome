@@ -64,6 +64,8 @@ const FEUILLES = [
   { ecran: "mois", moduleDefaut: "mois", bouton: "#fab-ajouter-mois", nom: "feuille-ajout-mois" },
   { ecran: "voyages", moduleDefaut: "taches-rec", bouton: "#form-voyage [data-nouveau]", nom: "feuille-ajout-voyage" },
   { ecran: "taches-rec", moduleDefaut: "taches-rec", bouton: "#btn-aide-parts", nom: "feuille-aide-parts" },
+  { ecran: "alertes", moduleDefaut: "voyages-liste", bouton: "#form-alerte [data-nouveau]", nom: "feuille-ajout-alerte" },
+  { ecran: "alertes", moduleDefaut: "voyages-liste", bouton: '#liste-alertes [data-modifier="1"]', nom: "feuille-modif-alerte" },
 ];
 
 // États qu'un geste révèle SANS feuille : le mois suivant de l'Agenda (les données factices y
@@ -207,6 +209,17 @@ const GESTES = [
     geste: async (page) => {
       await page.click("#charges-ref-corps [data-plier-terminees]");
       await page.waitForSelector("#charges-ref-corps .ct-liste:not([hidden])", { timeout: 3000 });
+    } },
+  // ---------- Voyages · Alertes (D-056) : ajout d'une destination par sa ville, bas du formulaire ----------
+  { ecran: "alertes", moduleDefaut: "voyages-liste", nom: "alerte-ajout-destination",
+    geste: async (page) => {
+      await page.click('#liste-alertes [data-modifier="1"]');
+      await page.waitForSelector("#feuille-corps [data-ville]", { timeout: 5000 });
+      await page.fill("#feuille-corps [data-ville]", "Petite-Ville · Pays H (HHH)");
+      await page.click("#feuille-corps [data-ajouter-ville]");
+      await page.waitForSelector('#feuille-corps [data-retirer-code="HHH"]', { timeout: 3000 });
+      await page.evaluate(() => { const f = document.querySelector("#feuille"); f.scrollTop = f.scrollHeight; });
+      await page.waitForTimeout(150);
     } },
   // ---------- carnet de voyage (D-045, lot C) ----------
   // Fiche complète du voyage 1 (« Week-end à la mer », en cours) : en-tête, Réservations
@@ -466,7 +479,7 @@ const TABLES = {
   voyages: "VOYAGES", parametres: "PARAMETRES",
   voyage_lieux: "VOYAGE_LIEUX", voyage_resas: "VOYAGE_RESAS", voyage_pieces: "VOYAGE_PIECES",
   voyage_blocs: "VOYAGE_BLOCS", voyage_enveloppes: "VOYAGE_ENVELOPPES",
-  veille_vols: "VEILLE_VOLS",
+  veille_vols: "VEILLE_VOLS", veille_alertes: "VEILLE_ALERTES",
 };
 
 /** Construit le script de bouchon : un thenable qui imite from().select().eq()... et

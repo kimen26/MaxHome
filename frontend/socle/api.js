@@ -171,6 +171,10 @@ export function creerApi(sb) {
      *  complet de chaque voyage (D-047 §V2 point 7, relecture point 4). */
     /** Dernier instantané de la veille vols MaxVoyage (ligne unique, null si jamais publié). */
     veilleVols: () => sb.from("veille_vols").select("genere_le,contenu").maybeSingle().then(rendre),
+    veilleAlertes: () => sb.from("veille_alertes").select("*").order("id").then(rendre),
+    creerAlerte: (champs) => sb.from("veille_alertes").insert(champs).select().single().then(rendre),
+    majAlerte: (id, champs) => sb.from("veille_alertes").update(champs).eq("id", id).then(rendre),
+    supprimerAlerte: (id) => sb.from("veille_alertes").delete().eq("id", id).then(rendre),
     async voyageCompteurs() {
       const [lieux, resas, enveloppes, resumes] = await Promise.all([
         sb.from("voyage_lieux").select("voyage_id").then(rendre),

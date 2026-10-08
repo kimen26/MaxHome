@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from provision import appel, cles, lit_env  # noqa: E402
+from veille_rest import appel_service  # noqa: E402
 
 VERSION_CONTRAT = 1
 CHAMPS_OFFRE = ("destination", "ville", "depart", "retour", "prix_pp_centimes", "prix_total_centimes", "lien")
@@ -36,19 +36,16 @@ def verifier_instantane(d):
     return d
 
 
-def publier(instantane, env):
-    ref, pat = env["SUPABASE_REF"], env["SUPABASE_PAT"]
-    _, service_role = cles(ref, pat)
+def publier(instantane):
     ligne = {"id": 1, "genere_le": instantane["genere_le"], "contenu": instantane}
-    appel("POST", f"https://{ref}.supabase.co/rest/v1/veille_vols", service_role, [ligne],
-          entetes={"apikey": service_role, "Prefer": "resolution=merge-duplicates,return=minimal"})
+    appel_service("POST", "veille_vols", [ligne], {"Prefer": "resolution=merge-duplicates,return=minimal"})
 
 
 def main():
     if len(sys.argv) != 2:
         sys.exit("usage : python scripts/publier_pepites.py <pepites.json>")
     instantane = verifier_instantane(json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")))
-    publier(instantane, lit_env())
+    publier(instantane)
     n = sum(len(p.get("offres", [])) for p in instantane["periodes"])
     print(f"veille_vols publiée : relevé du {instantane['releve_le']}, {n} offres, {len(instantane['presse'])} bons plans presse")
 

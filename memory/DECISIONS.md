@@ -865,3 +865,17 @@ de MaxVoyage (« Pépites »), et « Réglages » devient une roue crantée.
   l'instantané, toujours avec sa date, et prévient au-delà de 2 jours (PC éteint).
   Contrat : docs/briefs/veille-vols.md.
 
+## D-056 — Les alertes de veille vols se gèrent dans MaxHome, MaxVoyage les recopie (2026-10-07)
+
+Demande de Yann : créer et régler ses projets de vacances (alertes MaxVoyage) depuis le téléphone.
+- **MaxHome fait foi** : table `veille_alertes` (migration 030), onglet Voyages › Alertes. Les 11
+  alertes de MaxVoyage y ont été importées avec leur numéro, pour que les relevés gardent leur lien.
+- MaxVoyage lance `scripts/lire_alertes.py` au début de sa collecte et recopie par id ; une alerte
+  absente est désactivée (historique gardé) ; MaxHome injoignable ou liste vide = alertes locales
+  gardées telles quelles (une liste vide est plus probablement une panne qu'une vraie consigne).
+- Pas de synchronisation dans les deux sens : l'IHM locale de MaxVoyage avertit qu'une
+  modification faite chez elle sera remplacée au relevé suivant. Deux sources modifiables auraient
+  demandé un arbitrage des conflits pour un usage qui n'existe pas.
+- Prise en compte au relevé suivant (7h15, PC allumé), pas tout de suite : suffisant pour des
+  projets de vacances à plusieurs semaines ; un relevé à la demande reste possible plus tard.
+- Destinations choisies par ville : l'instantané porte la liste des aéroports connus de MaxVoyage.

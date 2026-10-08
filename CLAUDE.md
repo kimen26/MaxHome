@@ -9,7 +9,7 @@ discussion « c'est toujours moi » n'ait plus lieu d'être. Cinq modules, un hu
 | **Tâches** | qui fait quoi à la maison, en parts (0,5 · 1 · 2 · 3 · 5 · 8) | Jour · Semaine · Réglages |
 | **Courses** | une liste commune, cochable dans l'ordre du magasin | Liste · Magasin |
 | **Agenda** | calendrier : voyages, vacances scolaires de notre zone, jours fériés | Mois · Vacances |
-| **Voyages** | carnet de chaque voyage (résas, billets/QR, carte, lieux, topo) et veille vols MaxVoyage | Nos voyages (liste + fiche) · Pépites |
+| **Voyages** | carnet de chaque voyage (résas, billets/QR, carte, lieux, topo) et veille vols MaxVoyage | Nos voyages (liste + fiche) · Pépites · Alertes |
 
 En prod sur https://kimen26.github.io/MaxHome/ (Supabase `maxhome`), plus un bot Telegram
 `@BudgetCYM_bot` qui sert les trois modules. Le budget remplace un classeur Excel de 4 feuilles.
@@ -24,7 +24,7 @@ En prod sur https://kimen26.github.io/MaxHome/ (Supabase `maxhome`), plus un bot
 | courses · liste · rayon | COURSES | frontend/courses/ui-courses.js + scripts/bot/courses.py |
 | agenda · voyage · vacances · zone · férié · calendrier | AGENDA | frontend/agenda/calendrier.js + vacances.js + mod-agenda.js |
 | carnet · lieu · résa · réservation · billet · QR · carte · topo | VOYAGE | docs/briefs/carnet-voyage.md + frontend/agenda/carnet.js + ui-fiche-voyage.js + scripts/bot/voyages.py |
-| pépite · veille vols · MaxVoyage · prix des vols | VEILLE | docs/briefs/veille-vols.md + frontend/voyages/ + scripts/publier_pepites.py |
+| pépite · alerte · veille vols · MaxVoyage · prix des vols | VEILLE | docs/briefs/veille-vols.md + frontend/voyages/ + scripts/publier_pepites.py + lire_alertes.py |
 | bot · Telegram · commande · rappel | BOT | scripts/bot/commandes.py + bot.py |
 | module · descripteur · nouveau module · arborescence · socle | ARCHI | docs/architecture.md + frontend/modules.js |
 | base · auth · Supabase · RLS · partage · sécurité | DATA | docs/architecture.md |
@@ -69,7 +69,7 @@ Plan → TodoWrite → Exécution → Vérification → Commit → memory/ grav�
 | `node tests/test_courses.mjs` | tout changement de la tournée / des repas / de l'aide à la saisie |
 | `node tests/test_agenda.mjs` | tout changement du calendrier (fériés, grille, vacances par zone) |
 | `node tests/test_libelles.mjs` | tout changement du libellé de virement (D-050) |
-| `node tests/test_voyages.mjs` | tout changement de l'écran Pépites (veille vols, docs/briefs/veille-vols.md) |
+| `node tests/test_voyages.mjs` | tout changement des écrans Pépites et Alertes (veille vols, docs/briefs/veille-vols.md) |
 | `node tests/comparer_captures.mjs --attendu <écrans>` (référence : data/captures/avant/) | tout refactor censé ne rien changer |
 | `node tests/recette_token.mjs` (jeton refusé puis rafraîchi) | tout changement de `surChangement` / `demarrer()` / gestion d'erreur |
 | `node tests/recette_mise_a_jour.mjs` (déploiement simulé : l'app se recharge seule, jamais en saisie) | tout changement de `sw.js`, de son enregistrement dans index.html, de `gen-sw-version.mjs` |

@@ -6,6 +6,8 @@ _Se remplit à la release, en vidant les lanes terminées de TODO.md._
   relevés chaque matin par MaxVoyage autour de nos vacances, avec les bons plans repérés dans la
   presse. Toucher une offre ouvre les vols sur Google Flights.
 - Réglages s'ouvre par la roue crantée, en bas à droite.
+- Voyages › **Alertes** : on crée, modifie ou met en pause depuis le téléphone ce que MaxVoyage
+  surveille (période, nuits, destinations par ville, prix d'un bon plan). Relevé le lendemain matin.
 
 ## 2026-09-22 — Agenda et aide à la saisie
 - Un quatrième onglet **Agenda** : le calendrier du mois avec nos voyages, les vacances

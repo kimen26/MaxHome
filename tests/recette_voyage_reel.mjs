@@ -79,8 +79,13 @@ try {
     await page.waitForSelector("#pepites-corps .pp-releve, #pepites-corps .vide", { timeout: 15000 });
     await capturer(page, "voyage-reel-pepites", largeur);
 
+    // ---------- Voyages › Alertes : les vraies alertes MaxVoyage (veille_alertes, RLS membre) ----------
+    await page.click(`#ecran-pepites:not([hidden]) [data-ecran=alertes]`);
+    await page.waitForSelector("#liste-alertes .rec, #liste-alertes .vide", { timeout: 15000 });
+    await capturer(page, "voyage-reel-alertes", largeur);
+
     // ---------- Voyages › Nos voyages : la liste ----------
-    await page.click(`#ecran-pepites:not([hidden]) [data-ecran=voyages-liste]`);
+    await page.click(`#ecran-alertes:not([hidden]) [data-ecran=voyages-liste]`);
     await page.waitForSelector("#ecran-voyages-liste:not([hidden]) #voyages-liste-corps", { timeout: 15000 });
     await page.waitForSelector("#voyages-liste-corps .carte-voyage, #voyages-liste-corps .vide", { timeout: 15000 });
     await capturer(page, "voyage-reel-liste", largeur);
