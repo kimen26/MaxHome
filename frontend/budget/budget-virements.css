@@ -71,3 +71,6 @@ button.gv-groupe {
 }
 .ml-element.a-faire { background:var(--ambre-ligne); margin:0 -12px; padding:4px 12px; }
 .ml-element .case-cycle-vide { flex:none; }
+/* Élément automatique (D-057) : pas de case, mais la place d'une case pour garder l'alignement. */
+.ml-auto-espace { flex:0 0 26px; width:26px; height:26px; }
+.mc-auto { font-weight:600; }

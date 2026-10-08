@@ -179,6 +179,21 @@ const GESTES = [
       await page.waitForSelector(".ml-groupe.ouvert .mc-paiement", { timeout: 3000 });
       await page.waitForTimeout(150);
     } },
+  // Virement automatique (D-057, Épargne mensuelle -> Livret épargne dans donnees_factices.mjs) :
+  // la section « Fait » dépliée montre le groupe sans case, avec « Automatique », puis le groupe
+  // déplié montre son élément de même (« Automatique » à la place de « ✓ prénom · date »).
+  { ecran: "mois", moduleDefaut: "mois", nom: "mois-virement-automatique",
+    geste: async (page) => {
+      await page.click('#mois-vue-charges [data-vue-charges="destinataires"]');
+      if (await page.locator("#mvts-faits").isHidden()) await page.click("#fait-tete");
+      const groupe = page.locator("#mvts-faits .gv-groupe").filter({ hasText: "Livret épargne" }).first();
+      await groupe.scrollIntoViewIfNeeded();
+      await groupe.locator(".mvt-corps").click();
+      await page.waitForSelector("#mvts-faits .ml-groupe.ouvert .mc-auto", { timeout: 3000 });
+      const cases = await page.locator("#mvts-faits .ml-groupe.ouvert [data-cycle], #mvts-faits .ml-groupe.ouvert [data-cycle-ligne], #mvts-faits .ml-groupe.ouvert [data-cycle-mouvement]").count();
+      if (cases) throw new Error(`mois-virement-automatique : ${cases} case(s) cochable(s) sur un virement automatique.`);
+      await page.waitForTimeout(150);
+    } },
   // Fiche d'une tâche (D-041) : Réglages · Tâches, tap sur une ligne.
   { ecran: "taches-rec", moduleDefaut: "taches-rec", nom: "fiche-tache",
     geste: async (page) => {

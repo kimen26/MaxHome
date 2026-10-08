@@ -1,6 +1,11 @@
 # CHANGELOG
 _Se remplit à la release, en vidant les lanes terminées de TODO.md._
 
+## 2026-10-08 — Virement automatique
+- Un virement permanent programmé à la banque se marque « automatique » dans Récurrents : il
+  reste compté, mais il est directement dans « Fait », sans case à cocher, et ne gonfle plus
+  le « à valider ». (Migration 031 à appliquer.)
+
 ## 2026-10-07 — Onglet Voyages et pépites de vols
 - Un onglet **Voyages** : nos voyages (le carnet de chacun) et **Pépites**, les prix de vols
   relevés chaque matin par MaxVoyage autour de nos vacances, avec les bons plans repérés dans la

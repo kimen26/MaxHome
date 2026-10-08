@@ -49,6 +49,9 @@ export const COMPTES = [
   // Réserve relais : compte FINAL où le tampon paie, à son rythme.
   { id: 6, nom: "Assureur auto", titulaire: null, iban_masque: "7788", note: null, commun: false,
     libelle_virement: "Contrat AX-5521", libelle_variable: false },
+  // Virement automatique (D-057) : compte d'épargne alimenté par un virement permanent (fictif).
+  { id: 7, nom: "Livret épargne", titulaire: null, iban_masque: "5566", note: null, commun: false,
+    libelle_virement: null, libelle_variable: false },
 ];
 
 // Charges en montants NÉGATIFS, comme en base (docs/regles-repartition.md). Chaque état qu'un
@@ -150,6 +153,11 @@ export const MOUVEMENTS_RECURRENTS = [
     montant_centimes: null, charge_id: 11, prenom_part: null, qui: null, jour: 5,
     consigne: null, ordre: 6, actif: true,
     relais_vers: 6, relais_tous_les: 3, relais_depart: ((MOIS) % 12) + 1 },
+  // Virement automatique (D-057) : virement permanent programmé à la banque, rien à cocher —
+  // doit apparaître directement dans « Fait », sans case, avec « Automatique ».
+  { id: 7, titre: "Épargne mensuelle → Livret épargne", compte_de: 1, compte_vers: 7, mode: "fixe",
+    montant_centimes: 20000, charge_id: null, prenom_part: null, qui: null, jour: 3,
+    consigne: null, ordre: 7, actif: true, automatique: true },
 ];
 
 export const MOUVEMENTS = [
@@ -184,6 +192,10 @@ export const MOUVEMENTS = [
   // MOUVEMENTS_RECURRENTS id 6) : le repère « Mis de côté… » se lit sans deuxième case.
   { id: 7, annee: ANNEE, mois: MOIS, recurrent_id: 6, titre: "Entretien chaudière → Livret réserve",
     compte_de: 1, compte_vers: 5, montant_centimes: -2000, qui: null, consigne: null,
+    fait_le: null, fait_par: null },
+  // Virement automatique (D-057) : jamais coché en base (fait_le null), pourtant affiché « Fait ».
+  { id: 8, annee: ANNEE, mois: MOIS, recurrent_id: 7, titre: "Épargne mensuelle → Livret épargne",
+    compte_de: 1, compte_vers: 7, montant_centimes: -20000, qui: null, consigne: null,
     fait_le: null, fait_par: null },
 ];
 

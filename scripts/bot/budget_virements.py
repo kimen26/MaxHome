@@ -95,14 +95,16 @@ def _construire_groupes(bot, annee, mois):
 
 def _ligne_groupe(g, comptes):
     statut = ""
-    if g["fait"]:
+    if g.get("automatique"):
+        statut = " (automatique)"  # D-057 : permanent programmé à la banque, rien à valider
+    elif g["fait"]:
         prenom = g["prenom"] if isinstance(g["prenom"], str) else "?"
         date_faite = _date_plus_recente(g["lignes"])
         statut = f" (✓ {prenom}" + (f" · {date_faite}" if date_faite else "") + ")"
     lignes = [f"{g['libelleDe']} → {g['libelleVers']} : {reponses.euros(g['total'])}"
               f" ({reponses.pluriel(len(g['lignes']), 'ligne')}){statut}"]
     for l in g["lignes"]:
-        coche = " ✓" if l["valeur"] else ""
+        coche = " (automatique)" if l.get("valeur") == "__automatique__" else " ✓" if l.get("valeur") else ""
         lignes.append(f"  {l['libelle']} : {reponses.euros(l['montant_centimes'])}{coche}")
     compte = next((c for c in comptes if c["id"] == g["vers"]), None)
     if compte and compte.get("iban"):

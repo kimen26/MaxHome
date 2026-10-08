@@ -9,6 +9,7 @@
 
 import { montantLigne, montantTheorique } from "./calc.js";
 import { valeurCourante } from "./coche-ligne.js";
+import { chargeAutomatique, mouvementAutomatique, valeurClassement } from "./automatique.js";
 
 /** Clé du groupe des mouvements (hors ligne de charge) — jamais une catégorie réelle. */
 export const CLE_VIREMENTS = "__virements__";
@@ -38,7 +39,7 @@ export function construireGroupesCategories(charges, lignes, mouvements, recurre
     virements.elements.push({
       type: "mouvement", id: m.id, libelle: m.titre,
       montant_centimes: m.fait_le ? m.montant_centimes : (montantTheorique(recurrentDe(m), { lignes, resultat: { aVerser: {} } }) ?? m.montant_centimes),
-      valeur: valeurCourante(m), fait_le: m.fait_le ?? null, fait_par: m.fait_par ?? null,
+      valeur: valeurClassement(mouvementAutomatique(recurrents, m), valeurCourante(m)), fait_le: m.fait_le ?? null, fait_par: m.fait_par ?? null,
     });
   }
 
@@ -46,7 +47,8 @@ export function construireGroupesCategories(charges, lignes, mouvements, recurre
     const l = lignes[c.id];
     groupe(c.categorie, c.categorie).elements.push({
       type: "ligne", id: c.id, libelle: c.libelle,
-      montant_centimes: montantLigne(l), valeur: valeurCourante(l), saisi: l !== undefined,
+      montant_centimes: montantLigne(l),
+      valeur: valeurClassement(chargeAutomatique(recurrents, c.id), valeurCourante(l)), saisi: l !== undefined,
       fait_le: l?.fait_le ?? null, fait_par: l?.fait_par ?? null,
     });
   }

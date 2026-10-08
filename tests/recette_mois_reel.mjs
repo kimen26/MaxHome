@@ -38,7 +38,7 @@ async function connecter(page) {
   await page.fill('input[name=email]', env.EMAIL_YANN);
   await page.fill('input[name=password]', env.PASS_YANN);
   await page.click('button[type=submit]');
-  await page.waitForSelector("#ecran-accueil:not([hidden]) .module-carte", { timeout: 20000 });
+  await page.waitForSelector("#ecran-accueil:not([hidden]) .module-carte", { timeout: 60000 });
   await page.click("#ecran-accueil .module-carte:has-text('Budget')");
   await page.waitForFunction(() => /20[0-9][0-9]/.test(document.querySelector("#titre-mois")?.textContent || ""), null, { timeout: 20000 });
 }
@@ -51,14 +51,24 @@ try {
   for (const hash of MOIS) {
     await page.evaluate((h) => { location.hash = h; }, hash);
     await page.waitForFunction((h) => location.hash === `#${h}`, hash);
-    await page.waitForFunction(() => /20[0-9][0-9]/.test(document.querySelector("#titre-mois")?.textContent || ""), null, { timeout: 20000 });
-    await page.waitForTimeout(200);
+    // Attendre le titre DU mois demandé, pas n'importe quelle année : sinon la capture part sur
+    // l'écran du mois précédent, pas encore re-rendu.
+    const [annee, mois] = hash.split("-").map(Number);
+    const attendu = new Date(annee, mois - 1).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+    await page.waitForFunction((t) => (document.querySelector("#titre-mois")?.textContent || "").toLowerCase().includes(t),
+      attendu.toLowerCase(), { timeout: 20000 });
+    await page.waitForTimeout(500);
     await page.screenshot({ path: path.join(SORTIE, `mois-reel-${hash}-360.png`), fullPage: true });
     nbCaptures++;
   }
   // Groupes dépliés (tap sur le titre : pur affichage, aucune écriture) : montre les réserves
   // (D-054) — repère « mis de côté » et case « Payer » du mois de paiement.
-  for (const titre of await page.locator("[data-ml-groupe] .mvt-titre").all()) await titre.click();
+  // Chaque dépli re-rend la liste : on reprend le n-ième titre à neuf, jamais une référence périmée.
+  // Clic DOM (pas Playwright) : le bouton flottant « + Ajouter » recouvre parfois un titre.
+  await page.evaluate(() => {
+    const n = document.querySelectorAll("[data-ml-groupe] .mvt-titre").length;
+    for (let i = 0; i < n; i++) document.querySelectorAll("[data-ml-groupe] .mvt-titre")[i].click();
+  });
   await page.waitForTimeout(200);
   await page.screenshot({ path: path.join(SORTIE, `mois-reel-${MOIS.at(-1)}-deplie-360.png`), fullPage: true });
   nbCaptures++;

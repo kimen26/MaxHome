@@ -18,6 +18,7 @@
 import { montantLigne, montantTheorique } from "./calc.js";
 import { compteDeCharge, compteSource, nomDuCompte } from "./compte-charge.js";
 import { valeurCourante, SANS_PRENOM, prochaineValeur } from "./coche-ligne.js";
+import { chargeAutomatique, mouvementAutomatique, valeurClassement, estAutomatique } from "./automatique.js";
 
 /** Trajet d'un mouvement (hors mode "charge", jamais groupé ici) : compte à compte s'il est
  *  connu des deux côtés, ou « compte perso de X » quand la source est le compte personnel non
@@ -38,7 +39,9 @@ const libelleDepart = (de, comptes) =>
  * Construit les groupes de virements à faire (et déjà faits) pour le mois, à partir de l'état
  * complet. Un groupe existe même sans ligne À FAIRE (toutes ses lignes peuvent être déjà
  * validées) : c'est `fait` qui distingue, l'appelant choisit où l'afficher.
- * @returns [{ cle, de, vers, libelleDe, libelleVers, lignes, total, fait, prenom, quand }]
+ * @returns [{ cle, de, vers, libelleDe, libelleVers, lignes, total, totalManuel, fait, prenom, automatique }]
+ *   `automatique` : tous les éléments viennent d'un récurrent automatique (D-057, rien à cocher) ;
+ *   `totalManuel` : total des seuls éléments à cocher (l'automatique n'est pas « à faire »).
  *   `lignes` : [{ type: "ligne"|"mouvement", id, libelle, montant_centimes, valeur }]
  *   `valeur` : prénom qui a validé (cycle coche-ligne.js), ou null.
  */
@@ -67,7 +70,8 @@ export function construireGroupes(etat) {
     const de = compteSource(c, etat.comptes);
     groupe(de, compteVers).lignes.push({
       type: "ligne", id: c.id, libelle: c.libelle,
-      montant_centimes: montantLigne(l), valeur: valeurCourante(l),
+      montant_centimes: montantLigne(l),
+      valeur: valeurClassement(chargeAutomatique(etat.recurrents, c.id), valeurCourante(l)),
       fait_le: l.fait_le ?? null, fait_par: l.fait_par ?? null,
     });
   }
@@ -82,21 +86,28 @@ export function construireGroupes(etat) {
     const montant = m.fait_le ? m.montant_centimes : (montantTheorique(r, etat) ?? m.montant_centimes);
     groupe(t.de, t.vers).lignes.push({
       type: "mouvement", id: m.id, libelle: m.titre,
-      montant_centimes: montant, valeur: valeurCourante(m),
+      montant_centimes: montant,
+      valeur: valeurClassement(mouvementAutomatique(etat.recurrents, m), valeurCourante(m)),
       fait_le: m.fait_le ?? null, fait_par: m.fait_par ?? null,
     });
   }
 
   return [...groupes.values()].map((g) => {
     const total = g.lignes.reduce((s, l) => s + l.montant_centimes, 0);
-    const fait = g.lignes.length > 0 && g.lignes.every((l) => l.valeur !== null);
+    // D-057 : les éléments automatiques sont déjà « faits » et ne comptent pas dans ce qui reste
+    // à cocher. Un groupe entièrement automatique est fait sans prénom ; un groupe mixte reste à
+    // faire tant que ses éléments MANUELS ne le sont pas.
+    const manuelles = g.lignes.filter((l) => !estAutomatique(l.valeur));
+    const totalManuel = manuelles.reduce((s, l) => s + l.montant_centimes, 0);
+    const automatique = manuelles.length === 0;
+    const fait = g.lignes.length > 0 && manuelles.every((l) => l.valeur !== null);
     // Prénom COMMUN à toutes les lignes du groupe (règle 3 du brief), seulement si fait ET si
     // toutes les lignes partagent EXACTEMENT la même valeur (D-048 : un groupe entièrement
     // validé mais par des prénoms différents, ou sans prénom connu sur au moins une ligne,
     // n'a pas de prénom commun — affiché « ✓ » seul, jamais un prénom au hasard).
-    const memePrenom = fait && g.lignes.every((l) => l.valeur === g.lignes[0].valeur);
-    const prenom = fait ? (memePrenom ? g.lignes[0].valeur : SANS_PRENOM) : null;
-    return { ...g, total, fait, prenom };
+    const memePrenom = fait && !automatique && manuelles.every((l) => l.valeur === manuelles[0].valeur);
+    const prenom = fait && !automatique ? (memePrenom ? manuelles[0].valeur : SANS_PRENOM) : null;
+    return { ...g, total, totalManuel, fait, prenom, automatique };
   }).filter((g) => g.lignes.length > 0);
 }
 
@@ -104,7 +115,7 @@ export function construireGroupes(etat) {
 export const lignesAFaire = (g) => g.lignes.filter((l) => l.valeur === null);
 
 /** Lignes faites d'un groupe (celles qu'un tap sur sa case déjà cochée doit annuler). */
-export const lignesFaites = (g) => g.lignes.filter((l) => l.valeur !== null);
+export const lignesFaites = (g) => g.lignes.filter((l) => l.valeur !== null && !estAutomatique(l.valeur));
 
 /**
  * Prépare la bascule de la case d'un GROUPE (D-048 §3, même cycle rien → moi → l'autre → rien
@@ -122,6 +133,6 @@ export function preparerBasculeGroupe(g, membres) {
   // prochaineValeur (pas suivante) : depuis SANS_PRENOM (D-048, groupe fait sans prénom
   // commun), avance vers le PREMIER membre — comme depuis null, jamais un indexOf(Symbol).
   const valeurCible = prochaineValeur(valeurs, courant);
-  const cibles = g.fait ? g.lignes : lignesAFaire(g);
+  const cibles = g.fait ? lignesFaites(g) : lignesAFaire(g); // l'automatique n'est jamais une cible (D-057)
   return { valeurCible, cibles: cibles.map((l) => ({ type: l.type, id: l.id })) };
 }

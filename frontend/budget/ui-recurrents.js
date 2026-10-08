@@ -5,7 +5,7 @@ import { euros, versCentimes } from "./calc.js";
 import { txt } from "../socle/ui-base.js";
 import { carteListe, ligneReglage, trajetComptes } from "../socle/blocs.js";
 import { creerReglages } from "../socle/blocs-reglages.js";
-import { champ, montant, zone, select, comptesOptions, membresOptions, lire } from "../socle/blocs-form.js";
+import { champ, montant, zone, select, caseACocher, comptesOptions, membresOptions, lire } from "../socle/blocs-form.js";
 import { aReserve } from "./reserve.js";
 
 const MODES = [["fixe", "Montant fixe"], ["charge", "Suit une charge"], ["part", "Part d’une personne"]];
@@ -31,7 +31,7 @@ export function creerUiRecurrents(api, etat, cb) {
     elements: () => etat.recurrents,
     htmlListe: (liste) => carteListe(liste.map((r) => ligneReglage({
       id: r.id, titre: r.titre,
-      sous: `${txt(trajet(r))}${r.jour ? ` · le ${r.jour}` : ""}`,
+      sous: `${txt(trajet(r))}${r.jour ? ` · le ${r.jour}` : ""}${r.automatique ? " · automatique" : ""}`,
       consigne: r.consigne, droite: `<span>${decrireMontant(r)}</span>`,
       pastille: r.qui, inactif: !r.actif,
     })), "Aucun mouvement récurrent."),
@@ -48,6 +48,7 @@ export function creerUiRecurrents(api, etat, cb) {
       ${select("qui", "Qui s’en occupe", membresOptions(etat), r?.qui, { vide: "—" })}
       ${champ("jour", "Jour habituel", { type: "number", valeur: r?.jour, attrs: 'min="1" max="31"' })}
       ${zone("consigne", "Consigne", r?.consigne, { lignes: 3 })}
+      ${caseACocher("automatique", "Virement automatique (rien à cocher)", r?.automatique === true)}
       <div data-si="charge" class="bloc-relais">
         <label class="case-a-cocher"><input type="checkbox" name="relais_actif"${aReserve(r) ? " checked" : ""}>
           Passe par une réserve (mis de côté ici, payé plus tard ailleurs)</label>
@@ -70,7 +71,7 @@ export function creerUiRecurrents(api, etat, cb) {
     champs: (form) => {
       const v = lire(form, {
         nombres: ["compte_de", "compte_vers", "charge_id", "jour", "relais_vers", "relais_tous_les", "relais_depart"],
-        booleens: ["relais_actif"],
+        booleens: ["relais_actif", "automatique"],
       });
       const relais = v.mode === "charge" && v.relais_actif;
       return {
@@ -78,7 +79,7 @@ export function creerUiRecurrents(api, etat, cb) {
         montant_centimes: v.mode === "fixe" && v.montant ? versCentimes(v.montant) : null,
         charge_id: v.mode === "charge" ? v.charge_id : null,
         prenom_part: v.mode === "part" ? v.prenom_part : null,
-        qui: v.qui, jour: v.jour, consigne: v.consigne,
+        qui: v.qui, jour: v.jour, consigne: v.consigne, automatique: v.automatique,
         relais_vers: relais ? v.relais_vers : null,
         relais_tous_les: relais ? (v.relais_tous_les ?? 1) : 1,
         relais_depart: relais ? v.relais_depart : null,

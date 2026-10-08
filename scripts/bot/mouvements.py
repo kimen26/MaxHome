@@ -49,10 +49,12 @@ def montant_affiche(mouvement, recurrents, resultat, lignes):
 
 
 def restants(donnees, annee, mois, resultat, lignes):
-    """Mouvements non faits du mois, montant recalculé."""
+    """Mouvements non faits du mois, montant recalculé. Les virements automatiques (D-057,
+    permanents programmés à la banque) n'ont rien à faire : jamais listés."""
     recurrents = index_recurrents(donnees)
     return [{**m, "montant_centimes": montant_affiche(m, recurrents, resultat, lignes)}
-            for m in du_mois(donnees, annee, mois, resultat, lignes) if not m["fait_le"]]
+            for m in du_mois(donnees, annee, mois, resultat, lignes)
+            if not m["fait_le"] and not recurrents.get(m["recurrent_id"], {}).get("automatique")]
 
 
 def cibler(mouvements, recurrents, prenom, titre):

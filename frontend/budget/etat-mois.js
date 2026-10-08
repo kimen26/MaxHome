@@ -6,6 +6,7 @@
 // le sous-titre de l'écran Mois et la carte À faire : les trois disent la même chose.
 
 import { MOIS } from "../socle/ui-base.js";
+import { chargeAutomatique, mouvementAutomatique } from "./automatique.js";
 
 const pluriel = (n) => (n > 1 ? "s" : "");
 
@@ -31,12 +32,12 @@ export function etatDuMois({ mois, membres, revenus, charges, lignes, mouvements
   const chargesVides = videsListe.length;
 
   const modeCharge = (m) => recurrents.find((r) => r.id === m.recurrent_id)?.mode === "charge";
-  const mouvementsAFaire = mouvements.filter((m) => !m.fait_le && !modeCharge(m)).length;
+  const mouvementsAFaire = mouvements.filter((m) => !m.fait_le && !modeCharge(m) && !mouvementAutomatique(recurrents, m)).length;
   // Charges AFFICHÉES (actives + une terminée qui garde sa ligne ce mois, D-043) : une charge
   // sans ligne ne compte ni ici ni dans chargesVides deux fois — elle est déjà dans chargesVides.
   const affichees = charges.filter((c) => !c.ponctuel && (c.actif !== false || lignes[c.id] !== undefined));
   const lignesAValider = affichees.filter((c) => lignes[c.id] !== undefined && lignes[c.id].montant_centimes
-    && !lignes[c.id].fait_le).length;
+    && !lignes[c.id].fait_le && !chargeAutomatique(recurrents, c.id)).length; // D-057 : automatique = rien à valider
   const aFaire = mouvementsAFaire + lignesAValider;
   const total = mouvements.filter((m) => !modeCharge(m)).length + affichees.filter((c) => lignes[c.id]?.montant_centimes).length;
 

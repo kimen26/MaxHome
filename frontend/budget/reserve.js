@@ -20,8 +20,8 @@ export function estMoisPaiement(recurrent, mois) {
 
 /**
  * Montant accumulé sur le tampon depuis le dernier paiement, ce mois inclus : somme des valeurs
- * ABSOLUES des lignes de la charge sur les `relais_tous_les` mois se terminant par `anneeMois`
- * (année/mois courants). Un mois sans ligne saisie vaut 0 (pas d'hypothèse sur un montant qui
+ * ABSOLUES des lignes de la charge depuis le mois qui suit le dernier paiement jusqu'à
+ * `anneeMois` inclus (au plus `relais_tous_les` mois). Un mois sans ligne saisie vaut 0 (pas d'hypothèse sur un montant qui
  * n'existe pas encore). `ligneDuMois(annee, mois)` : fonction fournie par l'appelant qui rend
  * le montant en centimes (positif ou négatif, peu importe — on prend sa valeur absolue) de la
  * ligne de la charge pour un mois donné du passé, ou `null`/`undefined` si elle n'existe pas.
@@ -34,6 +34,8 @@ export function montantCumule(recurrent, { annee, mois }, ligneDuMois) {
     let m = mois - i;
     let a = annee;
     while (m < 1) { m += 12; a -= 1; }
+    // Le cumul repart après le dernier paiement : un mois de paiement antérieur clôt le cycle.
+    if (i > 0 && estMoisPaiement(recurrent, m)) break;
     const montant = ligneDuMois(a, m);
     if (montant) total += Math.abs(montant);
   }

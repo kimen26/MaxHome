@@ -23,6 +23,7 @@ import { construireGroupes, preparerBasculeGroupe } from "./groupes-virements.js
 import { construireGroupesCategories, CLE_VIREMENTS } from "./groupes-categories.js";
 import { SANS_PRENOM, valeurAffichee, preparerBascule as preparerBasculeLigne, appliquerBascule as appliquerBasculeLigne,
   annulerBascule as annulerBasculeLigne, ecrireBascule as ecrireBasculeLigne } from "./coche-ligne.js";
+import { estAutomatique } from "./automatique.js";
 import { libelleACompleter } from "./libelle-virement.js";
 import { htmlBlocLibelle, brancherBlocLibelle } from "./bloc-libelle-virement.js";
 import { aReserve, estMoisPaiement, montantCumule, montantCycleEstime, prochainMoisPaiement } from "./reserve.js";
@@ -70,6 +71,14 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
   const montantPaiement = (recurrent, chargeId, mouvement) => mouvement?.montant_centimes
     ? Math.abs(mouvement.montant_centimes)
     : montantCumule(recurrent, etat, ligneDuMoisPasse(chargeId));
+
+  /** Vrai si l'élément est une ligne en réserve dont le paiement du mois reste à cocher. */
+  const paiementEnAttente = (e) => {
+    const r = e.type === "ligne" ? recurrentReserveDe(e.id) : null;
+    return Boolean(r && estMoisPaiement(r, etat.mois) && !mouvementPaiementDe(r)?.fait_le);
+  };
+  /** Fait = coché (ou automatique) ET, pour une réserve en mois de paiement, payé (D-054). */
+  const elementFait = (e) => e.valeur !== null && !paiementEnAttente(e);
 
   /** Repère sous le libellé d'une ligne en réserve : état « mis de côté » hors mois de paiement,
    *  ou rien ici (la case de paiement, affichée séparément, porte alors l'information). */
@@ -123,16 +132,19 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
     // l'étape 1 (mise de côté, e.valeur) ET l'étape 2 (paiement, son propre mouvement) sont
     // cochées toutes les deux — jamais l'une sans l'autre.
     const paiementFait = estPaiement ? Boolean(mouvementPaiementDe(recurrentReserve)?.fait_le) : true;
+    const auto = estAutomatique(e.valeur); // D-057 : part seul à la banque, rien à cocher
     const toutFait = e.valeur !== null && paiementFait;
     const droite = manque
       ? `<span class="mc-manque">Montant à saisir</span>`
       : `<span class="mono mvt-montant${e.valeur !== null ? " pale" : ""}">${euros(Math.abs(e.montant_centimes))}</span>`;
     return `<div class="mois-charge ml-element${manque ? " a-faire" : ""}${toutFait ? " fait" : ""} cliquable"
         data-ml-type="${e.type}" data-id="${e.id}">
-      ${manque ? '<span class="case case-cycle-vide" aria-hidden="true"></span>'
+      ${auto ? '<span class="ml-auto-espace" aria-hidden="true"></span>'
+        : manque ? '<span class="case case-cycle-vide" aria-hidden="true"></span>'
         : caseCycle({ id: e.id, valeur: valeurAffichee(e.valeur), p1, titre: e.libelle, attr: `cycle-${e.type}` })}
       <div class="mc-libelle"><span class="mc-nom">${txt(e.libelle)}</span>
-        ${fait ? `<span class="mc-fait">✓ ${[e.fait_par, jourMois(fait)].filter(Boolean).join(" · ")}</span>` : ""}
+        ${auto ? `<span class="mc-fait mc-auto">Automatique</span>`
+          : fait ? `<span class="mc-fait">✓ ${[e.fait_par, jourMois(fait)].filter(Boolean).join(" · ")}</span>` : ""}
         ${recurrentReserve && !estPaiement ? repereReserve(recurrentReserve, e.id) : ""}
       </div>
       ${droite}
@@ -154,18 +166,19 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
 
   function ligneGroupeTrajet(g) {
     const valeur = g.fait ? g.prenom : null;
-    const suffixeFait = g.fait ? ` · ✓${g.prenom !== SANS_PRENOM ? ` ${txt(g.prenom)}` : ""}` : "";
+    const suffixeFait = g.automatique ? " · Automatique" : g.fait ? ` · ✓${g.prenom !== SANS_PRENOM ? ` ${txt(g.prenom)}` : ""}` : "";
     const aCompleter = libelleACompleter(mouvementDuGroupe(g), compteDe(g.vers));
     const deplie = deplies.has(g.cle);
     return `<div class="ml-groupe${deplie ? " ouvert" : ""}">
       <div class="mvt gv-groupe cliquable" data-ml-groupe="${txt(g.cle)}">
-        ${caseCycle({ id: g.cle, valeur: valeurAffichee(valeur), p1, titre: `${g.libelleDe} vers ${g.libelleVers}` })}
+        ${g.automatique ? '<span class="ml-auto-espace" aria-hidden="true"></span>'
+          : caseCycle({ id: g.cle, valeur: valeurAffichee(valeur), p1, titre: `${g.libelleDe} vers ${g.libelleVers}` })}
         <div class="mvt-corps">
           <span class="mvt-titre">${txt(g.libelleDe)} → ${txt(g.libelleVers)}</span>
           <span class="mvt-trajet">${g.lignes.length} ligne${g.lignes.length > 1 ? "s" : ""}${suffixeFait}</span>
           ${aCompleter ? `<span class="mvt-note gv-libelle-alerte">Libellé à compléter</span>` : ""}
         </div>
-        <div class="mvt-droite"><span class="mono mvt-montant">${euros(Math.abs(g.total))}</span></div>
+        <div class="mvt-droite"><span class="mono mvt-montant">${euros(Math.abs(g.fait ? g.total : g.totalManuel))}</span></div>
       </div>
       ${deplie ? `<div class="ml-sous-lignes">
         ${htmlBlocLibelle(mouvementDuGroupe(g), compteDe(g.vers))}
@@ -176,11 +189,13 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
 
   function rendreDestinataires() {
     const groupes = construireGroupes(etat);
-    const aFaire = groupes.filter((g) => !g.fait);
-    const faits = groupes.filter((g) => g.fait);
+    // Un groupe coché dont une ligne attend encore son paiement de réserve reste à faire.
+    const groupeFait = (g) => g.fait && !g.lignes.some(paiementEnAttente);
+    const aFaire = groupes.filter((g) => !groupeFait(g));
+    const faits = groupes.filter(groupeFait);
     // Somme des valeurs ABSOLUES (D-053) : un virement au commun (crédit, positif) et une charge
     // envoyée ailleurs (débit, négatif) sont deux montants à déplacer, jamais à compenser.
-    const totalAFaire = aFaire.reduce((s, g) => s + Math.abs(g.total), 0);
+    const totalAFaire = aFaire.reduce((s, g) => s + Math.abs(g.totalManuel), 0); // sans l'automatique (D-057)
     const totalFaits = faits.reduce((s, g) => s + Math.abs(g.total), 0);
     cb.majEnTeteAFaire(aFaire.length, totalAFaire);
     $("#mvts-a-faire").innerHTML = aFaire.length ? aFaire.map(ligneGroupeTrajet).join("")
@@ -194,7 +209,7 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
   // ses lignes à faire ET ses lignes faites ensemble — sinon valider une ligne à faire la fait
   // disparaître dans la section Fait restée repliée (bug trouvé par recette_connectee.mjs).
   function ligneGroupeCategorie(g, faitListe) {
-    const elements = g.elements.filter((e) => (e.valeur !== null) === faitListe);
+    const elements = g.elements.filter((e) => elementFait(e) === faitListe);
     if (!elements.length) return "";
     const cle = `cat:${g.cle}`;
     const deplie = deplies.has(cle);
@@ -219,15 +234,15 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
     const groupes = construireGroupesCategories(liste, etat.lignes, etat.mouvements, etat.recurrents);
     const aFaireHtml = groupes.map((g) => ligneGroupeCategorie(g, false)).filter(Boolean).join("");
     const faitHtml = groupes.map((g) => ligneGroupeCategorie(g, true)).filter(Boolean).join("");
-    const nAFaire = groupes.reduce((s, g) => s + g.elements.filter((e) => e.valeur === null).length, 0);
-    const nFaits = groupes.reduce((s, g) => s + g.elements.filter((e) => e.valeur !== null).length, 0);
+    const nAFaire = groupes.reduce((s, g) => s + g.elements.filter((e) => !elementFait(e)).length, 0);
+    const nFaits = groupes.reduce((s, g) => s + g.elements.filter(elementFait).length, 0);
     // Somme des valeurs ABSOLUES (D-053) : jamais la somme signée, qui compenserait une charge
     // et un virement reçu au lieu de les additionner comme deux montants à traiter.
     const totalAFaire = groupes.reduce((s, g) => s + g.elements
-      .filter((e) => e.valeur === null && !manqueMontant(e))
+      .filter((e) => !elementFait(e) && !manqueMontant(e))
       .reduce((s2, e) => s2 + Math.abs(e.montant_centimes), 0), 0);
     const totalFaits = groupes.reduce((s, g) => s + g.elements
-      .filter((e) => e.valeur !== null)
+      .filter(elementFait)
       .reduce((s2, e) => s2 + Math.abs(e.montant_centimes), 0), 0);
     cb.majEnTeteAFaire(nAFaire, totalAFaire);
     $("#mvts-a-faire").innerHTML = aFaireHtml || `<p class="vide">Rien à faire ce mois-ci.</p>`;

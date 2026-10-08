@@ -879,3 +879,15 @@ Demande de Yann : créer et régler ses projets de vacances (alertes MaxVoyage) 
 - Prise en compte au relevé suivant (7h15, PC allumé), pas tout de suite : suffisant pour des
   projets de vacances à plusieurs semaines ; un relevé à la demande reste possible plus tard.
 - Destinations choisies par ville : l'instantané porte la liste des aéroports connus de MaxVoyage.
+
+## D-057 — Virement automatique : fait d'office, rien à cocher (2026-10-08)
+
+Un virement permanent programmé à la banque part seul : le montrer « à faire » avec une case était faux.
+- Colonne `mouvements_recurrents.automatique` (migration 031, **non appliquée**, à passer par Yann ;
+  le brief la numérotait 029 et D-055, déjà pris par la veille vols et les Voyages).
+- État **dérivé**, jamais une coche écrite : `automatique.js` donne à l'élément la valeur
+  `AUTOMATIQUE` ; groupes, compteur « à valider » et total « à faire » l'excluent, calc.js inchangé.
+- Groupe entièrement automatique : dans « Fait », sans case, « Automatique ». Groupe mixte : reste
+  « À faire » pour ses éléments manuels, total à faire sans l'automatique.
+- Bot : le regroupement vient du même moteur JS (`virements_cli.mjs`), donc hérite ; `mouvements.restants`
+  (bilan) exclut les automatiques ; `a_virer` écrit « (automatique) ».

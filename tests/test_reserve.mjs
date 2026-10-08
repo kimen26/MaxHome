@@ -59,6 +59,15 @@ assert.equal(montantCumule(r2, { annee: 2026, mois: 1 }, () => undefined), 0, "a
 assert.equal(montantCumule(r2, { annee: 2026, mois: 2 }, (a, m) => (m === 2 ? -500 : undefined)), 500,
   "un seul des deux mois a une ligne, l'autre compte pour 0");
 
+// Le cumul repart après le dernier paiement (payé en septembre, décembre…).
+const rSept = { relais_vers: 1, relais_tous_les: 3, relais_depart: 9 };
+assert.equal(montantCumule(rSept, { annee: 2026, mois: 10 }, ligneDuMois), 900,
+  "octobre, mois qui suit le paiement de septembre : seulement octobre");
+assert.equal(montantCumule(rSept, { annee: 2026, mois: 11 }, ligneDuMois), 900 + 950,
+  "novembre : octobre + novembre");
+assert.equal(montantCumule(rSept, { annee: 2026, mois: 12 }, ligneDuMois), 900 + 950 + 1000,
+  "décembre, mois de paiement : le cycle complet");
+
 // ---------- montantCycleEstime ----------
 assert.equal(montantCycleEstime({ relais_tous_les: 3 }, -1500), 4500);
 assert.equal(montantCycleEstime({ relais_tous_les: 3 }, null), 0, "pas de montant du mois -> estimation 0");

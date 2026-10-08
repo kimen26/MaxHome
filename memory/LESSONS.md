@@ -536,3 +536,11 @@ L'agent a vérifié le code, pas la base : l'index unique `mouvements_recurrent_
 (annee, mois, recurrent_id) refusait toute création, et seule l'écriture sur les données réelles
 l'a montré. Avant de concevoir une nouvelle ligne dans une table existante, lister ses index
 (`pg_indexes`) ; et la recette simulée ne prouve rien sur les contraintes de la base.
+
+## L-055 — Une recette par hash attend le titre DU mois demandé, pas n'importe quel mois (2026-10-08)
+
+`recette_mois_reel.mjs` attendait « une année dans le titre » après `location.hash = 2026-9` :
+l'écran d'octobre encore affiché satisfaisait déjà la condition, et la capture « septembre »
+montrait octobre. Une attente de navigation porte sur la valeur visée, jamais sur un motif que
+l'état de départ satisfait déjà. Même piège pour une boucle de clics qui re-rend la liste : les
+références d'éléments deviennent périmées, on re-sélectionne à chaque tour.
