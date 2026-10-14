@@ -1,7 +1,7 @@
 // Preuve en direct, LECTURE SEULE : login réel (mot de passe lu dans .env, jamais affiché),
 // sur l'app servie localement (même patron que recette_connectee.mjs). Ouvre Agenda › Voyages,
-// capture la liste, ouvre la fiche « Malaga », capture chaque section en défilant (Réservations
-// & dépenses, Carte avec vraies tuiles Leaflet, Lieux, mosaïque de blocs) à 320, 360 et 1200 px
+// capture la liste, ouvre la fiche « Malaga », capture la tête de fiche puis chaque onglet (Planning,
+// Activités, Carte avec vraies tuiles Leaflet, À faire, Infos — D-058) à 320, 360 et 1200 px
 // (D-047 §V2 : la mise en page change de forme à ces largeurs). AUCUNE écriture : pas de clic sur
 // une case, Modifier, +, Localiser, Cadrer — seulement navigation et défilement. Vérifie aussi
 // que rien ne déborde horizontalement (scrollWidth <= innerWidth) sur chaque capture.
@@ -104,37 +104,31 @@ try {
     if (!(await carte.count())) throw new Error(`voyage « ${TITRE_VOYAGE} » introuvable dans la liste`);
     await carte.click();
     await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 10000 });
-    // La carte Leaflet se peuple après coup (chargement à la demande, vrai réseau ici — pas de
-    // stub) : on lui laisse le temps d'arriver, tuiles comprises, avant de défiler dessus.
-    await page.waitForSelector(".leaflet-container, .carte-indisponible", { timeout: 15000 }).catch(() => {});
     await page.waitForTimeout(300);
 
-    // Bandeau + Résumé + Prochaine étape + Budget : haut de la feuille plein écran.
+    // Tête : bandeau, légende des statuts, feuille de route, onglets (sommet de la feuille plein écran).
     await page.evaluate(() => document.querySelector("#fiche-bandeau-corps")?.scrollIntoView({ block: "start" }));
     await page.waitForTimeout(150);
     await capturer(page, "voyage-reel-fiche-tete", largeur);
 
-    // Réservations & dépenses.
-    await page.evaluate(() => document.querySelector("#fiche-resas-corps")?.scrollIntoView({ block: "start" }));
-    await page.waitForTimeout(150);
-    await capturer(page, "voyage-reel-fiche-resas", largeur);
-
-    // Carte : vraies tuiles chargées.
-    await page.waitForSelector(".leaflet-tile-loaded, .leaflet-tile, .carte-indisponible", { timeout: 15000 }).catch(() => {});
-    await page.evaluate(() => document.querySelector("#fiche-carte-corps")?.scrollIntoView({ block: "start" }));
-    await page.waitForTimeout(500); // laisse les tuiles réseau finir de se poser
-    await capturer(page, "voyage-reel-fiche-carte", largeur);
-
-    // Lieux.
-    await page.evaluate(() => document.querySelector("#fiche-lieux-corps")?.scrollIntoView({ block: "start" }));
-    await page.waitForTimeout(150);
-    await capturer(page, "voyage-reel-fiche-lieux", largeur);
-
-    // Mosaïque de blocs (résumé, infos, astuces, attentions — rendus par rendreTopo, jamais les
-    // balises markdown brutes à l'écran).
-    await page.evaluate(() => document.querySelector("#fiche-blocs-corps")?.scrollIntoView({ block: "start" }));
-    await page.waitForTimeout(150);
-    await capturer(page, "voyage-reel-fiche-blocs", largeur);
+    // Un onglet après l'autre : navigation seule (aucune écriture). La météo réelle (Open-Meteo)
+    // arrive après coup sur le Planning ; la carte charge ses vraies tuiles à l'ouverture de son onglet.
+    const onglet = async (cle, nom, { carte = false } = {}) => {
+      await page.click(`#fiche-onglets-corps [data-onglet="${cle}"]`);
+      await page.waitForSelector(`#fiche-${cle}-panneau:not([hidden])`, { timeout: 5000 });
+      if (carte) {
+        await page.waitForSelector(".leaflet-container, .carte-indisponible", { timeout: 15000 }).catch(() => {});
+        await page.waitForSelector(".leaflet-tile-loaded, .leaflet-tile, .carte-indisponible", { timeout: 15000 }).catch(() => {});
+        await page.waitForTimeout(500); // laisse les tuiles réseau finir de se poser
+      }
+      await page.waitForTimeout(300);
+      await capturer(page, nom, largeur);
+    };
+    await onglet("planning", "voyage-reel-fiche-planning");
+    await onglet("activites", "voyage-reel-fiche-activites");
+    await onglet("carte", "voyage-reel-fiche-carte", { carte: true });
+    await onglet("afaire", "voyage-reel-fiche-todos");
+    await onglet("infos", "voyage-reel-fiche-infos");
 
     await page.close();
   }

@@ -5,12 +5,12 @@
 /** Catégorie d'un lieu : valeur en base, libellé FR, couleur hexa contrastée (≥ 4.5:1 sur
  *  blanc) — la couleur ne porte jamais seule le sens, toujours accompagnée du libellé. */
 export const CATEGORIES_LIEU = [
-  { valeur: "a_voir", libelle: "À voir", couleur: "#1d6f42" },
-  { valeur: "activite", libelle: "Activité", couleur: "#b34700" },
-  { valeur: "logement", libelle: "Logement", couleur: "#5b3e96" },
-  { valeur: "resto", libelle: "Resto", couleur: "#a4133c" },
-  { valeur: "transport", libelle: "Transport", couleur: "#1d5b96" },
-  { valeur: "autre", libelle: "Autre", couleur: "#495057" },
+  { valeur: "a_voir", libelle: "À voir", emoji: "👀", couleur: "#1d6f42" },
+  { valeur: "activite", libelle: "Activité", emoji: "🎟️", couleur: "#b34700" },
+  { valeur: "logement", libelle: "Logement", emoji: "🛏️", couleur: "#5b3e96" },
+  { valeur: "resto", libelle: "Resto", emoji: "🍽️", couleur: "#a4133c" },
+  { valeur: "transport", libelle: "Transport", emoji: "🚗", couleur: "#1d5b96" },
+  { valeur: "autre", libelle: "Autre", emoji: "📍", couleur: "#495057" },
 ];
 
 /** Type d'une réservation : valeur en base, libellé FR, emoji (jamais seul non plus, toujours

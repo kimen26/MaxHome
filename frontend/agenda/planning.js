@@ -54,11 +54,16 @@ const estTransport = (e) =>
 const estLogement = (e) => e.type === "lieu" && e.objet.categorie === "logement";
 const plusAvance = (statuts) => statuts.reduce((m, s) => (RANG[s] > RANG[m] ? s : m), "possible");
 
-/** Éléments d'un jour : lieux (hors écartés) de ce jour + résas non annulées sans lieu, datées
- *  ce jour, hors logement (qui vivent en nuits). Tri : ordre, transports en tête, heure, nom. */
+/** Un lieu logement dont la résa liée est un logement non annulé : déjà montré en nuit / « libérer ». */
+const logementDejaEnNuit = (lieu, resas) =>
+  lieu.categorie === "logement" && resaDuLieu(lieu, resas)?.type === "logement";
+
+/** Éléments d'un jour : lieux (hors écartés et hors logements déjà en nuit) de ce jour + résas non
+ *  annulées sans lieu, datées ce jour, hors logement (qui vivent en nuits). Tri : ordre,
+ *  transports en tête, heure, nom. */
 function elementsDuJour(jour, lieux, resas) {
   const lieuxDuJour = lieux
-    .filter((l) => l.statut !== "ecarte")
+    .filter((l) => l.statut !== "ecarte" && !logementDejaEnNuit(l, resas))
     .filter((l) => (l.jour ?? resaDuLieu(l, resas)?.debut?.slice(0, 10) ?? null) === jour)
     .map((l) => ({ type: "lieu", objet: l, statut: statutLieu(l, resas), ordre: l.ordre ?? 0 }));
   const idsLieux = new Set(lieux.map((l) => l.id));

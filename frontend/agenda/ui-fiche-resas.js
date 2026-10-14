@@ -168,20 +168,23 @@ export function creerFicheResas(api, etat, cb, { voyage, resas, pieces, lieux, r
   }
 
   // ---------- formulaire réservation / dépense ----------
-  function formulaireResa(r) {
+  /** `init` (depuis Activités, « Payé ») : `valeurs` de départ d'une nouvelle dépense liée à un lieu,
+   *  `reserver` = la dépense naît (ou passe) « réservée ». */
+  function formulaireResa(r, init = null) {
+    const base = r ?? init?.valeurs ?? null;
     ouvrirFeuille(`<form class="pile" data-form-resa>
       <h2>${r ? "Modifier la dépense" : "Nouvelle dépense"}</h2>
-      ${select("type", "Type", TYPES_RESA.map((t) => [t.valeur, `${t.emoji} ${t.libelle}`]), r?.type ?? "vol")}
-      ${select("poste", "Poste", POSTES.map((p) => [p.valeur, `${p.emoji} ${p.libelle}`]), r?.poste ?? "", { vide: "Déduit du type" })}
-      ${champ("titre", "Titre", { valeur: r?.titre, requis: true, placeholder: "ex. Vol aller Paris → Malaga" })}
-      ${champ("debut", "Début (optionnel)", { type: "datetime-local", valeur: r?.debut?.slice(0, 16) })}
-      ${champ("fin", "Fin (optionnel)", { type: "datetime-local", valeur: r?.fin?.slice(0, 16) })}
-      ${champ("prestataire", "Prestataire", { valeur: r?.prestataire, placeholder: "ex. Vueling" })}
-      ${champ("code", "Code de réservation", { valeur: r?.code, placeholder: "ex. AB12CD" })}
-      ${champ("prix", "Prix (€)", { valeur: r?.prix_centimes != null ? enEuros(r.prix_centimes) : "", placeholder: "0,00" })}
-      ${select("paye_par", "Payé par", [...membresOptions(etat), [COMPTE_COMMUN, COMPTE_COMMUN]], r?.paye_par, { vide: "Pas encore payé" })}
-      ${select("lieu_id", "Lieu", lieuxOptions(), r?.lieu_id, { vide: "Aucun lieu" })}
-      ${zone("note", "Note", r?.note, { lignes: 2 })}
+      ${select("type", "Type", TYPES_RESA.map((t) => [t.valeur, `${t.emoji} ${t.libelle}`]), base?.type ?? "vol")}
+      ${select("poste", "Poste", POSTES.map((p) => [p.valeur, `${p.emoji} ${p.libelle}`]), base?.poste ?? "", { vide: "Déduit du type" })}
+      ${champ("titre", "Titre", { valeur: base?.titre, requis: true, placeholder: "ex. Vol aller Paris → Malaga" })}
+      ${champ("debut", "Début (optionnel)", { type: "datetime-local", valeur: base?.debut?.slice(0, 16) })}
+      ${champ("fin", "Fin (optionnel)", { type: "datetime-local", valeur: base?.fin?.slice(0, 16) })}
+      ${champ("prestataire", "Prestataire", { valeur: base?.prestataire, placeholder: "ex. Vueling" })}
+      ${champ("code", "Code de réservation", { valeur: base?.code, placeholder: "ex. AB12CD" })}
+      ${champ("prix", "Prix (€)", { valeur: base?.prix_centimes != null ? enEuros(base.prix_centimes) : "", placeholder: "0,00" })}
+      ${select("paye_par", "Payé par", [...membresOptions(etat), [COMPTE_COMMUN, COMPTE_COMMUN]], base?.paye_par, { vide: "Pas encore payé" })}
+      ${select("lieu_id", "Lieu", lieuxOptions(), base?.lieu_id, { vide: "Aucun lieu" })}
+      ${zone("note", "Note", base?.note, { lignes: 2 })}
       <div class="detail-actions">
         ${r ? `<button type="button" class="btn-lien" data-retirer-resa>Retirer</button>` : ""}
         ${r && r.statut !== "annule" ? `<button type="button" class="btn-lien" data-annuler-resa>Annuler la dépense</button>` : ""}
@@ -205,9 +208,13 @@ export function creerFicheResas(api, etat, cb, { voyage, resas, pieces, lieux, r
         prestataire: v.prestataire, code: v.code, prix_centimes, paye_par: v.paye_par, lieu_id: v.lieu_id, note: v.note,
       };
       try {
-        if (r) await api.majResa(r.id, champs);
-        else await api.creerResa({ ...champs, voyage_id: voyage().id, statut: "a_reserver", cree_par: etat.prenom });
-        await promouvoirLieu(champs.lieu_id, r?.statut);
+        if (r) {
+          await api.majResa(r.id, champs);
+          if (init?.reserver && r.statut === "a_reserver") await api.cocherResa(r.id, true);
+        } else {
+          await api.creerResa({ ...champs, voyage_id: voyage().id, statut: init?.reserver ? "reserve" : "a_reserver", cree_par: etat.prenom });
+        }
+        await promouvoirLieu(champs.lieu_id, init?.reserver ? "reserve" : r?.statut);
         fermerFeuille(); // déclenche onFermer -> revenirALaFiche (rafraîchit + scroll Réservations)
         toast(r ? "Dépense enregistrée." : "Dépense ajoutée.");
       } catch (e) { cb.echec(e); }
@@ -255,5 +262,5 @@ export function creerFicheResas(api, etat, cb, { voyage, resas, pieces, lieux, r
     });
   }
 
-  return { rendre };
+  return { rendre, formulaireResa };
 }

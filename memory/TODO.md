@@ -278,10 +278,10 @@ répétable oui/non, sa liste de tâches découpée. Arbitrages : D-041._
 - [ ] Vérifier au relevé du matin le log « Alertes relevées dans MaxHome » (data/collect.log).
 
 ## Lane M — Fiche voyage V3 (2026-10-14, D-058)
-- [ ] Lot 1 : planning.js, meteo.js, voyage_todos (032), tests/test_planning.mjs.
-- [ ] Lot 2 : fiche en onglets, feuille de route, activités dépliables, carte par statut, à faire.
+- [x] Lot 1 : planning.js, meteo.js, voyage_todos (032), tests/test_planning.mjs.
+- [x] Lot 2 : fiche en onglets, feuille de route, activités dépliables, carte par statut, à faire.
 - [ ] Lot 3 : partage par lien (033, RPC anon), page partage.html, télécharger la page.
-- [ ] Poser les 5 « à faire » de l'Auvergne en base une fois 032 appliquée.
+- [x] Poser les 5 « à faire » de l'Auvergne en base une fois 032 appliquée.
 
 ## Parking
 - Le carnet de voyage (ui-fiche-*, carnet.js, carte.js, geocode.js, topo.js, ui-voyages-liste.js)

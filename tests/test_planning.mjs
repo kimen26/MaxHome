@@ -59,6 +59,16 @@ assert.deepEqual(j1.elements.map((e) => e.objet.id), [4, 15], "transport en têt
 assert.equal(j1.nuits.length, 1);
 assert.equal(j1.nuits[0].statut, "paye");
 
+// un lieu logement lié à une résa logement non annulée n'est PAS un élément (déjà en nuit)
+const gite = lieu(16, "Gîte lié", "prevu", { categorie: "logement", jour: "2030-03-01" });
+const resaGite = resa(7, "logement", "reserve", { lieu_id: 16, debut: "2030-03-01T15:00:00", fin: "2030-03-02T10:00:00" });
+const planGite = planningParJour(voyage, [gite], [resaGite]);
+assert.deepEqual(planGite[0].elements, [], "logement lié à sa résa : pas de doublon avec la nuit");
+assert.equal(planGite[0].nuits.length, 1);
+assert.equal(planGite[1].liberer.length, 1);
+const planGiteAnnule = planningParJour(voyage, [gite], [{ ...resaGite, statut: "annule" }]);
+assert.deepEqual(planGiteAnnule[0].elements.map((e) => e.objet.id), [16], "résa annulée : le lieu reste visible");
+
 // jour 2 : Alpha payé (résa liée) + Bravo/Charlie possibles ; écarté absent
 assert.equal(j2.statut, "paye");
 assert.deepEqual(j2.elements.map((e) => e.objet.nom), ["Alpha", "Bravo", "Charlie"]);

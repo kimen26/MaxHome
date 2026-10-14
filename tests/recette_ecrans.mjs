@@ -12,7 +12,7 @@ import * as DONNEES from "./donnees_factices.mjs";
 const RACINE = path.resolve("frontend");
 const SORTIE = path.resolve("data/captures/ecrans");
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
-const LARGEURS = [320, 360, 768, 1200]; // non-régression, conception, tablette, desktop (règle mobile-parents.md ; 768 : mise en page deux colonnes de la fiche voyage V2, D-047)
+const LARGEURS = (process.env.RECETTE_LARGEURS ?? "320,360,768,1200").split(",").map(Number); // non-régression, conception, tablette, desktop (règle mobile-parents.md ; 768 : mise en page deux colonnes de la fiche voyage V2, D-047)
 
 // Stub Leaflet minimal (frontend/agenda/carte.js n'a besoin que de L.map/tileLayer/marker/
 // divIcon/featureGroup) : pose un conteneur `.leaflet-container` visible, sans vraie tuile ni
@@ -50,6 +50,102 @@ async function fermerPieceOrpheline(page) {
     await page.waitForSelector(".piece-plein-ecran", { state: "hidden", timeout: 3000 });
   }
 }
+
+/** Ouvre la fiche du voyage 1 (« Week-end à la mer », en cours) sur l'onglet voulu (D-058). */
+async function ouvrirFiche(page, onglet = "planning") {
+  await page.click('#voyages-liste-corps [data-voyage="1"]');
+  await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+  if (onglet !== "planning") await choisirOnglet(page, onglet);
+}
+
+/** Tape un onglet de la fiche et attend son panneau (la carte : son cadre Leaflet ou le message). */
+async function choisirOnglet(page, onglet) {
+  await page.click(`#fiche-onglets-corps [data-onglet="${onglet}"]`);
+  await page.waitForSelector(`#fiche-${onglet}-panneau:not([hidden])`, { timeout: 3000 });
+  if (onglet === "carte") await page.waitForSelector(".leaflet-container, .carte-indisponible", { timeout: 8000 });
+  await page.waitForTimeout(150);
+}
+
+/** Mesures de la fiche affichée : cibles tactiles >= 48 px, contraste des textes de statut >= 4.5:1.
+ *  Une mesure, pas un coup d'œil (L-016) ; lève une erreur qui range le geste parmi les écrans cassés. */
+async function verifierFiche(page) {
+  const defauts = await page.evaluate(() => {
+    const defauts = [];
+    const nom = (el) => `${el.tagName.toLowerCase()}.${[...el.classList].join(".")}`;
+    const CIBLES = ".fv-onglet, .fv-jc, .fv-act > summary, .fv-repli > summary, .fv-choix, .fv-btn, .fv-code, .fv-todo-suppr, .fv-todo-lien, "
+      + ".fv-todo, .fv-jour-choix .champ, .fv-todo-form .champ, .fv-todo-form .btn, .bandeau-retour";
+    for (const el of document.querySelectorAll(CIBLES)) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      if (r.width < 47.5 || r.height < 47.5) defauts.push(`cible ${nom(el)} ${Math.round(r.width)}x${Math.round(r.height)} px`);
+    }
+    // La case à cocher mesure 26 px mais sa zone de tap (::before, 48 x 48) doit répondre au toucher.
+    for (const c of document.querySelectorAll(".fv-todo .case")) {
+      const r = c.getBoundingClientRect();
+      const [cx, cy] = [r.left + r.width / 2, r.top + r.height / 2];
+      if (cy < 24 || cy > window.innerHeight - 24) continue;
+      for (const [dx, dy] of [[-22, -22], [22, -22], [-22, 22], [22, 22]]) {
+        if (document.elementFromPoint(cx + dx, cy + dy)?.closest(".case") !== c) { defauts.push("zone de tap de la case < 48 px"); break; }
+      }
+    }
+    const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+    const luminance = ([r, g, b]) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    const couleur = (c) => c.match(/[\d.]+/g).map(Number);
+    const fond = (el) => {
+      for (let e = el; e; e = e.parentElement) { const c = couleur(getComputedStyle(e).backgroundColor); if ((c[3] ?? 1) > 0.5) return c; }
+      return [255, 255, 255];
+    };
+    const TEXTES = ".fv-statut, .fv-leg, .fv-jc-s, .fv-choix[aria-pressed='true'], .fv-meteo, .fv-conseil, .fv-item-d, .fv-act-d, .fv-detail, "
+      + ".fv-mention, .fv-jour-titre, .fv-onglet, .fv-fait, .fv-todo-lien";
+    for (const el of document.querySelectorAll(TEXTES)) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      const [a, b] = [luminance(couleur(getComputedStyle(el).color)), luminance(fond(el))].sort((x, y) => y - x);
+      const ratio = (a + 0.05) / (b + 0.05);
+      if (ratio < 4.5) defauts.push(`contraste ${nom(el)} ${ratio.toFixed(2)}:1`);
+    }
+    return defauts;
+  });
+  if (defauts.length) throw new Error(`fiche : ${[...new Set(defauts)].slice(0, 6).join(" ; ")}`);
+}
+
+/** Open-Meteo bouchonné (aucun réseau réel) : par jour demandé, pluie nette sur 4 modèles, puis sec,
+ *  puis pluie sur 2 modèles sur 4 (incertain), un modèle muet le 3e jour. Valeurs inventées. */
+async function bouchonnerMeteo(page) {
+  await page.route("**/api.open-meteo.com/**", (route) => {
+    const q = new URL(route.request().url()).searchParams;
+    const modeles = q.get("models").split(",");
+    const jours = [];
+    for (let j = new Date(`${q.get("start_date")}T12:00:00Z`); j <= new Date(`${q.get("end_date")}T12:00:00Z`); j.setUTCDate(j.getUTCDate() + 1)) jours.push(j.toISOString().slice(0, 10));
+    const daily = { time: jours };
+    modeles.forEach((m, k) => {
+      daily[`weather_code_${m}`] = jours.map((_, i) => [63, 1, 61][i % 3]);
+      daily[`temperature_2m_max_${m}`] = jours.map((_, i) => [12, 17, 14][i % 3] + k);
+      daily[`temperature_2m_min_${m}`] = jours.map((_, i) => [8, 7, 9][i % 3]);
+      daily[`precipitation_sum_${m}`] = jours.map((_, i) => [[9, 8, 12, 10], [0, 0, 0, 0], [3, 2, 0, 0]][i % 3][k]);
+    });
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ daily }) });
+  });
+}
+
+/** Ferme ce qu un geste laisse ouvert : la feuille du socle, ou la fiche voyage qu un formulaire a rouverte
+ *  (revenirALaFiche). Appelée après un geste réussi ET après un geste en échec — sans quoi un seul geste
+ *  cassé laissait la feuille ouverte et faisait échouer tous les suivants (cascade de faux « écrans cassés »). */
+async function fermerFeuillesOuvertes(page) {
+  for (let tentative = 0; tentative < 4; tentative++) {
+    const ficheVisible = await page.locator("#feuille [data-fiche-voyage]").count();
+    if (ficheVisible) await page.click("#feuille [data-retour-voyages]");
+    else if (await page.locator("#feuille:not([hidden])").count()) {
+      await page.evaluate(() => document.getElementById("feuille-fond").click());
+    } else break; // déjà fermée
+    await page.waitForTimeout(200); // laisse fermerFeuille + un éventuel onFermer async se dérouler
+    if (!(await page.locator("#feuille:not([hidden])").count())) break; // fermée pour de bon
+  }
+}
+
+// Mise au point : RECETTE_LARGEURS="360" et RECETTE_GESTES="^voyage-fiche" ne rejouent que ce qu'on regarde.
+const VERBEUX = Boolean(process.env.RECETTE_VERBEUX); // une ligne par étape : voir où une recette s'enlise
+const FILTRE_GESTES = process.env.RECETTE_GESTES ? new RegExp(process.env.RECETTE_GESTES) : null;
 
 // Les feuilles modales ne s'ouvrent que par un geste : on les visite explicitement, sinon
 // elles échappent à toute capture et la recette valide des écrans qu'elle n'a jamais vus.
@@ -236,124 +332,165 @@ const GESTES = [
       await page.evaluate(() => { const f = document.querySelector("#feuille"); f.scrollTop = f.scrollHeight; });
       await page.waitForTimeout(150);
     } },
-  // ---------- carnet de voyage (D-045, lot C) ----------
-  // Fiche complète du voyage 1 (« Week-end à la mer », en cours) : en-tête, Réservations
-  // (code, prix, pièce), Carte (Leaflet réel, cdnjs non bloqué ici), Lieux, Topo.
+  // ---------- fiche voyage V3 (D-058) : bandeau, légende, feuille de route, cinq onglets ----------
+  // Fiche du voyage 1 (« Week-end à la mer », 4 jours, en cours) : un geste par onglet, chacun
+  // mesuré (cibles >= 48 px, contraste >= 4.5:1, ordre vertical) AVANT la capture — une capture se
+  // regarde, une mesure se rejoue (L-016). La feuille plein écran défile elle-même : le geste
+  // amène l'onglet en haut pour que la capture montre ce qu'on y voit.
   { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-fiche",
     geste: async (page) => {
-      await page.click('#voyages-liste-corps [data-voyage="1"]');
-      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
-      // La carte se peuple après coup (Leaflet chargé à la demande) : on lui laisse le temps.
-      await page.waitForSelector(".leaflet-container, .carte-indisponible", { timeout: 8000 }).catch(() => {});
+      await ouvrirFiche(page, "planning");
+      await verifierFiche(page);
+      if (page.viewportSize()?.width === 360) {
+        const tops = await page.evaluate(() => ["#fiche-bandeau-corps", "#fiche-legende-corps", "#fiche-route-corps", "#fiche-onglets-corps", "#fiche-planning-corps"]
+          .map((s) => ({ s, top: document.querySelector(s)?.getBoundingClientRect().top ?? null })));
+        for (let i = 0; i < tops.length; i++) {
+          if (tops[i].top == null) throw new Error(`ordre mobile : ${tops[i].s} introuvable`);
+          if (i && tops[i].top <= tops[i - 1].top) throw new Error(`ordre mobile : ${tops[i].s} (top=${tops[i].top}) n'est pas sous ${tops[i - 1].s} (top=${tops[i - 1].top})`);
+        }
+      }
+      // 4 jours du voyage = 4 cartes de feuille de route, SANS météo (écart voulu au brief).
+      const nbJours = await page.locator("#fiche-route-corps .fv-jc").count();
+      if (nbJours !== 4) throw new Error(`feuille de route : ${nbJours} cartes, attendu 4`);
+      if (await page.locator("#fiche-route-corps .fv-meteo").count()) throw new Error("feuille de route : une météo est affichée, elle n'a rien à y faire");
+    } },
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-fiche-planning",
+    geste: async (page) => {
+      await ouvrirFiche(page, "planning");
+      await page.waitForSelector("#fiche-planning-corps .fv-meteo", { timeout: 5000 }); // météo (bouchonnée) arrivée
+      await page.locator("#fiche-onglets-corps").evaluate((el) => el.scrollIntoView({ block: "start" }));
+      await verifierFiche(page);
+      // Le gîte (lieu logement lié à sa résa) ne doit pas doubler la nuit le jour d'arrivée.
+      const doublons = await page.locator("#fiche-planning-corps .fv-jour").first().locator(".fv-item-n", { hasText: /^Gîte les Embruns$/ }).count();
+      if (doublons > 0) throw new Error(`planning : le gîte apparaît ${doublons} fois en élément du 1er jour (doublon avec la nuit)`);
+      if (!(await page.locator("#fiche-planning-corps .fv-conseil").count())) throw new Error("planning : aucun conseil « Prévoir la pluie » alors qu'un jour est pluvieux");
+    } },
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-fiche-activites",
+    geste: async (page) => {
+      await ouvrirFiche(page, "activites");
+      // Deux cartes dépliées : le lieu payé (résa, prix, code) et celui qui a photo, topo, horaires.
+      await page.click('#fiche-lieux-corps details[data-lieu="3"] > summary');
+      await page.click('#fiche-lieux-corps details[data-lieu="1"] > summary');
       await page.waitForTimeout(200);
-      // « Modifier » d'une résa : lien texte, mais zone tactile réelle ≥ 48x48 (relecture §D) —
-      // mesurée, pas devinée à l'œil sur une capture.
+      await verifierFiche(page);
+      for (const statut of ["paye", "acte", "possible"]) {
+        if (!(await page.locator(`#fiche-lieux-corps .fv-groupe .fv-statut.fv-${statut}`).count())) throw new Error(`activités : groupe ${statut} absent`);
+      }
+    } },
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-fiche-activites-ecartes",
+    geste: async (page) => {
+      await ouvrirFiche(page, "activites");
+      await page.click("#fiche-lieux-corps [data-repli-ecartes] > summary");
+      await page.evaluate(() => document.querySelector("#fiche-lieux-corps [data-repli-ecartes]")?.scrollIntoView({ block: "start" }));
+      await page.waitForTimeout(150);
+    } },
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-onglet-carte",
+    geste: async (page) => {
+      await ouvrirFiche(page, "carte");
+      // Écartés masqués : 4 lieux localisés non écartés (la cabane écartée n'est pas sur la carte).
+      const legende = await page.locator("#fiche-carte-corps .carte-legende").innerText();
+      for (const mot of ["Payé", "Acté", "Possible"]) if (!legende.includes(mot)) throw new Error(`carte : légende sans « ${mot} » : ${legende}`);
+      await verifierFiche(page);
+    } },
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-fiche-todos",
+    geste: async (page) => {
+      await ouvrirFiche(page, "afaire");
+      await verifierFiche(page);
+      const nb = await page.locator("#fiche-todos-corps .fv-todo").count();
+      if (nb !== 3) throw new Error(`à faire : ${nb} lignes, attendu 3`);
+      if ((await page.locator("#fiche-onglets-corps .fv-badge").innerText()) !== "2") throw new Error("à faire : la pastille de l'onglet ne dit pas 2");
+    } },
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-fiche-infos",
+    geste: async (page) => {
+      await ouvrirFiche(page, "infos");
+      await page.waitForTimeout(200);
+      // « Modifier » d'une résa : lien texte, mais zone tactile réelle >= 48x48 (relecture §D).
       const boite = await page.locator("#fiche-resas-corps .lr-modifier").first().boundingBox();
       if (!boite || boite.width < 48 || boite.height < 48) {
-        throw new Error(`« Modifier » d'une résa : zone tactile ${boite ? `${Math.round(boite.width)}x${Math.round(boite.height)}` : "introuvable"}, attendu ≥ 48x48`);
+        throw new Error(`« Modifier » d'une résa : zone tactile ${boite ? `${Math.round(boite.width)}x${Math.round(boite.height)}` : "introuvable"}, attendu >= 48x48`);
       }
-      // Ordre mobile (D-047 §V2, relecture point 1) : Résumé → Prochaine étape → Budget →
-      // Réservations & dépenses → Carte → Lieux → mosaïque de blocs. Vérifié par géométrie
-      // réelle (getBoundingClientRect().top), pas seulement en lisant le HTML — un ordre DOM
-      // correct peut encore se voir inversé visuellement par un mauvais `order` CSS (L-016 :
-      // une capture ne prouve rien qu'une mesure ne prouve pas déjà mieux).
-      const largeur = page.viewportSize()?.width;
-      if (largeur === 360) {
-        const tops = await page.evaluate(() => {
-          const sel = ["#fiche-resume-corps", "#fiche-etape-corps", "#fiche-budget-corps",
-            "#fiche-resas-corps", "#fiche-carte-corps", "#fiche-lieux-corps", "#fiche-blocs-corps"];
-          return sel.map((s) => ({ s, top: document.querySelector(s)?.getBoundingClientRect().top ?? null }));
-        });
-        for (const t of tops) if (t.top == null) throw new Error(`ordre mobile : section ${t.s} introuvable`);
-        for (let i = 1; i < tops.length; i++) {
-          if (tops[i].top < tops[i - 1].top) {
-            throw new Error(`ordre mobile : ${tops[i].s} (top=${tops[i].top}) apparaît AVANT ${tops[i - 1].s} (top=${tops[i - 1].top}), attendu l'inverse`);
-          }
-        }
-      }
-      if (largeur === 360 || largeur === 1200) {
-        const { leftResume, leftCote, topResume, topCote } = await page.evaluate(() => {
-          const r = document.querySelector("#fiche-resume-corps")?.getBoundingClientRect();
-          const c = document.querySelector("#fiche-etape-corps")?.getBoundingClientRect();
-          return { leftResume: r?.left, leftCote: c?.left, topResume: r?.top, topCote: c?.top };
-        });
-        if (leftResume == null || leftCote == null) throw new Error("gouttière : résumé ou colonne latérale introuvable");
-        // À 360 px, tout est empilé en UNE colonne (relecture 2 §B) : le bord gauche du Résumé
-        // doit coïncider avec celui de « cote », jamais l'un plus rentré que l'autre. À 1200 px,
-        // « cote » est légitimement une colonne à DROITE (grille 8fr/4fr) : son `left` diffère
-        // normalement de celui du Résumé, seul le `top` doit s'aligner (vérifié ci-dessous).
-        if (largeur === 360 && Math.abs(leftResume - leftCote) > 2) {
-          throw new Error(`gouttière : left(resume)=${leftResume} != left(cote)=${leftCote} (écart > 2px) à ${largeur}px`);
-        }
-        // À 1200 px (grille "resume cote" / "carte cote" / …), « cote » doit démarrer à la MÊME
-        // hauteur que le Résumé — sinon c'est le trou blanc que la relecture 2 §A signalait
-        // (le Résumé hors grille faisait démarrer « cote » après lui).
-        if (largeur === 1200 && Math.abs(topResume - topCote) > 4) {
-          throw new Error(`alignement PC : top(resume)=${topResume} != top(cote)=${topCote} (écart > 4px)`);
-        }
-      }
+      await verifierFiche(page);
     } },
-  // La fiche défile : Réservations & dépenses (capturée ci-dessus, en haut de la feuille plein
-  // écran) puis Lieux, puis la mosaïque de blocs — chacune capturée séparément (relecture §B, une
-  // feuille plein écran ne montre plus tout d'un coup). La section Carte avec de VRAIES tuiles a
-  // son propre geste, isolé dans sa propre page (voir captureCarteReelle plus bas) : Leaflet
-  // mémorise sa promesse de chargement (carte.js::promesseChargement) — une fois le vrai script
-  // chargé, cette page ne reviendrait plus jamais au stub, ce qui casserait le geste
-  // voyage-carte-hors-ligne s'ils partageaient la même page.
-  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-fiche-lieux",
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-infos-blocs",
     geste: async (page) => {
-      await page.click('#voyages-liste-corps [data-voyage="1"]');
-      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
-      await page.waitForSelector(".leaflet-container, .carte-indisponible", { timeout: 8000 }).catch(() => {});
-      await page.evaluate(() => document.querySelector("#fiche-lieux-corps")?.scrollIntoView({ block: "start" }));
-      await page.waitForTimeout(150);
-    } },
-  // « Idées à piocher » et « Écartés » repliés par défaut (brief lot « fiches visuelles ») :
-  // capture dédiée, dépliés, pour juger ces deux sections à l'œil (une capture de la section
-  // fermée ne montre que les boutons de repli).
-  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-fiche-lieux-idees",
-    geste: async (page) => {
-      await page.click('#voyages-liste-corps [data-voyage="1"]');
-      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
-      await page.waitForSelector(".leaflet-container, .carte-indisponible", { timeout: 8000 }).catch(() => {});
-      await page.click("#fiche-lieux-corps [data-plier-idees]");
-      await page.click("#fiche-lieux-corps [data-plier-ecartes]");
-      await page.evaluate(() => document.querySelector("#fiche-lieux-corps [data-repli=idees]")?.scrollIntoView({ block: "start" }));
-      await page.waitForTimeout(150);
-    } },
-  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-fiche-blocs",
-    geste: async (page) => {
-      await page.click('#voyages-liste-corps [data-voyage="1"]');
-      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
-      await page.waitForSelector(".leaflet-container, .carte-indisponible", { timeout: 8000 }).catch(() => {});
+      await ouvrirFiche(page, "infos");
       await page.evaluate(() => document.querySelector("#fiche-blocs-corps")?.scrollIntoView({ block: "start" }));
       await page.waitForTimeout(150);
     } },
-  // Édition d'un bloc (D-047 §V2, brief lot F point 8) : crayon du bloc Astuce → feuille (type,
-  // titre, texte).
+  // Tap sur un jour de la feuille de route : l'onglet Planning s'ouvre sur CE jour.
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-route-tap",
+    geste: async (page) => {
+      await ouvrirFiche(page, "infos");
+      const jour = await page.locator("#fiche-route-corps .fv-jc").nth(2).getAttribute("data-jour");
+      await page.locator("#fiche-route-corps .fv-jc").nth(2).click();
+      await page.waitForSelector("#fiche-planning-panneau:not([hidden])", { timeout: 3000 });
+      await page.waitForTimeout(400);
+      const haut = await page.evaluate((j) => document.getElementById(`fv-jour-${j}`)?.getBoundingClientRect().top ?? null, jour);
+      // Le planning est court : le défilement s'arrête en bas de page, le jour ne peut pas toujours monter
+      // tout en haut — on exige qu'il soit à l'écran (et non resté hors champ, comme avant le tap).
+      if (haut == null || haut < 0 || haut > 600) throw new Error(`feuille de route : le jour ${jour} n'est pas à l'écran après le tap (top=${haut})`);
+    } },
+  // Changer le statut d'un lieu : Marché (Possible) -> Acté, écriture immédiate, la carte change de groupe.
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-statut-lieu",
+    geste: async (page) => {
+      await ouvrirFiche(page, "activites");
+      await page.click('#fiche-lieux-corps details[data-lieu="2"] > summary');
+      await page.click('#fiche-lieux-corps details[data-lieu="2"] [data-choix-statut="2"][data-statut="acte"]');
+      await page.waitForSelector('#fiche-lieux-corps details.fv-acte[data-lieu="2"]', { timeout: 3000 });
+      const ecrit = await page.evaluate(() => window.__bouchonTables.voyage_lieux.find((l) => l.id === 2)?.statut);
+      if (ecrit !== "prevu") throw new Error(`statut du lieu 2 écrit « ${ecrit} », attendu « prevu »`);
+      // Choisir le jour : la même carte, jour changé, écrit en base.
+      await page.selectOption('#fiche-lieux-corps details[data-lieu="2"] [data-choisir-jour="2"]', { index: 1 });
+      await page.waitForTimeout(150);
+      const jour = await page.evaluate(() => window.__bouchonTables.voyage_lieux.find((l) => l.id === 2)?.jour);
+      if (!jour) throw new Error("choix du jour : rien écrit pour le lieu 2");
+      await page.locator('#fiche-lieux-corps details[data-lieu="2"]').evaluate((el) => el.scrollIntoView({ block: "center" }));
+    } },
+  // « Payé » : le formulaire de résa existant, pré-rempli et lié au lieu.
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-payer-lieu",
+    geste: async (page) => {
+      await ouvrirFiche(page, "activites");
+      await page.click('#fiche-lieux-corps details[data-lieu="7"] > summary');
+      await page.click('#fiche-lieux-corps details[data-lieu="7"] [data-choix-statut="7"][data-statut="paye"]');
+      await page.waitForSelector("#feuille [data-form-resa]", { timeout: 3000 });
+      const v = await page.evaluate(() => ({ titre: document.querySelector('[data-form-resa] [name="titre"]').value, lieu: document.querySelector('[data-form-resa] [name="lieu_id"]').value }));
+      if (v.titre !== "Vieille ville" || v.lieu !== "7") throw new Error(`résa pré-remplie : titre « ${v.titre} », lieu « ${v.lieu} », attendu « Vieille ville » / 7`);
+      await page.waitForTimeout(150);
+    } },
+  // À faire : cocher une ligne (écrit fait_le + fait_par), ajouter une ligne.
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-todo-actions",
+    geste: async (page) => {
+      await ouvrirFiche(page, "afaire");
+      await page.click('#fiche-todos-corps [data-cocher="2"]');
+      await page.waitForSelector('#fiche-todos-corps .fv-todo.fait[data-todo="2"]', { timeout: 3000 });
+      const t = await page.evaluate(() => window.__bouchonTables.voyage_todos.find((x) => x.id === 2));
+      if (!t.fait_le || t.fait_par !== "Yann") throw new Error(`todo cochée : fait_le=${t.fait_le} fait_par=${t.fait_par}, attendu une date et « Yann »`);
+      await page.fill('#fiche-todos-corps [data-form-todo] [name="texte"]', "Vérifier la marée");
+      await page.click('#fiche-todos-corps [data-form-todo] button[type="submit"]');
+      await page.waitForSelector("#fiche-todos-corps .fv-todo-t >> text=Vérifier la marée", { timeout: 3000 });
+      if ((await page.locator("#fiche-onglets-corps .fv-badge").innerText()) !== "2") throw new Error("à faire : pastille attendue 2 (1 cochée, 1 ajoutée)");
+      await verifierFiche(page);
+    } },
+  // Édition d'un bloc (D-047 §V2, brief lot F point 8) : crayon du bloc Astuce -> feuille.
   { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-bloc-edition",
     geste: async (page) => {
-      await page.click('#voyages-liste-corps [data-voyage="1"]');
-      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
-      await page.click('#fiche-blocs-corps [data-modifier-bloc]');
+      await ouvrirFiche(page, "infos");
+      await page.click("#fiche-blocs-corps [data-modifier-bloc]");
       await page.waitForSelector("#feuille [data-form-bloc]", { timeout: 5000 });
       await page.waitForTimeout(150);
     } },
   // Cadrer le budget (brief lot F point 3) : les 6 postes, un montant chacun.
   { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-cadrer-budget",
     geste: async (page) => {
-      await page.click('#voyages-liste-corps [data-voyage="1"]');
-      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
-      await page.click('#fiche-budget-corps [data-cadrer-budget]');
+      await ouvrirFiche(page, "infos");
+      await page.click("#fiche-budget-corps [data-cadrer-budget]");
       await page.waitForSelector("#feuille [data-form-enveloppes]", { timeout: 5000 });
       await page.waitForTimeout(150);
     } },
-  // Cocher une dépense (brief lot F point 4) : la case d'une ligne « à réserver » (résa 4, vol
-  // retour) bascule à « fait » d'un tap, écriture immédiate.
+  // Cocher une dépense (brief lot F point 4) : la case de la résa 4 (vol retour) bascule d'un tap.
   { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-cocher-depense",
     geste: async (page) => {
-      await page.click('#voyages-liste-corps [data-voyage="1"]');
-      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+      await ouvrirFiche(page, "infos");
       await page.click('#fiche-resas-corps [data-cocher-resa="4"]');
       await page.waitForFunction(() => document.querySelector('#fiche-resas-corps [data-resa="4"] .case')?.classList.contains("cochee"), null, { timeout: 3000 });
       await page.waitForTimeout(150);
@@ -361,19 +498,15 @@ const GESTES = [
   // Pièce (billet du vol) ouverte en plein écran fond blanc, bouton Fermer 48 px.
   { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-qr-plein-ecran",
     geste: async (page) => {
-      await page.click('#voyages-liste-corps [data-voyage="1"]');
-      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
-      await page.click('#fiche-resas-corps [data-ouvrir-piece]');
+      await ouvrirFiche(page, "infos");
+      await page.click("#fiche-resas-corps [data-ouvrir-piece]");
       await page.waitForSelector(".piece-plein-ecran img", { timeout: 5000 });
     } },
-  // + Lieu, résultats de géocodage bouchonnés (page.route sur nominatim) : trois propositions
-  // à choisir, sans toucher au vrai réseau (politique d'usage OSM respectée par construction).
+  // + Lieu, résultats de géocodage bouchonnés : trois propositions à choisir, sans toucher au réseau.
   { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-ajout-lieu",
     geste: async (page) => {
-      // Le geste précédent (voyage-qr-plein-ecran) laisse un plein écran custom ouvert : ce
-      // n'est pas `#feuille` du socle, la boucle générique qui referme les feuilles après
-      // chaque geste ne le connaît pas et ne le referme pas — sans ce nettoyage l'overlay
-      // opaque masque tout ce geste-ci (L-018 : fermer explicitement, jamais supposer parti).
+      // Le geste précédent (voyage-qr-plein-ecran) laisse un plein écran custom ouvert : sans ce
+      // nettoyage l'overlay opaque masque tout ce geste-ci (L-018).
       await fermerPieceOrpheline(page);
       await page.route("**/nominatim.openstreetmap.org/**", (route) => route.fulfill({
         status: 200, contentType: "application/json",
@@ -382,8 +515,7 @@ const GESTES = [
           { display_name: "Aquarium de Trouville, 14360 Trouville-sur-Mer", lat: "49.3707", lon: "0.0814", type: "attraction" },
         ]),
       }));
-      await page.click('#voyages-liste-corps [data-voyage="1"]');
-      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+      await ouvrirFiche(page, "activites");
       await page.click("#fiche-lieux-corps [data-nouveau-lieu]");
       await page.waitForSelector("#feuille [data-form-lieu]", { timeout: 5000 });
       await page.fill('#feuille [data-form-lieu] [name="nom"]', "Aquarium de Trouville");
@@ -391,20 +523,15 @@ const GESTES = [
       await page.waitForSelector("#feuille #lieu-resultats-recherche .choix-detaille", { timeout: 5000 });
       await page.waitForTimeout(150);
     } },
-  // Retour sur la fiche après un sous-écran (relecture : « + Lieu » etc. remplaçaient la fiche
-  // par la LISTE des voyages au lieu d'y revenir, D-045). + Lieu -> Ajouter doit laisser
-  // [data-fiche-voyage] visible avec le nouveau lieu dans la liste ; + Réservation -> Annuler
-  // (voile) doit aussi laisser la fiche visible, pas la liste.
+  // Retour sur la fiche après un sous-écran : + Lieu -> Ajouter rouvre la fiche SUR Activités avec
+  // le nouveau lieu ; + Dépense -> fermeture par le voile rouvre la fiche (jamais la liste des voyages).
   { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-retour-fiche",
     geste: async (page) => {
       await page.route("**/nominatim.openstreetmap.org/**", (route) => route.fulfill({
         status: 200, contentType: "application/json",
         body: JSON.stringify([{ display_name: "Phare de Biarritz, 64200 Biarritz", lat: "43.4832", lon: "-1.5586", type: "attraction" }]),
       }));
-      await page.click('#voyages-liste-corps [data-voyage="1"]');
-      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
-      await page.waitForSelector(".leaflet-container, .carte-indisponible", { timeout: 8000 }).catch(() => {});
-      // + Lieu, nom, Sans position (le premier résultat proposé), Ajouter.
+      await ouvrirFiche(page, "activites");
       await page.click("#fiche-lieux-corps [data-nouveau-lieu]");
       await page.waitForSelector("#feuille [data-form-lieu]", { timeout: 5000 });
       await page.fill('#feuille [data-form-lieu] [name="nom"]', "Phare de Biarritz");
@@ -413,9 +540,11 @@ const GESTES = [
       await page.click('#feuille #lieu-resultats-recherche [data-resultat="__sans_position__"]');
       await page.click('#feuille [data-form-lieu] button[type="submit"]');
       await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
-      const lieuAjoute = await page.locator('#fiche-lieux-corps .fl-nom', { hasText: "Phare de Biarritz" }).count();
-      if (!lieuAjoute) throw new Error("voyage-retour-fiche : le nouveau lieu n'apparaît pas dans la liste des lieux après Ajouter.");
-      // + Réservation, puis fermeture par le voile (équivalent d'Annuler) : la fiche doit rester visible.
+      await page.waitForSelector("#fiche-activites-panneau:not([hidden])", { timeout: 3000 });
+      if (!(await page.locator("#fiche-lieux-corps .fv-act-n", { hasText: "Phare de Biarritz" }).count())) {
+        throw new Error("voyage-retour-fiche : le nouveau lieu n'apparaît pas dans Activités après Ajouter.");
+      }
+      await choisirOnglet(page, "infos");
       await page.click("#fiche-resas-corps [data-nouvelle-resa]");
       await page.waitForSelector("#feuille [data-form-resa]", { timeout: 5000 });
       await page.evaluate(() => document.querySelector("#feuille-fond").click());
@@ -493,7 +622,7 @@ const TABLES = {
   courses_classiques: "COURSES_CLASSIQUES",
   voyages: "VOYAGES", parametres: "PARAMETRES",
   voyage_lieux: "VOYAGE_LIEUX", voyage_resas: "VOYAGE_RESAS", voyage_pieces: "VOYAGE_PIECES",
-  voyage_blocs: "VOYAGE_BLOCS", voyage_enveloppes: "VOYAGE_ENVELOPPES",
+  voyage_blocs: "VOYAGE_BLOCS", voyage_enveloppes: "VOYAGE_ENVELOPPES", voyage_todos: "VOYAGE_TODOS",
   veille_vols: "VEILLE_VOLS", veille_alertes: "VEILLE_ALERTES",
 };
 
@@ -783,6 +912,7 @@ try {
   for (const largeur of LARGEURS) {
     const page = await navigateur.newPage({ viewport: { width: largeur, height: 900 } });
     const erreursPage = [];
+    if (VERBEUX) page.setDefaultTimeout(6000); // mise au point : un geste en échec casse vite
     // "Failed to load resource: net::ERR_FAILED" est le bruit ATTENDU du blocage volontaire
     // du CDN Supabase et de Google Fonts ci-dessous (route.abort) : ce n'est pas une vraie
     // erreur de page, on ne la compte pas comme un échec de la recette.
@@ -809,6 +939,7 @@ try {
       route.fulfill({ status: 200, contentType: "text/css", body: ".leaflet-container{min-height:220px}" }));
     await page.route("**/cdnjs.cloudflare.com/ajax/libs/leaflet/**/leaflet.min.js", (route) =>
       route.fulfill({ status: 200, contentType: "text/javascript", body: STUB_LEAFLET_JS }));
+    await bouchonnerMeteo(page);
     await page.addInitScript(scriptBouchon(DONNEES));
 
     await page.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
@@ -853,8 +984,9 @@ try {
       }
     }
     // ---------- les gestes ----------
-    for (const { ecran, moduleDefaut, geste, nom } of GESTES) {
+    for (const { ecran, moduleDefaut, geste, nom } of GESTES.filter((g) => !FILTRE_GESTES || FILTRE_GESTES.test(g.nom))) {
       try {
+        if (VERBEUX) console.log(`geste ${nom} @ ${largeur}px`);
         await aller(page, ecran, moduleDefaut);
         await geste(page);
         await capturer(page, nom, largeur, erreursPage);
@@ -869,17 +1001,13 @@ try {
         // TROP BREF pour qu'un waitForSelector(state:"hidden") l'observe de façon fiable — on
         // attend un état STABLE à la place (fermée pour de bon, OU rouverte sur la fiche elle-
         // même) en repollant après chaque clic, jusqu'à ce que cet état stable soit atteint.
-        for (let tentative = 0; tentative < 4; tentative++) {
-          const ficheVisible = await page.locator("#feuille [data-fiche-voyage]").count();
-          if (ficheVisible) await page.click("#feuille [data-retour-voyages]");
-          else if (await page.locator("#feuille:not([hidden])").count()) {
-            await page.evaluate(() => document.getElementById("feuille-fond").click());
-          } else break; // déjà fermée
-          await page.waitForTimeout(200); // laisse fermerFeuille + un éventuel onFermer async se dérouler
-          if (!(await page.locator("#feuille:not([hidden])").count())) break; // fermée pour de bon
-        }
+        await fermerFeuillesOuvertes(page);
       } catch (e) {
+        if (VERBEUX) console.log(`  CASSÉ : ${e.message.split("\n")[0]}`);
         ecransCasses.push(`${nom} @ ${largeur}px : ${e.message.split("\n")[0]}`);
+        // Sans ce nettoyage la fiche restait ouverte et TOUS les gestes suivants échouaient en cascade.
+        try { await fermerPieceOrpheline(page); await fermerFeuillesOuvertes(page); }
+        catch (f) { console.error(`nettoyage après ${nom} impossible : ${f.message.split("\n")[0]}`); }
         try { await page.click("#logo"); await page.waitForSelector("#ecran-accueil:not([hidden])", { timeout: 3000 }); }
         catch { /* la page suivante repartira de zéro */ }
       }
@@ -916,6 +1044,7 @@ async function captureCarteReelle(navigateur, port, largeur) {
     if (url.includes("supabase") || url.includes("fonts.g")) return route.abort();
     return route.continue();
   });
+  await bouchonnerMeteo(page);
   await page.addInitScript(scriptBouchon(DONNEES));
   try {
     await page.goto(`http://localhost:${port}/`, { waitUntil: "networkidle" });
@@ -923,6 +1052,7 @@ async function captureCarteReelle(navigateur, port, largeur) {
     await aller(page, "voyages-liste", "agenda-mois");
     await page.click('#voyages-liste-corps [data-voyage="1"]');
     await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+    await page.click('#fiche-onglets-corps [data-onglet="carte"]');
     await page.waitForSelector(".leaflet-container", { timeout: 15000 });
     // Vraies tuiles chargées : au moins une image de tuile posée par Leaflet.
     await page.waitForSelector(".leaflet-tile-loaded, .leaflet-tile", { timeout: 15000 }).catch(() => {});
@@ -969,6 +1099,7 @@ async function captureCarteHorsLigne(navigateur, port, largeur) {
     if (url.includes("supabase") || url.includes("fonts.g") || url.includes("cdnjs.cloudflare.com")) return route.abort();
     return route.continue();
   });
+  await bouchonnerMeteo(page);
   await page.addInitScript(scriptBouchon(DONNEES));
   try {
     await page.goto(`http://localhost:${port}/`, { waitUntil: "networkidle" });
@@ -976,6 +1107,7 @@ async function captureCarteHorsLigne(navigateur, port, largeur) {
     await aller(page, "voyages-liste", "agenda-mois");
     await page.click('#voyages-liste-corps [data-voyage="1"]');
     await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+    await page.click('#fiche-onglets-corps [data-onglet="carte"]');
     await page.waitForSelector("#fiche-carte-corps .carte-indisponible", { timeout: 8000 });
     await capturer(page, "voyage-carte-hors-ligne", largeur, erreursPage);
   } catch (e) {

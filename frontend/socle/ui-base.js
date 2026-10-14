@@ -178,6 +178,7 @@ export function ouvrirFeuille(html, { pleinEcran = false, onFermer = null } = {}
   f.classList.add("entrante");
   f.classList.toggle("pleine", pleinEcran);
   f.hidden = false;
+  f.scrollTop = 0; // la feuille est UNE seule balise : un nouveau contenu repart du haut, pas du défilement du précédent
   onFermerFeuille = onFermer;
   requestAnimationFrame(() => f.classList.remove("entrante"));
 }

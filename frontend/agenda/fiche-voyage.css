@@ -1,0 +1,122 @@
+/* Fiche voyage V3 (brief fiche-voyage-v3.md, D-058) : légende des statuts, feuille de route,
+   onglets collants, planning, activités dépliables, À faire. Conçu à 360 px, tient à 320 px.
+   Les couleurs de statut sont des TEXTES >= 4.5:1 sur leur fond, et le mot est toujours écrit. */
+.fiche-voyage {
+  --paye:#1d6f42; --paye-fond:#e7f4ec; --acte:#1d5b96; --acte-fond:#e8f0fa; --possible:#5f6368; --possible-fond:#f1f3f4;
+  display:flex; flex-direction:column; gap:12px; max-width:760px; margin:0 auto; width:100%; font-size:15px;
+}
+.fiche-voyage > * { min-width:0; }
+
+/* ---- Statuts : pastille (mot) et légende ---- */
+.fv-statut { align-self:flex-start; font-size:12px; font-weight:700; border-radius:999px; padding:3px 10px; white-space:nowrap; }
+.fv-statut.fv-paye, .fv-leg.fv-paye { color:var(--paye); background:var(--paye-fond); }
+.fv-statut.fv-acte, .fv-leg.fv-acte { color:var(--acte); background:var(--acte-fond); }
+.fv-statut.fv-possible, .fv-leg.fv-possible { color:var(--possible); background:var(--possible-fond); }
+.fv-statut.fv-ecarte { color:var(--possible); background:var(--possible-fond); text-decoration:line-through; }
+.fv-legende { display:flex; flex-wrap:wrap; gap:6px; }
+.fv-leg { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; border-radius:999px; padding:4px 12px 4px 8px; }
+.fv-leg::before { content:""; width:12px; height:12px; border-radius:50%; background:currentColor; }
+
+/* ---- Feuille de route : défilement horizontal INTERNE sous 640 px, retour à la ligne au-dessus ---- */
+.fv-route { display:flex; gap:8px; overflow-x:auto; scroll-snap-type:x mandatory; padding:2px 2px 8px; }
+.fv-jc {
+  flex:0 0 108px; scroll-snap-align:start; min-height:132px; border:0; border-top:6px solid var(--possible); border-radius:12px;
+  background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.12); padding:8px; text-align:left; cursor:pointer; color:var(--texte);
+  display:flex; flex-direction:column; gap:2px;
+}
+.fv-jc.fv-paye { border-top-color:var(--paye); } .fv-jc.fv-acte { border-top-color:var(--acte); }
+.fv-jc-j { font-weight:700; font-size:15px; }
+.fv-jc-t { flex:1; font-size:13px; font-weight:600; line-height:1.25; overflow-wrap:anywhere; }
+.fv-jc-s { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.02em; }
+.fv-jc.fv-paye .fv-jc-s { color:var(--paye); } .fv-jc.fv-acte .fv-jc-s { color:var(--acte); } .fv-jc.fv-possible .fv-jc-s { color:var(--possible); }
+@media (min-width:640px) { .fv-route { flex-wrap:wrap; overflow:visible; } .fv-jc { flex:1 1 108px; } }
+
+/* ---- Onglets collants (icône + mot) ---- */
+.fv-onglets {
+  position:sticky; top:0; z-index:5; display:grid; grid-template-columns:repeat(5, 1fr); background:#fff;
+  border:1px solid var(--bordure); border-radius:12px; padding-top:env(safe-area-inset-top, 0px);
+}
+.fv-onglet {
+  position:relative; min-height:56px; border:0; background:none; padding:4px 1px; font-size:12.5px; font-weight:600; color:var(--texte-2);
+  border-bottom:3px solid transparent; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; cursor:pointer;
+}
+.fv-onglet-i { font-size:18px; line-height:1.1; }
+.fv-onglet[aria-selected="true"] { color:var(--bleu); border-bottom-color:var(--bleu); }
+.fv-badge { position:absolute; top:3px; left:calc(50% + 6px); min-width:18px; padding:0 5px; border-radius:999px; background:var(--rouge); color:#fff; font-size:11px; line-height:18px; text-align:center; }
+@media (max-width:349px) { .fv-onglet { font-size:11px; } }
+.fv-panneau { scroll-margin-top:68px; min-width:0; }
+
+/* ---- Planning : un jour = une carte ---- */
+.fv-jour { background:#fff; border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,.1); border-left:6px solid var(--possible); margin:0 0 12px; scroll-margin-top:68px; }
+.fv-jour.fv-paye { border-left-color:var(--paye); } .fv-jour.fv-acte { border-left-color:var(--acte); }
+.fv-jour-tete { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; padding:12px 12px 6px; }
+.fv-jour-tete h3 { font-size:16.5px; }
+.fv-jour-titre { margin:2px 0 0; color:var(--texte-2); font-size:14.5px; overflow-wrap:anywhere; }
+.fv-meteo { margin:0 12px 8px; padding:8px 10px; border-radius:10px; background:#eef3fa; color:var(--texte); font-size:14px; overflow-wrap:anywhere; }
+.fv-meteo-pluie { background:#fff4e5; color:#6b2a00; font-weight:600; }
+.fv-conseil { margin:0 12px 10px; padding:8px 10px; border-radius:10px; background:#fff4e5; color:#7a2e00; font-size:14px; font-weight:600; }
+.fv-items { list-style:none; margin:0; padding:0 12px 12px; display:grid; gap:8px; }
+.fv-vide { margin:0; padding:0 12px 12px; color:var(--texte-2); }
+.fv-item, .fv-info-resa { display:flex; align-items:flex-start; gap:10px; padding:8px 10px; border-radius:10px; border-left:4px solid var(--possible); background:var(--possible-fond); }
+.fv-item.fv-paye { background:var(--paye-fond); border-left-color:var(--paye); }
+.fv-item.fv-acte { background:var(--acte-fond); border-left-color:var(--acte); }
+.fv-info-resa { background:#fff; border:1px solid var(--bordure); }
+.fv-ico { font-size:19px; line-height:1.3; flex:none; }
+.fv-item-c { flex:1; min-width:0; display:flex; flex-direction:column; }
+.fv-item-n { font-weight:600; overflow-wrap:anywhere; }
+.fv-item-d { font-size:13px; color:var(--texte-2); overflow-wrap:anywhere; }
+.fv-mention { font-size:12.5px; color:var(--texte-2); margin:4px 0 0; }
+
+/* ---- Activités : groupes et cartes dépliables ---- */
+.fv-groupe-t { display:flex; align-items:center; gap:8px; font-size:15px; margin:14px 0 8px; }
+.fv-act { background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.1); margin:0 0 10px; border-left:6px solid var(--possible); }
+.fv-act.fv-paye { border-left-color:var(--paye); } .fv-act.fv-acte { border-left-color:var(--acte); } .fv-act.fv-ecarte { border-left-color:var(--bordure); }
+.fv-act summary, .fv-repli summary { list-style:none; cursor:pointer; min-height:56px; display:flex; align-items:center; gap:10px; padding:12px; }
+.fv-act > summary::-webkit-details-marker, .fv-repli > summary::-webkit-details-marker { display:none; }
+.fv-act > summary::after, .fv-repli > summary::after { content:"\25BE"; margin-left:auto; color:var(--texte-2); flex:none; }
+.fv-act[open] > summary::after, .fv-repli[open] > summary::after { content:"\25B4"; }
+.fv-act-c { flex:1; min-width:0; display:flex; flex-direction:column; }
+.fv-act-n { font-weight:600; overflow-wrap:anywhere; }
+.fv-act-d { font-size:13px; color:var(--texte-2); }
+.fv-act-statut { display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex:none; }
+.fv-fait { font-size:12px; font-weight:700; color:var(--paye); }
+.fv-act-corps { padding:0 12px 12px; display:flex; flex-direction:column; gap:8px; }
+.fv-photo { width:100%; height:auto; aspect-ratio:16/9; object-fit:cover; border-radius:8px; }
+.fv-topo { margin:0; white-space:pre-line; overflow-wrap:anywhere; }
+.fv-detail, .fv-aide { margin:0; font-size:13.5px; color:var(--texte-2); overflow-wrap:anywhere; }
+.fv-alocaliser { align-self:flex-start; font-size:12px; font-weight:600; color:var(--ambre-texte); background:var(--ambre-fond); border-radius:6px; padding:2px 8px; }
+.fv-resa { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; }
+.fv-resa-etat { font-weight:700; }
+.fv-code { font-family:var(--mono); font-size:18px; font-weight:700; letter-spacing:.04em; color:var(--bleu); background:var(--bleu-clair); border:0; border-radius:8px; padding:6px 12px; min-height:48px; cursor:pointer; }
+.fv-choix-statut { display:flex; flex-wrap:wrap; gap:6px; }
+.fv-choix { min-height:48px; border-radius:999px; padding:0 14px; border:2px solid var(--bordure); background:#fff; font-weight:600; cursor:pointer; }
+.fv-choix[aria-pressed="true"].fv-paye { border-color:var(--paye); color:var(--paye); background:var(--paye-fond); }
+.fv-choix[aria-pressed="true"].fv-acte { border-color:var(--acte); color:var(--acte); background:var(--acte-fond); }
+.fv-choix[aria-pressed="true"].fv-possible { border-color:var(--possible); color:var(--possible); background:var(--possible-fond); }
+.fv-choix:disabled { opacity:.6; cursor:default; }
+.fv-jour-choix { display:flex; flex-direction:column; gap:4px; font-weight:600; }
+.fv-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.fv-btn { min-height:48px; display:inline-flex; align-items:center; justify-content:center; padding:0 14px; text-decoration:none; font-weight:600; }
+.fv-repli { margin:6px 0 10px; }
+.fv-repli > summary { font-weight:600; color:var(--texte-2); }
+
+/* ---- À faire ---- */
+.fv-todo-liste { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
+.fv-todo { display:flex; align-items:flex-start; gap:12px; min-height:56px; padding:12px; background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+.fv-todo .case { flex:none; margin-top:2px; }
+.fv-todo-c { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.fv-todo-t { font-weight:600; overflow-wrap:anywhere; }
+.fv-todo.fait .fv-todo-t { color:var(--texte-2); text-decoration:line-through; }
+.fv-todo-lien { font-size:13.5px; color:var(--bleu); }
+.fv-todo-suppr { flex:none; min-width:48px; min-height:48px; margin:-10px -10px -10px 0; border:0; background:none; font-size:18px; color:var(--texte-2); cursor:pointer; }
+.fv-todo-form { margin-top:16px; }
+
+/* ---- Infos : les sous-écrans existants, posés en cartes ---- */
+.fv-infos { display:flex; flex-direction:column; gap:12px; }
+.fv-panneau .fiche-resas, .fv-panneau .fiche-budget { background:#fff; border-radius:12px; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+.fv-panneau .fiche-resume { padding:0; }
+.fv-sections { display:flex; flex-direction:column; gap:12px; }
+.fv-jour-choix .champ, .fv-todo-form .champ, .fv-todo-form .btn { min-height:48px; }
+.fv-todo-lien { display:inline-flex; align-items:center; min-height:48px; }
+/* Le ::before du socle (inset -11) donne 44 px ; -13 donne les 48 px visés. */
+.fv-todo .case::before { inset:-13px; }

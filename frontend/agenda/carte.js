@@ -40,13 +40,12 @@ export function chargerLeaflet() {
 
 /**
  * Crée la carte dans `conteneur` (élément DOM déjà dans le document, avec une hauteur non
- * nulle) : tuiles OSM avec attribution, un marqueur par lieu localisé (icône colorée par
- * catégorie), popup nom + note + lien Itinéraire, `fitBounds` sur l'ensemble des marqueurs.
- * `lieux` : lieux déjà filtrés sur lat/lng non nuls. `couleurDe(categorie)` fournit la couleur
- * du marqueur (carnet.js::CATEGORIES_LIEU) — la légende en mots reste à la charge de l'appelant
- * (jamais la couleur seule, rules/mobile-parents.md).
+ * nulle) : tuiles OSM avec attribution, un marqueur par point (couleur du STATUT du lieu),
+ * popup nom + mot du statut + lien Itinéraire, `fitBounds` sur l'ensemble des marqueurs.
+ * `points` : [{ lat, lng, nom, mot, couleur, itineraire }] — la légende en mots reste à la
+ * charge de l'appelant (jamais la couleur seule, rules/mobile-parents.md).
  */
-export async function creerCarte(conteneur, lieux, couleurDe) {
+export async function creerCarte(conteneur, points) {
   const L = await chargerLeaflet();
   const carte = L.map(conteneur, { scrollWheelZoom: false });
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -54,16 +53,14 @@ export async function creerCarte(conteneur, lieux, couleurDe) {
     maxZoom: 19,
   }).addTo(carte);
 
-  const marqueurs = lieux.map((lieu) => {
+  const marqueurs = points.map((p) => {
     const icone = L.divIcon({
       className: "carte-marqueur",
-      html: `<span style="background:${couleurDe(lieu.categorie)}"></span>`,
+      html: `<span style="background:${escapeHtml(p.couleur)}"></span>`,
       iconSize: [18, 18],
     });
-    const m = L.marker([lieu.lat, lieu.lng], { icon: icone }).addTo(carte);
-    const lien = `https://www.google.com/maps/search/?api=1&query=${lieu.lat},${lieu.lng}`;
-    const note = lieu.note ? `<p>${escapeHtml(lieu.note)}</p>` : "";
-    m.bindPopup(`<strong>${escapeHtml(lieu.nom)}</strong>${note}<a href="${lien}" target="_blank" rel="noopener">Itinéraire ↗</a>`);
+    const m = L.marker([p.lat, p.lng], { icon: icone }).addTo(carte);
+    m.bindPopup(`<strong>${escapeHtml(p.nom)}</strong><p>${escapeHtml(p.mot)}</p><a href="${escapeHtml(p.itineraire)}" target="_blank" rel="noopener">Itinéraire ↗</a>`);
     return m;
   });
 

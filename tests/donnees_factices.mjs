@@ -421,7 +421,7 @@ export const REPAS_INGREDIENTS = [
 // un cache de vacances scolaires (même forme que frontend/agenda/vacances.js) pour ne toucher
 // AUCUN réseau pendant la recette.
 export const VOYAGES = [
-  { id: 1, titre: "Week-end à la mer", lieu: "Normandie", debut: ilYA(1), fin: ilYA(-1), note: "Train de 9 h", cree_par: "Yann", cree_le: ilYA(30),
+  { id: 1, titre: "Week-end à la mer", lieu: "Normandie", debut: ilYA(1), fin: ilYA(-2), note: "Train de 9 h", cree_par: "Yann", cree_le: ilYA(30),
     topo: "## À savoir\nLe **camping** ferme à 22 h. Prévoir des bottes si marée haute.\n\n- Marché le dimanche matin\n- [Météo locale](https://meteo.example/normandie)",
     topo_le: ilYA(2) },
   { id: 2, titre: "Ski en famille", lieu: "Le Lioran", debut: ilYA(-40), fin: ilYA(-47), note: null, cree_par: "Claudia", cree_le: ilYA(10) },
@@ -471,21 +471,25 @@ export const VOYAGE_RESAS = [
   { id: 1, voyage_id: 1, type: "vol", poste: null, titre: "Aller Paris → Deauville", debut: `${ilYA(1)}T07:30:00`, fin: `${ilYA(1)}T08:45:00`,
     prestataire: "Air Littoral", code: "XR7K2P", prix_centimes: 8900, paye_par: "Yann", statut: "reserve",
     lieu_id: null, note: null, cree_par: "Yann", cree_le: ilYA(30) },
-  { id: 2, voyage_id: 1, type: "logement", poste: null, titre: "Gîte les Embruns", debut: `${ilYA(1)}T15:00:00`, fin: `${ilYA(-1)}T10:00:00`,
+  { id: 2, voyage_id: 1, type: "logement", poste: null, titre: "Gîte les Embruns", debut: `${ilYA(1)}T15:00:00`, fin: `${ilYA(-2)}T10:00:00`,
     prestataire: "Gîtes de France", code: null, prix_centimes: 24000, paye_par: null, statut: "reserve",
-    lieu_id: null, note: "Code boîte à clés envoyé par SMS la veille.", cree_par: "Yann", cree_le: ilYA(28) },
+    lieu_id: 4, note: "Code boîte à clés envoyé par SMS la veille.", cree_par: "Yann", cree_le: ilYA(28) },
   { id: 3, voyage_id: 1, type: "voiture", poste: null, titre: "Location voiture gare", debut: `${ilYA(1)}T09:00:00`, fin: `${ilYA(-1)}T18:00:00`,
     prestataire: "Europcar", code: "LOC4419", prix_centimes: 6500, paye_par: "Claudia", statut: "annule",
     lieu_id: null, note: "Annulée : covoiturage avec les Martin finalement.", cree_par: "Claudia", cree_le: ilYA(20) },
-  { id: 4, voyage_id: 1, type: "vol", poste: null, titre: "Retour Deauville → Paris", debut: `${ilYA(-1)}T19:00:00`, fin: `${ilYA(-1)}T20:15:00`,
+  { id: 4, voyage_id: 1, type: "vol", poste: null, titre: "Retour Deauville → Paris", debut: `${ilYA(-2)}T19:00:00`, fin: `${ilYA(-2)}T20:15:00`,
     prestataire: "Air Littoral", code: "XR7K2Q", prix_centimes: 8900, paye_par: null, statut: "a_reserver",
     lieu_id: null, note: null, cree_par: "Yann", cree_le: ilYA(30) },
   { id: 5, voyage_id: 1, type: "repas", poste: "sur_place", titre: "Repas sur place", debut: null, fin: null,
     prestataire: null, code: null, prix_centimes: 4000, paye_par: "Claudia", statut: "reserve",
     lieu_id: null, note: "Estimation pour les deux jours.", cree_par: "Claudia", cree_le: ilYA(5) },
   { id: 6, voyage_id: 1, type: "activite", poste: null, titre: "Table réservée", debut: `${ilYA(0)}T19:30:00`, fin: null,
-    prestataire: "Le Ponton", code: null, prix_centimes: null, paye_par: null, statut: "reserve",
+    prestataire: "Le Ponton", code: "TB1930", prix_centimes: 5400, paye_par: "Claudia", statut: "reserve",
     lieu_id: 3, note: null, cree_par: "Claudia", cree_le: ilYA(14) },
+  // Résa SANS lieu, datée (D-058) : apparaît dans le planning comme élément « résa », statut Acté.
+  { id: 7, voyage_id: 1, type: "activite", poste: null, titre: "Visite guidée du port", debut: `${ilYA(-1)}T15:00:00`, fin: null,
+    prestataire: "Office du tourisme", code: "VG2210", prix_centimes: 1800, paye_par: null, statut: "a_reserver",
+    lieu_id: null, note: null, cree_par: "Yann", cree_le: ilYA(6) },
 ];
 
 // 8 lieux : 2 sans position (« à localiser »), 3 datés sur 2 jours différents, le reste sans
@@ -498,7 +502,7 @@ export const VOYAGE_LIEUX = [
     lat: 49.3573, lng: 0.0708, adresse: "Plage de Deauville, 14800 Deauville", note: "Planches en bois célèbres.", lien: "https://exemple.fr/plage-deauville",
     photo_chemin: "1/lieux/plage-deauville.png", topo: "De longues planches en bois le long de la plage, bordées de cabines colorées.",
     horaires: "Accès libre, surveillée 10h-18h en saison.", cree_par: "Yann", cree_le: ilYA(29) },
-  { id: 2, voyage_id: 1, nom: "Marché de Deauville", categorie: "a_voir", statut: "idee", jour: ilYA(1), ordre: 2,
+  { id: 2, voyage_id: 1, nom: "Marché de Deauville", categorie: "a_voir", statut: "idee", jour: ilYA(-1), ordre: 2,
     lat: 49.3565, lng: 0.0721, adresse: "Marché, place Morny, 14800 Deauville", note: null, lien: null,
     photo_chemin: null, topo: null, horaires: "Dimanche matin seulement.", cree_par: "Yann", cree_le: ilYA(29) },
   { id: 3, voyage_id: 1, nom: "Restaurant Le Ponton", categorie: "resto", statut: "idee", jour: null, ordre: 1,
@@ -519,6 +523,16 @@ export const VOYAGE_LIEUX = [
   { id: 8, voyage_id: 1, nom: "Cabane à huîtres oubliée", categorie: "resto", statut: "ecarte", jour: null, ordre: 0,
     lat: 49.3610, lng: 0.0740, adresse: "Cabane à huîtres, Deauville", note: "Fermée hors saison.", lien: null,
     photo_chemin: null, topo: null, horaires: null, cree_par: "Yann", cree_le: ilYA(9) },
+];
+
+// À faire du voyage 1 (D-058) : deux à faire (dont un avec détail et lien), une faite par Claudia.
+export const VOYAGE_TODOS = [
+  { id: 1, voyage_id: 1, texte: "Réserver la visite guidée du port", detail: "Appeler l'office avant midi, groupe de 3.", lien: "https://exemple.fr/visite-port",
+    ordre: 1, fait_le: null, fait_par: null, cree_par: "Yann", cree_le: ilYA(5) },
+  { id: 2, voyage_id: 1, texte: "Prendre les bottes et les K-way", detail: null, lien: null,
+    ordre: 2, fait_le: null, fait_par: null, cree_par: "Claudia", cree_le: ilYA(4) },
+  { id: 3, voyage_id: 1, texte: "Imprimer les billets de train", detail: null, lien: null,
+    ordre: 3, fait_le: `${ilYA(2)}T10:00:00Z`, fait_par: "Claudia", cree_par: "Yann", cree_le: ilYA(6) },
 ];
 
 // Photo factice du lieu 1 : même génératrice que le billet QR (tests/qr_factice.mjs), servie en

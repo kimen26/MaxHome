@@ -1,5 +1,5 @@
 // Formulaire lieu (création/édition) : nom, catégorie, jour, topo, horaires, notes, photo,
-// recherche de position Nominatim (inchangée). Extrait de ui-fiche-lieux.js pour rester sous
+// recherche de position Nominatim (inchangée). Extrait de l'ancienne section Lieux pour rester sous
 // ~300 lignes par fichier (brief carnet-voyage.md, lot « fiches visuelles »).
 
 import { $, txt, ouvrirFeuille, fermerFeuille, toast, confirmer } from "../socle/ui-base.js";
@@ -20,7 +20,7 @@ const titreCourt = (nomComplet) => nomComplet.split(",")[0].trim();
 /**
  * Ouvre la feuille d'édition/création d'un lieu `l` (null = création). `api`/`etat`/`cb` comme
  * les autres sous-écrans ; `voyage()` pour les bornes de date et l'indice de géocodage ;
- * `ecarterLieu`/`retirerLieu` (actions déjà résolues par l'appelant, ui-fiche-lieux.js) et
+ * `ecarterLieu`/`retirerLieu` (actions déjà résolues par l'appelant, ui-fiche-activites.js) et
  * `revenirALaFiche` fournis par l'appelant.
  */
 export function formulaireLieu(api, etat, cb, { voyage, l, ecarterLieu, retirerLieu, revenirALaFiche }) {
