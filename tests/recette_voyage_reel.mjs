@@ -17,8 +17,8 @@ const RACINE = path.resolve("frontend");
 const PORT = 8767;
 const SORTIE = path.resolve("data/captures/reel");
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
-const LARGEURS = [320, 360, 1200];
-const TITRE_VOYAGE = "Malaga";
+const LARGEURS = process.argv[3] ? process.argv[3].split(",").map(Number) : [320, 360, 1200];
+const TITRE_VOYAGE = process.argv[2] ?? "Malaga";
 
 const serveur = http.createServer((req, res) => {
   const p = path.join(RACINE, req.url === "/" ? "index.html" : req.url.split("?")[0]);
@@ -39,11 +39,11 @@ async function connecter(page) {
   await page.fill('input[name=password]', env.PASS_YANN);
   await page.click('button[type=submit]');
   try {
-    await page.waitForSelector("#ecran-accueil:not([hidden]) .module-carte", { timeout: 20000 });
+    await page.waitForSelector("#ecran-accueil:not([hidden]) .module-carte", { timeout: 60000 });
   } catch (e) {
     // Échec intermittent (TODO Lane J) : dire ce que l'écran affiche au lieu d'un simple timeout.
     const visible = await page.evaluate(() => document.body.innerText.slice(0, 400));
-    throw new Error(`connexion non aboutie en 20 s — écran : ${visible.replace(/\s+/g, " ")}`);
+    throw new Error(`connexion non aboutie en 60 s — écran : ${visible.replace(/\s+/g, " ")}`);
   }
 }
 

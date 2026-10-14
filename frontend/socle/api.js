@@ -120,6 +120,11 @@ export function creerApi(sb) {
     majParametre: (cle, valeur) => sb.from("parametres").upsert({ cle, valeur }).select().single().then(rendre),
 
     // ---------- module Agenda : carnet de voyage ----------
+    // À faire d'un voyage (migration 032) : texte, détail, lien ; fait_le/fait_par = coché.
+    voyageTodos: (voyageId) => sb.from("voyage_todos").select("*").eq("voyage_id", voyageId).order("ordre").order("id").then(rendre),
+    creerTodo: (champs) => sb.from("voyage_todos").insert(champs).select().single().then(rendre),
+    majTodo: (id, champs) => sb.from("voyage_todos").update(champs).eq("id", id).select().single().then(rendre),
+    supprimerTodo: (id) => sb.from("voyage_todos").delete().eq("id", id).then(rendre),
     voyageLieux: (voyageId) => sb.from("voyage_lieux").select("*").eq("voyage_id", voyageId).order("jour").order("ordre").order("id").then(rendre),
     creerLieu: (champs) => sb.from("voyage_lieux").insert(champs).select().single().then(rendre),
     majLieu: (id, champs) => sb.from("voyage_lieux").update(champs).eq("id", id).then(rendre),

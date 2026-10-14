@@ -891,3 +891,24 @@ Un virement permanent programmé à la banque part seul : le montrer « à faire
   « À faire » pour ses éléments manuels, total à faire sans l'automatique.
 - Bot : le regroupement vient du même moteur JS (`virements_cli.mjs`), donc hérite ; `mouvements.restants`
   (bilan) exclut les automatiques ; `a_virer` écrit « (automatique) ».
+
+## D-058 — Fiche voyage V3 : feuille de route, trois statuts, onglets, météo croisée, partage par lien (2026-10-14)
+
+Retour de Yann sur la fiche V2 : trop longue à défiler, l'état du voyage ne se lit pas d'un coup d'œil.
+Maquette validée (`inbox/maquettes/voyage-auvergne.html`, locale) avant le code. Brief :
+`docs/briefs/fiche-voyage-v3.md`.
+- **Trois statuts affichés**, dérivés des données existantes, aucun nouveau champ : Payé (résa
+  `reserve` liée), Acté (`prevu`/`fait`), Possible (`idee`) ; Écarté replié. Toujours le mot avec la
+  couleur. Le statut d'un jour vient de ses activités, à défaut de sa nuit.
+- **En-tête = feuille de route** : une carte par jour, sans météo (Yann : « elle est déjà dans le
+  planning »). Onglets Planning · Activités · Carte · À faire · Infos ; les sous-écrans V2 passent
+  dans Infos sans être réécrits.
+- **Météo** : Open-Meteo multi-modèles (Météo-France, ECMWF, GFS, ICON), verdict pluie / sec /
+  incertain selon combien de modèles annoncent ≥ 1 mm. Un seul modèle se trompe trop à 5 jours
+  (mesuré le 14/10 : 0,3 à 38 mm selon la source pour le même jour).
+- **À faire** : table `voyage_todos` (032), liste manuelle ; pas de tâches déduites, un lieu
+  « Acté » n'est pas forcément à réserver.
+- **Partage par lien** (choix de Yann, plutôt qu'un fichier) : jeton `uuid` dans `voyage_partages`,
+  lecture par une fonction `security definer` ouverte à `anon` qui ne renvoie ni code, ni prix, ni
+  payeur, ni note. **Exception assumée à l'invariant 2** : quiconque a le lien lit le planning ;
+  « Arrêter le partage » supprime le jeton. « Télécharger la page » en secours.
