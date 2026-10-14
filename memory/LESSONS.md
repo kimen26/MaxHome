@@ -544,3 +544,13 @@ l'écran d'octobre encore affiché satisfaisait déjà la condition, et la captu
 montrait octobre. Une attente de navigation porte sur la valeur visée, jamais sur un motif que
 l'état de départ satisfait déjà. Même piège pour une boucle de clics qui re-rend la liste : les
 références d'éléments deviennent périmées, on re-sélectionne à chaque tour.
+
+## L-056 — Une migration avec `drop … if exists` est bloquée par le garde SQL du socle (2026-10-14)
+
+Symptôme : `python scripts/sql.py 032_*.sql` refusé (« SQL GUARD : opération destructive DROP »),
+alors que le `drop policy if exists` ne servait qu'à rendre la migration rejouable ; le garde lit
+le contenu du fichier passé à la commande.
+Cause : l'idempotence était obtenue en supprimant puis recréant.
+Règle : une migration MaxHome est idempotente **sans rien supprimer** : `create … if not exists`,
+et pour une politique, `do $$ begin if not exists (select 1 from pg_policies where tablename = …
+and policyname = …) then create policy …; end if; end $$;`. Un vrai `drop` reste une demande à Yann.
