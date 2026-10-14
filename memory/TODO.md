@@ -280,8 +280,10 @@ répétable oui/non, sa liste de tâches découpée. Arbitrages : D-041._
 ## Lane M — Fiche voyage V3 (2026-10-14, D-058)
 - [x] Lot 1 : planning.js, meteo.js, voyage_todos (032), tests/test_planning.mjs.
 - [x] Lot 2 : fiche en onglets, feuille de route, activités dépliables, carte par statut, à faire.
-- [ ] Lot 3 : partage par lien (033, RPC anon), page partage.html, télécharger la page.
+- [x] Lot 3 : partage par lien (033, RPC anon), page partage.html, télécharger la page.
 - [x] Poser les 5 « à faire » de l'Auvergne en base une fois 032 appliquée.
+- [ ] Marquer un lieu « Fait » pendant le séjour : plus de bouton depuis la V3 (à rajouter si Yann le demande).
+- [ ] Les trajets (catégorie transport) apparaissent dans Activités « Acté » : à sortir si ça gêne.
 
 ## Parking
 - Le carnet de voyage (ui-fiche-*, carnet.js, carte.js, geocode.js, topo.js, ui-voyages-liste.js)

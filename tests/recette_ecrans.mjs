@@ -8,11 +8,15 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import * as DONNEES from "./donnees_factices.mjs";
+import { filtrerPourPartage } from "../frontend/agenda/partage-filtre.js";
 
 const RACINE = path.resolve("frontend");
 const SORTIE = path.resolve("data/captures/ecrans");
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
 const LARGEURS = (process.env.RECETTE_LARGEURS ?? "320,360,768,1200").split(",").map(Number); // non-régression, conception, tablette, desktop (règle mobile-parents.md ; 768 : mise en page deux colonnes de la fiche voyage V2, D-047)
+
+/** Jeton INVENTÉ de la page partagée de la recette (la RPC est bouchonnée, aucun réseau). */
+const JETON_FACTICE = "11111111-2222-4333-8444-555555555555";
 
 // Stub Leaflet minimal (frontend/agenda/carte.js n'a besoin que de L.map/tileLayer/marker/
 // divIcon/featureGroup) : pose un conteneur `.leaflet-container` visible, sans vraie tuile ni
@@ -58,6 +62,23 @@ async function ouvrirFiche(page, onglet = "planning") {
   if (onglet !== "planning") await choisirOnglet(page, onglet);
 }
 
+/** Ouvre la fiche avec une copie du lien interceptée (navigator.share absent : repli « copie »). */
+async function preparerPartage(page) {
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "share", { value: undefined, configurable: true });
+    window.__copie = null;
+    navigator.clipboard.writeText = async (texte) => { window.__copie = texte; };
+  });
+  await ouvrirFiche(page, "planning");
+}
+
+/** Aucune valeur privée du voyage factice (codes, notes, adresses, prix) dans `texte`. */
+function verifierSansPrive(texte, quoi) {
+  const montants = DONNEES.VOYAGE_RESAS.filter((r) => r.prix_centimes != null).map((r) => (r.prix_centimes / 100).toFixed(2).replace(".", ","));
+  const prives = [...DONNEES.VOYAGE_RESAS.flatMap((r) => [r.code, r.note]), ...DONNEES.VOYAGE_LIEUX.flatMap((l) => [l.note, l.adresse]), ...montants].filter(Boolean);
+  for (const v of prives) if (texte.includes(v)) throw new Error(`${quoi} : valeur privée « ${v.slice(0, 30)} »`);
+}
+
 /** Tape un onglet de la fiche et attend son panneau (la carte : son cadre Leaflet ou le message). */
 async function choisirOnglet(page, onglet) {
   await page.click(`#fiche-onglets-corps [data-onglet="${onglet}"]`);
@@ -73,7 +94,7 @@ async function verifierFiche(page) {
     const defauts = [];
     const nom = (el) => `${el.tagName.toLowerCase()}.${[...el.classList].join(".")}`;
     const CIBLES = ".fv-onglet, .fv-jc, .fv-act > summary, .fv-repli > summary, .fv-choix, .fv-btn, .fv-code, .fv-todo-suppr, .fv-todo-lien, "
-      + ".fv-todo, .fv-jour-choix .champ, .fv-todo-form .champ, .fv-todo-form .btn, .bandeau-retour";
+      + ".fv-todo, .fv-jour-choix .champ, .fv-todo-form .champ, .fv-todo-form .btn, .bandeau-retour, .bandeau-partager, .fv-partage .btn";
     for (const el of document.querySelectorAll(CIBLES)) {
       const r = el.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
@@ -349,6 +370,8 @@ const GESTES = [
           if (i && tops[i].top <= tops[i - 1].top) throw new Error(`ordre mobile : ${tops[i].s} (top=${tops[i].top}) n'est pas sous ${tops[i - 1].s} (top=${tops[i - 1].top})`);
         }
       }
+      // Lot 3 : « Partager » est dans le bandeau, visible, cible >= 48 px (mesurée par verifierFiche).
+      if (!(await page.locator("#fiche-bandeau-corps [data-partager]").isVisible())) throw new Error("bandeau : bouton Partager invisible");
       // 4 jours du voyage = 4 cartes de feuille de route, SANS météo (écart voulu au brief).
       const nbJours = await page.locator("#fiche-route-corps .fv-jc").count();
       if (nbJours !== 4) throw new Error(`feuille de route : ${nbJours} cartes, attendu 4`);
@@ -551,6 +574,40 @@ const GESTES = [
       await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
       await page.waitForTimeout(150);
     } },
+  // Partage (lot 3) : « Partager » crée le jeton et copie le lien (pas de feuille de partage dans le
+  // navigateur de recette), Infos propose « Télécharger la page » (fichier autonome, sans aucun code
+  // ni prix) et « Arrêter le partage » (confirmation du socle, supprime le jeton).
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-partager",
+    geste: async (page) => {
+      await preparerPartage(page);
+      await page.click("#fiche-bandeau-corps [data-partager]");
+      await page.waitForFunction(() => window.__copie, null, { timeout: 5000 });
+      const lien = await page.evaluate(() => window.__copie);
+      if (!/\/partage\.html\?j=[0-9a-f-]{36}$/.test(lien)) throw new Error(`partager : lien inattendu ${lien}`);
+      if (!(await page.locator("#toast").innerText()).includes("Lien copié")) throw new Error("partager : toast « Lien copié » absent");
+      if ((await page.evaluate(() => window.__bouchonTables.voyage_partages.length)) !== 1) throw new Error("partager : un jeton attendu en base");
+      await choisirOnglet(page, "infos");
+      await page.locator("#fiche-partage-corps").evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await verifierFiche(page);
+      const [telechargement] = await Promise.all([page.waitForEvent("download", { timeout: 8000 }), page.click("#fiche-partage-corps [data-telecharger-page]")]);
+      if (!/-carnet\.html$/.test(telechargement.suggestedFilename())) throw new Error(`télécharger : nom ${telechargement.suggestedFilename()}`);
+      const contenu = fs.readFileSync(await telechargement.path(), "utf8");
+      verifierSansPrive(contenu, "fichier téléchargé");
+      if (!contenu.includes("Planning") || !contenu.includes("<style>")) throw new Error("télécharger : page incomplète");
+    } },
+  { ecran: "voyages-liste", moduleDefaut: "agenda-mois", nom: "voyage-partage-arret",
+    geste: async (page) => {
+      await preparerPartage(page);
+      await page.click("#fiche-bandeau-corps [data-partager]");
+      await page.waitForFunction(() => window.__copie, null, { timeout: 5000 });
+      await choisirOnglet(page, "infos");
+      await page.click("#fiche-partage-corps [data-arreter-partage]");
+      await page.click("#feuille-corps [data-ok]");
+      await page.waitForSelector("#feuille-corps [data-fiche-voyage]", { timeout: 5000 });
+      if ((await page.evaluate(() => window.__bouchonTables.voyage_partages.length)) !== 0) throw new Error("arrêt : le jeton existe encore");
+      if (await page.locator("#fiche-partage-corps [data-arreter-partage]").count()) throw new Error("arrêt : le bouton Arrêter reste affiché");
+      await page.waitForTimeout(250);
+    } },
   // « Carte hors ligne » (capture voyage-carte-hors-ligne) est traitée par sa PROPRE page —
   // voir captureCarteHorsLigne plus bas — pour la même raison que voyage-fiche-carte : une fois
   // qu'un geste PRÉCÉDENT dans la même page a chargé Leaflet avec succès (même le stub),
@@ -622,7 +679,7 @@ const TABLES = {
   courses_classiques: "COURSES_CLASSIQUES",
   voyages: "VOYAGES", parametres: "PARAMETRES",
   voyage_lieux: "VOYAGE_LIEUX", voyage_resas: "VOYAGE_RESAS", voyage_pieces: "VOYAGE_PIECES",
-  voyage_blocs: "VOYAGE_BLOCS", voyage_enveloppes: "VOYAGE_ENVELOPPES", voyage_todos: "VOYAGE_TODOS",
+  voyage_blocs: "VOYAGE_BLOCS", voyage_enveloppes: "VOYAGE_ENVELOPPES", voyage_todos: "VOYAGE_TODOS", voyage_partages: "VOYAGE_PARTAGES",
   veille_vols: "VEILLE_VOLS", veille_alertes: "VEILLE_ALERTES",
 };
 
@@ -700,7 +757,9 @@ function scriptBouchon(donnees) {
           return unique ? (filtrees[0] ?? null) : filtrees;
         }
         if (operation === "insert") {
-          const crees = payload.map((champs) => ({ id: prochainId() + payload.indexOf(champs), ...champs }));
+          // Colonne à défaut serveur : le jeton de partage (uuid généré par la base, migration 033).
+          const parDefaut = nomTable === "voyage_partages" ? () => ({ jeton: crypto.randomUUID() }) : () => ({});
+          const crees = payload.map((champs) => ({ id: prochainId() + payload.indexOf(champs), ...parDefaut(), ...champs }));
           window.__bouchonTables[nomTable] = [...base, ...crees];
           return unique ? crees[0] : crees;
         }
@@ -787,6 +846,11 @@ function scriptBouchon(donnees) {
           },
         },
         from: (nom) => requete(nom),
+        // RPC bouchonnée par la recette : window.__bouchonRpc[nom](args) ; sinon erreur franche.
+        rpc: async (nom, args) => {
+          const f = window.__bouchonRpc?.[nom];
+          return f ? { data: f(args), error: null } : { data: null, error: new Error("rpc non bouchonnée : " + nom) };
+        },
         storage: { from: (bucket) => storageBucket(bucket) },
       }),
     };
@@ -1022,6 +1086,10 @@ try {
     // ---------- carte hors ligne : page à part, cdnjs bloqué DÈS LE DÉPART ----------
     const erreursHorsLigne = await captureCarteHorsLigne(navigateur, PORT, largeur);
     erreurs.push(...erreursHorsLigne.map((m) => `${largeur}px: ${m}`));
+
+    // ---------- page publique partage.html (lot 3) : sans session, RPC bouchonnée ----------
+    const erreursPartage = await capturePartage(navigateur, PORT, largeur);
+    erreurs.push(...erreursPartage.map((m) => `${largeur}px: ${m}`));
   }
 } finally {
   await navigateur.close();
@@ -1112,6 +1180,66 @@ async function captureCarteHorsLigne(navigateur, port, largeur) {
     await capturer(page, "voyage-carte-hors-ligne", largeur, erreursPage);
   } catch (e) {
     ecransCasses.push(`voyage-carte-hors-ligne @ ${largeur}px : ${e.message.split("\n")[0]}`);
+  } finally {
+    await page.close();
+  }
+  return erreursPage;
+}
+
+/** Captures de la page publique partage.html (lot 3) : une page à part, sans session, avec la RPC
+ *  `voyage_partage` bouchonnée par le filtre JS (miroir de la fonction SQL). Un onglet par capture
+ *  (planning, activités, carte, infos), puis un jeton inconnu. Mesures : cibles >= 48 px, contrastes
+ *  (verifierFiche), aucune valeur privée dans le texte affiché. */
+async function capturePartage(navigateur, port, largeur) {
+  const page = await navigateur.newPage({ viewport: { width: largeur, height: 900 } });
+  const erreursPage = [];
+  const attendue = (texte) => texte.includes("net::ERR_FAILED");
+  page.on("console", (m) => { if (m.type() === "error" && !attendue(m.text())) erreursPage.push(m.text()); });
+  page.on("pageerror", (e) => erreursPage.push(e.message));
+  await page.route("**/*", (route) => {
+    const url = route.request().url();
+    if (url.includes("supabase") || url.includes("fonts.g")) return route.abort();
+    return route.continue();
+  });
+  await page.route("**/cdnjs.cloudflare.com/ajax/libs/leaflet/**/leaflet.min.css", (route) =>
+    route.fulfill({ status: 200, contentType: "text/css", body: ".leaflet-container{min-height:220px}" }));
+  await page.route("**/cdnjs.cloudflare.com/ajax/libs/leaflet/**/leaflet.min.js", (route) =>
+    route.fulfill({ status: 200, contentType: "text/javascript", body: STUB_LEAFLET_JS }));
+  await bouchonnerMeteo(page);
+  await page.addInitScript(scriptBouchon(DONNEES));
+  const id = 1;
+  const donnees = filtrerPourPartage(DONNEES.VOYAGES.find((v) => v.id === id), DONNEES.VOYAGE_LIEUX.filter((l) => l.voyage_id === id),
+    DONNEES.VOYAGE_RESAS.filter((r) => r.voyage_id === id), DONNEES.VOYAGE_BLOCS.filter((b) => b.voyage_id === id));
+  await page.addInitScript(({ jeton, data }) => { window.__bouchonRpc = { voyage_partage: ({ p_jeton }) => (p_jeton === jeton ? data : null) }; }, { jeton: JETON_FACTICE, data: donnees });
+  const onglet = async (cle, attente) => {
+    await page.click(`[data-onglet="${cle}"]`);
+    await page.waitForSelector(`#partage-${cle}-panneau:not([hidden])`, { timeout: 3000 });
+    if (attente) await page.waitForSelector(attente, { timeout: 8000 });
+    await page.waitForTimeout(150);
+  };
+  try {
+    await page.goto(`http://localhost:${port}/partage.html?j=${JETON_FACTICE}`, { waitUntil: "networkidle" });
+    await page.waitForSelector(".partage-fiche", { timeout: 10000 });
+    await page.waitForSelector("#partage-planning-corps .fv-meteo", { timeout: 5000 }); // météo (bouchonnée) arrivée
+    if ((await page.locator("[data-onglet]").count()) !== 4) throw new Error("partage : 4 onglets attendus");
+    verifierSansPrive(await page.locator("body").innerText(), "page partagée");
+    await verifierFiche(page);
+    await capturer(page, "partage-planning", largeur, erreursPage);
+    await onglet("activites");
+    await page.click("#partage-activites-panneau details.fv-act >> nth=0 >> summary");
+    await verifierFiche(page);
+    await capturer(page, "partage-activites", largeur, erreursPage);
+    await onglet("carte", ".leaflet-container, .carte-indisponible");
+    await capturer(page, "partage-carte", largeur, erreursPage);
+    await onglet("infos");
+    await verifierFiche(page);
+    await capturer(page, "partage-infos", largeur, erreursPage);
+    await page.goto(`http://localhost:${port}/partage.html?j=99999999-2222-4333-8444-555555555555`, { waitUntil: "networkidle" });
+    await page.waitForSelector(".partage-invalide", { timeout: 5000 });
+    if (!(await page.locator(".partage-invalide").innerText()).includes("Ce lien de partage n'est plus valable.")) throw new Error("partage : message de jeton inconnu");
+    await capturer(page, "partage-invalide", largeur, erreursPage);
+  } catch (e) {
+    ecransCasses.push(`partage @ ${largeur}px : ${e.message.split("\n")[0]}`);
   } finally {
     await page.close();
   }

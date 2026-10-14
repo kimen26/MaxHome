@@ -3,8 +3,8 @@
 // ligne, cdnjs bloqué) → l'appelant affiche « Carte indisponible hors ligne », le reste de la
 // fiche continue de fonctionner (D-045, brief carnet-voyage.md §Écrans).
 
-const JS_URL = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
-const CSS_URL = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
+export const JS_URL = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
+export const CSS_URL = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
 
 let promesseChargement = null;
 

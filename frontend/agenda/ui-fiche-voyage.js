@@ -13,6 +13,7 @@ import { creerFicheResas } from "./ui-fiche-resas.js";
 import { creerFicheActivites } from "./ui-fiche-activites.js";
 import { creerFicheTodos, nbAFaire } from "./ui-fiche-todos.js";
 import { creerFicheBlocs } from "./ui-fiche-blocs.js";
+import { creerFichePartage } from "./ui-fiche-partage.js";
 import { rendreCarteVoyage } from "./ui-fiche-carte.js";
 import { rendreLegende } from "./fiche-statuts.js";
 import { rendreFeuilleRoute } from "./fiche-route.js";
@@ -28,7 +29,7 @@ const ONGLETS = [
   { cle: "infos", icone: "ℹ️", libelle: "Infos" },
 ];
 /** Section d'un sous-écran → onglet qui la contient (revenirALaFiche). */
-const ONGLET_DE_SECTION = { lieux: "activites", resas: "infos", budget: "infos", resume: "infos", afaire: "afaire" };
+const ONGLET_DE_SECTION = { lieux: "activites", resas: "infos", budget: "infos", resume: "infos", partage: "infos", afaire: "afaire" };
 
 export function creerFicheVoyage(api, etat, cb) {
   let voyage = null;
@@ -41,7 +42,7 @@ export function creerFicheVoyage(api, etat, cb) {
   let meteo = null;
   let onglet = "planning";
 
-  const ctx = { voyage: () => voyage, resas: () => resas, lieux: () => lieux, pieces: () => pieces, blocs: () => blocs, enveloppes: () => enveloppes, todos: () => todos, rafraichir };
+  const ctx = { voyage: () => voyage, resas: () => resas, lieux: () => lieux, pieces: () => pieces, blocs: () => blocs, enveloppes: () => enveloppes, todos: () => todos, meteo: () => meteo, rafraichir };
   const resas_actif = (section = "resas") => creerFicheResas(api, etat, cb, { ...ctx, revenirALaFiche: () => revenirALaFiche(section) });
   const blocs_actif = () => creerFicheBlocs(api, etat, cb, { ...ctx, revenirALaFiche: () => revenirALaFiche("resume") });
   const budget_actif = () => creerFicheBudget(api, etat, cb, { ...ctx, revenirALaFiche: () => revenirALaFiche("budget") });
@@ -50,6 +51,7 @@ export function creerFicheVoyage(api, etat, cb) {
     ...ctx, rendreTout: () => rendre(), revenirALaFiche: () => revenirALaFiche("lieux"),
     ouvrirResa: (resa, init) => resas_actif("lieux").formulaireResa(resa, init),
   });
+  const partageFiche = creerFichePartage(api, etat, cb, { ...ctx, rendreTout: () => rendre(), revenirALaFiche: (section) => revenirALaFiche(section) });
   const todosFiche = creerFicheTodos(api, etat, cb, { ...ctx, rendreTout: () => rendre(), revenirALaFiche: () => revenirALaFiche("afaire") });
 
   function html() {
@@ -65,7 +67,7 @@ export function creerFicheVoyage(api, etat, cb) {
       ${panneau("afaire", `<div id="fiche-todos-corps"></div>`)}
       ${panneau("infos", `<div class="fv-sections">
         <div id="fiche-resume-corps"></div><div id="fiche-etape-corps"></div><div id="fiche-resas-corps"></div>
-        <div id="fiche-budget-corps"></div><div id="fiche-blocs-corps"></div></div>`)}
+        <div id="fiche-budget-corps"></div><div id="fiche-blocs-corps"></div><div id="fiche-partage-corps"></div></div>`)}
     </div>`;
   }
 
@@ -73,6 +75,7 @@ export function creerFicheVoyage(api, etat, cb) {
     const [l, r, p, b, e, t] = await Promise.all([
       api.voyageLieux(voyage.id), api.voyageResas(voyage.id), api.voyagePieces(voyage.id),
       api.voyageBlocs(voyage.id), api.voyageEnveloppes(voyage.id), api.voyageTodos(voyage.id),
+      partageFiche.charger(),
     ]);
     lieux = l; resas = r; pieces = p; blocs = b; enveloppes = e; todos = t;
   }
@@ -151,6 +154,7 @@ export function creerFicheVoyage(api, etat, cb) {
     budget_actif().rendre();
     resas_actif().rendre();
     blocs_actif().rendre();
+    partageFiche.rendre();
     if (onglet === "carte") rendreCarteVoyage("#fiche-carte-corps", lieux, resas);
   }
 

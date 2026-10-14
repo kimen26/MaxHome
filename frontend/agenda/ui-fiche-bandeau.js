@@ -14,8 +14,8 @@ import { joursAvant, couleurVoyage, budgetParPoste } from "./carnet.js";
  *  donnait deux). */
 const eurosRonds = (c) => `${Math.round(c / 100)} €`;
 
-function decompteTexte(voyage) {
-  const d = joursAvant(voyage, jourIso(new Date()));
+export function decompteTexte(voyage, aujourdhui = jourIso(new Date())) {
+  const d = joursAvant(voyage, aujourdhui);
   if (d === "en cours") return "En cours";
   if (d === "passé") return "Terminé";
   return `J-${d}`;
@@ -29,7 +29,10 @@ export function rendreBandeau(voyage, { resas, enveloppes, todos = [] }) {
     <button type="button" class="btn-lien bandeau-retour" data-retour-voyages>← Voyages</button>
     <h2 class="bandeau-titre">${txt(voyage.titre)}</h2>
     <p class="bandeau-sous">${txt(voyage.lieu ?? "")}${voyage.lieu ? " · " : ""}${txt(formatPeriode(voyage.debut, voyage.fin, { annee: true }))}</p>
-    <span class="bandeau-decompte">${txt(decompteTexte(voyage))}</span>
+    <div class="bandeau-ligne">
+      <span class="bandeau-decompte">${txt(decompteTexte(voyage))}</span>
+      <button type="button" class="bandeau-partager" data-partager>🔗 Partager</button>
+    </div>
     <div class="bandeau-pastilles">
       <span class="bandeau-pastille"><span class="bp-valeur">${txt(eurosRonds(totaux.engage))}</span><span class="bp-etiquette">payés${totaux.prevu ? ` / ${txt(eurosRonds(totaux.prevu))}` : ""}</span></span>
       <span class="bandeau-pastille"><span class="bp-valeur">${txt(aFaire)}</span><span class="bp-etiquette">à faire</span></span>

@@ -9,7 +9,7 @@ import { creerCarte } from "./carte.js";
 import { COULEUR_STATUT, MOT_STATUT, STATUTS_AFFICHES, lienItineraire } from "./fiche-statuts.js";
 
 /** Un point de carte par lieu localisé non écarté : position, nom, mot du statut, couleur. */
-function pointsDeCarte(lieux, resas) {
+export function pointsDeCarte(lieux, resas) {
   return lieux
     .filter((l) => l.statut !== "ecarte" && l.lat != null && l.lng != null)
     .map((l) => {
@@ -19,7 +19,7 @@ function pointsDeCarte(lieux, resas) {
 }
 
 /** Légende des seuls statuts présents sur la carte, avec leur mot et le nombre de lieux. */
-const legende = (points) => `<div class="carte-legende">${STATUTS_AFFICHES.map((s) => [s, points.filter((p) => p.mot === MOT_STATUT[s]).length])
+export const legende = (points) => `<div class="carte-legende">${STATUTS_AFFICHES.map((s) => [s, points.filter((p) => p.mot === MOT_STATUT[s]).length])
   .filter(([, n]) => n)
   .map(([s, n]) => `<span class="carte-legende-item"><span class="carte-legende-puce" style="background:${COULEUR_STATUT[s]}"></span>${txt(MOT_STATUT[s])} (${n})</span>`).join("")}</div>`;
 
