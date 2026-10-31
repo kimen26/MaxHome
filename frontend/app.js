@@ -16,16 +16,31 @@ let instances = {};
 const prets = new Set(); // modules dont le premier chargement est terminé
 const moduleDuMois = LISTE.find((m) => m.avecMois)?.cle ?? null;
 
-// Un JWT refusé pour cause d'horodatage n'est pas une panne : supabase-js rafraîchit
-// le token peu après et l'app repart seule (voir TOKEN_REFRESHED plus bas). On le dit
-// donc sans bouton « Réessayer », qui ne ferait que redonner la même erreur.
+// Un JWT refusé pour cause d'horodatage n'est pas une panne. Deux cas : supabase-js
+// rafraîchit le token (TOKEN_REFRESHED, plus bas), ou — token tout neuf, décalage d'horloge
+// de 1-2 s à la connexion — il n'émet rien et l'app doit réessayer seule (reprise
+// programmée dans echec). On le dit sans bouton « Réessayer », qui redonnerait la même erreur.
+const DELAI_REPRISE_MS = 3000;
+const REPRISES_MAX = 5;
+let reprise = null;       // minuteur de la reprise en attente (une seule à la fois)
+let reprisesFaites = 0;   // remis à zéro au premier chargement réussi et à la déconnexion
 const estJetonPasEncoreValide = (e) =>
   /issued at future|jwt.*not yet valid/i.test(e?.message ?? String(e));
 
 const echec = (e) => {
   console.error(e);
   if (estJetonPasEncoreValide(e)) {
-    bandeauErreur("Connexion en cours de validation…", null, { patience: true });
+    // Plusieurs modules échouent ensemble : une seule reprise en attente, bornée.
+    if (reprise === null && reprisesFaites < REPRISES_MAX) {
+      reprisesFaites++;
+      reprise = setTimeout(() => { reprise = null; repartir(); }, DELAI_REPRISE_MS);
+    }
+    if (reprise !== null) {
+      bandeauErreur("Connexion en cours de validation…", null, { patience: true });
+      return;
+    }
+    // Reprises épuisées : l'erreur normale, avec Réessayer (qui redonne droit à des reprises).
+    bandeauErreur(`Erreur : ${e.message ?? e}`, () => { reprisesFaites = 0; rafraichir(moduleDuMois); });
     return;
   }
   // Bandeau OU toast, jamais les deux : le même message affiché deux fois se lit
@@ -41,6 +56,7 @@ async function rafraichir(cle) {
   try {
     await instance.charger();
     prets.add(cle);
+    reprisesFaites = 0;
     cacherBandeau();
     rendreSi(cle);
   } catch (e) { echec(e); }
@@ -61,6 +77,20 @@ $("#logout").addEventListener("click", () => { api.auth.deconnecter().catch(eche
 let demarre = false;
 let socleEnPlace = false; // demarrer() est allé jusqu'au bout : modules construits, navigation branchée
 
+function annulerReprise() {
+  clearTimeout(reprise);
+  reprise = null;
+}
+
+/** Repart après un jeton refusé (TOKEN_REFRESHED ou reprise programmée). Distinguer les deux
+ *  échecs possibles : si demarrer() n'a jamais abouti, il n'y a aucune instance à rafraîchir
+ *  (rafraichir() sortirait aussitôt) — il faut le rejouer entièrement. */
+function repartir() {
+  cacherBandeau();
+  if (socleEnPlace) for (const m of LISTE) rafraichir(m.cle);
+  else lancer();
+}
+
 async function lancer() {
   demarre = true;
   try { await demarrer(); } catch (e) { echec(e); }
@@ -69,7 +99,7 @@ async function lancer() {
 api.auth.surChangement((ev, session) => {
   $("#login").hidden = !!session;
   $("#app").hidden = !session;
-  if (!session) { demarre = false; socleEnPlace = false; return; }
+  if (!session) { annulerReprise(); reprisesFaites = 0; demarre = false; socleEnPlace = false; return; }
   if (!demarre) { lancer(); return; }
 
   // Déjà démarré. INITIAL_SESSION rend la session telle qu'elle dort dans localStorage :
@@ -77,11 +107,8 @@ api.auth.surChangement((ev, session) => {
   // l'app est restée sur son bandeau (il fallait un Ctrl+F5 pour s'en sortir). supabase-js
   // émet un token neuf peu après : c'est le moment de repartir seule.
   if (ev !== "TOKEN_REFRESHED") return;
-  cacherBandeau();
-  // Distinguer les deux échecs possibles : si demarrer() n'a jamais abouti, il n'y a aucune
-  // instance à rafraîchir (rafraichir() sortirait aussitôt) — il faut le rejouer entièrement.
-  if (socleEnPlace) for (const m of LISTE) rafraichir(m.cle);
-  else lancer();
+  annulerReprise();
+  repartir();
 });
 
 // ---------- mois courant (sélecteur en en-tête, partagé par les modules « avecMois ») ----------

@@ -7,6 +7,8 @@
 //   1. pendant l'erreur, un seul message visible (pas bandeau + toast) ;
 //   2. pendant l'erreur, pas de bouton « Réessayer » (retenter redonnerait la même erreur) ;
 //   3. après TOKEN_REFRESHED, bandeau parti et contenu réellement chargé.
+//   4. (scénario « horloge ») sans jamais de TOKEN_REFRESHED, l'app réessaie seule et repart
+//      en moins de 10 s.
 // Usage : node tests/recette_token.mjs
 import { chromium } from "playwright";
 import http from "node:http";
@@ -18,6 +20,8 @@ const RACINE = path.resolve("frontend");
 const SORTIE = path.resolve("data/captures/token");
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
 const LARGEUR = 360; // largeur de conception (mobile-parents.md)
+const DUREE_REFUS_HORLOGE_MS = 2000; // durée pendant laquelle le serveur refuse le JWT neuf
+const REPRISE_MAX_MS = 10000;        // l'app doit repartir seule en moins de ça
 
 const TABLES = {
   membres: "MEMBRES", charges: "CHARGES", comptes: "COMPTES", mouvements_recurrents: "MOUVEMENTS_RECURRENTS",
@@ -29,20 +33,30 @@ const TABLES = {
 
 /** Bouchon Supabase qui REFUSE tout tant que le token n'est pas rafraîchi, puis sert les
  *  données normalement — exactement la séquence observée en production. */
-function scriptBouchon(donnees) {
+function scriptBouchon(donnees, mode) {
   const parTable = Object.fromEntries(Object.entries(TABLES).map(([t, c]) => [t, donnees[c] ?? []]));
   return `(() => {
     const DONNEES = ${JSON.stringify(parTable)};
     window.__jetonValide = false;      // faux au départ : c'est tout le sujet
+    // Mode « horloge » : le serveur finit par accepter le JWT tout neuf (décalage d'horloge
+    // de 1-2 s) SANS que supabase-js n'émette jamais TOKEN_REFRESHED.
+    if (${JSON.stringify(mode)} === "horloge") setTimeout(() => { window.__jetonValide = true; }, ${DUREE_REFUS_HORLOGE_MS});
     window.__rafraichir = null;        // rempli par onAuthStateChange, appelé par le test
 
     function requete(nomTable) {
+      let inseres = null; // lignes écrites : le module Tâches crée ses occurrences du jour au chargement
       const q = {
+        insert: (v) => { inseres = Array.isArray(v) ? v : [v]; return q; },
+        update: () => q, delete: () => q,
         select: () => q, order: () => q, eq: () => q, neq: () => q, gte: () => q,
         lte: () => q, in: () => q, or: () => q, single: () => q, maybeSingle: () => q,
         then(resolve, reject) {
           if (!window.__jetonValide) {
             return Promise.resolve({ data: null, error: new Error("JWT issued at future") })
+              .then(resolve, reject);
+          }
+          if (inseres) {
+            return Promise.resolve({ data: inseres.map((r, i) => ({ id: 900000 + i, ...r })), error: null })
               .then(resolve, reject);
           }
           const data = JSON.parse(JSON.stringify(DONNEES[nomTable] ?? []));
@@ -87,10 +101,13 @@ const PORT = serveur.address().port;
 fs.mkdirSync(SORTIE, { recursive: true });
 
 const navigateur = await chromium.launch();
+
+async function scenario(mode) {
+const echecs = [];
 const page = await navigateur.newPage({ viewport: { width: LARGEUR, height: 720 } });
 page.on("console", (m) => { if (m.type() === "error") console.log("CONSOLE ERR:", m.text().slice(0, 200)); });
 page.on("pageerror", (e) => console.log("PAGEERROR:", e.message.slice(0, 200)));
-await page.addInitScript(scriptBouchon(DONNEES));
+await page.addInitScript(scriptBouchon(DONNEES, mode));
 // Le SDK Supabase du CDN écraserait window.supabase (index.html le charge avant app.js) :
 // on le coupe, comme recette_ecrans.mjs. Les polices aussi — hors sujet et lentes.
 await page.route("**/*", (route) => {
@@ -100,7 +117,6 @@ await page.route("**/*", (route) => {
 });
 await page.goto(`http://127.0.0.1:${PORT}/index.html`);
 
-const echecs = [];
 const visible = (sel) => page.evaluate((s) => {
   const el = document.querySelector(s);
   if (!el) return false;
@@ -126,14 +142,18 @@ if (/JWT|issued at future/i.test(texteBandeau)) {
 }
 
 // ---------- temps 2 : token rafraîchi, reprise attendue SANS rechargement ----------
-await page.evaluate(() => window.__rafraichir());
+// « rafraichi » : TOKEN_REFRESHED émis par le test. « horloge » : rien n'est émis, le
+// serveur accepte seul le JWT au bout de DUREE_REFUS_HORLOGE_MS, l'app doit réessayer seule.
+const t0 = Date.now();
+if (mode === "rafraichi") await page.evaluate(() => window.__rafraichir());
 let repartiSeule = true;
 try {
   await page.waitForFunction(() => {
     const b = document.querySelector("#bandeau-erreur");
     return b && b.hidden;
-  }, { timeout: 5000 });
+  }, null, { timeout: mode === "horloge" ? REPRISE_MAX_MS : 5000 });
 } catch { repartiSeule = false; }
+const delaiReprise = Date.now() - t0;
 
 // Les cartes de résumé ne vivent que sur l'accueil : on y va explicitement, sinon on
 // mesurerait l'absence de cartes sur un autre écran et le test croirait tout vérifier.
@@ -151,19 +171,30 @@ const resumes = await page.evaluate(() =>
   [...document.querySelectorAll(".module-resume")].map((e) => e.textContent.trim()));
 await page.screenshot({ path: path.join(SORTIE, "2-apres-refresh.png"), fullPage: false });
 
-if (!repartiSeule) echecs.push("bandeau toujours là après TOKEN_REFRESHED : il faut encore un Ctrl+F5");
+if (!repartiSeule) {
+  echecs.push(mode === "horloge"
+    ? `bandeau toujours là ${REPRISE_MAX_MS} ms après le refus d'horloge : l'app ne réessaie pas seule`
+    : "bandeau toujours là après TOKEN_REFRESHED : il faut encore un Ctrl+F5");
+}
 // Un tableau vide ferait passer le test sans rien prouver : on exige des cartes.
 if (resumes.length === 0) {
   echecs.push("aucune carte module dans l'accueil : la reprise n'a rien rendu");
 } else if (resumes.some((r) => r === "Chargement…")) {
-  echecs.push(`modules non rechargés après TOKEN_REFRESHED : ${JSON.stringify(resumes)}`);
+  echecs.push(`modules non rechargés après la reprise : ${JSON.stringify(resumes)}`);
 }
+
+await page.close();
+console.log(`[${mode}] bandeau pendant l'erreur : « ${texteBandeau} »`);
+console.log(`[${mode}] reprise en ${delaiReprise} ms ; résumés : ${JSON.stringify(resumes)}`);
+return echecs.map((e) => `[${mode}] ${e}`);
+}
+
+const echecs = [];
+for (const mode of ["rafraichi", "horloge"]) echecs.push(...await scenario(mode));
 
 await navigateur.close();
 serveur.close();
 
-console.log(`Bandeau pendant l'erreur : « ${texteBandeau} »`);
-console.log(`Résumés après rafraîchissement : ${JSON.stringify(resumes)}`);
 console.log(`Captures : ${SORTIE}`);
 if (echecs.length) {
   console.error("\nrecette token ÉCHEC :");
