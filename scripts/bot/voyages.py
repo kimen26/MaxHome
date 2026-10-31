@@ -4,7 +4,6 @@ Aucune logique de conversation ici : actions.py appelle, reponses.py formate. Le
 les appels à Claude (haiku, CLI) touchent le réseau — jamais testés en pytest (bouchonnés).
 """
 import json
-import subprocess
 import time
 import urllib.error
 import urllib.parse
@@ -12,6 +11,7 @@ import urllib.request
 import uuid
 from datetime import datetime
 
+import claude_cli
 import commandes
 import libre
 import reponses
@@ -187,22 +187,10 @@ def _meilleure_requete(nom_lieu, voyage, timeout=60):
         "sans texte autour. Si tu ne reconnais PAS ce lieu précis, réponds une chaîne vide : "
         "ne réponds jamais juste la ville, la région ou le pays de destination."
     )
-    try:
-        r = subprocess.run(
-            ["claude", "-p", prompt, "--model", "haiku", "--output-format", "json"],
-            capture_output=True, text=True, encoding="utf-8", timeout=timeout,
-        )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    texte = claude_cli.lancer(prompt, timeout)
+    if texte is None:
         return None
-    if r.returncode != 0:
-        return None
-    try:
-        enveloppe = json.loads(r.stdout)
-        texte = enveloppe.get("result") if isinstance(enveloppe, dict) else str(enveloppe)
-        texte = libre._sans_fences((texte or "")).strip('"').strip()
-        return texte or None
-    except json.JSONDecodeError:
-        return None
+    return libre._sans_fences(texte).strip('"').strip() or None
 
 
 def localiser_manquants(donnees, voyage):
@@ -262,21 +250,10 @@ def reecrire_topo(donnees, voyage):
         f"Lieux : {[l['nom'] for l in lieux]}\n"
         f"Réservations : {[(r['type'], r['titre']) for r in resas]}"
     )
-    try:
-        r = subprocess.run(
-            ["claude", "-p", prompt, "--model", "haiku", "--output-format", "json"],
-            capture_output=True, text=True, encoding="utf-8", timeout=90,
-        )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    texte = claude_cli.lancer(prompt, 90)
+    if texte is None:
         return None
-    if r.returncode != 0:
-        return None
-    try:
-        enveloppe = json.loads(r.stdout)
-        texte = enveloppe.get("result") if isinstance(enveloppe, dict) else str(enveloppe)
-        return libre._sans_fences((texte or "")) or None
-    except json.JSONDecodeError:
-        return None
+    return libre._sans_fences(texte) or None
 
 
 def enregistrer_topo(donnees, voyage_id, texte):

@@ -231,6 +231,55 @@ def proposer_copie(mois_vide_nom, mois_source_nom):
     return f"{mois_vide_nom.capitalize()} est vide. Démarrer depuis {mois_source_nom} ? oui/non"
 
 
+# ---------- langage libre : l'écriture annoncée en clair avant le oui (jamais de JSON brut) ----------
+REPARTITIONS = {"egales": "répartie 50/50", "proport": "répartie au prorata des salaires"}
+
+
+def de_mois(annee, mois):
+    """« d'octobre 2026 », « de septembre 2026 » (élision devant une voyelle)."""
+    nom = MOIS_NOMS[mois]
+    return f"d'{nom} {annee}" if nom[0] in "aeiou" else f"de {nom} {annee}"
+
+
+def _sens(centimes):
+    return f"{euros(abs(centimes))} de {'dépense' if centimes < 0 else 'remboursement'}"
+
+
+def _recap_valider(a, prenom, mois):
+    if a["valider"]:
+        return f"Je valide {a['libelle']} {de_mois(*mois)} pour {a['prenom'] or prenom}."
+    return f"J'annule la validation de {a['libelle']} {de_mois(*mois)}."
+
+
+def _recap_mouvement(a, prenom, mois):
+    cible = f"« {a['titre']} »" if a["titre"] else "le virement au commun"
+    return f"Je coche {cible} comme fait par {a.get('par') or prenom}." if a["fait"] else f"Je décoche {cible}."
+
+
+def _recap_ajustement(a, prenom, mois):
+    motif = f" ({a['motif']})" if a["motif"] else ""
+    return f"Je note que {a['beneficiaire']} prend {euros(a['montant_centimes'])} en plus{motif}, pour {nom_mois(*mois)}."
+
+
+RECAPS = {  # action interne -> (a, prenom de l'expéditeur, (annee, mois)) -> phrase
+    "valider": _recap_valider,
+    "mouvement": _recap_mouvement,
+    "charge": lambda a, p, m: f"Je note {a['libelle_reel']} {de_mois(*m)} : {_sens(a['montant_centimes'])}.",
+    "extra": lambda a, p, m: (f"J'ajoute la ligne « {a['libelle']} » : {_sens(a['montant_centimes'])}, "
+                              f"pour {nom_mois(*m)} seulement, {REPARTITIONS[a['regle']]}."),
+    "salaire": lambda a, p, m: (f"Je note le salaire de {a['prenom'] or p} pour {nom_mois(*m)} : "
+                                f"{euros(a['montant_centimes'])}."),
+    "ajustement": _recap_ajustement,
+    "course_ajout": lambda a, p, m: f"J'ajoute « {a['libelle']} » à la liste de courses.",
+}
+
+
+def recap_libre(action, prenom):
+    """La phrase qui annonce l'écriture issue du langage libre, suivie de « OK ? »."""
+    mois = (action.get("annee"), action.get("mois"))
+    return f"{RECAPS[action['action']](action, prenom, mois)} OK ?"
+
+
 # ---------- module Voyages (carnet, D-045) ----------
 MOTS_TYPE_RESA = {
     "vol": "✈️ Vol", "train": "🚆 Train", "logement": "🏠 Logement",

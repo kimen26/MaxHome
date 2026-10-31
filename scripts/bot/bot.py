@@ -24,9 +24,10 @@ import budget_lignes  # noqa: E402
 import budget_libelle  # noqa: E402
 import budget_virements  # noqa: E402
 import commandes  # noqa: E402
-import libre  # noqa: E402
+import dialogue_libre  # noqa: E402
 import taches as taches_mod  # noqa: E402
 import reponses  # noqa: E402
+import traduction_libre  # noqa: E402
 import voyages as voyages_mod  # noqa: E402
 from donnees import Donnees  # noqa: E402
 from telegram import Telegram, est_reseau_transitoire  # noqa: E402
@@ -73,7 +74,8 @@ class Bot:
         self.telegram = Telegram(env["MAXHOME_TELEGRAM_BOT_TOKEN"])
         self.charges = self.donnees.charges()
         self.membres = [m["prenom"] for m in self.donnees.membres()]
-        # État en mémoire par telegram_id : {"attente": {...}} ou {"dernier": {...}} pour annuler.
+        # État en mémoire par telegram_id : {"attente": {...}}, {"dernier": {...}} pour annuler, et la
+        # conversation du langage libre (échanges, question, confirmation : conversation.py).
         self.etats = {}
 
     def mois_courant(self):
@@ -254,28 +256,19 @@ class Bot:
         if norm in ("oui", "non") and self.etats.get(telegram_id, {}).get("attente_voyage"):
             return actions.confirmer_voyage(self, telegram_id, prenom, norm == "oui")
 
+        suite = dialogue_libre.reprendre(self, telegram_id, prenom, texte_brut)  # oui/non ou réponse à une question
+        if suite is not None:
+            return suite
+
         annee_c, mois_c = self.mois_courant()
         charges_proposables = budget_lignes.charges_actives(self.charges)  # D-043 : jamais une terminée
         action = commandes.interpreter(texte_brut, self.membres, charges_proposables, annee_c, mois_c)
-        if action["action"] is None:
-            libelles = [c["libelle"] for c in charges_proposables]
-            interp = libre.interpreter(texte_brut, libelles, f"{annee_c}-{mois_c:02d}")
-            if interp.get("action") == "question":
-                r, _, _ = self.charger_r(annee_c, mois_c)
-                reponse = libre.formuler(r, interp["texte"])
-                return reponse or reponses.non_compris()
-            if interp.get("action") in (None, "inconnu"):
-                return reponses.non_compris()
-            # Confirmation obligatoire avant toute écriture issue du langage libre.
-            self.etats.setdefault(telegram_id, {})["confirmation_libre"] = interp
-            return f"J'ai compris : {json.dumps(interp, ensure_ascii=False)}. OK ? (oui/non)"
+        if action["action"] is None or dialogue_libre.relayer(action):
+            return dialogue_libre.interpreter(self, telegram_id, prenom, texte_brut)
+        return self.executer_action(telegram_id, prenom, action, texte_brut)
 
-        confirmation_libre = self.etats.get(telegram_id, {}).pop("confirmation_libre", None)
-        if confirmation_libre and reponses.normaliser(texte_brut.strip()) in ("oui", "non"):
-            if reponses.normaliser(texte_brut.strip()) == "non":
-                return "OK, rien fait."
-            action = self._traduire_action_libre(confirmation_libre, annee_c, mois_c)
-
+    def executer_action(self, telegram_id, prenom, action, texte_brut):
+        """traiter_action sans jamais planter la boucle : une erreur est journalisée, la réponse reste polie."""
         try:
             resultat = self.traiter_action(telegram_id, prenom, action, texte_brut)
         except Exception:
@@ -285,47 +278,7 @@ class Bot:
 
     def _traduire_action_libre(self, interp, annee_c, mois_c):
         """Convertit le JSON libre (schéma libre.py) vers le schéma interne de commandes.py."""
-        mois_str = interp.get("mois")
-        if mois_str:
-            annee, mois = int(mois_str[:4]), int(mois_str[5:7])
-        else:
-            annee, mois = annee_c, mois_c
-        a = interp["action"]
-        if a == "salaire":
-            centimes = commandes.valider_montant_euros(interp["montant"])
-            return {"action": "salaire", "prenom": interp.get("prenom"), "montant_centimes": centimes, "annee": annee, "mois": mois}
-        if a == "charge":
-            charge, proches = commandes.meilleur_libelle(
-                reponses.normaliser(interp["libelle"]), budget_lignes.charges_actives(self.charges))
-            if not charge:
-                return {"action": "ambigu", "libelle": interp["libelle"], "proches": proches}
-            centimes = commandes.valider_montant_euros(abs(interp["montant"]))
-            valeur = centimes if interp["montant"] > 0 else -centimes
-            return {"action": "charge", "charge_id": charge["id"], "libelle_reel": charge["libelle"],
-                    "montant_centimes": valeur, "annee": annee, "mois": mois}
-        if a in ("mouvement_fait", "tache_faite"):
-            return {"action": "mouvement", "fait": interp.get("fait", True),
-                    "titre": interp.get("titre") or None, "annee": annee, "mois": mois}
-        if a == "taches":
-            return {"action": "taches"}
-        if a == "course_ajout":
-            return {"action": "course_ajout", "libelle": str(interp.get("libelle", "")).strip()}
-        if a == "courses_liste":
-            return {"action": "courses_liste"}
-        if a == "balance":
-            return {"action": "balance", "jours": int(interp.get("jours") or 7)}
-        if a == "bilan":
-            return {"action": "bilan", "annee": annee, "mois": mois}
-        if a == "charges":
-            return {"action": "charges", "annee": annee, "mois": mois}
-        if a == "ajustement":
-            centimes = commandes.valider_montant_euros(abs(interp["montant"]))
-            if centimes is None:
-                return {"action": "erreur", "message": "Montant hors bornes (0 < montant <= 50 000 €)."}
-            return {"action": "ajustement", "beneficiaire": interp["vers"],
-                    "montant_centimes": centimes, "motif": interp.get("motif", ""),
-                    "annee": annee, "mois": mois}
-        return {"action": "erreur", "message": "Action libre non prise en charge."}
+        return traduction_libre.traduire(interp, self.charges, self.membres, annee_c, mois_c)
 
     def traiter_piece(self, telegram_id, msg):
         """Photo ou document PDF, légendé du nom d'un voyage. Aiguille vers voyages.py."""
