@@ -298,12 +298,18 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       Yann tape `inscrire <numéro> Claudia`.
 - [ ] Agenda ↔ Google : attendre les précisions de Yann (sens de la synchro, compte commun).
 - [ ] Rien ne prévient quand le bot meurt (dette connue depuis le 01/10).
-- [ ] **Bot = interface du foyer** (demande de Yann) — Lot 1 en cours : phrase libre
-      conversationnelle (question si info manquante, récap en clair, historique 15 min), valider /
-      ligne « ce mois seulement » / à virer, demandes d'évolution notées dans inbox/ pour Yann ;
-      `claude -p` du bot sans outils ni MCP (il tournait en bypassPermissions avec le MCP Supabase).
-- [ ] Lot 2 (selon Yann) : groupe Telegram commun ; Lot 3 : outils Agenda ; le code ne se change
-      jamais depuis le bot du foyer (contre-avis du 31/10, en attente de l'accord de Yann).
+- [x] **Bot = interface du foyer**, Lot 1 (D-060, L-057) : phrase libre conversationnelle, récap
+      en clair, demandes d'évolution dans inbox/demandes_bot.md ; `claude -p` sans outils ni MCP.
+- [x] « à virer » plantait en prod (récurrent mode part sans `resultat`) : corrigé, test rouge→vert.
+- [x] Lot 2 : groupe « Maison » (filtre mention / réponse / question en cours, enregistrement auto
+      du groupe, départ si ajouté par un inconnu, rappels au groupe avec repli privé). Bot relancé.
+- [ ] Yann : BotFather › /mybots › @BudgetCYM_bot › Bot Settings › Group Privacy › Turn off ; puis
+      créer le groupe Maison avec Claudia et y ajouter le bot ; vérifier le message d'accueil.
+- [ ] Latence du modèle : 4-8 s d'habitude, 51 s vu sur un premier appel réel (à surveiller).
+- [ ] Agenda Google (D-060, compte de service sur claudyann.home) : le clic « Agree and continue »
+      des conditions Google Cloud est refusé à Claude par le classifieur → Yann le fait ; ensuite
+      projet, API Agenda, compte de service, clé via a_poser.env, partage de l'agenda.
+- [ ] Lot 3 : outils Agenda dans le bot, après l'accès Google.
 
 ## Parking
 - Le carnet de voyage (ui-fiche-*, carnet.js, carte.js, geocode.js, topo.js, ui-voyages-liste.js)
