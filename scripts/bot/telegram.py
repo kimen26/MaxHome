@@ -45,6 +45,20 @@ class Telegram:
             raise RuntimeError(f"sendMessage échoué : {rep}")
         return rep["result"]
 
+    def get_me(self):
+        """Le bot lui-même : id, username, can_read_all_group_messages (faux tant que le mode
+        confidentialité de BotFather est actif)."""
+        rep = self._appel("getMe", {}, timeout=30)
+        if not rep.get("ok"):
+            raise RuntimeError(f"getMe échoué : {rep}")
+        return rep["result"]
+
+    def quitter(self, chat_id):
+        """Le bot quitte un groupe (leaveChat), sans y rien écrire."""
+        rep = self._appel("leaveChat", {"chat_id": chat_id}, timeout=30)
+        if not rep.get("ok"):
+            raise RuntimeError(f"leaveChat échoué : {rep}")
+
     def telecharger_fichier(self, file_id, timeout=60):
         """getFile puis téléchargement du binaire. Retourne (contenu, chemin_telegram)."""
         rep = self._appel("getFile", {"file_id": file_id}, timeout=timeout)

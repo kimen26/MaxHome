@@ -13,11 +13,19 @@
 //
 // Secrets requis (Supabase > Project Settings > Edge Functions > Secrets) :
 //   MAXHOME_TELEGRAM_BOT_TOKEN
-// Le rappel part à CHAQUE membre inscrit au bot (table telegram_membres : telegram_id, prenom ;
-// en chat privé, l'id Telegram de l'utilisateur est aussi l'id du chat). Plus de chat unique.
+// Destinataire du rappel (D-060) :
+//   - si `parametres` porte un groupe (clé « telegram_groupe », écrite par le bot quand un membre
+//     inscrit l'ajoute à un groupe Telegram), le rappel part AU GROUPE SEUL ;
+//   - sinon il part à CHAQUE membre inscrit au bot, en privé (table telegram_membres : telegram_id,
+//     prenom ; en chat privé, l'id Telegram de l'utilisateur est aussi l'id du chat) ;
+//   - si le groupe est injoignable (bot retiré du groupe, id périmé), repli sur l'envoi privé aux
+//     membres pour que le rappel ne se perde pas, puis erreur levée pour que ce soit visible aux logs.
 // Déployer avec : python scripts/deploy_rappels.py rappel-virements
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+
+// Clé de la table `parametres` : dupliquée de scripts/bot/groupe.py::CLE_PARAMETRE (Deno n'importe pas le Python).
+const CLE_GROUPE = "telegram_groupe";
 
 const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
 
@@ -101,7 +109,7 @@ Deno.serve(async () => {
   const sb = createClient(supabaseUrl, serviceRoleKey);
 
   const destinataires = await listerDestinataires(sb);
-  if (destinataires.length === 0) {
+  if (!destinataires.groupe && destinataires.membres.length === 0) {
     return new Response("aucun membre Telegram inscrit", { status: 200 });
   }
 
@@ -127,7 +135,7 @@ Deno.serve(async () => {
     }
     const lignesTexte = recurrents.map((r) => `• ${r.titre}${r.jour ? ` (le ${r.jour})` : ""}${r.qui ? ` — ${r.qui}` : ""}`);
     const texteRec = `MaxHome — à faire en ${nomMois} (ouvre l'app pour les montants) :\n${lignesTexte.join("\n")}`;
-    return await envoyerATous(botToken, destinataires, texteRec);
+    return await envoyerRappel(botToken, destinataires, texteRec);
   }
 
   const [{ data: charges, error: eCharges }, { data: lignes, error: eLignes },
@@ -164,30 +172,54 @@ Deno.serve(async () => {
     return new Response(`rien à faire pour ${nomMois} ${annee}`, { status: 200 });
   }
   const texte = `MaxHome — reste à faire en ${nomMois} :\n${lignesTexte.join("\n")}`;
-  return await envoyerATous(botToken, destinataires, texte);
+  return await envoyerRappel(botToken, destinataires, texte);
 });
 
 type Destinataire = { telegram_id: number; prenom: string };
+type Destinataires = { groupe: Destinataire | null; membres: Destinataire[] };
 
-async function listerDestinataires(sb: ReturnType<typeof createClient>): Promise<Destinataire[]> {
+async function listerDestinataires(sb: ReturnType<typeof createClient>): Promise<Destinataires> {
+  const { data: param, error: eParam } = await sb.from("parametres").select("valeur").eq("cle", CLE_GROUPE).maybeSingle();
+  if (eParam) throw eParam;
+  let groupe: Destinataire | null = null;
+  if (param) {
+    const id = Number(param.valeur);
+    if (!Number.isInteger(id) || id === 0) throw new Error(`parametres.${CLE_GROUPE} n'est pas un identifiant de groupe`);
+    groupe = { telegram_id: id, prenom: "groupe" };
+  }
   const { data, error } = await sb.from("telegram_membres").select("telegram_id, prenom");
   if (error) throw error;
-  return data ?? [];
+  return { groupe, membres: data ?? [] };
 }
 
-// Un envoi qui échoue n'empêche pas les autres ; les échecs sont listés à la fin (prénom +
-// statut, jamais le token : ni l'URL ni le corps de la réponse Telegram ne sont repris).
-async function envoyerATous(botToken: string, destinataires: Destinataire[], texte: string): Promise<Response> {
+// Un envoi : null si Telegram a accepté, sinon la cause en clair (« réseau » ou le statut HTTP ;
+// jamais le token : ni l'URL ni le corps de la réponse Telegram ne sont repris).
+async function envoyer(botToken: string, d: Destinataire, texte: string): Promise<string | null> {
+  const rep = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: d.telegram_id, text: texte }),
+  }).catch(() => null);
+  if (!rep) return "réseau";
+  return rep.ok ? null : String(rep.status);
+}
+
+// Un envoi qui échoue n'empêche pas les autres ; les échecs sont listés à la fin.
+async function envoyerATous(botToken: string, membres: Destinataire[], texte: string): Promise<Response> {
   const echecs: string[] = [];
-  for (const d of destinataires) {
-    const rep = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: d.telegram_id, text: texte }),
-    }).catch(() => null);
-    if (!rep) echecs.push(`${d.prenom} (réseau)`);
-    else if (!rep.ok) echecs.push(`${d.prenom} (${rep.status})`);
+  for (const d of membres) {
+    const echec = await envoyer(botToken, d, texte);
+    if (echec) echecs.push(`${d.prenom} (${echec})`);
   }
   if (echecs.length) throw new Error(`Telegram : envoi échoué pour ${echecs.join(", ")}`);
-  return new Response(`envoyé à ${destinataires.length} membre(s)`, { status: 200 });
+  return new Response(`envoyé à ${membres.length} membre(s)`, { status: 200 });
+}
+
+// Groupe connu : le rappel part au groupe seul. Groupe injoignable : repli privé, puis erreur.
+async function envoyerRappel(botToken: string, dest: Destinataires, texte: string): Promise<Response> {
+  if (!dest.groupe) return await envoyerATous(botToken, dest.membres, texte);
+  const echec = await envoyer(botToken, dest.groupe, texte);
+  if (!echec) return new Response("envoyé au groupe", { status: 200 });
+  if (dest.membres.length) await envoyerATous(botToken, dest.membres, texte);
+  throw new Error(`Telegram : groupe injoignable (${echec}), rappel envoyé en privé`);
 }

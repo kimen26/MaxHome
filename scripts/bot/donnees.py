@@ -6,6 +6,7 @@ côté bot dans commandes.py/bot.py).
 import json
 import urllib.error
 import urllib.request
+from urllib.parse import quote
 
 
 class Donnees:
@@ -129,6 +130,15 @@ class Donnees:
 
     def inscrire_telegram(self, telegram_id, prenom):
         self._appel("POST", "telegram_membres", {"telegram_id": telegram_id, "prenom": prenom},
+                    {"Prefer": "resolution=merge-duplicates"})
+
+    # ---------- paramètres du foyer (table clé/valeur, migration 016) ----------
+    def parametre(self, cle):
+        r = self._appel("GET", f"parametres?cle=eq.{quote(cle, safe='')}&select=valeur")
+        return r[0]["valeur"] if r else None
+
+    def maj_parametre(self, cle, valeur):
+        self._appel("POST", "parametres", {"cle": cle, "valeur": valeur},
                     {"Prefer": "resolution=merge-duplicates"})
 
     # ---------- module Voyages (carnet, D-045) ----------

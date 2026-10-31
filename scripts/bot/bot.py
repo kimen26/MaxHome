@@ -25,6 +25,7 @@ import budget_libelle  # noqa: E402
 import budget_virements  # noqa: E402
 import commandes  # noqa: E402
 import dialogue_libre  # noqa: E402
+import groupe  # noqa: E402
 import taches as taches_mod  # noqa: E402
 import reponses  # noqa: E402
 import traduction_libre  # noqa: E402
@@ -65,6 +66,8 @@ def calculer(charges, lignes, revenus, ajustements):
 
 
 class Bot:
+    identite = None  # groupe.Identite, lue par getMe au démarrage ; None = jamais lue (tests hors ligne)
+
     def __init__(self, log):
         self.log = log
         env = lit_env()
@@ -72,6 +75,9 @@ class Bot:
         _, service_role = cles(ref, pat)
         self.donnees = Donnees(ref, service_role)
         self.telegram = Telegram(env["MAXHOME_TELEGRAM_BOT_TOKEN"])
+        self.identite = groupe.identite(self.telegram.get_me())
+        if not self.identite.lit_tout:
+            self.log.warning(groupe.AVERTISSEMENT_CONFIDENTIALITE)
         self.charges = self.donnees.charges()
         self.membres = [m["prenom"] for m in self.donnees.membres()]
         # État en mémoire par telegram_id : {"attente": {...}}, {"dernier": {...}} pour annuler, et la
@@ -310,31 +316,39 @@ class Bot:
             pause_reseau = PAUSE_RESEAU_MIN_S  # un getUpdates réussi remet le backoff à zéro
             for u in updates:
                 offset = u["update_id"] + 1
-                msg = u.get("message")
-                if not msg:
-                    continue
-                chat_id = msg["chat"]["id"]
-                telegram_id = msg["from"]["id"]
-                if "text" in msg:
-                    try:
-                        reponse = self.traiter_message(telegram_id, msg["text"])
-                    except Exception:
-                        self.log.exception("erreur non gérée")
-                        reponse = "Erreur interne, réessaie."
-                elif "photo" in msg or "document" in msg:
-                    try:
-                        reponse = self.traiter_piece(telegram_id, msg)
-                    except Exception:
-                        self.log.exception("erreur traitement pièce jointe")
-                        reponse = "Erreur interne, réessaie."
-                else:
-                    continue
-                if reponse is None:
-                    continue
-                try:
-                    self.telegram.envoyer(chat_id, reponse)
-                except Exception:
-                    self.log.exception("envoi Telegram échoué")
+                self.traiter_update(u)
+
+    def traiter_update(self, u):
+        """Un update Telegram : événement de groupe, filtre de groupe (groupe.py), puis texte ou pièce jointe."""
+        msg = u.get("message")
+        if not msg or groupe.gerer_evenement(self, msg):
+            return
+        msg = groupe.filtrer(msg, self.identite, self.etats)  # groupe : mention/réponse/attente, sinon None
+        if msg is None:
+            return
+        chat_id = msg["chat"]["id"]
+        telegram_id = msg["from"]["id"]
+        if "text" in msg:
+            try:
+                reponse = self.traiter_message(telegram_id, msg["text"])
+            except Exception:
+                self.log.exception("erreur non gérée")
+                reponse = "Erreur interne, réessaie."
+        elif "photo" in msg or "document" in msg:
+            try:
+                reponse = self.traiter_piece(telegram_id, msg)
+            except Exception:
+                self.log.exception("erreur traitement pièce jointe")
+                reponse = "Erreur interne, réessaie."
+        else:
+            return
+        groupe.noter_chat(self.etats, telegram_id, chat_id)
+        if reponse is None:
+            return
+        try:
+            self.telegram.envoyer(chat_id, reponse)
+        except Exception:
+            self.log.exception("envoi Telegram échoué")
 
 
 def main():
