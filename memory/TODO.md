@@ -285,6 +285,20 @@ répétable oui/non, sa liste de tâches découpée. Arbitrages : D-041._
 - [ ] Marquer un lieu « Fait » pendant le séjour : plus de bouton depuis la V3 (à rajouter si Yann le demande).
 - [ ] Les trajets (catégorie transport) apparaissent dans Activités « Acté » : à sortir si ça gêne.
 
+## Lane N — Ouverture à Claudia (2026-10-31, D-059) (en cours)
+_Demande de Yann : donner l'accès app + bot à Claudia, couper les alertes inutiles ; priorité
+Budget, puis Agenda branché sur un compte Google commun (détails à venir de Yann)._
+- [x] Bot relancé (mort entre 16h18 et 18h16 le 31/10 avec son superviseur, PC non redémarré,
+      cause non prouvée).
+- [x] Rappel des tâches du soir coupé (034 appliquée et rejouée, seul `rappel-virements` reste
+      planifié) ; rappel des virements à chaque inscrit (déployé, test « envoyé à 1 membre(s) ») ;
+      l'inconnu reçoit son identifiant (bot redémarré) ; reprise auto sur « JWT issued at future »
+      (recette_token, scénario `horloge` rouge avant, vert après : reprise en ~3 s).
+- [ ] Yann : transmettre son mot de passe à Claudia ; Claudia installe l'app et écrit au bot ;
+      Yann tape `inscrire <numéro> Claudia`.
+- [ ] Agenda ↔ Google : attendre les précisions de Yann (sens de la synchro, compte commun).
+- [ ] Rien ne prévient quand le bot meurt (dette connue depuis le 01/10).
+
 ## Parking
 - Le carnet de voyage (ui-fiche-*, carnet.js, carte.js, geocode.js, topo.js, ui-voyages-liste.js)
   vit encore dans frontend/agenda/ alors qu'il appartient au module Voyages (D-055).

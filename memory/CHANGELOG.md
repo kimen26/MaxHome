@@ -1,6 +1,12 @@
 # CHANGELOG
 _Se remplit à la release, en vidant les lanes terminées de TODO.md._
 
+## 2026-10-31 — Ouverture à Claudia
+- Plus de rappel Telegram des tâches le soir.
+- Le rappel des virements du 1er et du 5 arrive à chacun de nous deux, dès qu'on est inscrit au bot.
+- Quelqu'un que le bot ne connaît pas reçoit son numéro, à donner à Yann pour l'inscription.
+- La connexion ne reste plus bloquée sur « Connexion en cours de validation… » : l'app réessaie seule.
+
 ## 2026-10-08 — Virement automatique
 - Un virement permanent programmé à la banque se marque « automatique » dans Récurrents : il
   reste compté, mais il est directement dans « Fait », sans case à cocher, et ne gonfle plus

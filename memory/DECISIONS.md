@@ -912,3 +912,21 @@ Maquette validée (`inbox/maquettes/voyage-auvergne.html`, locale) avant le code
   lecture par une fonction `security definer` ouverte à `anon` qui ne renvoie ni code, ni prix, ni
   payeur, ni note. **Exception assumée à l'invariant 2** : quiconque a le lien lit le planning ;
   « Arrêter le partage » supprime le jeton. « Télécharger la page » en secours.
+
+## D-059 — Ouverture à Claudia : rappel des tâches coupé, rappel des virements à chacun (2026-10-31)
+
+Yann ouvre l'app et le bot à Claudia ; priorité au Budget, puis vite l'Agenda.
+- **Rappel des tâches du soir coupé** (demande de Yann : « tâche du soir et matin ») : le cron
+  `rappel-taches` est retiré (migration 034) et sort de `deploy_rappels.py`. Il portait aussi le
+  constat « Pas fait ce matin » : c'est ce « matin ». La fonction reste dans le dépôt ; la commande
+  `taches` du bot répond toujours à la demande.
+- **Rappel des virements (1er et 5) envoyé à chaque inscrit de `telegram_membres`**, en privé,
+  plutôt qu'à un chat unique (secret `MAXHOME_TELEGRAM_CHAT_ID`, devenu inutile) : un groupe
+  Telegram commun aurait demandé de le créer, d'y ajouter le bot et de lire son id, pour le même
+  résultat. Un envoi raté n'empêche pas les autres.
+- **Un inconnu reçoit son identifiant Telegram** dans la réponse du bot : sans ça, `inscrire <id>
+  Claudia` était impossible (le journal masque l'id, volontairement). Donner à quelqu'un son propre
+  identifiant n'expose rien.
+- **Connexion : reprise automatique sur « JWT issued at future »**, bornée, au lieu d'attendre un
+  TOKEN_REFRESHED que supabase-js n'émet pas sur un token neuf (blocage vu ~1 fois sur 3 à la
+  connexion, lane J).
