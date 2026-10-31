@@ -244,7 +244,7 @@ class Bot:
         prenom = self.donnees.membre_telegram(telegram_id)
         if not prenom:
             self.log.info("message d'un inconnu (id masqué)")
-            return reponses.inconnu()
+            return reponses.inconnu(telegram_id)
 
         rep_attente = self.gerer_attente(telegram_id, prenom, texte_brut)
         if rep_attente is not None:
@@ -331,7 +331,7 @@ class Bot:
         """Photo ou document PDF, légendé du nom d'un voyage. Aiguille vers voyages.py."""
         prenom = self.donnees.membre_telegram(telegram_id)
         if not prenom:
-            return reponses.inconnu()
+            return reponses.inconnu(telegram_id)
         return voyages_mod.traiter_piece(self.donnees, self.telegram, prenom, msg)
 
     def boucle(self, max_iterations=None):

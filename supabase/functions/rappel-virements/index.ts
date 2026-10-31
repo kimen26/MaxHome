@@ -12,7 +12,9 @@
 // pas cette fonction (pas de runtime Deno dans ce repo — voir le rapport de la tâche).
 //
 // Secrets requis (Supabase > Project Settings > Edge Functions > Secrets) :
-//   MAXHOME_TELEGRAM_BOT_TOKEN, MAXHOME_TELEGRAM_CHAT_ID
+//   MAXHOME_TELEGRAM_BOT_TOKEN
+// Le rappel part à CHAQUE membre inscrit au bot (table telegram_membres : telegram_id, prenom ;
+// en chat privé, l'id Telegram de l'utilisateur est aussi l'id du chat). Plus de chat unique.
 // Déployer avec : python scripts/deploy_rappels.py rappel-virements
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
@@ -90,14 +92,18 @@ function construireGroupesNonFaits(
 
 Deno.serve(async () => {
   const botToken = Deno.env.get("MAXHOME_TELEGRAM_BOT_TOKEN");
-  const chatId = Deno.env.get("MAXHOME_TELEGRAM_CHAT_ID");
-  if (!botToken || !chatId) {
-    return new Response("secrets Telegram absents, envoi annulé", { status: 200 });
+  if (!botToken) {
+    return new Response("secret Telegram absent, envoi annulé", { status: 200 });
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const sb = createClient(supabaseUrl, serviceRoleKey);
+
+  const destinataires = await listerDestinataires(sb);
+  if (destinataires.length === 0) {
+    return new Response("aucun membre Telegram inscrit", { status: 200 });
+  }
 
   const maintenant = new Date();
   const annee = maintenant.getUTCFullYear();
@@ -121,7 +127,7 @@ Deno.serve(async () => {
     }
     const lignesTexte = recurrents.map((r) => `• ${r.titre}${r.jour ? ` (le ${r.jour})` : ""}${r.qui ? ` — ${r.qui}` : ""}`);
     const texteRec = `MaxHome — à faire en ${nomMois} (ouvre l'app pour les montants) :\n${lignesTexte.join("\n")}`;
-    return await envoyer(botToken, chatId, texteRec);
+    return await envoyerATous(botToken, destinataires, texteRec);
   }
 
   const [{ data: charges, error: eCharges }, { data: lignes, error: eLignes },
@@ -158,15 +164,30 @@ Deno.serve(async () => {
     return new Response(`rien à faire pour ${nomMois} ${annee}`, { status: 200 });
   }
   const texte = `MaxHome — reste à faire en ${nomMois} :\n${lignesTexte.join("\n")}`;
-  return await envoyer(botToken, chatId, texte);
+  return await envoyerATous(botToken, destinataires, texte);
 });
 
-async function envoyer(botToken: string, chatId: string, texte: string): Promise<Response> {
-  const rep = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text: texte }),
-  });
-  if (!rep.ok) throw new Error(`Telegram : ${rep.status} ${await rep.text()}`);
-  return new Response("envoyé", { status: 200 });
+type Destinataire = { telegram_id: number; prenom: string };
+
+async function listerDestinataires(sb: ReturnType<typeof createClient>): Promise<Destinataire[]> {
+  const { data, error } = await sb.from("telegram_membres").select("telegram_id, prenom");
+  if (error) throw error;
+  return data ?? [];
+}
+
+// Un envoi qui échoue n'empêche pas les autres ; les échecs sont listés à la fin (prénom +
+// statut, jamais le token : ni l'URL ni le corps de la réponse Telegram ne sont repris).
+async function envoyerATous(botToken: string, destinataires: Destinataire[], texte: string): Promise<Response> {
+  const echecs: string[] = [];
+  for (const d of destinataires) {
+    const rep = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: d.telegram_id, text: texte }),
+    }).catch(() => null);
+    if (!rep) echecs.push(`${d.prenom} (réseau)`);
+    else if (!rep.ok) echecs.push(`${d.prenom} (${rep.status})`);
+  }
+  if (echecs.length) throw new Error(`Telegram : envoi échoué pour ${echecs.join(", ")}`);
+  return new Response(`envoyé à ${destinataires.length} membre(s)`, { status: 200 });
 }

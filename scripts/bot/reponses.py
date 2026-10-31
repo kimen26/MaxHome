@@ -219,8 +219,8 @@ AIDE = """Commandes :
 Mois : "en août", "août 2026", "08/2026". Défaut : mois courant."""
 
 
-def inconnu():
-    return "Je ne te connais pas. Demande à Yann de t'inscrire."
+def inconnu(telegram_id):
+    return f"Je ne te connais pas encore. Envoie ce numéro à Yann pour qu'il t'inscrive : {telegram_id}"
 
 
 def non_compris():

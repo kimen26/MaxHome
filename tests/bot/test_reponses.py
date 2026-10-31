@@ -47,7 +47,7 @@ def test_proposer_copie():
 
 
 def test_inconnu_et_non_compris():
-    assert "inscrire" in reponses.inconnu().lower() or "connais" in reponses.inconnu().lower()
+    assert "123456789" in reponses.inconnu(123456789)
     assert "aide" in reponses.non_compris().lower()
 
 

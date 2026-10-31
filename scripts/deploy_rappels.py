@@ -1,11 +1,12 @@
 """Déploie les rappels Telegram : secrets Supabase, Edge Functions, planification pg_cron, test.
 
-Deux rappels, même mécanique :
-  - rappel-virements : mouvements du mois non faits, le 1er et le 5 à 09:00 Paris ;
-  - rappel-taches    : tâches « le jour même » non faites, chaque soir à 19:00 Paris.
+Un seul rappel planifié :
+  - rappel-virements : reste à faire du mois, le 1er et le 5 à 09:00 Paris, envoyé à chaque
+    membre inscrit dans telegram_membres.
+Le rappel des tâches du soir est coupé (2026-10-31, D-059, migration 034).
 
-Lit .env (SUPABASE_PAT, SUPABASE_REF, MAXHOME_TELEGRAM_BOT_TOKEN, MAXHOME_TELEGRAM_CHAT_ID),
-n'affiche jamais une valeur secrète. Idempotent.
+Lit .env (SUPABASE_PAT, SUPABASE_REF, MAXHOME_TELEGRAM_BOT_TOKEN), n'affiche jamais une valeur
+secrète. Idempotent.
 Usage : python scripts/deploy_rappels.py [nom-de-la-fonction]
 """
 import os
@@ -20,7 +21,7 @@ from provision import API, RACINE, appel, cles, lit_env, sql  # noqa: E402
 # Les heures cron sont en UTC : 07:00 = 09:00 Paris en été, 08:00 en hiver.
 RAPPELS = {
     "rappel-virements": "0 7 1,5 * *",
-    "rappel-taches": "0 17 * * *",
+    # rappel-taches coupé le 2026-10-31 (D-059) : la fonction reste dans le dépôt, plus planifiée.
 }
 
 
@@ -60,7 +61,7 @@ def deployer(nom, cron, pat, ref, service_role):
 
 def main():
     env = lit_env()
-    requis = ["SUPABASE_PAT", "SUPABASE_REF", "MAXHOME_TELEGRAM_BOT_TOKEN", "MAXHOME_TELEGRAM_CHAT_ID"]
+    requis = ["SUPABASE_PAT", "SUPABASE_REF", "MAXHOME_TELEGRAM_BOT_TOKEN"]
     manquants = [k for k in requis if not env.get(k)]
     if manquants:
         sys.exit(f".env incomplet : {manquants}")
@@ -73,9 +74,8 @@ def main():
 
     appel("POST", f"{API}/projects/{ref}/secrets", pat, [
         {"name": "MAXHOME_TELEGRAM_BOT_TOKEN", "value": env["MAXHOME_TELEGRAM_BOT_TOKEN"]},
-        {"name": "MAXHOME_TELEGRAM_CHAT_ID", "value": env["MAXHOME_TELEGRAM_CHAT_ID"]},
     ])
-    print("secrets Telegram posés sur le projet")
+    print("secret Telegram posé sur le projet")
 
     _, service_role = cles(ref, pat)
     for nom in demandes:

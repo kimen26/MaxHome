@@ -46,7 +46,8 @@ def peupler_mois_courant(b, revenus=None, lignes=None):
 def test_inconnu_ne_repond_rien_ecrit():
     b = nouveau_bot()
     rep = b.traiter_message(999999, "salaire 6120")
-    assert "connais" in rep.lower() or "inscrire" in rep.lower()
+    assert "connais" in rep.lower()
+    assert "999999" in rep  # Yann doit pouvoir taper « inscrire 999999 Claudia »
     assert b.donnees.revenus_mois(ANNEE, MOIS) == []
 
 
