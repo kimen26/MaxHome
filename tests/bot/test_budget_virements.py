@@ -146,6 +146,25 @@ def test_a_virer_sans_rien_a_virer():
     assert "aucun virement" in rep.lower()
 
 
+def test_a_virer_recurrent_part_montant_calcule_comme_l_app():
+    """Régression prod : un récurrent mode "part" fait lire `etat.resultat.aVerser` à
+    groupes-virements.js (montantTheorique) ; sans `resultat` dans l'état envoyé au pont Node, `à virer`
+    plantait (« Cannot read properties of undefined (reading 'aVerser') »)."""
+    part_yann = {"id": 11, "titre": "Virement au commun — Yann", "compte_de": None, "compte_vers": 1,
+                 "mode": "part", "charge_id": None, "montant_centimes": None, "prenom_part": "Yann",
+                 "qui": "Yann", "jour": 5, "consigne": None, "ordre": 1, "actif": True}
+    b = nouveau_bot(recurrents=[part_yann], lignes={1: -90000})  # Électricité 900 € en 50/50
+    # montant_centimes périmé exprès : seul le montant THÉORIQUE (part calculée) doit s'afficher.
+    b.donnees.creer_mouvements([{"annee": ANNEE, "mois": MOIS, "recurrent_id": 11, "titre": part_yann["titre"],
+                                 "compte_de": None, "compte_vers": 1, "montant_centimes": 1234, "qui": "Yann"}])
+    resultat, _, _ = b.charger_r(ANNEE, MOIS)
+    attendu = -resultat["aVerser"]["Yann"]  # = ce que l'app affiche pour ce virement
+    assert attendu == 45000, "précondition : la moitié de 900 €"
+    rep = b.traiter_message(TELEGRAM_ID, "a virer")
+    assert "Compte de Yann → Commun : 450,00 €" in rep
+    assert "12,34" not in rep
+
+
 def test_aide_mentionne_valider_et_a_virer():
     b = nouveau_bot()
     rep = b.traiter_message(TELEGRAM_ID, "aide")

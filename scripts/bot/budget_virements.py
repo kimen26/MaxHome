@@ -81,6 +81,9 @@ def _construire_groupes(bot, annee, mois):
         "recurrents": bot.donnees.recurrents_actifs(),
         "lignes": lignes_avec_validation,
         "mouvements": bot.donnees.mouvements(annee, mois),
+        # Même clé et même forme que l'app (mod-budget.js : etat.resultat = calculer(...)) :
+        # montantTheorique lit resultat.aVerser pour un récurrent en mode "part".
+        "resultat": resultat,
     }
     entree = json.dumps({"etat": etat})
     # encoding="utf-8" explicite : sur Windows, text=True seul retombe sur l'encodage console
