@@ -298,6 +298,12 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       Yann tape `inscrire <numéro> Claudia`.
 - [ ] Agenda ↔ Google : attendre les précisions de Yann (sens de la synchro, compte commun).
 - [ ] Rien ne prévient quand le bot meurt (dette connue depuis le 01/10).
+- [ ] **Bot = interface du foyer** (demande de Yann) — Lot 1 en cours : phrase libre
+      conversationnelle (question si info manquante, récap en clair, historique 15 min), valider /
+      ligne « ce mois seulement » / à virer, demandes d'évolution notées dans inbox/ pour Yann ;
+      `claude -p` du bot sans outils ni MCP (il tournait en bypassPermissions avec le MCP Supabase).
+- [ ] Lot 2 (selon Yann) : groupe Telegram commun ; Lot 3 : outils Agenda ; le code ne se change
+      jamais depuis le bot du foyer (contre-avis du 31/10, en attente de l'accord de Yann).
 
 ## Parking
 - Le carnet de voyage (ui-fiche-*, carnet.js, carte.js, geocode.js, topo.js, ui-voyages-liste.js)

@@ -930,3 +930,29 @@ Yann ouvre l'app et le bot à Claudia ; priorité au Budget, puis vite l'Agenda.
 - **Connexion : reprise automatique sur « JWT issued at future »**, bornée, au lieu d'attendre un
   TOKEN_REFRESHED que supabase-js n'émet pas sur un token neuf (blocage vu ~1 fois sur 3 à la
   connexion, lane J).
+
+## D-060 — Le bot, interface du foyer : groupe « Maison », jamais de code, Agenda Google par compte de service (2026-10-31)
+
+Yann veut que le bot devienne la vraie interface entre Claudia, lui et l'app.
+- **Données oui, code non.** Le bot comprend, demande ce qui manque, récapitule, agit sur les
+  données. Une demande d'évolution (« change ce libellé ») est notée dans `inbox/demandes_bot.md`
+  et Yann est prévenu ; le code se change depuis Claude Code, relu et recetté. Raisons : un
+  changement demandé par Claudia partirait en prod sans capture regardée (L-009), et un bot qui
+  lit des messages (bientôt des mails) en ayant la main sur le code et le dépôt public est
+  détournable par un texte piégé. Contre-avis donné le 31/10, Yann n'a pas objecté.
+- **Groupe Telegram « Maison »** (choix de Yann) : chaque geste est vu des deux, c'est le but de
+  l'app. Mode confidentialité du bot DÉSACTIVÉ (BotFather) mais filtrage côté bot : en groupe il
+  ne traite qu'un message qui le mentionne, qui répond à l'un de ses messages, ou qui vient de
+  quelqu'un à qui il vient de poser une question. Sinon une réponse oubliée (sans « répondre à »)
+  se perdrait en silence. Les rappels partent au groupe quand il est connu, sinon en privé.
+- **Agenda Google : compte de service** (Yann : « le plus safe où t'as la main ») plutôt qu'un
+  lien iCal (lecture seule, des heures de délai) ou un OAuth sur le compte entier (accès à tout
+  le compte, jeton qui expire en 7 jours tant que l'app Google est « en test »). Le compte de
+  service ne voit QUE les agendas partagés avec son adresse, se révoque en retirant le partage,
+  et le mot de passe de claudyann.home n'est jamais donné. Clé = secret, posée par
+  `a_poser.env` (socle). À confirmer par l'essai : lecture/écriture sur l'agenda principal d'un
+  compte gmail personnel partagé au compte de service.
+- **Le modèle traduit, le bot exécute** : la phrase libre est traduite par `claude -p` (Haiku, sans
+  aucun outil : L-057) vers le schéma d'actions déjà exécuté par la grammaire ; il pose une question
+  s'il manque une info, le bot récapitule en français et n'écrit qu'après « oui ». Les lectures
+  (bilan, à virer) répondent sans confirmation. Historique par personne : 6 échanges, 15 min.

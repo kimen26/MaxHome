@@ -554,3 +554,16 @@ Cause : l'idempotence était obtenue en supprimant puis recréant.
 Règle : une migration MaxHome est idempotente **sans rien supprimer** : `create … if not exists`,
 et pour une politique, `do $$ begin if not exists (select 1 from pg_policies where tablename = …
 and policyname = …) then create policy …; end if; end $$;`. Un vrai `drop` reste une demande à Yann.
+
+## L-057 — Un `claude -p` lancé par un programme hérite de TOUTE la config de l'utilisateur (2026-10-31)
+
+Symptôme : le repli « phrase libre » du bot Telegram appelait `claude -p` avec le texte du message
+dans le prompt. Mesuré : 76 outils (Bash, Write…), 14 MCP dont Supabase, mode bypassPermissions,
+136 commandes slash. Un message piégé pouvait faire lancer une commande ou du SQL sur le PC.
+Rien d'exploité (le modèle a résisté à deux injections), mais le trou était structurel.
+Cause : `claude -p` lit les réglages utilisateur (defaultMode, plugins, hooks, MCP) comme une
+session interactive ; on l'avait traité comme un simple appel de modèle.
+Règle : tout `claude -p` qui reçoit un texte venu de l'extérieur passe par
+`scripts/bot/claude_cli.py` : `--tools ""`, `--strict-mcp-config`, `--disable-slash-commands`,
+`--setting-sources ""`, `--no-session-persistence`, `--system-prompt` court, dossier neutre.
+Jamais `--bare` (exige une clé API). Preuve : le JSON de sortie dit 0 outil, 0 MCP, mode default.
