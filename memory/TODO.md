@@ -303,12 +303,36 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
 - [x] « à virer » plantait en prod (récurrent mode part sans `resultat`) : corrigé, test rouge→vert.
 - [x] Lot 2 : groupe « Maison » (filtre mention / réponse / question en cours, enregistrement auto
       du groupe, départ si ajouté par un inconnu, rappels au groupe avec repli privé). Bot relancé.
-- [ ] Yann : BotFather › /mybots › @BudgetCYM_bot › Bot Settings › Group Privacy › Turn off ; puis
-      créer le groupe Maison avec Claudia et y ajouter le bot ; vérifier le message d'accueil.
+- [x] Yann : BotFather Group Privacy off (getMe `can_read_all_group_messages` = true) ; groupe
+      « ClaudYannHome » créé, bot ajouté, id enregistré dans `parametres.telegram_groupe`.
+- [ ] Claudia rejoint le groupe ClaudYannHome (2 membres le 31/10 : Yann + bot).
 - [ ] Latence du modèle : 4-8 s d'habitude, 51 s vu sur un premier appel réel (à surveiller).
-- [ ] Agenda Google (D-060, compte de service sur claudyann.home) : le clic « Agree and continue »
-      des conditions Google Cloud est refusé à Claude par le classifieur → Yann le fait ; ensuite
-      projet, API Agenda, compte de service, clé via a_poser.env, partage de l'agenda.
+- [x] Agenda Google (D-060) : projet Cloud `maxhome-513321` (compte claudyann.home), API Google
+      Calendar activée, compte de service `bot-agenda@maxhome-513321.iam.gserviceaccount.com`,
+      agenda « ClaudYann Home » partagé avec lui en « modifier et voir tous les détails ».
+- [ ] Clé JSON du compte de service : Yann la crée et la range dans a_poser.env
+      (`MAXHOME_GOOGLE_CLE`, une ligne) ; puis `secrets.py poser --fichier`.
+- [x] Fuseau principal de claudyann.home et agenda « ClaudYann Home » passés à Paris (01/11,
+      accord de Yann). Langue et pays du compte restent anglais / États-Unis.
+- [ ] Le bot lit `.env`, la clé Google sera une variable utilisateur Windows : le Lot 3 la lit
+      dans l'environnement, et le superviseur du bot doit être relancé pour en hériter.
+- [ ] Mails et Drive de claudyann.home (demande de Yann, 01/11) : le compte de service ne lit
+      pas un Gmail perso ; il faut un consentement « Se connecter avec Google » en lecture seule.
+      Fait le 02/11 (Brave dédié, CDP 9225, profil %LOCALAPPDATA%\socle\brave-maxhome, seul
+      claudyann.home connecté) : API Gmail et Drive activées, écran de consentement « MaxHome »
+      (External, Testing), claudyann.home utilisatrice de test. Bloquant pour publier (sinon
+      jeton coupé tous les 7 jours) : page d'accueil + page confidentialité publiques + domaine
+      autorisé. Reste : client OAuth « Desktop », consentement par Yann, jeton en variable.
+- [ ] Espace parent de l'école de Max (événements, photos, documents, calendriers fleurs/fruits) :
+      D-061. Variables posées le 02/11, connexion par programme réussie au premier coup.
+      Ce qu'on y trouve : Messagerie, Cantine, Documents (tableau, liens Télécharger), Photos/Vidéos
+      (tableau date + titre + Voir), RDV bilans, Fleurs du lundi (tableau HTML Date | Nom, case
+      « Inscription » = libre), Encas du matin (FullCalendar : `events` en JS dans la page, un
+      en-tête aliment par créneau puis le prénom inscrit, « Inscription » en vert = libre,
+      « Se désinscrire » en rouge = notre tour), Facturation. Scripts d'essai dans le scratchpad
+      de la session du 02/11 (jetables). Lot École : lire, prévenir des tours, jamais s'inscrire
+      sans « oui ».
+- [ ] Yann : règle de transfert des mails de l'école vers claudyann.home@gmail.com.
 - [ ] Lot 3 : outils Agenda dans le bot, après l'accès Google.
 
 ## Parking

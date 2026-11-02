@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MaxHome — Confidentialité</title>
+<meta name="description" content="Politique de confidentialité de l'application privée MaxHome.">
+<meta name="theme-color" content="#1f4e79">
+<link rel="icon" type="image/png" href="icones/icone-192.png">
+<style>
+  :root {
+    --fond: #ffffff;
+    --texte: #1a1a1a;
+    --discret: #404040;
+    --lien: #1f4e79;
+    --filet: #8a8a8a;
+    --encart: #eef3f8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fond: #121212;
+      --texte: #f0f0f0;
+      --discret: #cfcfcf;
+      --lien: #9cc9f0;
+      --filet: #8a8a8a;
+      --encart: #1c2733;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--fond);
+    color: var(--texte);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 1.0625rem;
+    line-height: 1.5;
+  }
+  main, footer {
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+  main { padding-top: 24px; }
+  h1 {
+    font-size: 1.75rem;
+    line-height: 1.25;
+    margin: 0 0 8px;
+    overflow-wrap: anywhere;
+  }
+  .maj { margin: 0 0 24px; color: var(--discret); }
+  h2 {
+    font-size: 1.3125rem;
+    line-height: 1.3;
+    margin: 32px 0 8px;
+    padding-top: 16px;
+    border-top: 1px solid var(--filet);
+  }
+  p { margin: 0 0 12px; }
+  ul { margin: 0 0 12px; padding-left: 1.25rem; }
+  li { margin: 0 0 12px; }
+  strong { font-weight: 700; }
+  a {
+    color: var(--lien);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    overflow-wrap: anywhere;
+  }
+  a:focus-visible {
+    outline: 3px solid var(--lien);
+    outline-offset: 3px;
+  }
+  footer { padding-top: 32px; padding-bottom: 32px; }
+  .retour {
+    display: inline-block;
+    min-height: 48px;
+    padding: 10px 0;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>MaxHome — Confidentialité</h1>
+  <p class="maj">Mise à jour : 2 novembre 2026</p>
+
+  <h2>1. Qui sommes-nous</h2>
+  <p>MaxHome est une application privée, utilisée par un seul foyer (deux comptes). Elle n'est pas ouverte au public et ne propose pas d'inscription.</p>
+
+  <h2>2. Données Google utilisées</h2>
+  <p>Avec l'accord du titulaire du compte Google du foyer, MaxHome accède aux données suivantes.</p>
+  <ul>
+    <li><strong>Gmail</strong> : lecture seule des e-mails de ce compte, pour en extraire les informations pratiques du foyer (événements, documents, photos envoyés par l'école ou les services du quotidien). MaxHome n'envoie, ne modifie et ne supprime aucun e-mail.</li>
+    <li><strong>Google Drive</strong> : MaxHome dépose et relit uniquement les fichiers qu'elle a elle-même créés.</li>
+    <li><strong>Google Agenda</strong> : MaxHome lit et ajoute des événements dans l'agenda que le foyer a partagé avec elle.</li>
+  </ul>
+
+  <h2>3. Ce que nous en faisons</h2>
+  <p>Ces informations servent uniquement au foyer : affichage dans l'application et messages du bot Telegram privé du foyer.</p>
+  <p>Elles sont conservées dans la base de données privée du foyer, accessible aux seuls deux comptes.</p>
+  <p>Le contenu d'un e-mail peut être transmis à un modèle d'IA (Claude, d'Anthropic) pour en extraire ces informations.</p>
+
+  <h2>4. Ce que nous ne faisons jamais</h2>
+  <ul>
+    <li>Vendre, louer ou partager ces données avec des tiers.</li>
+    <li>Les utiliser pour de la publicité.</li>
+    <li>Les utiliser pour entraîner des modèles d'IA.</li>
+  </ul>
+  <p>L'usage des données reçues des API Google respecte la <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, y compris les exigences « Limited Use ».</p>
+
+  <h2>5. Retirer l'accès</h2>
+  <p>À tout moment, depuis la page des applications tierces du compte Google : <a href="https://myaccount.google.com/connections">myaccount.google.com/connections</a>.</p>
+  <p>Retirer l'accès arrête toute lecture. Les informations déjà extraites peuvent être supprimées sur simple demande du foyer.</p>
+
+  <h2>6. Contact</h2>
+  <p>Par l'adresse indiquée sur l'écran d'autorisation Google de l'application.</p>
+</main>
+<footer>
+  <a class="retour" href="./">Retour à MaxHome</a>
+</footer>
+</body>
+</html>

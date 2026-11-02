@@ -956,3 +956,21 @@ Yann veut que le bot devienne la vraie interface entre Claudia, lui et l'app.
   aucun outil : L-057) vers le schéma d'actions déjà exécuté par la grammaire ; il pose une question
   s'il manque une info, le bot récapitule en français et n'écrit qu'après « oui ». Les lectures
   (bilan, à virer) répondent sans confirmation. Historique par personne : 6 échanges, 15 min.
+
+## D-061 — L'espace parent de l'école se lit par programme, avec les identifiants de Yann posés en variables (2026-11-02)
+
+Yann veut que le bot connaisse ce que l'école publie (événements, documents, photos, tours de
+fleurs du lundi et d'encas du matin, remis à zéro entre deux vacances).
+- **Lecture par programme, pas par navigateur.** Le site est un formulaire email + mot de passe
+  (Laravel, jeton `_token`, ni captcha ni code SMS) : un `requests.Session` suffit. Claude ne tape
+  jamais un mot de passe sur une page ; le programme lit les identifiants dans les variables
+  utilisateur Windows `MAXHOME_ECOLE_URL`, `MAXHOME_ECOLE_IDENTIFIANT`, `MAXHOME_ECOLE_MDP`, posées
+  par Yann via `a_poser.env` et jamais affichées. Essai du 02/11 : connexion au premier coup.
+- **L'adresse du site, le nom de famille et les prénoms des autres enfants ne vont jamais dans le
+  dépôt** (le dépôt est public, l'école dit où vit l'enfant) : ils restent sur le site, en
+  variable ou en base.
+- **Lecture seule par défaut.** Le site permet de s'inscrire à un tour (formulaire `child_id` +
+  `taste_date_id`) : le bot ne le fera qu'après un « oui » explicite dans le groupe, comme toute
+  écriture (D-060).
+- **Les mails d'abord.** Le programme casse le jour où l'école change sa page ; les mails de l'école
+  sont transférés par une règle de Yann vers claudyann.home, lus quand l'accès Gmail sera en place.

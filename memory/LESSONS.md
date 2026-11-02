@@ -567,3 +567,17 @@ Règle : tout `claude -p` qui reçoit un texte venu de l'extérieur passe par
 `scripts/bot/claude_cli.py` : `--tools ""`, `--strict-mcp-config`, `--disable-slash-commands`,
 `--setting-sources ""`, `--no-session-persistence`, `--system-prompt` court, dossier neutre.
 Jamais `--bare` (exige une clé API). Preuve : le JSON de sortie dit 0 outil, 0 MCP, mode default.
+
+## L-058 — Un bot relancé depuis Claude Code (`Start-Process` sur le raccourci) vit dans l'arbre de la session (2026-11-02)
+
+Symptôme : Yann écrit au bot dans le groupe, aucune réponse. Aucun processus du bot ni de son
+superviseur ; dernière ligne de `bot.log` le 31/10 à 23h58, et `^C` dans `bot_process.log` le 01/11
+à 00h20. Pas de redémarrage, de veille ni de fermeture de session Windows entre-temps. Deuxième
+mort en deux jours (la première, le 31/10 à 16h18, reste inexpliquée).
+Cause probable, non prouvée : le 31/10, Claude Code avait relancé le bot avec `Start-Process` sur
+`MaxHome-Bot.lnk`. Le superviseur était donc un descendant du shell de la session. Le `^C` (événement
+de fermeture de console) arrive quand cet arbre est nettoyé ; un arrêt brutal n'en écrirait pas.
+Règle : relancer le bot avec `explorer.exe "<Startup>\MaxHome-Bot.lnk"`. Le superviseur a alors pour
+parent un explorer lancé par svchost, comme à l'ouverture de session. Vérifier la chaîne des
+parents après chaque relance. Tant qu'aucun garde ne prévient de la mort du bot (dette du 01/10),
+un silence du bot se vérifie d'abord par la liste des processus.
