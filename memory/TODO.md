@@ -310,8 +310,7 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
 - [x] Agenda Google (D-060) : projet Cloud `maxhome-513321` (compte claudyann.home), API Google
       Calendar activée, compte de service `bot-agenda@maxhome-513321.iam.gserviceaccount.com`,
       agenda « ClaudYann Home » partagé avec lui en « modifier et voir tous les détails ».
-- [ ] Clé JSON du compte de service : Yann la crée et la range dans a_poser.env
-      (`MAXHOME_GOOGLE_CLE`, une ligne) ; puis `secrets.py poser --fichier`.
+- [x] Clé JSON du compte de service créée et rangée sans affichage (`MAXHOME_GOOGLE_CLE`, 03/11).
 - [x] Fuseau principal de claudyann.home et agenda « ClaudYann Home » passés à Paris (01/11,
       accord de Yann). Langue et pays du compte restent anglais / États-Unis.
 - [ ] Le bot lit `.env`, la clé Google sera une variable utilisateur Windows : le Lot 3 la lit
@@ -323,6 +322,11 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       (External, Testing), claudyann.home utilisatrice de test. Bloquant pour publier (sinon
       jeton coupé tous les 7 jours) : page d'accueil + page confidentialité publiques + domaine
       autorisé. Reste : client OAuth « Desktop », consentement par Yann, jeton en variable.
+      02-03/11 : page frontend/confidentialite.html en ligne, Branding complété (accueil,
+      confidentialité, domaine kimen26.github.io), appli « In production » ; variables posées
+      sans affichage : MAXHOME_GOOGLE_CLE (compte de service), MAXHOME_GOOGLE_OAUTH_CLIENT.
+      Reste : clic « Autoriser » de Yann (script de consentement en attente, port 8765), qui pose
+      MAXHOME_GOOGLE_JETON après avoir vérifié que le compte est claudyann.home.
 - [ ] Espace parent de l'école de Max (événements, photos, documents, calendriers fleurs/fruits) :
       D-061. Variables posées le 02/11, connexion par programme réussie au premier coup.
       Ce qu'on y trouve : Messagerie, Cantine, Documents (tableau, liens Télécharger), Photos/Vidéos

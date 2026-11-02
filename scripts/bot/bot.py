@@ -321,11 +321,17 @@ class Bot:
     def traiter_update(self, u):
         """Un update Telegram : événement de groupe, filtre de groupe (groupe.py), puis texte ou pièce jointe."""
         msg = u.get("message")
-        if not msg or groupe.gerer_evenement(self, msg):
+        if not msg:
+            if u.get("edited_message"):  # jamais traité : on le dit au journal (sans texte ni identifiant)
+                self.log.info("message modifié ignoré : renvoyer un nouveau message")
+            return
+        if groupe.gerer_evenement(self, msg):
             return
         msg = groupe.filtrer(msg, self.identite, self.etats)  # groupe : mention/réponse/attente, sinon None
         if msg is None:
+            self.log.info("groupe : message ignoré (ni mention du bot, ni réponse au bot, ni réponse attendue)")
             return
+        self.log.info("message reçu (%s), traitement", "groupe" if groupe.est_groupe(msg["chat"]) else "privé")
         chat_id = msg["chat"]["id"]
         telegram_id = msg["from"]["id"]
         if "text" in msg:

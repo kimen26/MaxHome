@@ -139,7 +139,42 @@ def test_message_de_groupe_sans_mention_est_ignore_en_silence(bot, caplog, type_
     vus = espionner(bot)
     bot.traiter_update(update("on mange quoi ce soir ? secret-du-foyer", type_chat=type_chat))
     assert vus == [] and bot.telegram.envoyes == [] and bot.telegram.quittes == []
-    assert "secret-du-foyer" not in caplog.text and caplog.text == "", "ignoré sans trace dans le journal"
+    assert "secret-du-foyer" not in caplog.text, "le texte ignoré n'entre jamais dans le journal"
+
+
+# ---------- journal : ce qui arrive est visible, sans texte ni identifiant ----------
+def lignes_journal(caplog):
+    return [r.getMessage() for r in caplog.records if r.name == "test-groupe"]
+
+
+def sans_texte_ni_identifiant(caplog):
+    """Vie privée : ni le texte du message ni un identifiant Telegram dans le journal."""
+    return all(m not in caplog.text for m in ("secret-du-foyer", str(YANN), str(abs(GROUPE))))
+
+
+def test_message_de_groupe_ignore_est_journalise_sans_texte(bot, caplog):
+    caplog.set_level(logging.INFO)
+    bot.traiter_update(update("on mange quoi ce soir ? secret-du-foyer"))
+    assert lignes_journal(caplog) == [
+        "groupe : message ignoré (ni mention du bot, ni réponse au bot, ni réponse attendue)"]
+    assert bot.telegram.envoyes == [] and sans_texte_ni_identifiant(caplog)
+
+
+def test_message_modifie_est_journalise_sans_texte(bot, caplog):
+    caplog.set_level(logging.INFO)
+    modifie = update(f"@{USERNAME} aide secret-du-foyer")["message"]
+    bot.traiter_update({"update_id": 1, "edited_message": modifie})
+    assert lignes_journal(caplog) == ["message modifié ignoré : renvoyer un nouveau message"]
+    assert bot.telegram.envoyes == [] and sans_texte_ni_identifiant(caplog)
+
+
+@pytest.mark.parametrize("chat, type_chat, mot", [(GROUPE, "supergroup", "groupe"), (PRIVE, "private", "privé")])
+def test_message_recu_est_journalise_sans_texte(bot, caplog, chat, type_chat, mot):
+    caplog.set_level(logging.INFO)
+    vus = espionner(bot)
+    bot.traiter_update(update(f"@{USERNAME} aide secret-du-foyer", chat=chat, type_chat=type_chat))
+    assert vus and lignes_journal(caplog) == [f"message reçu ({mot}), traitement"]
+    assert sans_texte_ni_identifiant(caplog)
 
 
 @pytest.mark.parametrize("brut, attendu", [
