@@ -338,6 +338,16 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       sans « oui ».
 - [ ] Yann : règle de transfert des mails de l'école vers claudyann.home@gmail.com.
 - [ ] Lot 3 : outils Agenda dans le bot, après l'accès Google.
+- [x] Accès Google complet le 03/11 : jeton Gmail/Drive (`MAXHOME_GOOGLE_JETON`, compte vérifié
+      claudyann.home, 8 mails de l'école déjà là), agenda lu par le compte de service (droit
+      writer, Europe/Paris, rien écrit). Le bot ne lit pas encore ces variables : il lit `.env`.
+- [x] Bot : phrases longues et liens vers le langage libre, action `recherche` notée (D-062) ;
+      journal sans contenu des messages reçus/ignorés/modifiés. Relancé le 03/11 à 8h26.
+- [x] Recherche ski février 2027 (Sowell, 6→13 ou 13→20/02, Max 4 ans) : 14 fiches sourcées dans
+      inbox/recherche_ski_fevrier_2027.md ; comparatif et 3 options envoyés au groupe le 03/11.
+      Non vérifié : code PREMIUM (moteur de réservation anti-robot DataDome), places en école de ski.
+- [ ] Lire `inbox/demandes_bot.md` à l'ouverture de chaque session (D-062).
+- [ ] Garde côté serveur « le bot ne répond plus » (deux morts en deux jours, L-058).
 
 ## Parking
 - Le carnet de voyage (ui-fiche-*, carnet.js, carte.js, geocode.js, topo.js, ui-voyages-liste.js)

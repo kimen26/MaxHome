@@ -974,3 +974,21 @@ fleurs du lundi et d'encas du matin, remis à zéro entre deux vacances).
   écriture (D-060).
 - **Les mails d'abord.** Le programme casse le jour où l'école change sa page ; les mails de l'école
   sont transférés par une règle de Yann vers claudyann.home, lus quand l'accès Gmail sera en place.
+
+## D-062 — Une demande de recherche sur internet est notée par le bot et faite par Claude en session (2026-11-03)
+
+Yann a demandé au bot, dans le groupe, une recherche de séjours au ski sur un site d'hôtels, avec des
+fiches par offre, des routines et de la délégation. Le bot a répondu une absurdité : la règle de
+dernier recours « <libellé de charge> <montant> » avait pris toute la phrase (un chiffre « 2 adulte »
+lui suffisait).
+- **Grammaire réservée aux commandes courtes** : une action `ambigu`, `charge` ou `voyage` dont le
+  libellé dépasse 6 mots ou contient un lien part au langage libre (`dialogue_libre.relayer`).
+  `resa_libre` reste hors de ce test, une réservation collée est longue par nature.
+- **Le bot ne navigue pas** (L-057 : `claude -p` sans outils). Une demande de recherche, de
+  comparaison ou de veille devient l'action libre `recherche`, notée dans `inbox/demandes_bot.md`
+  avec l'étiquette « [Recherche] ». Le bot répond honnêtement que Claude la fera à la prochaine
+  session de Yann. Raison : donner le web au bot ouvrirait une porte aux textes piégés d'une page,
+  alors qu'il écrit dans le budget. Contre-avis donné à Yann le 03/11.
+- **Le bot ne réveille pas une session Claude Code.** Pendant une session ouverte, Claude surveille
+  `inbox/demandes_bot.md` ; à l'ouverture d'une session, il lit les demandes en attente.
+  Les résultats reviennent dans le groupe par le bot.
