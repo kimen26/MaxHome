@@ -346,6 +346,9 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
 - [x] Recherche ski février 2027 (Sowell, 6→13 ou 13→20/02, Max 4 ans) : 14 fiches sourcées dans
       inbox/recherche_ski_fevrier_2027.md ; comparatif et 3 options envoyés au groupe le 03/11.
       Non vérifié : code PREMIUM (moteur de réservation anti-robot DataDome), places en école de ski.
+- [x] Recherche ski élargie hors Sowell : 15 fiches et grille de prix de février des Villages Clubs
+      du Soleil dans inbox/recherche_ski_fevrier_2027_autres.md, résumé envoyé au groupe le 03/11.
+      Sowell n'est plus seul en tête (Superbagnères, Orcières). Non lu : prix de Max chez VCS.
 - [ ] Lire `inbox/demandes_bot.md` à l'ouverture de chaque session (D-062).
 - [ ] Garde côté serveur « le bot ne répond plus » (deux morts en deux jours, L-058).
 - [x] Première écriture dans l'agenda du foyer (03/11, demande de Yann) : qui garde Max les
