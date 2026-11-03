@@ -348,6 +348,14 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       Non vérifié : code PREMIUM (moteur de réservation anti-robot DataDome), places en école de ski.
 - [ ] Lire `inbox/demandes_bot.md` à l'ouverture de chaque session (D-062).
 - [ ] Garde côté serveur « le bot ne répond plus » (deux morts en deux jours, L-058).
+- [x] Première écriture dans l'agenda du foyer (03/11, demande de Yann) : qui garde Max les
+      mercredis de novembre, en journée entière (4 et 11 Yann, 18 et 25 Claudia), marqués
+      `maxhome_type=garde_mercredi` en propriété privée (relance sans doublon, vérifiée).
+      L'écran Agenda de l'app ne lit pas encore Google : ces gardes n'y apparaissent pas.
+- [ ] Une relance écrite dans le groupe sans mention ni « Répondre » est ignorée par le bot
+      (03/11 09:23, Yann attendait une réponse sur le ski). Comportement voulu (conversation
+      entre eux), mais deux fois surprenant. À trancher : rappeler la règle dans les messages
+      du bot qui invitent à une suite, ou traiter une question qui suit de près un message du bot.
 
 ## Parking
 - Le carnet de voyage (ui-fiche-*, carnet.js, carte.js, geocode.js, topo.js, ui-voyages-liste.js)
