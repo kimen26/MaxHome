@@ -269,7 +269,7 @@ class Bot:
         annee_c, mois_c = self.mois_courant()
         charges_proposables = budget_lignes.charges_actives(self.charges)  # D-043 : jamais une terminée
         action = commandes.interpreter(texte_brut, self.membres, charges_proposables, annee_c, mois_c)
-        if action["action"] is None or dialogue_libre.relayer(action):
+        if action["action"] is None or dialogue_libre.relayer(action, texte_brut):
             return dialogue_libre.interpreter(self, telegram_id, prenom, texte_brut)
         return self.executer_action(telegram_id, prenom, action, texte_brut)
 

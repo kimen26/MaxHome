@@ -23,10 +23,30 @@ ACTIONS_ECRITURE = frozenset(reponses.RECAPS)  # tout ce qui écrit passe par un
 _RE_PAS_UNE_COURSE = re.compile(
     r"€|\b(?:ligne|charge|euros?|eur|fonctionnalites?|ecran|onglet|bouton|appli|application)\b")
 
+# Un libellé de charge ou un nom de voyage tapé à la main est court. Plus long, ou avec un lien,
+# c'est une phrase que le dernier recours grammatical a prise pour une commande (un chiffre « 2 adulte »
+# lui a suffi) : au langage libre. Une résa collée (« resa_libre ») est longue par nature : hors de ce test.
+MOTS_MAX_LIBELLE = 6
 
-def relayer(action):
-    """Une action de la grammaire qui, en vrai, relève du langage libre."""
-    return action["action"] == "course_ajout" and bool(_RE_PAS_UNE_COURSE.search(action["libelle"]))
+
+def _trop_long_pour_une_commande(libelle):
+    return len(libelle.split()) > MOTS_MAX_LIBELLE or "http" in libelle.lower()
+
+
+def relayer(action, texte):
+    """Une action de la grammaire qui, en vrai, relève du langage libre (`texte` : le message brut).
+
+    L'action « charge » ne garde pas le libellé tapé (seulement celui de la charge trouvée) : on juge
+    alors le message entier, montant compris.
+    """
+    nom = action["action"]
+    if nom == "course_ajout":
+        return bool(_RE_PAS_UNE_COURSE.search(action["libelle"]))
+    if nom in ("ambigu", "charge"):
+        return _trop_long_pour_une_commande(action.get("libelle", texte))
+    if nom == "voyage":
+        return _trop_long_pour_une_commande(action["nom"])
+    return False
 
 
 def _noter(etat, texte, reponse):
@@ -90,6 +110,8 @@ def _suite(bot, etat, telegram_id, prenom, texte, interp, annee, mois):
         return _poser_question(etat, interp)
     if nom == "demande_evolution":
         return evolution.enregistrer(bot, prenom, _texte(interp) or texte)
+    if nom == "recherche":  # le bot n'a aucun accès au web (L-057) : il note, Claude cherchera
+        return evolution.enregistrer(bot, prenom, _texte(interp) or texte, evolution.GENRE_RECHERCHE)
     if nom == "question":
         question = _texte(interp)
         if not question:

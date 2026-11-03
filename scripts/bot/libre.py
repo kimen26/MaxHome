@@ -63,6 +63,7 @@ Actions possibles :
   {"action":"question","texte":"<question sur les chiffres du budget, reformulée>"}
   {"action":"demander","texte":"<UNE question courte>"}
   {"action":"demande_evolution","texte":"<la demande, en une phrase qui se comprend seule>"}
+  {"action":"recherche","texte":"<la demande résumée en une à trois phrases qui se comprennent seules, avec les liens et les contraintes>"}
   {"action":"inconnu"}
 
 Règles :
@@ -72,7 +73,8 @@ Règles :
 4. Il manque une info indispensable (règle 50/50 ou prorata, montant, mois ambigu, plusieurs charges proches, pour qui) : réponds "demander" avec UNE question courte en français, tutoiement. Ne devine JAMAIS.
 5. Si le message répond à ta question des échanges récents, combine-le avec ce qui précède pour produire l'action complète.
 6. Changer l'application elle-même (renommer un libellé ou un onglet, nouvelle fonctionnalité, bug) : "demande_evolution".
-7. Rien ne correspond : "inconnu"."""
+7. Chercher sur internet, ouvrir ou surveiller un site ou un lien, trouver ou comparer des offres (hôtels, vols, stations...), faire des fiches : "recherche". Tu n'as aucun accès au web et tu n'inventes jamais le résultat. Résume la demande en une à trois phrases qui se comprennent seules et garde les liens et les contraintes (dates, nombre de personnes, budget). "recherche" ne sert pas à changer l'application elle-même : c'est "demande_evolution" (règle 6).
+8. Rien ne correspond : "inconnu"."""
 
 
 def _neutraliser(texte):
