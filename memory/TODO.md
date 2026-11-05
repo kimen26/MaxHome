@@ -355,6 +355,9 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       mercredis de novembre, en journée entière (4 et 11 Yann, 18 et 25 Claudia), marqués
       `maxhome_type=garde_mercredi` en propriété privée (relance sans doublon, vérifiée).
       L'écran Agenda de l'app ne lit pas encore Google : ces gardes n'y apparaissent pas.
+      Le tableau blanc du foyer se reporte dans le même agenda (photo de Yann, 05/11) : bleu Max,
+      vert Yann, violet Claudia, rouge famille ; le pictogramme maison violet = Claudia en
+      télétravail ; le « 1 » manuscrit ressemble à un « 4 », un vrai 4 a sa barre horizontale.
 - [ ] Une relance écrite dans le groupe sans mention ni « Répondre » est ignorée par le bot
       (03/11 09:23, Yann attendait une réponse sur le ski). Comportement voulu (conversation
       entre eux), mais deux fois surprenant. À trancher : rappeler la règle dans les messages
