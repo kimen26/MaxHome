@@ -1,24 +1,31 @@
-// Edge Function : lit l'agenda Google du foyer (LECTURE SEULE) et rend les événements d'une période
-// sous la forme { evenements: [{ id, titre, debut, fin, heureDebut, heureFin }] }.
+// Edge Function : lit et écrit dans l'agenda Google du foyer.
+//  - Sans `action` (lecture, compatibilité avec le front déployé) : rend les événements d'une période
+//    sous la forme { evenements: [{ id, titre, debut, fin, heureDebut, heureFin, personne }] }.
+//  - `action` dans le corps POST : "creer" | "modifier" (PATCH, ne touche pas aux autres champs) |
+//    "supprimer" (Google garde l'événement 30 jours dans sa corbeille). Rend { evenement } ou { ok: true }.
 //
 // Accès : verify_jwt actif (jeton Supabase valide exigé) ET l'appelant doit être membre du foyer,
 // vérifié avec SON jeton et la clé anon (RLS est_membre() sur `membres`, supabase/schema.sql).
 // Jamais la clé service_role ici. Aucun secret n'est loggé ni renvoyé.
 //
 // Secret requis : MAXHOME_GOOGLE_CLE = la clé JSON du compte de service (scripts/deploy_agenda.py
-// la pose depuis le registre Windows). Portée Google : calendar.readonly uniquement. L'agenda du
-// foyer doit être PARTAGÉ avec l'adresse du compte de service (droit « voir tous les détails »).
+// la pose depuis le registre Windows). Portée Google : calendar.events (lire et écrire des
+// événements, rien d'autre). L'agenda du foyer doit être PARTAGÉ avec l'adresse du compte de service
+// (droit « Apporter des modifications aux événements »).
 //
 // Déployée par scripts/deploy_agenda.py. La conversion Google → app est dans evenements.ts (pure,
 // testée par test_evenements.ts).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
-import { bornesGoogle, convertirEvenements, origineAutorisee, validerPeriode, type EvenementGoogle } from "./evenements.ts";
+import {
+  bornesGoogle, convertirEvenement, convertirEvenements, corpsGoogle, FUSEAU, origineAutorisee, validerId,
+  validerPeriode, validerSaisie, type EvenementGoogle,
+} from "./evenements.ts";
 
 const AGENDA_ID = "claudyann.home@gmail.com";
-const FUSEAU = "Europe/Paris";
-const PORTEE = "https://www.googleapis.com/auth/calendar.readonly";
+const PORTEE = "https://www.googleapis.com/auth/calendar.events";
 const URL_EVENEMENTS = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(AGENDA_ID)}/events`;
+const CHAMPS_EVENEMENT = "id,status,summary,start,end,extendedProperties"; // jamais description, lieu, participants
 const PAR_PAGE = 500;
 const PAGES_MAX = 4;
 const VALIDITE_JETON_S = 3600;
@@ -55,16 +62,19 @@ async function verifierMembre(req: Request): Promise<void> {
 
 // ---------- paramètres ----------
 
-async function lireParametres(req: Request): Promise<{ debut: unknown; fin: unknown }> {
+type Corps = Record<string, unknown>;
+
+/** GET : debut et fin dans l'URL (lecture seule). POST : le corps JSON ; un corps illisible vaut {}. */
+async function lireCorps(req: Request): Promise<Corps> {
   if (req.method === "GET") {
     const q = new URL(req.url).searchParams;
     return { debut: q.get("debut"), fin: q.get("fin") };
   }
   try {
     const corps = await req.json();
-    return { debut: corps?.debut, fin: corps?.fin };
+    return typeof corps === "object" && corps !== null ? corps : {};
   } catch {
-    return { debut: undefined, fin: undefined };
+    return {};
   }
 }
 
@@ -127,7 +137,7 @@ async function lireEvenementsGoogle(jeton: string, debut: string, fin: string): 
     const q = new URLSearchParams({
       singleEvents: "true", orderBy: "startTime", timeZone: FUSEAU, maxResults: String(PAR_PAGE),
       ...bornesGoogle(debut, fin),
-      fields: "nextPageToken,items(id,status,summary,start,end)", // jamais description, lieu, participants
+      fields: `nextPageToken,items(${CHAMPS_EVENEMENT})`,
     });
     if (page) q.set("pageToken", page);
     const rep = await fetch(`${URL_EVENEMENTS}?${q}`, { headers: { Authorization: `Bearer ${jeton}` } });
@@ -140,6 +150,44 @@ async function lireEvenementsGoogle(jeton: string, debut: string, fin: string): 
   return tout;
 }
 
+/** Écriture d'un événement (insert, PATCH ou DELETE) : 204 → null, sinon l'événement Google. */
+async function ecrireGoogle(jeton: string, methode: "POST" | "PATCH" | "DELETE", id: string | null, corps?: unknown) {
+  const url = `${URL_EVENEMENTS}${id ? `/${encodeURIComponent(id)}` : ""}${methode === "DELETE" ? "" : `?fields=${CHAMPS_EVENEMENT}`}`;
+  const rep = await fetch(url, {
+    method: methode,
+    headers: { Authorization: `Bearer ${jeton}`, "Content-Type": "application/json" },
+    body: corps === undefined ? undefined : JSON.stringify(corps),
+  });
+  if (id && (rep.status === 404 || rep.status === 410)) throw new ErreurHttp(404, "Cet événement n'existe plus dans l'agenda Google.");
+  if (rep.status === 403) throw new ErreurHttp(502, "Google refuse l'écriture : le compte de service n'a pas le droit de modifier cet agenda.");
+  if (!rep.ok) throw new ErreurHttp(502, `Google Agenda a refusé l'écriture (HTTP ${rep.status})`);
+  return rep.status === 204 ? null : await rep.json();
+}
+
+/** Une validation réussie rend sa valeur ; un refus devient une réponse 400 avec son message. */
+function accepter<T extends object>(r: T | { erreur: string }): T {
+  if ("erreur" in r) throw new ErreurHttp(400, r.erreur);
+  return r as T;
+}
+
+/** Créer, modifier ou supprimer : valide d'abord (400 sans appeler Google), puis écrit. */
+async function ecrire(action: string, corps: Corps): Promise<unknown> {
+  if (action === "supprimer") {
+    const { id } = accepter(validerId(corps.id));
+    await ecrireGoogle(await obtenirJeton(lireCle()), "DELETE", id);
+    return { ok: true };
+  }
+  if (action !== "creer" && action !== "modifier") throw new ErreurHttp(400, "Action inconnue.");
+  const id = action === "modifier" ? accepter(validerId(corps.id)).id : null;
+  const saisie = accepter(validerSaisie(corps));
+  const brut = await ecrireGoogle(
+    await obtenirJeton(lireCle()), id ? "PATCH" : "POST", id, corpsGoogle(saisie, id !== null),
+  ) as EvenementGoogle;
+  const evenement = convertirEvenement(brut);
+  if (!evenement) throw new ErreurHttp(502, "Google a rendu un événement illisible.");
+  return { evenement };
+}
+
 // ---------- point d'entrée ----------
 
 Deno.serve(async (req) => {
@@ -147,8 +195,9 @@ Deno.serve(async (req) => {
   if (req.method !== "GET" && req.method !== "POST") return reponse(req, 405, { erreur: "méthode non permise" });
   try {
     await verifierMembre(req);
-    const { debut, fin } = await lireParametres(req);
-    const periode = validerPeriode(debut, fin);
+    const corps = await lireCorps(req);
+    if (corps.action !== undefined && corps.action !== null) return reponse(req, 200, await ecrire(String(corps.action), corps));
+    const periode = validerPeriode(corps.debut, corps.fin);
     if ("erreur" in periode) throw new ErreurHttp(400, periode.erreur);
     const jeton = await obtenirJeton(lireCle());
     const brut = await lireEvenementsGoogle(jeton, periode.debut, periode.fin);

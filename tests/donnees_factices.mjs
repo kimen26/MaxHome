@@ -461,13 +461,15 @@ export const VACANCES_CACHE = [
 // Agenda Google du foyer (Edge Function agenda-google) : événements FICTIFS du mois courant,
 // jamais les vrais (invariant 1). Le jour 7 réunit les quatre « personnes » (pastilles 3 + « +1 »),
 // le 12 une journée entière, le 14-16 un événement sur trois jours, le 21 un titre très long
-// (retour à la ligne, aucune troncature), le 28 un doublon « férié » sans férié ce jour-là.
+// (retour à la ligne, aucune troncature), le 18 du télétravail seul (aucune pastille, la ligne reste
+// dans la liste), le 28 un doublon « férié »
+// sans férié ce jour-là.
 const jourDuMois = (j) => iso(new Date(ANNEE, MOIS - 1, j));
 const evtG = (id, titre, j, fin = j, heureDebut = null, heureFin = null) =>
   ({ id: `fictif-${id}`, titre, debut: jourDuMois(j), fin: jourDuMois(fin), heureDebut, heureFin });
 export const AGENDA_GOOGLE = [
   evtG(1, "Piscine Max", 7, 7, "10:40", "11:30"),
-  evtG(2, "Claudia en télétravail", 7),
+  evtG(2, "Claudia : rendez-vous médical", 7),
   evtG(3, "Yann : réunion d'équipe", 7, 7, "14:00", "15:00"),
   evtG(4, "Anniversaire des cousins", 7, 7, "16:30", "19:00"),
   evtG(5, "Garde du mercredi", 12),
@@ -475,6 +477,7 @@ export const AGENDA_GOOGLE = [
   evtG(7, "Spectacle de fin d'année de l'école avec Max, les grands-parents et toute la famille", 21, 21, "18:15", "20:00"),
   evtG(8, "Foot Max", 21, 21, "09:00", "10:30"),
   evtG(9, "Jour férié", 28),
+  evtG(10, "Claudia télétravail", 18),
 ];
 
 // ---------- module Agenda : carnet de voyage (voyage 1, « Week-end à la mer ») ----------

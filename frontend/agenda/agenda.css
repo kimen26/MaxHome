@@ -108,6 +108,36 @@ div.agenda-case { cursor:default; }
 .agenda-evt-titre { font-size:16px; font-weight:600; overflow-wrap:anywhere; }
 .agenda-evt .sous { font-size:13px; color:var(--texte-2); }
 
+/* ================= Ajouter / modifier un événement (ui-agenda-form.js) ================= */
+/* Action principale de l'écran : 56 px de haut, pleine largeur. */
+.agenda-ajouter { width:100%; min-height:56px; margin-top:12px; font-size:16px; border-radius:10px; }
+/* Une ligne d'événement Google est un bouton : même allure que les autres lignes, ≥ 48 px, focus visible. */
+button.agenda-evt-modifiable {
+  width:100%; text-align:left; font:inherit; color:inherit; cursor:pointer; align-items:center;
+}
+button.agenda-evt-modifiable:hover { border-color:var(--bleu); }
+button.agenda-evt-modifiable:focus-visible { outline:3px solid var(--bleu); outline-offset:2px; }
+.agenda-evt-fleche { flex:0 0 auto; font-size:24px; line-height:1; color:var(--texte-2); }
+.agenda-form-groupe { display:flex; flex-direction:column; gap:6px; }
+.agenda-form-etiquette { font-size:13px; color:var(--texte-2); }
+/* Dates et heures par paires qui passent l'une sous l'autre quand la place manque (320 px). */
+.agenda-form-paire { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px; }
+.agenda-form-paire[hidden] { display:none; }
+.agenda-form .champ { min-height:48px; font-size:16px; }
+.pile.agenda-form label.case-a-cocher { min-height:48px; }
+.agenda-form .agenda-valider { min-height:56px; font-size:16px; }
+/* Pastille de la personne dans le bouton de choix : liseré blanc pour rester lisible sur le bleu du choix actif. */
+.agenda-form .choix-option .agenda-qui { width:22px; height:22px; font-size:12px; margin-right:8px; box-shadow:0 0 0 2px #fff; }
+.agenda-form .choix-titre { display:inline-flex; align-items:center; }
+.agenda-erreur {
+  margin:0; padding:10px 12px; border-radius:8px; font-size:14px; font-weight:600; overflow-wrap:anywhere;
+  color:var(--rouge); background:var(--rouge-fond);
+}
+.agenda-erreur[hidden] { display:none; }
+.agenda-form .agenda-supprimer { min-height:48px; font-size:16px; color:var(--rouge); border-color:var(--rouge); font-weight:600; }
+.agenda-form .choix-option.actif .choix-titre::before { margin-right:6px; }
+.agenda-form button:disabled { opacity:.6; cursor:default; }
+
 /* ================= Écran Vacances ================= */
 #vacances-notre { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; margin:8px 0 2px; }
 #vacances-notre .sous { font-size:12px; color:var(--texte-2); }

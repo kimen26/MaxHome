@@ -16,16 +16,20 @@ export const classeQui = (qui) => `qui-${qui.toLowerCase()}`;
  *  les étiquettes de la liste disent le prénom en toutes lettres). */
 export const pastilleQui = (qui) => `<span class="agenda-qui ${classeQui(qui)}" aria-hidden="true">${txt(qui[0])}</span>`;
 
+/** Un événement Google se touche pour le modifier (bouton) ; vacances, fériés et voyages ne se
+ *  modifient pas ici : simples blocs, sans curseur de lien. */
 function htmlEvenementFoyer(e) {
   const heure = e.heureDebut ? formatHeure(e.heureDebut) : "Journée";
   const periode = e.debut === e.fin ? "" : `<span class="sous">${txt(formatPeriode(e.debut, e.fin))}</span>`;
-  return `<div class="agenda-evt a-foyer">
+  return `<button type="button" class="agenda-evt a-foyer agenda-evt-modifiable" data-evt="${txt(e.id)}"
+      aria-label="${txt(`Modifier : ${e.qui}, ${e.titre}`)}">
     <span class="agenda-evt-gauche">
       <span class="agenda-evt-heure">${txt(heure)}</span>
       <span class="agenda-qui-nom ${classeQui(e.qui)}">${txt(e.qui)}</span>
     </span>
     <span class="agenda-evt-corps"><span class="agenda-evt-titre">${txt(e.titre)}</span>${periode}</span>
-  </div>`;
+    <span class="agenda-evt-fleche" aria-hidden="true">›</span>
+  </button>`;
 }
 
 function htmlEvenementPeriode(e, a) {

@@ -3,20 +3,23 @@
 // (une pastille par personne présente ce jour), puis la liste groupée par jour. Chaque case du
 // mois est un bouton : toucher un jour filtre la liste sur ce jour. La couleur ne porte jamais
 // l'information seule : initiale dans la pastille, prénom dans la légende et la liste
-// (rules/mobile-parents.md). La liste elle-même est dans ui-agenda-liste.js.
+// (rules/mobile-parents.md). La liste elle-même est dans ui-agenda-liste.js ; le formulaire
+// d'ajout / modification / suppression d'un événement Google dans ui-agenda-form.js.
 
 import { $, txt, MOIS, decaler } from "../socle/ui-base.js";
 import {
   grilleMois, feries, evenementsDuMois, evenementsDuJour, joursDuMois, personnesDuJour, couvre, jourIso, QUI,
 } from "./calendrier.js";
 import { TYPES, pastilleQui, htmlListe } from "./ui-agenda-liste.js";
+import { creerFormulaireEvenement } from "./ui-agenda-form.js";
 
 const JOURS = ["L", "M", "M", "J", "V", "S", "D"];
 const PASTILLES_MAX = 3;
 const FORMAT_JOUR = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 const depuis = (iso) => { const [a, m, j] = iso.split("-").map(Number); return new Date(a, m - 1, j); };
 
-export function creerUiAgenda(api, etat, cb) {
+/** `recharger` : () => Promise<événements Google> (la fenêtre de mois chargée par mod-agenda.js). */
+export function creerUiAgenda(api, etat, cb, { recharger }) {
   const auj = () => jourIso(new Date());
 
   function evenements() {
@@ -82,6 +85,16 @@ export function creerUiAgenda(api, etat, cb) {
       : `Vacances ${etat.zone}`;
   }
 
+  /** Après une écriture réussie : relit l'agenda Google puis rend l'écran. Un échec de relecture
+   *  est signalé, l'écran garde ce qu'il avait. */
+  async function apresEcriture() {
+    try {
+      etat.google = await recharger();
+      rendre();
+    } catch (e) { cb.echec(e); }
+  }
+  const formulaire = creerFormulaireEvenement(api, etat, cb, { apres: apresEcriture });
+
   /** Change le jour choisi (null = tout le mois) puis rend le focus au bouton touché. */
   function choisir(jour) {
     etat.agenda = { ...etat.agenda, jour };
@@ -107,8 +120,12 @@ export function creerUiAgenda(api, etat, cb) {
     if (bouton) choisir(etat.agenda.jour === bouton.dataset.jour ? null : bouton.dataset.jour);
   });
   $("#agenda-evenements").addEventListener("click", (ev) => {
-    if (ev.target.closest("[data-tout]")) choisir(null);
+    if (ev.target.closest("[data-tout]")) { choisir(null); return; }
+    const ligne = ev.target.closest("[data-evt]");
+    const evenement = ligne && evenements().find((e) => e.type === "foyer" && e.id === ligne.dataset.evt);
+    if (evenement) formulaire.ouvrir({ jour: etat.agenda.jour ?? auj(), evenement });
   });
+  $("#agenda-ajouter").addEventListener("click", () => formulaire.ouvrir({ jour: etat.agenda.jour ?? auj() }));
 
   return { rendre };
 }

@@ -17,6 +17,7 @@ const MOIS_AVANT = 3, MOIS_APRES = 12;
 const debutDecale = (n) => { const d = new Date(); return jourIso(new Date(d.getFullYear(), d.getMonth() + n, 1)); };
 /** Dernier jour du mois, décalé de `n` mois. */
 const finDecalee = (n) => { const d = new Date(); return jourIso(new Date(d.getFullYear(), d.getMonth() + n + 1, 0)); };
+const lireGoogle = (api) => api.agendaGoogle(debutDecale(-MOIS_AVANT), finDecalee(MOIS_APRES));
 
 export default {
   cle: "agenda", nom: "Agenda", defaut: "agenda-mois", avecMois: false,
@@ -55,7 +56,7 @@ export default {
       etat.vacancesPerimees = r.perime;
     }
 
-    const mois = creerUiAgenda(api, etat, cb);
+    const mois = creerUiAgenda(api, etat, cb, { recharger: () => lireGoogle(api) });
     const vac = creerUiVacances(api, etat, cb, { vacancesDe, changerZone, rendreMois: mois.rendre });
     const voyages = creerUiVoyages(api, etat, cb, { rendreMois: mois.rendre });
 
@@ -70,7 +71,7 @@ export default {
           api.voyages(),
           vacancesDe(etat.zone).catch((e) => { cb.echec(e); return { periodes: [], perime: false }; }),
           // Agenda Google du foyer : même règle, un échec est signalé et le reste s'affiche.
-          api.agendaGoogle(debutDecale(-MOIS_AVANT), finDecalee(MOIS_APRES)).catch((e) => { cb.echec(e); return []; }),
+          lireGoogle(api).catch((e) => { cb.echec(e); return []; }),
         ]);
         etat.google = google;
         etat.voyages = voyages;

@@ -1,7 +1,8 @@
 // Recette connectée : login réel (mot de passe lu dans .env, jamais affiché), février 2026.
 // Accueil, six écrans Budget, trois écrans Tâches, deux écrans Courses (dont Magasin) ; coche
 // un mouvement et une tâche (cycle tri-état via le détail), remet tout en place.
-// Vérifie aussi que sans session la RLS renvoie vide.
+// Vérifie aussi que sans session la RLS renvoie vide, et le cycle d'écriture de l'agenda Google
+// (créer, relire, modifier, supprimer un événement d'essai, par l'API).
 // Usage : node tests/recette_connectee.mjs
 import { chromium } from "playwright";
 import http from "node:http";
@@ -38,6 +39,56 @@ const serveur = http.createServer((req, res) => {
 fs.mkdirSync(SORTIE, { recursive: true });
 const navigateur = await chromium.launch();
 const erreurs = [];
+
+/**
+ * Écritures de l'agenda Google par l'API (frontend/socle/api.js → Edge Function agenda-google), pas par
+ * l'écran : créer un événement d'essai (journée entière, 2027-01-15), le relire, le modifier, le
+ * supprimer, vérifier qu'il n'est plus listé. Le `finally` supprime l'essai s'il reste. Le jeton est
+ * pris par une connexion directe (jamais affiché) ; aucun titre réel de l'agenda n'est lu ni affiché.
+ */
+async function cycleEcritureAgenda() {
+  const jour = "2027-01-15";
+  const titre = "Essai recette MaxHome (à supprimer)";
+  const saisie = { titre, personne: "Famille", debut: jour, fin: jour, heureDebut: null, heureFin: null };
+  const connexion = await fetch(`${URL_SB}/auth/v1/token?grant_type=password`, {
+    method: "POST", headers: { apikey: CLE, "Content-Type": "application/json" },
+    body: JSON.stringify({ email: env.EMAIL_YANN, password: env.PASS_YANN }),
+  });
+  const { access_token: jeton } = await connexion.json();
+  if (!jeton) throw new Error("Agenda écriture : connexion directe refusée");
+  // Même contrat que sb.functions.invoke de supabase-js : { data } ou { error } portant la Response dans `context`.
+  const invoke = async (nom, { body }) => {
+    const r = await fetch(`${URL_SB}/functions/v1/${nom}`, {
+      method: "POST", headers: { apikey: CLE, Authorization: `Bearer ${jeton}`, "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    return r.ok ? { data: await r.json(), error: null } : { data: null, error: { message: `HTTP ${r.status}`, context: r } };
+  };
+  const { creerApi } = await import("../frontend/socle/api.js");
+  const api = creerApi({ functions: { invoke } });
+  const listeDuJour = async () => (await api.agendaGoogle(jour, jour)).filter((e) => e.titre.startsWith("Essai recette MaxHome"));
+  let id = null;
+  try {
+    const refus = await api.creerEvenement({ ...saisie, titre: "" }).then(() => null, (e) => e.message);
+    if (!/titre/i.test(refus ?? "")) throw new Error("Agenda écriture : un titre vide doit être refusé avec un message lisible");
+    const cree = await api.creerEvenement(saisie);
+    id = cree.id;
+    if (!id || cree.debut !== jour || cree.fin !== jour || cree.heureDebut !== null || cree.personne !== "Famille") {
+      throw new Error("Agenda écriture : l'événement créé ne ressemble pas à la saisie");
+    }
+    let lu = (await listeDuJour()).find((e) => e.id === id);
+    if (!lu || lu.titre !== titre || lu.personne !== "Famille") throw new Error("Agenda écriture : l'événement créé n'est pas relu");
+    const modifie = await api.modifierEvenement(id, { ...saisie, titre: `${titre} (modifié)` });
+    if (modifie.id !== id || !modifie.titre.endsWith("(modifié)")) throw new Error("Agenda écriture : la modification n'est pas rendue");
+    lu = (await listeDuJour()).find((e) => e.id === id);
+    if (!lu?.titre.endsWith("(modifié)")) throw new Error("Agenda écriture : la modification n'est pas relue");
+    await api.supprimerEvenement(id);
+    if ((await listeDuJour()).some((e) => e.id === id)) throw new Error("Agenda écriture : l'événement supprimé est encore listé");
+    id = null;
+    console.log("Agenda Google : cycle créer / relire / modifier / supprimer OK");
+  } finally {
+    if (id) await api.supprimerEvenement(id).catch(() => console.error("Agenda écriture : l'événement d'essai n'a pas pu être supprimé, à retirer à la main (15 janvier 2027)"));
+  }
+}
 
 async function connecter(page) {
   await page.goto(`http://localhost:${PORT}/#2026-2`);
@@ -408,6 +459,7 @@ try {
   if (agenda.statut !== 200) throw new Error(`Agenda : agenda-google a répondu HTTP ${agenda.statut}`);
   if (!agenda.n) throw new Error("Agenda : agenda-google a répondu 200 sans tableau `evenements` non vide");
   console.log(`Agenda Google : HTTP 200, ${agenda.n} événement(s)`);
+  await cycleEcritureAgenda();
   await aller(pc, "voyages", "#ecran-voyages:not([hidden]) #liste-voyages .rec, #ecran-voyages:not([hidden]) #liste-voyages .vide", "taches-rec");
   await pc.screenshot({ path: path.join(SORTIE, "voyages-pc.png"), fullPage: true });
   console.log("Écran Voyages rendu (PC)");

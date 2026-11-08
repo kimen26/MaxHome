@@ -4,15 +4,15 @@
 
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
-  bornesGoogle, convertirEvenement, convertirEvenements, decalerJour, MAX_JOURS, ORIGINE_PROD, origineAutorisee,
-  TITRE_VIDE, validerPeriode,
+  bornesGoogle, CLE_PERSONNE, convertirEvenement, convertirEvenements, corpsGoogle, decalerJour, MAX_JOURS, ORIGINE_PROD,
+  origineAutorisee, TITRE_MAX, TITRE_VIDE, validerId, validerPeriode, validerSaisie, type EvenementGoogle, type Saisie,
 } from "./evenements.ts";
 
 Deno.test("journée entière : end.date exclusive devient une fin inclusive", () => {
   const e = convertirEvenement({
     id: "x1", summary: "Voyage test", start: { date: "2026-11-30" }, end: { date: "2026-12-05" },
   });
-  assertEquals(e, { id: "x1", titre: "Voyage test", debut: "2026-11-30", fin: "2026-12-04", heureDebut: null, heureFin: null });
+  assertEquals(e, { id: "x1", titre: "Voyage test", debut: "2026-11-30", fin: "2026-12-04", heureDebut: null, heureFin: null, personne: null });
 });
 
 Deno.test("journée entière d'un seul jour : début = fin", () => {
@@ -34,7 +34,7 @@ Deno.test("événement horaire : heures lues dans la chaîne, sans conversion", 
   const e = convertirEvenement({
     id: "x4", summary: "Piscine", start: { dateTime: "2026-11-07T10:40:00+01:00" }, end: { dateTime: "2026-11-07T11:30:00+01:00" },
   });
-  assertEquals(e, { id: "x4", titre: "Piscine", debut: "2026-11-07", fin: "2026-11-07", heureDebut: "10:40", heureFin: "11:30" });
+  assertEquals(e, { id: "x4", titre: "Piscine", debut: "2026-11-07", fin: "2026-11-07", heureDebut: "10:40", heureFin: "11:30", personne: null });
 });
 
 Deno.test("heure d'été : le décalage +02:00 ne change pas le jour ni l'heure lus", () => {
@@ -59,7 +59,7 @@ Deno.test("aucun champ en plus : ni description, ni participants, ni lieu", () =
     start: { date: "2026-11-04" }, end: { date: "2026-11-05" },
   };
   const e = convertirEvenement(brut);
-  assertEquals(Object.keys(e ?? {}).sort(), ["debut", "fin", "heureDebut", "heureFin", "id", "titre"]);
+  assertEquals(Object.keys(e ?? {}).sort(), ["debut", "fin", "heureDebut", "heureFin", "id", "personne", "titre"]);
   assertEquals(JSON.stringify(e).includes("SECRET"), false);
   assertEquals(JSON.stringify(e).includes("ADRESSE"), false);
 });
@@ -115,4 +115,117 @@ Deno.test("origineAutorisee : site et localhost renvoyés tels quels, le reste r
     "http://localhost:3000.evil.example", "https://kimen26.github.io.evil.example"]) {
     assertEquals(origineAutorisee(o), ORIGINE_PROD, String(o));
   }
+});
+
+// ---------- « pour qui » lu dans l'événement ----------
+
+Deno.test("personne : lue dans extendedProperties.private, null si absente ou inconnue", () => {
+  const base = { id: "p", summary: "Garde", start: { date: "2026-11-04" }, end: { date: "2026-11-05" } };
+  const avec = (v?: string): EvenementGoogle => ({ ...base, extendedProperties: { private: v === undefined ? {} : { [CLE_PERSONNE]: v } } });
+  assertEquals(convertirEvenement(avec("Claudia"))?.personne, "Claudia");
+  assertEquals(convertirEvenement(avec("Famille"))?.personne, "Famille");
+  assertEquals(convertirEvenement(avec("Inconnu"))?.personne, null);
+  assertEquals(convertirEvenement(avec())?.personne, null);
+  assertEquals(convertirEvenement(base)?.personne, null);
+  const horaire = convertirEvenement({
+    id: "q", start: { dateTime: "2026-11-07T10:40:00+01:00" }, end: { dateTime: "2026-11-07T11:30:00+01:00" },
+    extendedProperties: { private: { [CLE_PERSONNE]: "Max" } },
+  });
+  assertEquals(horaire?.personne, "Max");
+});
+
+// ---------- écriture : validation ----------
+
+const bonne = { titre: "Piscine", personne: "Max", debut: "2027-01-15", fin: "2027-01-15" };
+const erreurDe = (corps: unknown) => {
+  const r = validerSaisie(corps);
+  return "erreur" in r ? r.erreur : null;
+};
+
+Deno.test("saisie valide : titre rogné, heures absentes → journée entière", () => {
+  const attendue: Saisie = { titre: "Piscine", personne: "Max", debut: "2027-01-15", fin: "2027-01-15", heureDebut: null, heureFin: null };
+  assertEquals(validerSaisie({ ...bonne, titre: "  Piscine  " }), attendue);
+  assertEquals(validerSaisie({ ...bonne, heureDebut: "", heureFin: null }), attendue);
+  assertEquals(validerSaisie({ ...bonne, fin: "2027-01-17" }), { ...attendue, fin: "2027-01-17" });
+});
+
+Deno.test("titre : 1 à 200 caractères après rognage", () => {
+  assertEquals(erreurDe({ ...bonne, titre: "" }), "Donnez un titre à l'événement.");
+  assertEquals(erreurDe({ ...bonne, titre: "   " }), "Donnez un titre à l'événement.");
+  assertEquals(erreurDe({ ...bonne, titre: 12 }), "Donnez un titre à l'événement.");
+  assertEquals(erreurDe({ ...bonne, titre: "x".repeat(TITRE_MAX) }), null);
+  assertEquals(erreurDe({ ...bonne, titre: ` ${"x".repeat(TITRE_MAX)} ` }), null);
+  assertEquals(erreurDe({ ...bonne, titre: "x".repeat(TITRE_MAX + 1) })?.includes("trop long"), true);
+});
+
+Deno.test("personne : Max, Yann, Claudia ou Famille, rien d'autre", () => {
+  for (const p of ["Max", "Yann", "Claudia", "Famille"]) assertEquals(erreurDe({ ...bonne, personne: p }), null, p);
+  for (const p of ["max", "Maxime", "", null, undefined, 3]) {
+    assertEquals(erreurDe({ ...bonne, personne: p })?.startsWith("Choisissez pour qui"), true, String(p));
+  }
+});
+
+Deno.test("dates : réelles, fin >= début", () => {
+  assertEquals(erreurDe({ ...bonne, debut: "2027-02-30", fin: "2027-03-01" })?.includes("début"), true);
+  assertEquals(erreurDe({ ...bonne, debut: "15/01/2027" })?.includes("début"), true);
+  assertEquals(erreurDe({ ...bonne, fin: "2027-13-01" })?.includes("fin"), true);
+  assertEquals(erreurDe({ ...bonne, fin: undefined })?.includes("fin"), true);
+  assertEquals(erreurDe({ ...bonne, fin: "2027-01-14" }), "La date de fin est avant la date de début.");
+  assertEquals(erreurDe({ ...bonne, debut: "2028-02-29", fin: "2028-02-29" }), null);
+});
+
+Deno.test("heures : les deux ou aucune, HH:MM valides, même jour, fin après début", () => {
+  assertEquals(erreurDe({ ...bonne, heureDebut: "10:00", heureFin: "11:30" }), null);
+  assertEquals(erreurDe({ ...bonne, heureDebut: "00:00", heureFin: "23:59" }), null);
+  assertEquals(erreurDe({ ...bonne, heureDebut: "10:00" })?.startsWith("Indiquez les deux heures"), true);
+  assertEquals(erreurDe({ ...bonne, heureFin: "10:00" })?.startsWith("Indiquez les deux heures"), true);
+  for (const h of ["24:00", "9:00", "10:60", "10h30", "abc", 1030]) {
+    assertEquals(erreurDe({ ...bonne, heureDebut: h, heureFin: "23:00" })?.includes("heure de début"), true, String(h));
+  }
+  assertEquals(erreurDe({ ...bonne, heureDebut: "10:00", heureFin: "25:00" })?.includes("heure de fin"), true);
+  assertEquals(erreurDe({ ...bonne, heureDebut: "10:00", heureFin: "10:00" }), "L'heure de fin doit être après l'heure de début.");
+  assertEquals(erreurDe({ ...bonne, heureDebut: "11:00", heureFin: "10:00" }), "L'heure de fin doit être après l'heure de début.");
+  assertEquals(erreurDe({ ...bonne, fin: "2027-01-16", heureDebut: "10:00", heureFin: "11:00" })?.includes("un seul jour"), true);
+});
+
+Deno.test("corps de la demande : objet obligatoire", () => {
+  for (const c of [null, undefined, "x", 3]) assertEquals(erreurDe(c), "Demande illisible.");
+});
+
+Deno.test("id : caractères d'un id Google, jamais / ? # ni vide", () => {
+  for (const id of ["abc123", "a_b-c", "k4t5n9_20261115T100000Z", "x".repeat(1024)]) assertEquals(validerId(id), { id }, id.slice(0, 20));
+  for (const id of ["", "a/b", "a?b", "a#b", "a b", "../x", "x".repeat(1025), null, undefined, 5]) {
+    assertEquals("erreur" in validerId(id), true, String(id));
+  }
+});
+
+// ---------- écriture : corps envoyé à Google ----------
+
+const saisie = (o: Partial<Saisie> = {}): Saisie => ({
+  titre: "Piscine", personne: "Max", debut: "2027-01-15", fin: "2027-01-15", heureDebut: null, heureFin: null, ...o,
+});
+
+Deno.test("création en journée entière : end.date exclusive, personne en propriété privée", () => {
+  assertEquals(corpsGoogle(saisie(), false), {
+    summary: "Piscine", start: { date: "2027-01-15" }, end: { date: "2027-01-16" },
+    extendedProperties: { private: { [CLE_PERSONNE]: "Max" } },
+  });
+  assertEquals((corpsGoogle(saisie({ fin: "2027-01-31" }), false).end as { date: string }).date, "2027-02-01", "fin exclusive franchit le mois");
+  assertEquals((corpsGoogle(saisie({ debut: "2026-12-31", fin: "2026-12-31" }), false).end as { date: string }).date, "2027-01-01");
+});
+
+Deno.test("création horaire : dateTime sans décalage + fuseau de Paris", () => {
+  const c = corpsGoogle(saisie({ heureDebut: "09:30", heureFin: "11:00", personne: "Famille" }), false);
+  assertEquals(c.start, { dateTime: "2027-01-15T09:30:00", timeZone: "Europe/Paris" });
+  assertEquals(c.end, { dateTime: "2027-01-15T11:00:00", timeZone: "Europe/Paris" });
+  assertEquals(c.extendedProperties, { private: { [CLE_PERSONNE]: "Famille" } });
+});
+
+Deno.test("modification : l'autre forme de date est mise à null, aucun champ hors périmètre", () => {
+  const journee = corpsGoogle(saisie(), true);
+  assertEquals(journee.start, { date: "2027-01-15", dateTime: null, timeZone: null });
+  assertEquals(journee.end, { date: "2027-01-16", dateTime: null, timeZone: null });
+  const horaire = corpsGoogle(saisie({ heureDebut: "09:30", heureFin: "11:00" }), true);
+  assertEquals(horaire.start, { dateTime: "2027-01-15T09:30:00", timeZone: "Europe/Paris", date: null });
+  assertEquals(Object.keys(journee).sort(), ["end", "extendedProperties", "start", "summary"], "ni description ni rappels");
 });

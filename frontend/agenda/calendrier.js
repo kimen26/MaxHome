@@ -96,11 +96,25 @@ export const QUI = [...PERSONNES, FAMILLE];
 const sansAccent = (t) => String(t ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
 /**
- * Qui concerne un événement du foyer : le prénom (Max, Yann, Claudia — mot entier, sans casse)
- * qui apparaît LE PLUS TÔT dans le titre ; aucun prénom : « Famille ».
+ * Mots qui gardent un événement hors des pastilles de la grille : il reste dans la liste sous la
+ * grille. Comparés sans accent ni casse (« Télétravail », « TELETRAVAIL »).
+ */
+export const MOTS_SANS_PASTILLE = ["télétravail"];
+
+/** Le titre contient-il un mot de MOTS_SANS_PASTILLE ? */
+export const sansPastille = (titre) => {
+  const texte = sansAccent(titre);
+  return MOTS_SANS_PASTILLE.some((mot) => texte.includes(sansAccent(mot)));
+};
+
+/**
+ * Qui concerne un événement du foyer. La personne choisie dans l'app (`personne`, posée à la
+ * création) l'emporte ; sinon le prénom (Max, Yann, Claudia — mot entier, sans casse) qui
+ * apparaît LE PLUS TÔT dans le titre ; aucun prénom : « Famille ».
  * « Max avec Yann » → Max ; « Parc Astérix en famille » → Famille.
  */
-export function personneDe(titre) {
+export function personneDe(titre, personne = null) {
+  if (QUI.includes(personne)) return personne;
   const texte = String(titre ?? "");
   let meilleur = { qui: FAMILLE, pos: Infinity };
   for (const qui of PERSONNES) {
@@ -132,7 +146,7 @@ const estDoublonFerie = (e, fer) =>
  * Événements qui touchent un mois, toutes sources confondues, triés par début puis par type
  * (vacances, voyage, férié, foyer = agenda Google). Chaque événement garde son type pour que
  * l'affichage le nomme — jamais la couleur seule (rules/mobile-parents.md). Les événements
- * Google gardent leur `heureDebut` et reçoivent `qui` (personneDe).
+ * Google gardent leur `heureDebut` et reçoivent `qui` (personneDe) et `sansPastille`.
  */
 export function evenementsDuMois(annee, mois, { vacances = [], voyages = [], feries: fer = [], google = [] } = {}) {
   const bornes = bornesMois(annee, mois);
@@ -141,7 +155,9 @@ export function evenementsDuMois(annee, mois, { vacances = [], voyages = [], fer
     ...vacances.map((v) => ({ ...v, type: "vacances" })),
     ...voyages.map((v) => ({ ...v, type: "voyage" })),
     ...fer.map((f) => ({ ...f, type: "ferie" })),
-    ...google.filter((g) => g && !doublons(g)).map((g) => ({ ...g, type: "foyer", qui: personneDe(g.titre) })),
+    ...google.filter((g) => g && !doublons(g)).map((g) => ({
+      ...g, type: "foyer", qui: personneDe(g.titre, g.personne), sansPastille: sansPastille(g.titre),
+    })),
   ]
     .filter((e) => e?.debut && e?.fin && chevauche(e, bornes))
     .sort(comparerEvenements);
@@ -150,9 +166,11 @@ export function evenementsDuMois(annee, mois, { vacances = [], voyages = [], fer
 /** Événements (déjà triés) qui couvrent un jour. */
 export const evenementsDuJour = (evenements, iso) => evenements.filter((e) => couvre(e, iso));
 
-/** Personnes présentes un jour (événements du foyer), dans l'ordre de QUI, sans doublon. */
+/** Personnes présentes un jour (événements du foyer), dans l'ordre de QUI, sans doublon. Un événement
+ *  « sans pastille » (télétravail) ne compte pas : il reste dans la liste, pas dans les cases. */
 export function personnesDuJour(evenements, iso) {
-  const presentes = new Set(evenementsDuJour(evenements, iso).filter((e) => e.type === "foyer").map((e) => e.qui));
+  const presentes = new Set(evenementsDuJour(evenements, iso)
+    .filter((e) => e.type === "foyer" && !e.sansPastille).map((e) => e.qui));
   return QUI.filter((q) => presentes.has(q));
 }
 

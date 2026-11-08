@@ -1,8 +1,23 @@
 // Accès Supabase — aucune logique UI ici.
 
+/** Erreur d'une Edge Function : le message en français que la fonction a écrit (`erreur`), pas le
+ *  « non-2xx status code » générique du client. Repli sur l'erreur d'origine si le corps est illisible. */
+export async function erreurDeFonction(error) {
+  try {
+    const corps = await error?.context?.json?.();
+    if (typeof corps?.erreur === "string" && corps.erreur) return new Error(corps.erreur);
+  } catch { /* corps absent ou pas du JSON : on garde l'erreur d'origine */ }
+  return error;
+}
+
 export function creerApi(sb) {
   const filtre = (q, annee, mois) => q.eq("annee", annee).eq("mois", mois);
   const rendre = ({ data, error }) => { if (error) throw error; return data; };
+  const ecrireAgenda = async (corps) => {
+    const { data, error } = await sb.functions.invoke("agenda-google", { body: corps });
+    if (error) throw await erreurDeFonction(error);
+    return data;
+  };
 
   return {
     auth: {
@@ -195,6 +210,11 @@ export function creerApi(sb) {
       const r = rendre(await sb.functions.invoke("agenda-google", { body: { debut, fin } }));
       return r?.evenements ?? [];
     },
+    /** Écritures dans l'agenda Google du foyer (même Edge Function, `action` dans le corps).
+     *  `saisie` : { titre, personne, debut, fin, heureDebut, heureFin } (voir saisie-evenement.js). */
+    creerEvenement: async (saisie) => (await ecrireAgenda({ action: "creer", ...saisie })).evenement,
+    modifierEvenement: async (id, saisie) => (await ecrireAgenda({ action: "modifier", id, ...saisie })).evenement,
+    supprimerEvenement: (id) => ecrireAgenda({ action: "supprimer", id }),
     async voyageCompteurs() {
       const [lieux, resas, enveloppes, resumes] = await Promise.all([
         sb.from("voyage_lieux").select("voyage_id").then(rendre),

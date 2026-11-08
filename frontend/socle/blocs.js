@@ -188,12 +188,13 @@ export function fermerPanneau(selecteurAside) {
  *  chaque bouton porte `data-<attr>="<valeur>"`. `colonne` : une seule colonne pleine largeur
  *  (socle.css `.choix-detaille.colonne`) au lieu de la grille auto-fit — pour des détails longs
  *  qui ne doivent jamais se retrouver compressés à deux colonnes (ex. une adresse complète,
- *  relecture carnet-voyage §C). */
+ *  relecture carnet-voyage §C). `marque` : HTML déjà sûr placé avant le titre (ex. la pastille
+ *  colorée d'une personne, Agenda) — la couleur s'ajoute au titre, elle ne le remplace jamais. */
 export const choixDetaille = (options, choisi, { attr = "choix", etiquette = "", colonne = false } = {}) =>
-  `<div class="choix-detaille${colonne ? " colonne" : ""}" role="radiogroup"${etiquette ? ` aria-label="${txt(etiquette)}"` : ""}>${options.map(({ valeur, titre, detail = "" }) => {
+  `<div class="choix-detaille${colonne ? " colonne" : ""}" role="radiogroup"${etiquette ? ` aria-label="${txt(etiquette)}"` : ""}>${options.map(({ valeur, titre, detail = "", marque = "" }) => {
     const actif = valeur === choisi;
     return `<button type="button" role="radio" aria-checked="${actif}" class="choix-option${actif ? " actif" : ""}" data-${attr}="${txt(valeur)}">
-      <span class="choix-titre">${txt(titre)}</span>${detail ? `<span class="choix-detail">${txt(detail)}</span>` : ""}</button>`;
+      <span class="choix-titre">${marque}${txt(titre)}</span>${detail ? `<span class="choix-detail">${txt(detail)}</span>` : ""}</button>`;
   }).join("")}</div>`;
 
 /** Coche `bouton` dans son `choixDetaille` sans re-rendu (feuille en cours de saisie). */

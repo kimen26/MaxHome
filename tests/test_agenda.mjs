@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { paques, feries, grilleMois, evenementsDuMois, prochaines, nbJours, formatPeriode, relatif,
-  couvre, chevauche, personneDe, personnesDuJour, evenementsDuJour, joursDuMois, formatHeure, QUI } from "../frontend/agenda/calendrier.js";
+  couvre, chevauche, personneDe, personnesDuJour, evenementsDuJour, joursDuMois, formatHeure, QUI,
+  sansPastille, MOTS_SANS_PASTILLE } from "../frontend/agenda/calendrier.js";
+import { valeursInitiales, finSuivantDebut, saisieEvenement } from "../frontend/agenda/saisie-evenement.js";
+import { creerApi } from "../frontend/socle/api.js";
 import { parserVacances, chargerVacances, jourParis, cleCache, TTL_CACHE_MS } from "../frontend/agenda/vacances.js";
 import { lieuxParJour, totauxResas, joursAvant, CATEGORIES_LIEU, TYPES_RESA,
   POSTES, TYPES_BLOC, posteDe, budgetParPoste, prochaineEtape, couleurVoyage, TEINTES_VOYAGE,
@@ -115,7 +118,7 @@ assert.deepEqual(evenementsDuJour(evG, "2026-11-11").map((e) => e.type), ["voyag
   "même jour : voyage, férié, puis le foyer (rang des types)");
 
 // Pastilles : une par personne présente, dans l'ordre Max, Yann, Claudia, Famille.
-assert.deepEqual(personnesDuJour(evG, "2026-11-07"), ["Max", "Claudia"], "deux événements de Max : une seule pastille");
+assert.deepEqual(personnesDuJour(evG, "2026-11-07"), ["Max"], "deux événements de Max : une seule pastille ; le télétravail de Claudia n'en donne pas");
 assert.deepEqual(personnesDuJour(evG, "2026-11-02"), ["Yann"], "événement sur plusieurs jours : présent chaque jour couvert");
 assert.deepEqual(personnesDuJour(evG, "2026-11-20"), [], "aucun événement : aucune pastille");
 assert.deepEqual(personnesDuJour(evG, "2026-11-01"), ["Yann"], "le voyage ou le férié n'ajoute aucune pastille, Lyon oui");
@@ -369,5 +372,79 @@ assert.deepEqual(sections.idees.find((g) => g.categorie === "resto").lieux.map((
   "Resto C est au programme (réservé), pas ici");
 assert.deepEqual(sections.ecartes.map((l) => l.nom), ["Vieux pont"]);
 assert.deepEqual(sectionsLieux([], []), { programme: [], idees: [], ecartes: [] }, "aucun lieu : tout vide");
+
+// ---------- télétravail : dans la liste, jamais dans les pastilles ----------
+assert.deepEqual(MOTS_SANS_PASTILLE, ["télétravail"]);
+for (const titre of ["Claudia télétravail", "TELETRAVAIL Claudia", "Télétravail", "Claudia en TÉLÉTRAVAIL", "teletravail chez Max"]) {
+  assert.ok(sansPastille(titre), `« ${titre} » : sans pastille (casse et accents ignorés)`);
+}
+for (const titre of ["Claudia en réunion", "Travail à distance", "Tél. travail", "", null]) assert.ok(!sansPastille(titre), `« ${titre} » : pastille normale`);
+const evTT = evenementsDuMois(2026, 11, { feries: [], google: [
+  g("t1", "Claudia télétravail", "2026-11-18", "2026-11-18"),
+  g("t2", "Télétravail", "2026-11-19", "2026-11-19"),
+  g("t3", "Piscine Max", "2026-11-19", "2026-11-19", "10:00"),
+] });
+assert.deepEqual(personnesDuJour(evTT, "2026-11-18"), [], "jour avec seulement du télétravail : aucune pastille");
+assert.deepEqual(personnesDuJour(evTT, "2026-11-19"), ["Max"], "télétravail + piscine : seule la piscine donne une pastille");
+assert.deepEqual(evenementsDuJour(evTT, "2026-11-18").map((e) => e.titre), ["Claudia télétravail"], "mais la ligne existe");
+assert.deepEqual(joursDuMois(evTT, 2026, 11).map((j) => j.iso), ["2026-11-18", "2026-11-19"], "et reste dans la liste sous la grille");
+assert.equal(evTT[0].qui, "Claudia", "la personne reste connue pour l'étiquette de la liste");
+
+// ---------- « pour qui » choisi dans l'app : prime sur le titre ----------
+assert.equal(personneDe("Piscine Max", "Yann"), "Yann", "personne enregistrée > prénom du titre");
+assert.equal(personneDe("Garde du mercredi", "Claudia"), "Claudia");
+assert.equal(personneDe("Max au foot", "Famille"), "Famille", "Famille choisie explicitement l'emporte aussi");
+assert.equal(personneDe("Piscine Max", null), "Max", "pas de personne : règle du titre");
+assert.equal(personneDe("Piscine Max", "Inconnu"), "Max", "personne inconnue ignorée");
+assert.equal(evenementsDuMois(2026, 11, { feries: [], google: [{ ...g("p", "Piscine Max", "2026-11-05", "2026-11-05"), personne: "Yann" }] })[0].qui,
+  "Yann", "evenementsDuMois applique la personne enregistrée");
+
+// ---------- saisie du formulaire d'événement ----------
+const cree = valeursInitiales({ jour: "2027-01-15", prenom: "Claudia" });
+assert.deepEqual(cree, { titre: "", personne: "Claudia", toute: true, debut: "2027-01-15", fin: "2027-01-15", heureDebut: "09:00", heureFin: "10:00" });
+assert.equal(valeursInitiales({ jour: "2027-01-15", prenom: "Papi" }).personne, "Famille", "prénom hors liste : Famille");
+assert.deepEqual(valeursInitiales({ jour: "x", evenement: { titre: "Foot", qui: "Max", debut: "2027-01-15", fin: "2027-01-15", heureDebut: "18:00", heureFin: "19:30" } }),
+  { titre: "Foot", personne: "Max", toute: false, debut: "2027-01-15", fin: "2027-01-15", heureDebut: "18:00", heureFin: "19:30" });
+assert.equal(valeursInitiales({ jour: "x", evenement: { titre: "Garde", qui: "Famille", debut: "2027-01-15", fin: "2027-01-16", heureDebut: null, heureFin: null } }).toute, true);
+assert.equal(finSuivantDebut("2027-01-15", "2027-01-20", "2027-01-15"), "2027-01-20", "fin = ancien début : elle suit");
+assert.equal(finSuivantDebut("2027-01-15", "2027-01-20", "2027-01-25"), "2027-01-25", "fin plus loin : gardée");
+assert.equal(finSuivantDebut("2027-01-15", "2027-01-20", "2027-01-18"), "2027-01-20", "fin avant le nouveau début : ramenée");
+assert.equal(finSuivantDebut("2027-01-15", "2027-01-20", ""), "2027-01-20");
+
+const baseSaisie = { titre: " Piscine ", personne: "Max", toute: true, debut: "2027-01-15", fin: "2027-01-16", heureDebut: "09:00", heureFin: "10:00" };
+assert.deepEqual(saisieEvenement(baseSaisie), { titre: "Piscine", personne: "Max", debut: "2027-01-15", fin: "2027-01-16", heureDebut: null, heureFin: null },
+  "journée entière : heures ignorées même si le formulaire en porte");
+assert.deepEqual(saisieEvenement({ ...baseSaisie, toute: false, fin: "2027-01-15" }),
+  { titre: "Piscine", personne: "Max", debut: "2027-01-15", fin: "2027-01-15", heureDebut: "09:00", heureFin: "10:00" });
+const refus = (v, extrait) => assert.throws(() => saisieEvenement({ ...baseSaisie, ...v }), (e) => e.message.includes(extrait), JSON.stringify(v));
+refus({ titre: "   " }, "titre");
+refus({ titre: null }, "titre");
+refus({ titre: "x".repeat(201) }, "trop long");
+refus({ personne: "Papi" }, "pour qui");
+refus({ personne: null }, "pour qui");
+refus({ debut: null }, "début");
+refus({ fin: "" }, "fin");
+refus({ fin: "2027-01-14" }, "avant");
+refus({ toute: false, heureDebut: null }, "heure de début et l’heure de fin");
+refus({ toute: false, fin: "2027-01-15", heureFin: "" }, "heure de début et l’heure de fin");
+refus({ toute: false }, "un seul jour");
+refus({ toute: false, fin: "2027-01-15", heureDebut: "10:00", heureFin: "10:00" }, "après");
+assert.doesNotThrow(() => saisieEvenement({ ...baseSaisie, titre: "x".repeat(200) }));
+
+// ---------- api : écritures Agenda ----------
+const appelsAgenda = [];
+const fauxAgenda = (reponse) => creerApi({ functions: { invoke: async (nom, { body }) => { appelsAgenda.push({ nom, body }); return reponse; } } });
+const ok = fauxAgenda({ data: { evenement: { id: "e1", titre: "Piscine" }, ok: true }, error: null });
+const saisieApi = { titre: "Piscine", personne: "Max", debut: "2027-01-15", fin: "2027-01-15", heureDebut: null, heureFin: null };
+assert.deepEqual(await ok.creerEvenement(saisieApi), { id: "e1", titre: "Piscine" });
+assert.deepEqual(await ok.modifierEvenement("e1", saisieApi), { id: "e1", titre: "Piscine" });
+assert.deepEqual(await ok.supprimerEvenement("e1"), { evenement: { id: "e1", titre: "Piscine" }, ok: true });
+assert.deepEqual(appelsAgenda.map((a) => [a.nom, a.body.action, a.body.id ?? null]),
+  [["agenda-google", "creer", null], ["agenda-google", "modifier", "e1"], ["agenda-google", "supprimer", "e1"]]);
+assert.equal(appelsAgenda[0].body.titre, "Piscine", "la saisie part à plat dans le corps");
+const refuse = fauxAgenda({ data: null, error: { message: "Edge Function returned a non-2xx status code", context: { json: async () => ({ erreur: "Donnez un titre à l'événement." }) } } });
+await assert.rejects(() => refuse.creerEvenement(saisieApi), { message: "Donnez un titre à l'événement." });
+const illisible = { message: "Edge Function returned a non-2xx status code", context: { json: async () => { throw new Error("pas du JSON"); } } };
+await assert.rejects(() => fauxAgenda({ data: null, error: illisible }).supprimerEvenement("e1"), { message: "Edge Function returned a non-2xx status code" });
 
 console.log("test_agenda OK");

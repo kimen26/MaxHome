@@ -87,6 +87,46 @@ async function choisirOnglet(page, onglet) {
   await page.waitForTimeout(150);
 }
 
+/** Attend que le formulaire d'événement de l'Agenda soit affiché ET posé (la feuille glisse en 200 ms). */
+async function attendreFeuilleAgenda(page) {
+  await page.waitForSelector("#feuille-corps [data-agenda-form]", { timeout: 3000 });
+  await page.waitForFunction(() => {
+    const f = document.querySelector("#feuille");
+    return f && !f.hidden && !f.classList.contains("entrante");
+  }, null, { timeout: 3000 });
+  await page.waitForTimeout(250);
+}
+
+/** Bouton « Ajouter un événement » : >= 56 px de haut ; pleine largeur de son bloc sur mobile (< 640 px). */
+async function mesurerBoutonAjout(page) {
+  const m = await page.evaluate(() => {
+    const b = document.querySelector("#agenda-ajouter").getBoundingClientRect();
+    const g = document.querySelector("#agenda-grille").getBoundingClientRect();
+    return { h: b.height, l: b.width, grille: g.width, mobile: window.innerWidth < 640 };
+  });
+  if (m.h < 55.5) throw new Error(`bouton Ajouter ${Math.round(m.h)} px de haut (56 attendus)`);
+  if (m.mobile && m.l < m.grille - 1) throw new Error(`bouton Ajouter ${Math.round(m.l)} px, pas pleine largeur (${Math.round(m.grille)})`);
+}
+
+/** Formulaire d'événement : cibles tactiles >= 48 px, nombre de choix et pastille + prénom sur chacun. */
+async function mesurerFormulaireAgenda(page) {
+  const defauts = await page.evaluate(() => {
+    const defauts = [];
+    const cibles = "#feuille-corps .choix-option, #feuille-corps .champ, #feuille-corps .case-a-cocher, "
+      + "#feuille-corps .agenda-valider, #feuille-corps [data-supprimer]";
+    for (const el of document.querySelectorAll(cibles)) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      if (r.width < 47.5 || r.height < 47.5) defauts.push(`cible ${el.className || el.tagName} ${Math.round(r.width)}x${Math.round(r.height)} px`);
+    }
+    const options = [...document.querySelectorAll("#feuille-corps .choix-option")];
+    if (options.length !== 4) defauts.push(`${options.length} boutons « pour qui » au lieu de 4`);
+    for (const o of options) if (!o.querySelector(".agenda-qui") || !o.textContent.trim()) defauts.push("choix sans pastille ou sans prénom");
+    return defauts;
+  });
+  if (defauts.length) throw new Error(`formulaire agenda : ${[...new Set(defauts)].slice(0, 6).join(" ; ")}`);
+}
+
 /** Mesures de la fiche affichée : cibles tactiles >= 48 px, contraste des textes de statut >= 4.5:1.
  *  Une mesure, pas un coup d'œil (L-016) ; lève une erreur qui range le geste parmi les écrans cassés. */
 async function verifierFiche(page) {
@@ -207,6 +247,89 @@ const GESTES = [
       await page.click("#agenda-auj");
       await page.click('#agenda-grille [data-jour][aria-label$="rien de prévu"]');
       await page.waitForFunction(() => /Rien de prévu ce jour-là\./.test(document.querySelector("#agenda-evenements")?.textContent ?? ""));
+    } },
+  // Écriture dans l'agenda Google (formulaire en feuille, blocs-form + choixDetaille). Trois états à
+  // regarder : le formulaire d'ajout ouvert depuis un jour choisi, celui d'une modification (ligne
+  // touchée, champs préremplis, bouton Supprimer), et un jour avec du seul télétravail (aucune pastille,
+  // la ligne reste dans la liste). Les mesures (cibles >= 48 px, bouton principal >= 56 px) sont des
+  // mesures, pas un coup d'oeil (L-016).
+  { ecran: "agenda-mois", moduleDefaut: "agenda-mois", nom: "agenda-ajout",
+    geste: async (page) => {
+      await page.click("#agenda-auj");
+      await page.click('#agenda-grille [data-jour$="-12"]');
+      await mesurerBoutonAjout(page);
+      await page.click("#agenda-ajouter");
+      await attendreFeuilleAgenda(page);
+      if (!(await page.inputValue('#feuille-corps [name="debut"]')).endsWith("-12")) throw new Error("ajout : le formulaire ne part pas du jour choisi");
+      if (!(await page.inputValue('#feuille-corps [name="fin"]')).endsWith("-12")) throw new Error("ajout : « Au » doit valoir « Du » au départ");
+      if (!(await page.isChecked('#feuille-corps [name="toute"]'))) throw new Error("ajout : « Toute la journée » doit être cochée au départ");
+      if (await page.locator("#feuille-corps [data-supprimer]").count()) throw new Error("ajout : pas de bouton Supprimer sur un nouvel événement");
+      await mesurerFormulaireAgenda(page);
+    } },
+  { ecran: "agenda-mois", moduleDefaut: "agenda-mois", nom: "agenda-modif",
+    geste: async (page) => {
+      await page.click("#agenda-auj");
+      await page.click('#agenda-grille [data-jour$="-07"]');
+      await page.click('#agenda-evenements [data-evt="fictif-1"]'); // « Piscine Max » 10:40 → 11:30
+      await attendreFeuilleAgenda(page);
+      if ((await page.inputValue('#feuille-corps [name="titre"]')) !== "Piscine Max") throw new Error("modif : titre non prérempli");
+      if (await page.isChecked('#feuille-corps [name="toute"]')) throw new Error("modif : événement horaire, « Toute la journée » doit être décochée");
+      if ((await page.inputValue('#feuille-corps [name="heureDebut"]')) !== "10:40") throw new Error("modif : heure de début non préremplie");
+      if (!(await page.locator('#feuille-corps [data-qui="Max"].actif').count())) throw new Error("modif : Max devrait être choisi");
+      if (!(await page.locator("#feuille-corps [data-supprimer]").isVisible())) throw new Error("modif : bouton Supprimer absent");
+      await mesurerFormulaireAgenda(page);
+    } },
+  { ecran: "agenda-mois", moduleDefaut: "agenda-mois", nom: "agenda-teletravail",
+    geste: async (page) => {
+      await page.click("#agenda-auj");
+      await page.click('#agenda-grille [data-jour$="-18"]');
+      await page.waitForFunction(() => /Claudia télétravail/.test(document.querySelector("#agenda-evenements")?.textContent ?? ""));
+      if (await page.locator('#agenda-grille [data-jour$="-18"] .agenda-qui').count()) throw new Error("télétravail : une pastille est affichée dans la case");
+      if (!(await page.locator('#agenda-evenements .agenda-evt:has-text("Claudia télétravail")').count())) throw new Error("télétravail : la ligne manque dans la liste");
+    } },
+  // Parcours complet par l'écran : erreur lisible dans la feuille, ajout horaire, modification,
+  // suppression annulée (le formulaire revient tel quel) puis confirmée. L'état fictif finit comme il a commencé.
+  { ecran: "agenda-mois", moduleDefaut: "agenda-mois", nom: "agenda-cycle",
+    geste: async (page) => {
+      const ligne = (t) => page.locator(`#agenda-evenements .agenda-evt-modifiable:has-text("${t}")`);
+      const feuilleFermee = () => page.waitForSelector("#feuille", { state: "hidden", timeout: 5000 });
+      await page.click("#agenda-auj");
+      await page.click('#agenda-grille [data-jour$="-12"]');
+      await page.click("#agenda-ajouter");
+      await attendreFeuilleAgenda(page);
+      await page.click("#feuille-corps .agenda-valider");
+      await page.waitForSelector("#feuille-corps [data-erreur]:not([hidden])", { timeout: 2000 });
+      if (!/titre/i.test(await page.textContent("#feuille-corps [data-erreur]"))) throw new Error("cycle : message d'erreur illisible");
+      await page.fill('#feuille-corps [name="titre"]', "Essai fictif");
+      await page.click('#feuille-corps [data-qui="Yann"]');
+      await page.uncheck('#feuille-corps [name="toute"]');
+      await page.fill('#feuille-corps [name="heureDebut"]', "14:00");
+      await page.fill('#feuille-corps [name="heureFin"]', "15:30");
+      await page.click("#feuille-corps .agenda-valider");
+      await feuilleFermee();
+      await ligne("Essai fictif").waitFor({ timeout: 3000 });
+      if (!/14h00/.test(await ligne("Essai fictif").innerText())) throw new Error("cycle : heure absente de la ligne ajoutée");
+      await ligne("Essai fictif").click();
+      await attendreFeuilleAgenda(page);
+      if (!(await page.locator('#feuille-corps [data-qui="Yann"].actif').count())) throw new Error("cycle : Yann devrait être choisi (personne enregistrée)");
+      await page.fill('#feuille-corps [name="titre"]', "Essai fictif modifié");
+      await page.click("#feuille-corps .agenda-valider");
+      await feuilleFermee();
+      await ligne("Essai fictif modifié").waitFor({ timeout: 3000 });
+      await ligne("Essai fictif modifié").click();
+      await attendreFeuilleAgenda(page);
+      await page.fill('#feuille-corps [name="titre"]', "Essai en cours de frappe");
+      await page.click("#feuille-corps [data-supprimer]");
+      await page.waitForSelector("#feuille-corps .confirmation", { timeout: 3000 });
+      if (!(await page.textContent("#feuille-corps .texte-confirmation")).includes("Supprimer « Essai fictif modifié » de l’agenda ?")) throw new Error("cycle : texte de confirmation");
+      await page.click("#feuille-corps [data-annuler]");
+      await page.waitForSelector("#feuille-corps [data-agenda-form]", { timeout: 3000 });
+      if ((await page.inputValue('#feuille-corps [name="titre"]')) !== "Essai en cours de frappe") throw new Error("cycle : le formulaire annulé a perdu ce qui était tapé");
+      await page.click("#feuille-corps [data-supprimer]");
+      await page.waitForSelector("#feuille-corps .confirmation", { timeout: 3000 });
+      await page.click("#feuille-corps [data-ok]");
+      await feuilleFermee();
+      await page.waitForFunction(() => !/Essai fictif/.test(document.querySelector("#agenda-evenements")?.textContent ?? ""), null, { timeout: 3000 });
     } },
   // Détail d'une tâche faite à deux : la part de chacun (plein · ⅔ · ⅓, D-038).
   { ecran: "jour", moduleDefaut: "jour", nom: "detail-tache-a-deux",
@@ -864,9 +987,20 @@ function scriptBouchon(donnees) {
         from: (nom) => requete(nom),
         // Edge Function agenda-google : événements FICTIFS (donnees_factices.mjs), filtrés sur la
         // période demandée comme le ferait la vraie fonction.
-        functions: { invoke: async (nom, { body }) => nom !== "agenda-google"
-          ? { data: null, error: new Error("fonction non bouchonnée : " + nom) }
-          : { data: { evenements: AGENDA_GOOGLE.filter((e) => e.debut <= body.fin && body.debut <= e.fin) }, error: null } },
+        // Les trois écritures (action creer / modifier / supprimer) modifient la même liste fictive.
+        functions: { invoke: async (nom, { body }) => {
+          if (nom !== "agenda-google") return { data: null, error: new Error("fonction non bouchonnée : " + nom) };
+          if (!body.action) return { data: { evenements: AGENDA_GOOGLE.filter((e) => e.debut <= body.fin && body.debut <= e.fin) }, error: null };
+          const { action, ...champs } = body;
+          if (action === "supprimer") {
+            AGENDA_GOOGLE.splice(AGENDA_GOOGLE.findIndex((e) => e.id === body.id), 1);
+            return { data: { ok: true }, error: null };
+          }
+          let cible;
+          if (action === "creer") { cible = { id: "fictif-ecrit-" + AGENDA_GOOGLE.length, ...champs }; AGENDA_GOOGLE.push(cible); }
+          else { cible = AGENDA_GOOGLE.find((e) => e.id === body.id); Object.assign(cible, champs); }
+          return { data: { evenement: cible }, error: null };
+        } },
         // RPC bouchonnée par la recette : window.__bouchonRpc[nom](args) ; sinon erreur franche.
         rpc: async (nom, args) => {
           const f = window.__bouchonRpc?.[nom];
