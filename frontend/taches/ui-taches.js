@@ -17,7 +17,7 @@ import { brancherCycles, suivante } from "../socle/blocs-cycle.js";
 import { occurrencesManquantes, perimees, partsDe, creditDe, partsTexte, groupe, trier,
   jourIso, depuisIso, decalerJours, FREQUENCES, libelleRelatif, libelleAjoutTodo,
   champsADeux, CHAMPS_SEUL } from "./taches.js";
-import { carteMoment, cartePeriode, ligneTache, regrouper } from "./ui-taches-cartes.js";
+import { colonnesCartes, ligneTache, regrouper } from "./ui-taches-cartes.js";
 import { htmlVariantes, htmlEtapes, htmlPartage, uneFoisDePlus } from "./ui-taches-detail.js";
 import { MOMENTS, varianteParDefaut } from "./rythme.js";
 
@@ -80,20 +80,6 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
   // qu'une ligne ou une carte doit lire sans le recalculer (D-024, un seul endroit par règle).
   const ctxCartes = { etat, recDe, credit, membres, valeursCycle, valeurCourante, renduCase,
     duJour, faitesLe, ponctuelle, plusUn: true };
-
-  /** Cartes du quotidien : Matin + Soir toujours affichées (structure de la maquette), Midi et
-   *  Nuit dès qu'une tâche y tombe ce jour-là (créneaux, D-041), et « Dans la journée » pour
-   *  une quotidienne sans créneau ou une ponctuelle — jamais de tâche cochable qui disparaîtrait
-   *  de l'écran faute de réglage. Le moment vient de l'occurrence (créneau), sinon du récurrent. */
-  function cartesMoment(jour) {
-    const momentDe = (t) => t.moment ?? recDe(t)?.moment ?? null;
-    const du = [...duJour(jour), ...faitesLe(jour)];
-    const present = (m) => du.some((t) => recDe(t)?.frequence === "quotidien" && momentDe(t) === m);
-    const sansMoment = du.some((t) => (recDe(t)?.frequence === "quotidien" && !momentDe(t)) || ponctuelle(t));
-    return MOMENTS.filter(([m]) => m === "matin" || m === "soir" || present(m))
-      .map(([m, nom]) => carteMoment(nom, m, jour, ctxCartes)).join("")
-      + (sansMoment ? carteMoment("Dans la journée", null, jour, ctxCartes) : "");
-  }
 
   /** Parts affichées : `1+1` quand fait à deux, sinon la valeur qui suit qui a coché. Même
    *  règle que la ligne de carte (ligneTache, ui-taches-cartes.js), lue ici pour le détail. */
@@ -257,10 +243,7 @@ export function creerUiTaches(api, etat, cb, ouvrirAjout) {
       b.addEventListener("click", () => { jourSel = b.dataset.jour; rendre(); });
     }
 
-    $("#cartes-moment").innerHTML = `<div class="grille-cartes">${cartesMoment(jour)}</div>`;
-    $("#cartes-periode").innerHTML = `<div class="grille-cartes">
-      ${cartePeriode("Cette semaine", "hebdo", jour, ctxCartes)}${cartePeriode("Ce mois", "mensuel", jour, ctxCartes)}
-    </div>`;
+    $("#cartes-moment").innerHTML = colonnesCartes(jour, ctxCartes);
 
     $("#barre-faites").innerHTML = `<button type="button" class="barre-fait-bouton" id="bouton-plier-faites"
         aria-expanded="${faitesOuvertes}">

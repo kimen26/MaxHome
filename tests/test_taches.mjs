@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { echeance, occurrencesManquantes, groupe, trier, balance, jourIso, decalerJours, perimees,
   ECHELLE_QUART, partsTexte, parts, partsDe, creditDe, champsADeux, libelleRelatif, dernierPassage,
-  avancementPeriode, libelleAjoutTodo } from "../frontend/taches/taches.js";
+  avancementPeriode, libelleAjoutTodo, repartirEnColonnes } from "../frontend/taches/taches.js";
 import { suivante } from "../frontend/socle/blocs-cycle.js";
 
 // Échéances : 2026-09-06 est un dimanche.
@@ -190,7 +190,13 @@ assert.deepEqual(avancementPeriode({ faites: 0, prevues: 1, jourDerniereCoche: n
 assert.deepEqual(avancementPeriode({ faites: 0, prevues: 1, jourDerniereCoche: null, jourSel: "2026-09-11", frequence: "mensuel", passe: { texte: "12/08" } }),
   { texte: "12/08", classe: "" }, "mensuelle non faite -> dernier passage connu");
 assert.deepEqual(avancementPeriode({ faites: 0, prevues: 1, jourDerniereCoche: null, jourSel: "2026-09-11", frequence: "mensuel", passe: null }),
-  { texte: "+3 mois", classe: "" }, "mensuelle non faite, aucun historique -> +3 mois, jamais « jamais »");
+  { texte: "—", classe: "" }, "mensuelle non faite, aucun historique -> tiret (comme l'hebdo), jamais « jamais »");
+
+// repartirEnColonnes : poids = 1 + lignes ; colonne la moins remplie, égalité -> gauche.
+assert.deepEqual(repartirEnColonnes([10, 2, 10, 6, 3]), [[0, 3], [1, 2, 4]], "Matin 9, Midi 1, Soir 9, Semaine 5, Mois 2");
+assert.deepEqual(repartirEnColonnes([5, 5, 5]), [[0, 2], [1]], "égalité -> gauche");
+assert.deepEqual(repartirEnColonnes([4, 4, 6, 3]), [[0, 2], [1, 3]], "Midi vide, journée courte : Semaine en face, Mois dessous");
+assert.deepEqual(repartirEnColonnes([]), [[], []], "aucune carte");
 
 // libelleAjoutTodo : méta « ajouté … » de la feuille Todo (bug 6, cree_le/014_cree_le.sql).
 const maintenant = new Date(2026, 8, 13, 18, 0, 0);

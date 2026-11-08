@@ -377,6 +377,10 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       vérifié), nom aléatoire dans `parametres.briefing_fichier`, faux briefing sans donnée du foyer.
       Attend : Yann crée le skill Flash Briefing (même compte Amazon que l'Echo) et dit si Alexa lit
       l'essai. Ensuite : générateur du matin (pg_cron + Edge Function).
+- [ ] **Alerte « cochon » des tâches du mois en retard** (demande de Yann, 08/11) : la carte
+      « Ce mois » montre un simple trait pour une mensuelle jamais faite (« +3 mois » prenait toute
+      la largeur). Quand une tâche a vraiment pris du retard, une alerte visible et drôle remplacera
+      le trait. Seuil et forme à proposer à Yann.
 
 ## Parking
 - Le carnet de voyage (ui-fiche-*, carnet.js, carte.js, geocode.js, topo.js, ui-voyages-liste.js)

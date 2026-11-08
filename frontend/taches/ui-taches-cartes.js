@@ -4,8 +4,8 @@
 
 import { txt } from "../socle/ui-base.js";
 import { boutonCycle } from "../socle/blocs-cycle.js";
-import { partsDe, partsTexte, echeance, jourIso, dernierPassage, avancementPeriode } from "./taches.js";
-import { porteurRythme } from "./rythme.js";
+import { partsDe, partsTexte, echeance, jourIso, dernierPassage, avancementPeriode, repartirEnColonnes } from "./taches.js";
+import { porteurRythme, MOMENTS } from "./rythme.js";
 
 // Marqueur du cran « fait à deux » dans le cycle de coche (identique à ui-taches.js : ni un
 // prénom, ni null, jamais écrit tel quel en base).
@@ -21,6 +21,10 @@ export const carte = (nom, lignesHtml, compte, compteClasse) => `<div class="car
   ${lignesHtml || '<p class="vide-carte">Rien.</p>'}
 </div>`;
 
+/** Carte + son nombre de lignes (une carte vide « Rien. » compte 1), pour répartir en colonnes. */
+const carteEtLignes = (nom, lignes, compte, compteClasse) =>
+  ({ html: carte(nom, lignes.join(""), compte, compteClasse), lignes: Math.max(1, lignes.length) });
+
 /** Regroupe les occurrences d'un même récurrent, d'une même échéance et d'un même moment :
  *  une ligne par tâche et par carte (le biberon du matin et celui du soir restent deux lignes). */
 export function regrouper(liste) {
@@ -32,7 +36,7 @@ export function regrouper(liste) {
   return [...groupes.values()];
 }
 
-/** Rendu d'une ligne de tâche : case-cycle, point d'obligation, titre, valeur de droite.
+/** Rendu d'une ligne de tâche : case-cycle (pastille d'obligation sur la case), titre, valeur de droite.
  *  `deps` regroupe ce que la ligne doit lire sans le recalculer (recDe, credit, membres). */
 export function ligneTache(t, deps, { metaDroite = null, metaClasse = "" } = {}) {
   const { recDe, credit, membres, valeursCycle, valeurCourante, renduCase } = deps;
@@ -53,11 +57,10 @@ export function ligneTache(t, deps, { metaDroite = null, metaClasse = "" } = {})
   const retard = !fait && t.echeance && t.echeance < jourIso(new Date());
   const caseTache = boutonCycle({
     cle: String(t.id), valeurs: valeursCycle(r), valeur: valeurCourante(t),
-    rendu: renduCase, classe: "case-tache", taille: "compacte",
+    rendu: renduCase, classe: `case-tache${r?.obligatoire ? (fait ? " oblig-faite" : " oblig-due") : ""}`, taille: "compacte",
   });
   return `<div class="ligne-tache${fait ? " ligne-faite" : retard ? " ligne-retard" : ""}" data-id="${t.id}">
     ${caseTache}
-    <span class="point-oblig ${r?.obligatoire ? (fait ? "oblig-faite" : "oblig-due") : "oblig-non"}" aria-hidden="true"></span>
     <span class="titre-tache${fait ? " fait" : ""}">${txt(t.titre)}</span>
     ${plusUn}
     <span class="mono parts-ligne ${metaClasse}">${txt(droite)}</span>
@@ -74,10 +77,9 @@ export function ligneGroupe(parent, occs, deps) {
   const cle = `g|${occs.map((t) => t.id).join(",")}`;
   const parts = faites.reduce((s, t) => s + Object.values(credit(t)).reduce((a, b) => a + b, 0), 0);
   const caseTache = boutonCycle({ cle, valeurs: [null, ...membres(), A_DEUX], valeur, rendu: renduCase,
-    classe: "case-tache", taille: "compacte" });
+    classe: `case-tache${parent.obligatoire ? (complet ? " oblig-faite" : " oblig-due") : ""}`, taille: "compacte" });
   return `<div class="ligne-tache${complet ? " ligne-faite" : ""}" data-id="${occs[0].id}">
     ${caseTache}
-    <span class="point-oblig ${parent.obligatoire ? (complet ? "oblig-faite" : "oblig-due") : "oblig-non"}" aria-hidden="true"></span>
     <span class="titre-tache${complet ? " fait" : ""}">${txt(parent.titre)}</span>
     <span class="mono parts-ligne${complet ? "" : " ambre"}">${complet ? txt(partsTexte(parts)) : `${faites.length}/${occs.length}`}</span>
   </div>`;
@@ -112,8 +114,8 @@ export function carteMoment(nom, moment, jour, ctx) {
     ...lignesGroupes.filter((g) => !g.complet).map((g) => ligneGroupe(g.parent, g.occs, ctx)),
     ...faites.map((t) => ligneTache(t, ctx)),
     ...lignesGroupes.filter((g) => g.complet).map((g) => ligneGroupe(g.parent, g.occs, ctx)),
-  ].join("");
-  return carte(nom, lignes, compte, complet ? "vert" : "ambre");
+  ];
+  return carteEtLignes(nom, lignes, compte, complet ? "vert" : "ambre");
 }
 
 /** Carte Semaine/Mois : avancement sur la période entière, la tâche se coche sur `jour` choisi
@@ -150,7 +152,27 @@ export function cartePeriode(nom, frequence, jour, ctx) {
   });
   const compte = prevuesTotal ? `${faitesTotal}/${prevuesTotal}` : "—";
   const complet = prevuesTotal > 0 && faitesTotal >= prevuesTotal;
-  return carte(nom, [...lignesRec, ...lignesPonctuelles].join(""), compte, complet ? "vert" : "ambre");
+  return carteEtLignes(nom, [...lignesRec, ...lignesPonctuelles], compte, complet ? "vert" : "ambre");
+}
+
+/** Toutes les cartes de l'écran Jour dans deux colonnes équilibrées (repartirEnColonnes, taches.js).
+ *  Quotidien : Matin + Soir toujours, Midi et Nuit dès qu'une tâche y tombe (créneaux, D-041),
+ *  « Dans la journée » pour une quotidienne sans créneau ou une ponctuelle ; puis Semaine, Mois. */
+export function colonnesCartes(jour, ctx) {
+  const { duJour, faitesLe, recDe, ponctuelle } = ctx;
+  const momentDe = (t) => t.moment ?? recDe(t)?.moment ?? null;
+  const du = [...duJour(jour), ...faitesLe(jour)];
+  const present = (m) => du.some((t) => recDe(t)?.frequence === "quotidien" && momentDe(t) === m);
+  const sansMoment = du.some((t) => (recDe(t)?.frequence === "quotidien" && !momentDe(t)) || ponctuelle(t));
+  const cartes = [
+    ...MOMENTS.filter(([m]) => m === "matin" || m === "soir" || present(m)).map(([m, nom]) => carteMoment(nom, m, jour, ctx)),
+    ...(sansMoment ? [carteMoment("Dans la journée", null, jour, ctx)] : []),
+    cartePeriode("Cette semaine", "hebdo", jour, ctx),
+    cartePeriode("Ce mois", "mensuel", jour, ctx),
+  ];
+  const colonnes = repartirEnColonnes(cartes.map((c) => 1 + c.lignes));
+  return `<div class="grille-cartes">${colonnes.map((idx) =>
+    `<div class="colonne-cartes">${idx.map((i) => cartes[i].html).join("")}</div>`).join("")}</div>`;
 }
 
 export { A_DEUX };

@@ -1029,3 +1029,15 @@ Yann, après la mise à jour d'octobre (copropriété 350 → 420 €, école 88
 au plus) et `note_le`, saisies dans la feuille de réglage de la charge, repère « Note » dans la liste
 du mois. Une note par charge, réécrite quand le montant change, plutôt qu'un historique daté par
 mois : Yann veut retrouver le pourquoi là où il regarde la charge, pas tenir un journal.
+
+## D-066 — Écran Jour des tâches : cases rondes, point obligatoire sur la case, cartes placées dans la colonne la moins remplie (2026-11-08)
+
+Yann : gagner encore de la place en largeur pour que les titres tiennent. La case de coche devient
+un rond de 18 px et le point rouge « obligatoire » se pose sur son coin au lieu d'occuper sa propre
+place dans la ligne ; marges des lignes et des cartes resserrées. Les cartes (Matin, Midi, Soir,
+Nuit, Dans la journée, Cette semaine, Ce mois) ne sont plus deux grilles fixes : chacune, dans
+l'ordre, va dans la colonne la moins remplie (poids = en-tête + lignes, `repartirEnColonnes`,
+testé), pour que « Cette semaine » remonte en face quand la journée est courte. Coût accepté : une
+carte ne garde pas toujours la même colonne d'un jour à l'autre ; l'ordre de lecture, lui, reste.
+Une mensuelle jamais faite montre « — » au lieu de « +3 mois » (trop large) ; une alerte de retard
+viendra à la place (TODO).

@@ -154,7 +154,7 @@ export function libelleRelatif(jourAffiche, aujourdhui) {
 /** Dernière occurrence FAITE d'un récurrent, cherchée dans l'historique chargé (`taches`,
  *  `JOURS_HISTORIQUE` jours) — jamais au-delà, on ne prétend pas savoir ce qu'on n'a pas
  *  chargé. Renvoie `{ jour, texte }` (jour ISO de la coche, date `jj/mm` fr. sans année) ou
- *  `null` si aucune trouvée : c'est à l'appelant de dire « +3 mois » dans ce cas
+ *  `null` si aucune trouvée : c'est à l'appelant de dire « — » dans ce cas
  *  (avancementPeriode ci-dessous), jamais « jamais » — on ne sait pas, on ne l'affirme pas
  *  (brief §« ce que le modèle ne portait pas »). */
 export function dernierPassage(taches, recurrentId) {
@@ -171,8 +171,8 @@ export function dernierPassage(taches, recurrentId) {
  *  comptent les OCCURRENCES de la période (fois > 1 : « 2/3 »). Complet → vert, jour de la
  *  dernière coche (« auj. » si c'est le jour sélectionné, sinon l'abrégé fr. du jour de
  *  semaine) ; pour une mensuelle non faite, la date du dernier passage connu (`dernierPassage`,
- *  passé en `passe`) ou « +3 mois » si aucun ; pour une hebdo non faite sans occurrence
- *  antérieure, « — » (rien à affirmer). */
+ *  passé en `passe`) ou « — » si aucun (comme l'hebdo sans occurrence
+ *  antérieure : rien à affirmer ; une alerte de retard viendra plus tard). */
 export function avancementPeriode({ faites, prevues, jourDerniereCoche, jourSel, frequence, passe }) {
   if (faites >= prevues && prevues > 0) {
     const texte = jourDerniereCoche === jourSel ? "auj." : depuisIso(jourDerniereCoche)
@@ -180,8 +180,22 @@ export function avancementPeriode({ faites, prevues, jourDerniereCoche, jourSel,
     return { texte, classe: "vert" };
   }
   if (faites > 0) return { texte: `${faites}/${prevues}`, classe: "ambre" };
-  if (frequence === "mensuel") return { texte: passe?.texte ?? "+3 mois", classe: "" };
+  if (frequence === "mensuel") return { texte: passe?.texte ?? "—", classe: "" };
   return { texte: "—", classe: "" };
+}
+
+/** Répartit des cartes (poids = 1 en-tête + nombre de lignes) en `nbColonnes` colonnes : chaque
+ *  carte, dans l'ordre, va dans la colonne la moins remplie (égalité -> la première).
+ *  Rend, par colonne, la liste des index de cartes. Pure, sans DOM. */
+export function repartirEnColonnes(poids, nbColonnes = 2) {
+  const colonnes = Array.from({ length: nbColonnes }, () => []);
+  const charge = new Array(nbColonnes).fill(0);
+  poids.forEach((p, i) => {
+    const c = charge.indexOf(Math.min(...charge));
+    colonnes[c].push(i);
+    charge[c] += p;
+  });
+  return colonnes;
 }
 
 /** Groupe d'affichage d'une tâche non faite, relativement à `jour`. */
