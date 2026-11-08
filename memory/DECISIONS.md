@@ -1008,3 +1008,16 @@ voyages et fériés ; les vrais événements du foyer étaient dans l'agenda Goo
   Famille ; couleurs du tableau blanc, initiale dans la pastille, jamais la couleur seule.
 - **Mise en production d'une fonction : accord de Yann.** La CLI Supabase refuse de déployer en
   production depuis un agent sans `--yes` ; on demande, puis on relance avec `--yes`.
+
+## D-064 — Dans le groupe, le bot lit tout et ne se tait que quand il n'a rien d'utile (2026-11-08)
+
+Remplace le filtrage de D-060. Yann : « si on parle dans ce chat c'est pour le bot, ou en tout cas il
+est concerné et peut répondre ». Trois fois, un message sans mention a été pris pour une panne (L-059).
+- Tout texte d'un membre inscrit est traité. « Adressé » (mention, réponse au bot, question en attente)
+  garde toutes les réponses ; non adressé, le bot ne répond que s'il a compris une action utile, sinon
+  il se tait (journal « message sans suite », sans contenu).
+- Un message non adressé de trois mots au plus, sans chiffre ni radical d'action, est écarté avant le
+  modèle (`groupe.sans_suite_evident`) : un « ok » ne coûte pas d'appel.
+- Une écriture comprise dans un message non adressé demande toujours « OK ? » (« resto 25 » dit entre
+  Claudia et Yann ne doit pas écrire seul dans le budget), et un message non adressé ne consomme jamais
+  une question en attente.

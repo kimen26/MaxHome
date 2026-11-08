@@ -4,8 +4,13 @@ Le mode confidentialité du bot est désactivé dans BotFather : Telegram lui li
 groupe. C'est donc ici que le bot décide lesquels le concernent. Sinon il ignore, en silence, et ne
 journalise jamais le contenu. En conversation privée rien ne change.
 
-Un message de groupe est traité seulement s'il (a) mentionne le bot, (b) répond à l'un de ses
-messages, ou (c) vient de quelqu'un à qui le bot attend encore une réponse, dans ce même groupe.
+Tout message texte d'un membre du foyer est traité, comme en privé (« si on parle ici, c'est pour le
+bot », 08/11). Il est « adressé » s'il (a) mentionne le bot, (b) répond à l'un de ses messages, ou
+(c) vient de quelqu'un à qui le bot attend encore une réponse, dans ce même groupe. Un message adressé
+garde toutes ses réponses, « je n'ai pas compris » compris. Un message NON adressé ne produit une
+réponse que si le bot a compris quelque chose d'utile : sinon il se tait (bot.py), et un message court
+sans verbe d'action (« ok », « mdr », un émoji) est écarté avant même d'appeler le modèle
+(`sans_suite_evident`). Une pièce jointe non adressée est ignorée.
 
 Des fonctions sur des dicts (messages Telegram, bot.etats) ; seules `gerer_evenement` et
 `noter_chat` touchent au bot, et par ses ports (donnees, telegram, log).
@@ -15,16 +20,33 @@ import time
 from dataclasses import dataclass
 
 import conversation
+from reponses import normaliser
 
 TYPES_GROUPE = frozenset({"group", "supergroup"})
 CLE_PARAMETRE = "telegram_groupe"  # table parametres (migration 016) ; dupliquée dans rappel-virements/index.ts
 CLE_CHAT = "chat_dernier"          # etats[personne][CLE_CHAT] : le chat où elle a parlé en dernier
 AVERTISSEMENT_CONFIDENTIALITE = (
     "mode confidentialité actif : en groupe je ne vois que les mentions et réponses")
+MOTS_MAX_SANS_SUITE = 3  # au-delà, une phrase peut être une demande : le modèle la lit
+# Radicaux (texte normalisé : minuscules, sans accents) des verbes d'action et des mots de demande que
+# la grammaire (commandes.py) ou le modèle (libre.py) savent agir. Un message court qui en contient un
+# part au traitement ; sans eux, « ok », « mdr », « merci », « a ce soir » sont du bavardage.
+RADICAUX_ACTION = (
+    "ajout", "rajout", "achet", "pay", "vir", "valid", "fait", "fais", "fini", "termin", "coch", "note",
+    "mets", "met ", "prend", "depens", "rembours", "annul", "cherch", "trouv", "compar", "surveill",
+    "cree", "creer", "change", "renomm", "supprim", "enlev", "retir", "combien", "quel", "qui ", "quand",
+    "bilan", "charge", "course", "tache", "liste", "voyage", "lieu", "topo", "resa", "reserv", "salaire",
+    "extra", "libelle", "balance", "aide", "agenda", "vacances", "mois", "doit", "reste", "mon ", "montre",
+)
 MOT_DEFAUT = "aide"  # une mention seule (« @bot ») : le bot montre ce qu'il sait faire, sans appeler le modèle
 
 _RE_ESPACES = re.compile(r"[ \t]+")
+# Réponses de la grammaire qui, à un message non adressé, ne sont que du bruit (« 50/50 » pris pour une
+# charge, « Claudia prend les enfants » pour un ajustement, « moi je veux des pâtes ») : le bot se tait.
+ACTIONS_MUETTES = frozenset({"erreur", "ambigu", "moi"})
+
 _DEBUT_PARASITE = ",:;"
+_RE_NON_MOT = re.compile(r"[^\w\s]|_")
 
 
 @dataclass(frozen=True)
@@ -85,20 +107,39 @@ def _attendu(etats, msg, texte):
     return bool(etat) and etat.get(CLE_CHAT) == msg["chat"]["id"] and attente_en_cours(etat, texte)
 
 
+def sans_suite_evident(texte):
+    """Vrai si ce message de groupe, court et sans verbe d'action, n'a aucune chance de demander quoi que ce soit.
+
+    Évite un appel au modèle pour chaque « ok » ou « mdr ». Sans lettre (émoji seul) : toujours vrai. Avec
+    un chiffre, ou un radical de RADICAUX_ACTION, ou plus de MOTS_MAX_SANS_SUITE mots : faux, le modèle tranche.
+    """
+    mots = _RE_NON_MOT.sub(" ", normaliser(texte)).split()
+    if not any(c.isalnum() for c in texte):
+        return True
+    if len(mots) > MOTS_MAX_SANS_SUITE or any(c.isdigit() for c in texte):
+        return False
+    phrase = " ".join(mots) + " "
+    return not any(r in phrase for r in RADICAUX_ACTION)
+
+
 def filtrer(msg, ident, etats):
-    """Le message à traiter (mention retirée), ou None s'il est à ignorer en silence. Privé : inchangé."""
+    """(message à traiter, adressé). Message None = à ignorer en silence. Privé : (msg, True), inchangé.
+
+    En groupe, la mention est retirée du texte. Un message non adressé n'est gardé que s'il est du texte.
+    """
     if not est_groupe(msg.get("chat") or {}):
-        return msg
+        return msg, True
     if ident is None:  # identité du bot inconnue : on ne sait pas reconnaître une mention, donc on se tait
-        return None
+        return None, False
     champ = "text" if "text" in msg else "caption"
     brut = msg.get(champ) or ""
     mentionne, propre = retirer_mention(brut, ident.username)
-    if not (mentionne or repond_au_bot(msg, ident.bot_id) or _attendu(etats, msg, brut)):
-        return None
+    adresse = mentionne or repond_au_bot(msg, ident.bot_id) or _attendu(etats, msg, brut)
+    if not adresse:
+        return (msg if champ == "text" else None), False
     if champ not in msg:  # photo ou PDF sans légende, en réponse au bot
-        return msg
-    return {**msg, champ: propre or (MOT_DEFAUT if champ == "text" else "")}
+        return msg, True
+    return {**msg, champ: propre or (MOT_DEFAUT if champ == "text" else "")}, True
 
 
 def noter_chat(etats, telegram_id, chat_id):
@@ -123,8 +164,8 @@ def evenement(msg, ident):
 
 def accueil(username):
     return (f"Bonjour ! Ce groupe reçoit maintenant les rappels de MaxHome. "
-            f"Pour me parler ici : écrivez @{username} puis votre demande, ou répondez à l'un de mes messages. "
-            f"Je ne réagis pas aux autres messages du groupe.")
+            f"Pour me parler ici : écrivez votre demande comme en privé (écrivez @{username} ou répondez à l'un de mes messages pour être sûr que je réponde). "
+            f"Je lis tout ce qui s'écrit ici : si je n'ai rien compris d'utile à un message qui ne m'est pas adressé, je me tais.")
 
 
 def _accueillir(bot, msg):

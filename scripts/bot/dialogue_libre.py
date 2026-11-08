@@ -91,6 +91,12 @@ def interpreter(bot, telegram_id, prenom, texte):
     return _noter(etat, texte, _suite(bot, etat, telegram_id, prenom, texte, interp, annee, mois))
 
 
+def proposer(etat, action, prenom):
+    """Annonce l'écriture en français clair et attend un « oui » (D-060)."""
+    conversation.poser(etat, conversation.CONFIRMATION, {"action": action})
+    return reponses.recap_libre(action, prenom)
+
+
 def _texte(interp):
     brut = interp.get("texte")
     return brut.strip() if isinstance(brut, str) else ""
@@ -126,5 +132,4 @@ def _suite(bot, etat, telegram_id, prenom, texte, interp, annee, mois):
         return _poser_question(etat, action)
     if action["action"] not in ACTIONS_ECRITURE:  # lecture (ou erreur lisible) : rien à confirmer
         return bot.executer_action(telegram_id, prenom, action, texte)
-    conversation.poser(etat, conversation.CONFIRMATION, {"action": action})
-    return reponses.recap_libre(action, prenom)
+    return proposer(etat, action, prenom)

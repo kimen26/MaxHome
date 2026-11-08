@@ -248,29 +248,53 @@ class Bot:
         suite = self.traiter_action(telegram_id, prenom, action, texte_brut)
         return f"Copié depuis {reponses.nom_mois(a_cible, m_cible)}.\n{suite}"
 
-    def traiter_message(self, telegram_id, texte_brut):
+    def traiter_message(self, telegram_id, texte_brut, adresse=True):
+        """`adresse` faux : message de groupe qui ne s'adresse pas au bot. Il traite ce qu'il comprend, mais
+        ne répond jamais « inconnu » et n'appelle pas le modèle pour du bavardage court (groupe.py)."""
         prenom = self.donnees.membre_telegram(telegram_id)
         if not prenom:
             self.log.info("message d'un inconnu (id masqué)")
-            return reponses.inconnu(telegram_id)
+            return reponses.inconnu(telegram_id) if adresse else None
 
-        rep_attente = self.gerer_attente(telegram_id, prenom, texte_brut)
-        if rep_attente is not None:
-            return rep_attente
-
-        norm = reponses.normaliser(texte_brut.strip())
-        if norm in ("oui", "non") and self.etats.get(telegram_id, {}).get("attente_voyage"):
-            return actions.confirmer_voyage(self, telegram_id, prenom, norm == "oui")
-
-        suite = dialogue_libre.reprendre(self, telegram_id, prenom, texte_brut)  # oui/non ou réponse à une question
-        if suite is not None:
-            return suite
+        if adresse:  # un message non adressé ne touche à aucune attente : elle peut venir d'un autre chat
+            suite = self._reprendre(telegram_id, prenom, texte_brut)
+            if suite is not None:
+                return suite
 
         annee_c, mois_c = self.mois_courant()
         charges_proposables = budget_lignes.charges_actives(self.charges)  # D-043 : jamais une terminée
         action = commandes.interpreter(texte_brut, self.membres, charges_proposables, annee_c, mois_c)
-        if action["action"] is None or dialogue_libre.relayer(action, texte_brut):
+        vers_le_modele = action["action"] is None or dialogue_libre.relayer(action, texte_brut)
+        if not adresse:
+            return self._traiter_non_adresse(telegram_id, prenom, texte_brut, action, vers_le_modele)
+        if vers_le_modele:
             return dialogue_libre.interpreter(self, telegram_id, prenom, texte_brut)
+        return self.executer_action(telegram_id, prenom, action, texte_brut)
+
+    def _reprendre(self, telegram_id, prenom, texte_brut):
+        """Le message répond-il à une proposition de copie, à une confirmation de voyage, ou à une question libre ?"""
+        rep_attente = self.gerer_attente(telegram_id, prenom, texte_brut)
+        if rep_attente is not None:
+            return rep_attente
+        norm = reponses.normaliser(texte_brut.strip())
+        if norm in ("oui", "non") and self.etats.get(telegram_id, {}).get("attente_voyage"):
+            return actions.confirmer_voyage(self, telegram_id, prenom, norm == "oui")
+        return dialogue_libre.reprendre(self, telegram_id, prenom, texte_brut)  # oui/non ou réponse à une question
+
+    def _traiter_non_adresse(self, telegram_id, prenom, texte_brut, action, vers_le_modele):
+        """Message de groupe qui ne s'adresse pas au bot : agit seulement s'il y a une action utile, sinon None.
+
+        Une écriture reconnue par la grammaire passe par la confirmation « OK ? » (D-060) : une phrase
+        entre Claudia et Yann ne doit jamais écrire dans le budget sans un « oui ».
+        """
+        if vers_le_modele:
+            if groupe.sans_suite_evident(texte_brut):
+                return None  # « ok », « mdr », un émoji : pas d'appel au modèle pour ça
+            return dialogue_libre.interpreter(self, telegram_id, prenom, texte_brut)
+        if action["action"] in groupe.ACTIONS_MUETTES:
+            return None
+        if action["action"] in dialogue_libre.ACTIONS_ECRITURE:
+            return dialogue_libre.proposer(self.etats.setdefault(telegram_id, {}), action, prenom)
         return self.executer_action(telegram_id, prenom, action, texte_brut)
 
     def executer_action(self, telegram_id, prenom, action, texte_brut):
@@ -327,19 +351,23 @@ class Bot:
             return
         if groupe.gerer_evenement(self, msg):
             return
-        msg = groupe.filtrer(msg, self.identite, self.etats)  # groupe : mention/réponse/attente, sinon None
+        msg, adresse = groupe.filtrer(msg, self.identite, self.etats)  # groupe : adressé ou non, sinon None
         if msg is None:
-            self.log.info("groupe : message ignoré (ni mention du bot, ni réponse au bot, ni réponse attendue)")
+            self.log.info("groupe : message ignoré (pièce jointe non adressée, ou identité du bot inconnue)")
             return
         self.log.info("message reçu (%s), traitement", "groupe" if groupe.est_groupe(msg["chat"]) else "privé")
         chat_id = msg["chat"]["id"]
         telegram_id = msg["from"]["id"]
         if "text" in msg:
             try:
-                reponse = self.traiter_message(telegram_id, msg["text"])
+                reponse = (self.traiter_message(telegram_id, msg["text"]) if adresse
+                           else self.traiter_message(telegram_id, msg["text"], adresse=False))
             except Exception:
                 self.log.exception("erreur non gérée")
                 reponse = "Erreur interne, réessaie."
+            if not adresse and reponse in (None, reponses.non_compris()):  # rien d'utile : le bot se tait
+                self.log.info("groupe : message sans suite, pas de réponse")
+                return
         elif "photo" in msg or "document" in msg:
             try:
                 reponse = self.traiter_piece(telegram_id, msg)
