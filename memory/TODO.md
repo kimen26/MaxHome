@@ -367,12 +367,16 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       répond-il à tous les messages du groupe, ou seulement quand on l'appelle ?
 - [x] Écran Agenda · Mois branché sur l'agenda Google (D-063, 08/11) : Edge Function
       `agenda-google` déployée, recette connectée verte (30 événements réels), en ligne.
-- [ ] Ina le samedi 28/11 (déjeuner + après-midi) écrit « à confirmer » ; message aux parents
-      préparé pour Yann. Retirer « (à confirmer) » quand Yann le dit.
+- [x] Écran Agenda : ajouter, modifier, supprimer un événement Google depuis l'app ; le télétravail
+      reste dans la liste, pas dans les cases (08/11, cycle réel vérifié par recette_connectee).
+- [ ] Ina samedi 28/11 : raclette confirmée (agenda à jour). Yann redemande aux parents fromages,
+      charcuterie et intolérances (message préparé le 08/11).
 - [ ] Briefing du matin lu par Alexa (agenda, MaxVoyage, météo, actu Brésil) : fichier à adresse
       fixe et longue sur Supabase, régénéré chaque matin ; GitLab écarté (public, mise à jour à la
-      main). D'abord un essai avec un faux briefing pour prouver qu'Alexa+ le lit. Attend le oui
-      de Yann sur l'adresse Supabase.
+      main). Oui de Yann le 08/11. Essai en ligne : seau public `briefing` (liste fermée aux inconnus,
+      vérifié), nom aléatoire dans `parametres.briefing_fichier`, faux briefing sans donnée du foyer.
+      Attend : Yann crée le skill Flash Briefing (même compte Amazon que l'Echo) et dit si Alexa lit
+      l'essai. Ensuite : générateur du matin (pg_cron + Edge Function).
 
 ## Parking
 - Le carnet de voyage (ui-fiche-*, carnet.js, carte.js, geocode.js, topo.js, ui-voyages-liste.js)
