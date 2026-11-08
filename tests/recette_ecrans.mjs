@@ -193,6 +193,21 @@ const GESTES = [
     // Deux mois plus loin : les données factices y posent à la fois des vacances, un voyage et,
     // selon la date du jour, un férié — la grille montre alors ses trois marques.
     geste: async (page) => { await page.click("#agenda-suiv"); await page.click("#agenda-suiv"); await page.waitForTimeout(150); } },
+  // Toucher un jour de l'Agenda filtre la liste sous la grille sur ce jour (le 7 : quatre
+  // personnes, donc trois pastilles et « +1 »), puis « Tout le mois » revient à la liste entière.
+  { ecran: "agenda-mois", moduleDefaut: "agenda-mois", nom: "agenda-mois-jour",
+    geste: async (page) => {
+      await page.click("#agenda-auj"); // le geste précédent a laissé l'écran deux mois plus loin
+      await page.click('#agenda-grille [data-jour$="-07"]');
+      await page.waitForFunction(() => document.querySelector('#agenda-grille [data-jour$="-07"]')?.getAttribute("aria-pressed") === "true");
+    } },
+  // Un jour sans rien de prévu (premier bouton dont le libellé le dit) : « Rien de prévu ce jour-là. »
+  { ecran: "agenda-mois", moduleDefaut: "agenda-mois", nom: "agenda-mois-jour-vide",
+    geste: async (page) => {
+      await page.click("#agenda-auj");
+      await page.click('#agenda-grille [data-jour][aria-label$="rien de prévu"]');
+      await page.waitForFunction(() => /Rien de prévu ce jour-là\./.test(document.querySelector("#agenda-evenements")?.textContent ?? ""));
+    } },
   // Détail d'une tâche faite à deux : la part de chacun (plein · ⅔ · ⅓, D-038).
   { ecran: "jour", moduleDefaut: "jour", nom: "detail-tache-a-deux",
     geste: async (page) => {
@@ -689,6 +704,7 @@ function scriptBouchon(donnees) {
   const parTable = Object.fromEntries(Object.entries(TABLES).map(([table, cle]) => [table, donnees[cle] ?? []]));
   return `(() => {
     const DONNEES = ${JSON.stringify(parTable)};
+    const AGENDA_GOOGLE = ${JSON.stringify(donnees.AGENDA_GOOGLE ?? [])};
     // Vacances scolaires : cache local frais pour les trois zones, donc aucun appel réseau
     // (frontend/agenda/vacances.js lit le cache avant l'API).
     for (const zone of ["Zone A", "Zone B", "Zone C"]) {
@@ -846,6 +862,11 @@ function scriptBouchon(donnees) {
           },
         },
         from: (nom) => requete(nom),
+        // Edge Function agenda-google : événements FICTIFS (donnees_factices.mjs), filtrés sur la
+        // période demandée comme le ferait la vraie fonction.
+        functions: { invoke: async (nom, { body }) => nom !== "agenda-google"
+          ? { data: null, error: new Error("fonction non bouchonnée : " + nom) }
+          : { data: { evenements: AGENDA_GOOGLE.filter((e) => e.debut <= body.fin && body.debut <= e.fin) }, error: null } },
         // RPC bouchonnée par la recette : window.__bouchonRpc[nom](args) ; sinon erreur franche.
         rpc: async (nom, args) => {
           const f = window.__bouchonRpc?.[nom];

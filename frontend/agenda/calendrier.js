@@ -88,21 +88,87 @@ export function bornesMois(annee, mois) {
   return { debut: jourIso(new Date(annee, mois - 1, 1)), fin: jourIso(new Date(annee, mois, 0)) };
 }
 
+const PERSONNES = ["Max", "Yann", "Claudia"];
+export const FAMILLE = "Famille";
+/** Les quatre « personnes » du tableau blanc du foyer, dans l'ordre d'affichage des pastilles. */
+export const QUI = [...PERSONNES, FAMILLE];
+
+const sansAccent = (t) => String(t ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+
+/**
+ * Qui concerne un événement du foyer : le prénom (Max, Yann, Claudia — mot entier, sans casse)
+ * qui apparaît LE PLUS TÔT dans le titre ; aucun prénom : « Famille ».
+ * « Max avec Yann » → Max ; « Parc Astérix en famille » → Famille.
+ */
+export function personneDe(titre) {
+  const texte = String(titre ?? "");
+  let meilleur = { qui: FAMILLE, pos: Infinity };
+  for (const qui of PERSONNES) {
+    const m = new RegExp(`(^|[^\\p{L}\\p{N}_])(${qui})(?![\\p{L}\\p{N}_])`, "iu").exec(texte);
+    const pos = m ? m.index + m[1].length : Infinity;
+    if (pos < meilleur.pos) meilleur = { qui, pos };
+  }
+  return meilleur.qui;
+}
+
+const RANG_TYPE = { vacances: 0, voyage: 1, ferie: 2, foyer: 3 };
+
+/** Tri à l'intérieur d'une journée : type (vacances, voyage, férié, foyer), puis journée entière
+ *  avant les événements horaires, puis par heure de début. */
+const comparerDansJour = (a, b) =>
+  RANG_TYPE[a.type] - RANG_TYPE[b.type] || (a.heureDebut ?? "").localeCompare(b.heureDebut ?? "");
+
+/** Tri d'un mois : par jour de début, puis comme dans une journée. */
+export const comparerEvenements = (a, b) => a.debut.localeCompare(b.debut) || comparerDansJour(a, b);
+
+/**
+ * Doublon : un événement Google « férié » en journée entière qui tombe sur un férié calculé est
+ * retiré — le férié de l'app s'affiche à sa place.
+ */
+const estDoublonFerie = (e, fer) =>
+  e.heureDebut == null && sansAccent(e.titre).includes("ferie") && fer.some((f) => couvre(e, f.debut));
+
 /**
  * Événements qui touchent un mois, toutes sources confondues, triés par début puis par type
- * (vacances, voyage, férié). Chaque événement garde son type pour que l'affichage le nomme —
- * jamais la couleur seule (rules/mobile-parents.md).
+ * (vacances, voyage, férié, foyer = agenda Google). Chaque événement garde son type pour que
+ * l'affichage le nomme — jamais la couleur seule (rules/mobile-parents.md). Les événements
+ * Google gardent leur `heureDebut` et reçoivent `qui` (personneDe).
  */
-export function evenementsDuMois(annee, mois, { vacances = [], voyages = [], feries: fer = [] } = {}) {
+export function evenementsDuMois(annee, mois, { vacances = [], voyages = [], feries: fer = [], google = [] } = {}) {
   const bornes = bornesMois(annee, mois);
-  const rang = { vacances: 0, voyage: 1, ferie: 2 };
+  const doublons = (e) => estDoublonFerie(e, fer);
   return [
     ...vacances.map((v) => ({ ...v, type: "vacances" })),
     ...voyages.map((v) => ({ ...v, type: "voyage" })),
     ...fer.map((f) => ({ ...f, type: "ferie" })),
+    ...google.filter((g) => g && !doublons(g)).map((g) => ({ ...g, type: "foyer", qui: personneDe(g.titre) })),
   ]
     .filter((e) => e?.debut && e?.fin && chevauche(e, bornes))
-    .sort((a, b) => a.debut.localeCompare(b.debut) || rang[a.type] - rang[b.type]);
+    .sort(comparerEvenements);
+}
+
+/** Événements (déjà triés) qui couvrent un jour. */
+export const evenementsDuJour = (evenements, iso) => evenements.filter((e) => couvre(e, iso));
+
+/** Personnes présentes un jour (événements du foyer), dans l'ordre de QUI, sans doublon. */
+export function personnesDuJour(evenements, iso) {
+  const presentes = new Set(evenementsDuJour(evenements, iso).filter((e) => e.type === "foyer").map((e) => e.qui));
+  return QUI.filter((q) => presentes.has(q));
+}
+
+/**
+ * Regroupement par jour pour la liste : `[{ iso, evenements }]` dans l'ordre. Un événement sur
+ * plusieurs jours apparaît une seule fois, à son premier jour dans le mois.
+ */
+export function joursDuMois(evenements, annee, mois) {
+  const bornes = bornesMois(annee, mois);
+  const parJour = new Map();
+  for (const e of evenements) {
+    if (!chevauche(e, bornes)) continue;
+    const iso = e.debut < bornes.debut ? bornes.debut : e.debut;
+    parJour.set(iso, [...(parJour.get(iso) ?? []), e]);
+  }
+  return [...parJour.keys()].sort().map((iso) => ({ iso, evenements: parJour.get(iso).sort(comparerDansJour) }));
 }
 
 /** Périodes pas encore terminées à la date donnée, triées par début, `n` au plus. */
@@ -123,7 +189,10 @@ export function formatPeriode(debut, fin, { annee = false } = {}) {
   return `${FORMAT_COURT.format(depuisIso(debut))} → ${f.format(depuisIso(fin))}`;
 }
 
-/** « dans 12 j », « aujourd’hui », « en cours », « passé » — relatif à `auj`. */
+/** « 10:40 » → « 10h40 » (heure déjà à l'heure de Paris, voir l'Edge Function agenda-google). */
+export const formatHeure = (hhmm) => String(hhmm).replace(":", "h");
+
+/** « dans 12 j »,« aujourd’hui », « en cours », « passé » — relatif à `auj`. */
 export function relatif(periode, auj) {
   if (periode.fin < auj) return "passé";
   if (periode.debut <= auj) return periode.debut === auj ? "aujourd’hui" : "en cours";

@@ -341,6 +341,14 @@ try {
   const pc = await navigateur.newPage({ viewport: { width: 1280, height: 900 } });
   pc.on("console", (m) => m.type() === "error" && erreurs.push(`pc: ${m.text()}`));
   pc.on("pageerror", (e) => erreurs.push(`pc: ${e.message}`));
+  // Réponse de l'Edge Function agenda-google, écoutée dès le départ (le module Agenda la charge au
+  // login, avant qu'on ouvre l'écran). On ne garde que le statut et le NOMBRE d'événements :
+  // jamais un titre, l'agenda du foyer est privé.
+  const appelAgenda = new Promise((resolve) => pc.on("response", async (r) => {
+    if (!r.url().includes("/functions/v1/agenda-google") || r.request().method() === "OPTIONS") return;
+    const corps = await r.json().catch(() => null);
+    resolve({ statut: r.status(), n: Array.isArray(corps?.evenements) ? corps.evenements.length : null });
+  }));
   await connecter(pc);
   await pc.screenshot({ path: path.join(SORTIE, "accueil-pc.png"), fullPage: true });
   await pc.click("#modules [data-ecran=mois]");
@@ -394,6 +402,12 @@ try {
   if (!/Vacances Zone [ABC]/.test(zoneTexte)) throw new Error(`Agenda : zone illisible « ${zoneTexte} »`);
   if (/hors ligne/.test(zoneTexte)) throw new Error("Agenda : vacances servies depuis un cache périmé alors que le réseau est là");
   console.log(`Écran Agenda rendu (PC) — ${zoneTexte}`);
+  const delai = new Promise((resolve) => setTimeout(() => resolve(null), 15000));
+  const agenda = await Promise.race([appelAgenda, delai]);
+  if (!agenda) throw new Error("Agenda : aucun appel à agenda-google vu en 15 s");
+  if (agenda.statut !== 200) throw new Error(`Agenda : agenda-google a répondu HTTP ${agenda.statut}`);
+  if (!agenda.n) throw new Error("Agenda : agenda-google a répondu 200 sans tableau `evenements` non vide");
+  console.log(`Agenda Google : HTTP 200, ${agenda.n} événement(s)`);
   await aller(pc, "voyages", "#ecran-voyages:not([hidden]) #liste-voyages .rec, #ecran-voyages:not([hidden]) #liste-voyages .vide", "taches-rec");
   await pc.screenshot({ path: path.join(SORTIE, "voyages-pc.png"), fullPage: true });
   console.log("Écran Voyages rendu (PC)");

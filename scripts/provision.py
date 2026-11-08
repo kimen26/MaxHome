@@ -6,7 +6,9 @@ Lit .env (SUPABASE_PAT, EMAIL_YANN, EMAIL_CLAUDIA), ne l'affiche jamais.
 Usage : python scripts/provision.py
 """
 import json
+import os
 import secrets
+import subprocess
 import sys
 import time
 import urllib.error
@@ -84,6 +86,20 @@ def cles(ref, pat):
     par_nom = {k["name"]: k["api_key"] for k in liste}
     publiable = next((k["api_key"] for k in liste if k.get("type") == "publishable"), par_nom.get("anon"))
     return publiable, par_nom["service_role"]
+
+
+def deployer_fonction(nom, pat, ref):
+    """Déploie l'Edge Function `supabase/functions/<nom>` (CLI via npx) puis force verify_jwt."""
+    r = subprocess.run(
+        ["npx", "--yes", "supabase@latest", "functions", "deploy", nom, "--project-ref", ref],
+        cwd=RACINE, env={**os.environ, "SUPABASE_ACCESS_TOKEN": pat}, capture_output=True, text=True, shell=True,
+    )
+    if r.returncode != 0:
+        # La CLI met l'erreur de compilation sur stdout et les avertissements sur stderr :
+        # afficher les deux, sinon on ne voit que « Docker is not running » (inoffensif).
+        sys.exit(f"déploiement de {nom} échoué :\n{r.stdout[-1200:]}\n{r.stderr[-400:]}")
+    print(f"{nom} : fonction déployée")
+    appel("PATCH", f"{API}/projects/{ref}/functions/{nom}", pat, {"verify_jwt": True})
 
 
 def comptes(ref, env, service_role):

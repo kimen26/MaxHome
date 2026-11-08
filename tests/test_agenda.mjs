@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { paques, feries, grilleMois, evenementsDuMois, prochaines, nbJours, formatPeriode, relatif,
-  couvre, chevauche } from "../frontend/agenda/calendrier.js";
+  couvre, chevauche, personneDe, personnesDuJour, evenementsDuJour, joursDuMois, formatHeure, QUI } from "../frontend/agenda/calendrier.js";
 import { parserVacances, chargerVacances, jourParis, cleCache, TTL_CACHE_MS } from "../frontend/agenda/vacances.js";
 import { lieuxParJour, totauxResas, joursAvant, CATEGORIES_LIEU, TYPES_RESA,
   POSTES, TYPES_BLOC, posteDe, budgetParPoste, prochaineEtape, couleurVoyage, TEINTES_VOYAGE,
@@ -63,6 +63,76 @@ const evOct = evenementsDuMois(2026, 10, { vacances, voyages, feries: feries(202
 assert.deepEqual(evOct.map((e) => `${e.type}:${e.titre}`), ["vacances:Vacances de la Toussaint", "voyage:Auvergne"],
   "même début : vacances avant voyage");
 assert.deepEqual(evenementsDuMois(2026, 8, { vacances, voyages, feries: [] }), [], "août : rien");
+
+// ---------- agenda Google du foyer : qui, doublon férié, tri, regroupement par jour ----------
+assert.equal(personneDe("Max avec Yann"), "Max", "le premier prénom du titre l'emporte");
+assert.equal(personneDe("Piscine Max"), "Max");
+assert.equal(personneDe("Soirée Yann : pot du travail"), "Yann");
+assert.equal(personneDe("Claudia en télétravail"), "Claudia");
+assert.equal(personneDe("Parc Astérix en famille"), "Famille", "aucun prénom : Famille");
+assert.equal(personneDe("Yann et Max au foot"), "Yann", "Yann apparaît avant Max, quel que soit l'ordre de la liste");
+assert.equal(personneDe("piscine MAX"), "Max", "sans casse");
+assert.equal(personneDe("Maxime chez nous"), "Famille", "mot entier : Maxime n'est pas Max");
+assert.equal(personneDe("Claudiatheque"), "Famille", "mot entier : pas de préfixe");
+assert.equal(personneDe("(Yann)"), "Yann", "ponctuation autour du prénom");
+assert.equal(personneDe(""), "Famille");
+assert.equal(personneDe(null), "Famille");
+assert.equal(formatHeure("10:40"), "10h40");
+assert.deepEqual(QUI, ["Max", "Yann", "Claudia", "Famille"]);
+
+const g = (id, titre, debut, fin, heureDebut = null) => ({ id, titre, debut, fin, heureDebut, heureFin: null });
+const google = [
+  g("a", "Piscine Max", "2026-11-07", "2026-11-07", "10:40"),
+  g("b", "Garde du mercredi", "2026-11-04", "2026-11-04"),
+  g("c", "Claudia en télétravail", "2026-11-07", "2026-11-07"),
+  g("d", "Foot Max", "2026-11-07", "2026-11-07", "09:00"),
+  g("e", "Jour férié", "2026-11-11", "2026-11-11"),
+  g("f", "Armistice férié", "2026-11-11", "2026-11-11", "08:00"),
+  g("h", "Lyon avec Yann", "2026-10-30", "2026-11-04"),
+  g("i", "Octobre seulement", "2026-10-12", "2026-10-12"),
+  null,
+];
+const evG = evenementsDuMois(2026, 11, { vacances, voyages, feries: feries(2026), google });
+const lignesG = evG.map((e) => `${e.type}:${e.titre}`);
+assert.ok(!lignesG.includes("foyer:Jour férié"), "journée entière « férié » sur un férié calculé : retirée (doublon)");
+assert.ok(lignesG.includes("ferie:Armistice 1918"), "le férié de l'app reste");
+assert.ok(lignesG.includes("foyer:Armistice férié"), "un événement HORAIRE contenant « férié » n'est pas un doublon");
+assert.ok(!lignesG.includes("foyer:Octobre seulement"), "hors du mois : filtré");
+assert.ok(evG.every((e) => e.type !== "foyer" || QUI.includes(e.qui)), "chaque événement du foyer porte sa personne");
+assert.equal(evG.find((e) => e.id === "h").qui, "Yann");
+assert.deepEqual(
+  evenementsDuMois(2026, 11, { feries: [], google: [g("z", "Jour férié", "2026-11-12", "2026-11-12")] }).map((e) => e.titre),
+  ["Jour férié"], "« férié » hors de tout férié calculé : gardé");
+assert.deepEqual(
+  evenementsDuMois(2026, 11, { feries: feries(2026), google: [g("z", "JOUR FÉRIÉ", "2026-11-11", "2026-11-11")] }).map((e) => e.type),
+  ["ferie", "ferie"], "doublon retrouvé sans tenir compte de la casse ni des accents");
+
+// Tri dans une journée : journée entière d'abord, puis par heure ; le type garde son rang.
+const du7 = evG.filter((e) => e.debut === "2026-11-07");
+assert.deepEqual(du7.map((e) => e.titre), ["Claudia en télétravail", "Foot Max", "Piscine Max"],
+  "7 nov. : journée entière, puis 09:00, puis 10:40");
+assert.deepEqual(evenementsDuJour(evG, "2026-11-11").map((e) => e.type), ["voyage", "ferie", "foyer"],
+  "même jour : voyage, férié, puis le foyer (rang des types)");
+
+// Pastilles : une par personne présente, dans l'ordre Max, Yann, Claudia, Famille.
+assert.deepEqual(personnesDuJour(evG, "2026-11-07"), ["Max", "Claudia"], "deux événements de Max : une seule pastille");
+assert.deepEqual(personnesDuJour(evG, "2026-11-02"), ["Yann"], "événement sur plusieurs jours : présent chaque jour couvert");
+assert.deepEqual(personnesDuJour(evG, "2026-11-20"), [], "aucun événement : aucune pastille");
+assert.deepEqual(personnesDuJour(evG, "2026-11-01"), ["Yann"], "le voyage ou le férié n'ajoute aucune pastille, Lyon oui");
+
+// Regroupement par jour pour la liste.
+const jours = joursDuMois(evG, 2026, 11);
+assert.deepEqual(jours.map((j) => j.iso), [...jours.map((j) => j.iso)].sort(), "jours dans l'ordre");
+assert.equal(new Set(jours.map((j) => j.iso)).size, jours.length, "un groupe par jour");
+assert.equal(jours[0].iso, "2026-11-01", "1er nov. : Toussaint, Vacances et Lyon (commencé en octobre) ramenés au 1er");
+assert.deepEqual(jours[0].evenements.map((e) => e.titre), ["Vacances de la Toussaint", "Toussaint", "Lyon avec Yann"]);
+const nbApparitions = (titre) => jours.flatMap((j) => j.evenements).filter((e) => e.titre === titre).length;
+assert.equal(nbApparitions("Lyon avec Yann"), 1, "événement de 6 jours : une seule apparition");
+assert.equal(nbApparitions("Vacances de la Toussaint"), 1);
+assert.deepEqual(jours.find((j) => j.iso === "2026-11-07").evenements.map((e) => e.titre),
+  ["Claudia en télétravail", "Foot Max", "Piscine Max"]);
+assert.deepEqual(joursDuMois([], 2026, 11), []);
+assert.deepEqual(joursDuMois(evG, 2026, 12).map((j) => j.iso), [], "décembre : Lyon et Toussaint ne remontent pas");
 
 // ---------- prochaines ----------
 assert.deepEqual(prochaines(voyages, "2026-10-20").map((v) => v.titre), ["Auvergne", "Islande"], "en cours compte comme à venir");

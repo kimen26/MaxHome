@@ -82,6 +82,8 @@ function scriptBouchon(donnees, mode) {
           },
         },
         from: (nom) => requete(nom),
+        // Edge Function agenda-google (module Agenda) : aucun événement, ce test ne la concerne pas.
+        functions: { invoke: async () => ({ data: { evenements: [] }, error: null }) },
       }),
     };
   })();`;

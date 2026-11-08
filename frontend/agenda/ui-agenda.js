@@ -1,12 +1,20 @@
 // Écran « Agenda · Mois » : grille du mois (lundi → dimanche) avec les vacances scolaires de
-// notre zone, les voyages et les jours fériés, puis la liste des événements du mois en texte —
-// la couleur d'une case ne porte jamais l'information seule (rules/mobile-parents.md).
+// notre zone, les voyages, les jours fériés et les événements de l'agenda Google du foyer
+// (une pastille par personne présente ce jour), puis la liste groupée par jour. Chaque case du
+// mois est un bouton : toucher un jour filtre la liste sur ce jour. La couleur ne porte jamais
+// l'information seule : initiale dans la pastille, prénom dans la légende et la liste
+// (rules/mobile-parents.md). La liste elle-même est dans ui-agenda-liste.js.
 
 import { $, txt, MOIS, decaler } from "../socle/ui-base.js";
-import { grilleMois, feries, evenementsDuMois, couvre, jourIso, formatPeriode, nbJours, relatif } from "./calendrier.js";
+import {
+  grilleMois, feries, evenementsDuMois, evenementsDuJour, joursDuMois, personnesDuJour, couvre, jourIso, QUI,
+} from "./calendrier.js";
+import { TYPES, pastilleQui, htmlListe } from "./ui-agenda-liste.js";
 
 const JOURS = ["L", "M", "M", "J", "V", "S", "D"];
-const TYPES = { vacances: "Vacances", voyage: "Voyage", ferie: "Férié" };
+const PASTILLES_MAX = 3;
+const FORMAT_JOUR = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+const depuis = (iso) => { const [a, m, j] = iso.split("-").map(Number); return new Date(a, m - 1, j); };
 
 export function creerUiAgenda(api, etat, cb) {
   const auj = () => jourIso(new Date());
@@ -14,33 +22,49 @@ export function creerUiAgenda(api, etat, cb) {
   function evenements() {
     const { annee, mois } = etat.agenda;
     return evenementsDuMois(annee, mois, {
-      vacances: etat.vacances, voyages: etat.voyages, feries: [...feries(annee - 1), ...feries(annee), ...feries(annee + 1)],
+      vacances: etat.vacances, voyages: etat.voyages, google: etat.google,
+      feries: [...feries(annee - 1), ...feries(annee), ...feries(annee + 1)],
     });
+  }
+
+  /** Phrase lue par un lecteur d'écran : le jour, puis chaque événement avec son type ou sa personne. */
+  function libelleCase(c, ici) {
+    const jour = FORMAT_JOUR.format(depuis(c.iso));
+    if (!ici.length) return `${jour} : rien de prévu`;
+    const dits = ici.map((e) => (e.type === "foyer" ? `${e.qui} ${e.titre}` : `${TYPES[e.type]} ${e.titre}`));
+    return `${jour} : ${dits.join(", ")}`;
+  }
+
+  function htmlPastilles(personnes) {
+    if (!personnes.length) return "";
+    const reste = personnes.length - PASTILLES_MAX;
+    return `<span class="agenda-pastilles" aria-hidden="true">${personnes.slice(0, PASTILLES_MAX).map(pastilleQui).join("")}${
+      reste > 0 ? `<span class="agenda-plus">+${reste}</span>` : ""}</span>`;
   }
 
   function htmlCase(c, evts, a) {
     if (!c.dansMois) return `<div class="agenda-case hors-mois" aria-hidden="true"><span class="agenda-jour">${c.jour}</span></div>`;
-    const ici = evts.filter((e) => couvre(e, c.iso));
+    const ici = evenementsDuJour(evts, c.iso);
     const types = [...new Set(ici.map((e) => e.type))];
+    const choisi = etat.agenda.jour === c.iso;
     const classes = ["agenda-case", ...types.map((t) => `a-${t}`), c.iso === a ? "aujourdhui" : ""].filter(Boolean).join(" ");
-    const libelle = ici.length ? ` : ${ici.map((e) => `${TYPES[e.type]} ${e.titre}`).join(", ")}` : "";
-    return `<div class="${classes}" aria-label="${txt(c.jour)}${txt(libelle)}">
-      <span class="agenda-jour">${c.jour}</span>
+    return `<button type="button" class="${classes}" data-jour="${c.iso}" aria-pressed="${choisi}"
+        aria-label="${txt(libelleCase(c, ici))}">
+      <span class="agenda-haut"><span class="agenda-jour">${c.jour}</span>${
+        types.includes("ferie") ? `<span class="agenda-marque-ferie" aria-hidden="true">F</span>` : ""}</span>
+      ${htmlPastilles(personnesDuJour(evts, c.iso))}
       ${types.includes("voyage") ? `<span class="agenda-marque-voyage" aria-hidden="true"></span>` : ""}
-      ${types.includes("ferie") ? `<span class="agenda-marque-ferie" aria-hidden="true">F</span>` : ""}
-    </div>`;
+    </button>`;
   }
 
-  function htmlEvenement(e, a) {
-    const duree = e.type === "ferie" ? "" : ` · ${nbJours(e.debut, e.fin)} j`;
-    const lieu = e.type === "voyage" && e.lieu ? ` · ${txt(e.lieu)}` : "";
-    return `<div class="agenda-evt a-${e.type}">
-      <span class="agenda-evt-type">${TYPES[e.type]}</span>
-      <span class="agenda-evt-corps">
-        <span class="agenda-evt-titre">${txt(e.titre)}${lieu}</span>
-        <span class="sous">${txt(formatPeriode(e.debut, e.fin))}${duree} · ${txt(relatif(e, a))}</span>
-      </span>
-    </div>`;
+  const htmlLegende = () => QUI.map((q) => `<span class="agenda-legende-item">${pastilleQui(q)}${txt(q)}</span>`).join("");
+
+  function htmlListeChoisie(evts, a) {
+    const { annee, mois, jour } = etat.agenda;
+    if (!jour) return evts.length ? htmlListe(joursDuMois(evts, annee, mois), a) : `<p class="vide">Rien de prévu ce mois-ci.</p>`;
+    const duJour = evenementsDuJour(evts, jour);
+    const corps = duJour.length ? htmlListe([{ iso: jour, evenements: duJour }], a) : `<p class="vide">Rien de prévu ce jour-là.</p>`;
+    return `<button type="button" class="agenda-tout" data-tout>Tout le mois</button>${corps}`;
   }
 
   function rendre() {
@@ -51,16 +75,23 @@ export function creerUiAgenda(api, etat, cb) {
     $("#agenda-grille").innerHTML = `
       <div class="agenda-entete">${JOURS.map((j) => `<span>${j}</span>`).join("")}</div>
       ${grilleMois(annee, mois).map((s) => `<div class="agenda-semaine">${s.map((c) => htmlCase(c, evts, a)).join("")}</div>`).join("")}`;
-    $("#agenda-evenements").innerHTML = evts.length
-      ? evts.map((e) => htmlEvenement(e, a)).join("")
-      : `<p class="vide">Rien de prévu ce mois-ci.</p>`;
+    $("#agenda-legende").innerHTML = htmlLegende();
+    $("#agenda-evenements").innerHTML = htmlListeChoisie(evts, a);
     $("#agenda-zone").textContent = etat.vacancesPerimees
       ? `Vacances ${etat.zone} (hors ligne, liste peut-être ancienne)`
       : `Vacances ${etat.zone}`;
   }
 
+  /** Change le jour choisi (null = tout le mois) puis rend le focus au bouton touché. */
+  function choisir(jour) {
+    etat.agenda = { ...etat.agenda, jour };
+    rendre();
+    (jour ? $(`#agenda-grille [data-jour="${jour}"]`) : null)?.focus();
+  }
+
   function bouger(n) {
-    [etat.agenda.annee, etat.agenda.mois] = decaler(etat.agenda.annee, etat.agenda.mois, n);
+    const [annee, mois] = decaler(etat.agenda.annee, etat.agenda.mois, n);
+    etat.agenda = { annee, mois, jour: null };
     rendre();
   }
 
@@ -68,8 +99,15 @@ export function creerUiAgenda(api, etat, cb) {
   $("#agenda-suiv").addEventListener("click", () => bouger(1));
   $("#agenda-auj").addEventListener("click", () => {
     const d = new Date();
-    etat.agenda = { annee: d.getFullYear(), mois: d.getMonth() + 1 };
+    etat.agenda = { annee: d.getFullYear(), mois: d.getMonth() + 1, jour: null };
     rendre();
+  });
+  $("#agenda-grille").addEventListener("click", (ev) => {
+    const bouton = ev.target.closest("[data-jour]");
+    if (bouton) choisir(etat.agenda.jour === bouton.dataset.jour ? null : bouton.dataset.jour);
+  });
+  $("#agenda-evenements").addEventListener("click", (ev) => {
+    if (ev.target.closest("[data-tout]")) choisir(null);
   });
 
   return { rendre };

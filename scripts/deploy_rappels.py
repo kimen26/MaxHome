@@ -9,14 +9,12 @@ Lit .env (SUPABASE_PAT, SUPABASE_REF, MAXHOME_TELEGRAM_BOT_TOKEN), n'affiche jam
 secrète. Idempotent.
 Usage : python scripts/deploy_rappels.py [nom-de-la-fonction]
 """
-import os
-import subprocess
 import sys
 import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from provision import API, RACINE, appel, cles, lit_env, sql  # noqa: E402
+from provision import API, appel, cles, deployer_fonction, lit_env, sql  # noqa: E402
 
 # Les heures cron sont en UTC : 07:00 = 09:00 Paris en été, 08:00 en hiver.
 RAPPELS = {
@@ -26,16 +24,7 @@ RAPPELS = {
 
 
 def deployer(nom, cron, pat, ref, service_role):
-    r = subprocess.run(
-        ["npx", "--yes", "supabase@latest", "functions", "deploy", nom, "--project-ref", ref],
-        cwd=RACINE, env={**os.environ, "SUPABASE_ACCESS_TOKEN": pat}, capture_output=True, text=True, shell=True,
-    )
-    if r.returncode != 0:
-        # La CLI met l'erreur de compilation sur stdout et les avertissements sur stderr :
-        # afficher les deux, sinon on ne voit que « Docker is not running » (inoffensif).
-        sys.exit(f"déploiement de {nom} échoué :\n{r.stdout[-1200:]}\n{r.stderr[-400:]}")
-    print(f"{nom} : fonction déployée")
-    appel("PATCH", f"{API}/projects/{ref}/functions/{nom}", pat, {"verify_jwt": True})
+    deployer_fonction(nom, pat, ref)
 
     url = f"https://{ref}.supabase.co/functions/v1/{nom}"
     sql(ref, pat, f"""

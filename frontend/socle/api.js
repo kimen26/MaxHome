@@ -188,6 +188,13 @@ export function creerApi(sb) {
     creerAlerte: (champs) => sb.from("veille_alertes").insert(champs).select().single().then(rendre),
     majAlerte: (id, champs) => sb.from("veille_alertes").update(champs).eq("id", id).then(rendre),
     supprimerAlerte: (id) => sb.from("veille_alertes").delete().eq("id", id).then(rendre),
+
+    /** Événements de l'agenda Google du foyer (Edge Function agenda-google, lecture seule) :
+     *  `[{ id, titre, debut, fin, heureDebut, heureFin }]`, dates AAAA-MM-JJ, `fin` inclusive. */
+    agendaGoogle: async (debut, fin) => {
+      const r = rendre(await sb.functions.invoke("agenda-google", { body: { debut, fin } }));
+      return r?.evenements ?? [];
+    },
     async voyageCompteurs() {
       const [lieux, resas, enveloppes, resumes] = await Promise.all([
         sb.from("voyage_lieux").select("voyage_id").then(rendre),

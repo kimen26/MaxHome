@@ -28,32 +28,71 @@
 .agenda-entete span { text-align:center; font-size:11px; font-weight:600; color:var(--texte-2); padding:6px 0; border-bottom:1px solid var(--separateur-2); }
 .agenda-semaine { border-bottom:1px solid var(--separateur-2); }
 .agenda-semaine:last-child { border-bottom:0; }
+/* Chaque case du mois est un <button> : cible ≥ 48 px de haut (min-height, jamais de hauteur
+   fixe), contenu en colonne qui peut grandir (pastilles qui passent à la ligne). */
 .agenda-case {
-  position:relative; min-height:46px; padding:4px 3px 14px; border-right:1px solid var(--separateur);
+  position:relative; min-height:48px; padding:3px 2px 4px; border:0; border-right:1px solid var(--separateur);
   display:flex; flex-direction:column; align-items:center; gap:2px; background:#fff;
+  font:inherit; color:inherit; text-align:center; cursor:pointer; min-width:0;
 }
+div.agenda-case { cursor:default; }
 .agenda-case:last-child { border-right:0; }
+.agenda-case:focus-visible { outline:3px solid var(--bleu); outline-offset:-3px; box-shadow:none; }
+/* Jour choisi : double contour bleu, la couleur de fond (vacances) reste lisible dessous. */
+.agenda-case[aria-pressed="true"] { box-shadow:inset 0 0 0 3px var(--bleu); font-weight:700; }
 .agenda-case.hors-mois .agenda-jour { color:var(--placeholder); }
+.agenda-haut { display:flex; align-items:center; justify-content:center; gap:1px; max-width:100%; }
 .agenda-jour { font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:13px; }
-/* Vacances : fond ambre sur toute la case. Voyage : trait bleu au bas. Férié : lettre F verte. */
+/* Vacances : fond ambre sur toute la case. Voyage : trait bleu au bas. Férié : lettre F verte
+   à côté du numéro. */
 .agenda-case.a-vacances { background:var(--vac-fond); }
-.agenda-marque-voyage { position:absolute; left:3px; right:3px; bottom:4px; height:5px; border-radius:3px; background:var(--voy-texte); }
+.agenda-marque-voyage { align-self:stretch; height:5px; border-radius:3px; background:var(--voy-texte); margin:auto 1px 0; }
 .agenda-marque-ferie {
-  position:absolute; right:3px; top:3px; font-size:10px; font-weight:700; color:var(--fer-texte);
-  background:var(--fer-fond); border-radius:4px; padding:0 3px; line-height:14px;
+  font-size:10px; font-weight:700; color:var(--fer-texte); background:var(--fer-fond);
+  border-radius:3px; padding:0 2px; line-height:14px;
 }
 .agenda-case.a-ferie .agenda-jour { color:var(--fer-texte); font-weight:600; }
 /* Après la règle férié : aujourd'hui garde son disque bleu même un jour férié. */
 .agenda-case.aujourdhui .agenda-jour {
-  background:var(--bleu); color:#fff; font-weight:600; border-radius:999px; width:24px; height:24px;
+  background:var(--bleu); color:#fff; font-weight:600; border-radius:999px; width:22px; height:22px;
   display:inline-flex; align-items:center; justify-content:center;
 }
 
-/* ================= Événements du mois : type en étiquette + texte ================= */
+/* ================= Qui : Max bleu, Yann vert, Claudia violet, Famille rouge (tableau blanc du
+   foyer). Texte blanc sur fond plein, contraste ≥ 4.5:1 : bleu 6.70, vert 5.02, violet 6.98,
+   rouge 6.47. Toujours doublé de l'initiale ou du prénom : la couleur n'est jamais seule. ====== */
+:root {
+  --qui-max:#1d4ed8; --qui-yann:#15803d; --qui-claudia:#7e22ce; --qui-famille:#b91c1c;
+}
+.qui-max { background:var(--qui-max); }
+.qui-yann { background:var(--qui-yann); }
+.qui-claudia { background:var(--qui-claudia); }
+.qui-famille { background:var(--qui-famille); }
+.agenda-qui, .agenda-qui-nom { color:#fff; font-weight:700; }
+.agenda-qui {
+  display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto;
+  width:16px; height:16px; border-radius:999px; font-size:10px; line-height:1;
+}
+.agenda-qui-nom { font-size:12px; border-radius:6px; padding:2px 7px; text-align:center; }
+.agenda-pastilles { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:2px; max-width:100%; }
+.agenda-plus { font-size:10px; font-weight:700; color:var(--texte); line-height:16px; }
+
+/* Légende : les quatre pastilles avec le prénom en toutes lettres. */
+.agenda-legende { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:8px; font-size:14px; }
+.agenda-legende-item { display:inline-flex; align-items:center; gap:6px; min-height:24px; }
+.agenda-legende .agenda-qui { width:20px; height:20px; font-size:12px; }
+
+/* ================= Liste du mois, groupée par jour ================= */
 #agenda-evenements { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+.agenda-jourliste { display:flex; flex-direction:column; gap:6px; }
+.agenda-jourliste .titre-section { font-size:14px; margin:12px 0 2px; }
+.agenda-tout {
+  align-self:flex-start; min-height:48px; padding:0 18px; border:1px solid var(--bleu); border-radius:10px;
+  background:#fff; color:var(--bleu); font-size:15px; font-weight:600; cursor:pointer;
+}
 .agenda-evt {
   display:flex; align-items:flex-start; gap:10px; background:#fff; border:1px solid var(--bordure);
-  border-radius:11px; padding:10px 12px; min-height:44px;
+  border-radius:11px; padding:10px 12px; min-height:48px;
 }
 .agenda-evt-type {
   flex:0 0 auto; font-size:11px; font-weight:600; border-radius:6px; padding:2px 7px; margin-top:1px;
@@ -62,9 +101,12 @@
 .agenda-evt.a-vacances .agenda-evt-type { background:var(--vac-fond); color:var(--vac-texte); }
 .agenda-evt.a-voyage .agenda-evt-type { background:var(--voy-fond); color:var(--voy-texte); }
 .agenda-evt.a-ferie .agenda-evt-type { background:var(--fer-fond); color:var(--fer-texte); }
-.agenda-evt-corps { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.agenda-evt-titre { font-size:14px; font-weight:600; }
-.agenda-evt .sous { font-size:12px; color:var(--texte-2); }
+/* Événement du foyer : heure au-dessus de l'étiquette de la personne, titre à droite. */
+.agenda-evt-gauche { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:4.5rem; }
+.agenda-evt-heure { font-size:14px; font-weight:700; color:var(--texte); }
+.agenda-evt-corps { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
+.agenda-evt-titre { font-size:16px; font-weight:600; overflow-wrap:anywhere; }
+.agenda-evt .sous { font-size:13px; color:var(--texte-2); }
 
 /* ================= Écran Vacances ================= */
 #vacances-notre { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; margin:8px 0 2px; }

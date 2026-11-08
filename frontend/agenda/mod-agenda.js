@@ -1,5 +1,5 @@
 // Module Agenda : le calendrier du foyer — voyages, vacances scolaires de notre zone, jours
-// fériés. Trois écrans : Mois (grille), Vacances (par zone), Réglages · Voyages (CRUD
+// fériés, et les événements de l'agenda Google du foyer (piscine, foot, gardes…). Trois écrans : Mois (grille), Vacances (par zone), Réglages · Voyages (CRUD
 // titre/dates). La liste des voyages et leur carnet sont dans le module Voyages
 // (frontend/voyages/), qui réutilise les fichiers du carnet restés ici.
 
@@ -10,6 +10,13 @@ import { chargerVacances, ZONE_DEFAUT } from "./vacances.js";
 import { jourIso, prochaines, relatif } from "./calendrier.js";
 
 const auj = () => jourIso(new Date());
+// Fenêtre de l'agenda Google chargée d'un coup : 3 mois avant aujourd'hui, 12 mois après.
+const MOIS_AVANT = 3, MOIS_APRES = 12;
+
+/** Premier jour du mois, décalé de `n` mois, en ISO (jamais toISOString : L-004). */
+const debutDecale = (n) => { const d = new Date(); return jourIso(new Date(d.getFullYear(), d.getMonth() + n, 1)); };
+/** Dernier jour du mois, décalé de `n` mois. */
+const finDecalee = (n) => { const d = new Date(); return jourIso(new Date(d.getFullYear(), d.getMonth() + n + 1, 0)); };
 
 export default {
   cle: "agenda", nom: "Agenda", defaut: "agenda-mois", avecMois: false,
@@ -22,7 +29,7 @@ export default {
   // par le module Voyages (même requête, même état partagé).
   etatInitial: {
     voyages: [], parametres: [], zone: ZONE_DEFAUT, vacances: [], vacancesPerimees: false,
-    vacancesParZone: {},
+    vacancesParZone: {}, google: [],
     agenda: { annee: new Date().getFullYear(), mois: new Date().getMonth() + 1 },
   },
   referentiels: (api) => ({ parametres: api.parametres() }),
@@ -59,10 +66,13 @@ export default {
         // Les voyages viennent de la base ; les vacances d'une API publique. Si celle-ci
         // manque et qu'aucun cache n'existe, l'écran Mois montre quand même voyages et fériés :
         // l'erreur est signalée (bandeau) sans vider tout l'écran.
-        const [voyages, vacances] = await Promise.all([
+        const [voyages, vacances, google] = await Promise.all([
           api.voyages(),
           vacancesDe(etat.zone).catch((e) => { cb.echec(e); return { periodes: [], perime: false }; }),
+          // Agenda Google du foyer : même règle, un échec est signalé et le reste s'affiche.
+          api.agendaGoogle(debutDecale(-MOIS_AVANT), finDecalee(MOIS_APRES)).catch((e) => { cb.echec(e); return []; }),
         ]);
+        etat.google = google;
         etat.voyages = voyages;
         etat.vacances = vacances.periodes;
         etat.vacancesPerimees = vacances.perime;
