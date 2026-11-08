@@ -992,3 +992,19 @@ lui suffisait).
 - **Le bot ne réveille pas une session Claude Code.** Pendant une session ouverte, Claude surveille
   `inbox/demandes_bot.md` ; à l'ouverture d'une session, il lit les demandes en attente.
   Les résultats reviennent dans le groupe par le bot.
+
+## D-063 — L'écran Agenda lit l'agenda Google en direct, par une Edge Function (2026-11-08)
+
+Yann : « un calendrier visuel lisible dans l'appli ». L'écran Mois ne montrait que vacances,
+voyages et fériés ; les vrais événements du foyer étaient dans l'agenda Google.
+- **Lecture en direct par l'Edge Function `agenda-google`** plutôt qu'une copie en base tenue par
+  le bot : le bot vit sur le PC de Yann et est déjà mort trois fois (L-058, L-059) ; la fonction
+  marche PC éteint. Lecture seule (`calendar.readonly`), réservée aux membres du foyer (jeton de
+  l'appelant + RLS `membres`), ne rend que titre, dates et heures.
+- **La clé du compte de service est copiée en secret du projet Supabase** (`MAXHOME_GOOGLE_CLE`) :
+  second emplacement assumé, comme le jeton Telegram des rappels, parce qu'une fonction hébergée
+  ne lit pas le registre Windows. `scripts/deploy_agenda.py` la pose sans l'afficher.
+- **Personne d'un événement = premier prénom cité dans le titre** (Max, Yann, Claudia), sinon
+  Famille ; couleurs du tableau blanc, initiale dans la pastille, jamais la couleur seule.
+- **Mise en production d'une fonction : accord de Yann.** La CLI Supabase refuse de déployer en
+  production depuis un agent sans `--yes` ; on demande, puis on relance avec `--yes`.

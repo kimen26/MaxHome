@@ -350,7 +350,8 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       du Soleil dans inbox/recherche_ski_fevrier_2027_autres.md, résumé envoyé au groupe le 03/11.
       Sowell n'est plus seul en tête (Superbagnères, Orcières). Non lu : prix de Max chez VCS.
 - [ ] Lire `inbox/demandes_bot.md` à l'ouverture de chaque session (D-062).
-- [ ] Garde côté serveur « le bot ne répond plus » (deux morts en deux jours, L-058).
+- [ ] **PRIORITÉ** Garde côté serveur « le bot ne répond plus » (trois morts, la dernière vue
+      cinq jours après, L-058, L-059). Bot relancé le 08/11 à 20h19.
 - [x] Première écriture dans l'agenda du foyer (03/11, demande de Yann) : qui garde Max les
       mercredis de novembre, en journée entière (4 et 11 Yann, 18 et 25 Claudia), marqués
       `maxhome_type=garde_mercredi` en propriété privée (relance sans doublon, vérifiée).
@@ -362,6 +363,16 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       (03/11 09:23, Yann attendait une réponse sur le ski). Comportement voulu (conversation
       entre eux), mais deux fois surprenant. À trancher : rappeler la règle dans les messages
       du bot qui invitent à une suite, ou traiter une question qui suit de près un message du bot.
+      08/11 : troisième fois, juste après la relance du bot. Question posée à Yann : le bot
+      répond-il à tous les messages du groupe, ou seulement quand on l'appelle ?
+- [x] Écran Agenda · Mois branché sur l'agenda Google (D-063, 08/11) : Edge Function
+      `agenda-google` déployée, recette connectée verte (30 événements réels), en ligne.
+- [ ] Ina le samedi 28/11 (déjeuner + après-midi) écrit « à confirmer » ; message aux parents
+      préparé pour Yann. Retirer « (à confirmer) » quand Yann le dit.
+- [ ] Briefing du matin lu par Alexa (agenda, MaxVoyage, météo, actu Brésil) : fichier à adresse
+      fixe et longue sur Supabase, régénéré chaque matin ; GitLab écarté (public, mise à jour à la
+      main). D'abord un essai avec un faux briefing pour prouver qu'Alexa+ le lit. Attend le oui
+      de Yann sur l'adresse Supabase.
 
 ## Parking
 - Le carnet de voyage (ui-fiche-*, carnet.js, carte.js, geocode.js, topo.js, ui-voyages-liste.js)

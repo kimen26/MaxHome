@@ -581,3 +581,16 @@ Règle : relancer le bot avec `explorer.exe "<Startup>\MaxHome-Bot.lnk"`. Le sup
 parent un explorer lancé par svchost, comme à l'ouverture de session. Vérifier la chaîne des
 parents après chaque relance. Tant qu'aucun garde ne prévient de la mort du bot (dette du 01/10),
 un silence du bot se vérifie d'abord par la liste des processus.
+
+## L-059 — Le bot est mort une troisième fois, lancé pourtant par explorer : personne ne l'a vu pendant cinq jours (2026-11-08)
+
+Symptôme : Yann, le 08/11 : « je parle au chat mais ça ne fait rien ? Pkoi ça ne marche jamais ? ».
+Aucun processus du bot ; dernière ligne de `bot_process.log` le 03/11 vers 21h43, terminée par `^C`.
+Le bot avait été relancé le 03/11 à 8h26 par `explorer.exe` sur le raccourci, la méthode de L-058.
+Cause : inconnue. L'hypothèse de L-058 (arbre de la session Claude Code) ne suffit pas, puisque le
+superviseur n'en faisait pas partie. Le `^C` tue aussi le superviseur, qui ne relance donc rien.
+Deuxième cause du silence ressenti : dès la relance, un message du groupe a été ignoré, car il
+n'avait ni mention du bot ni « Répondre » (filtre de D-060).
+Règle : le garde « le bot ne répond plus » passe en tête du TODO, ce n'est plus une dette. D'ici là,
+toute session commence par la liste des processus du bot, et un silence signalé par Yann se
+vérifie d'abord là, puis dans `bot.log` (« message ignoré »).
