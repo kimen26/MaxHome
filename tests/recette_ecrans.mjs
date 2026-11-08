@@ -371,6 +371,19 @@ const GESTES = [
       await page.waitForSelector("form.reglages", { state: "visible", timeout: 3000 });
       await page.waitForTimeout(250); // la feuille glisse en 200 ms
     } },
+  // Repère « Note » d'une charge (D-065) dans la liste du mois, vue Catégories, groupe Logement
+  // déplié : la charge factice « Assurance habitation » porte une note fictive. Feuille fermée.
+  { ecran: "mois", moduleDefaut: "mois", nom: "mois-charge-note",
+    geste: async (page) => {
+      await page.click('#mois-vue-charges [data-vue-charges="categories"]');
+      // Les groupes dépliés survivent d'un geste à l'autre (même page) : ne déplier que s'il le faut.
+      if (!(await page.locator("#mvts-a-faire .mc-note").count())) {
+        await page.locator('#mvts-a-faire [data-ml-groupe]:not([data-ml-groupe*="__virements__"])').first().click();
+      }
+      const repere = page.locator("#mvts-a-faire .mc-note").first();
+      await repere.waitFor({ state: "visible", timeout: 5000 });
+      await repere.scrollIntoViewIfNeeded();
+    } },
   // Même feuille ouverte depuis Réglages · Charges (toujours en feuille, même sur PC : cet
   // écran n'a pas de colonne de droite).
   { ecran: "charges-ref", moduleDefaut: "taches-rec", nom: "reglage-charge-ref",

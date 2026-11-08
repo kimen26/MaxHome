@@ -1021,3 +1021,11 @@ est concerné et peut répondre ». Trois fois, un message sans mention a été 
 - Une écriture comprise dans un message non adressé demande toujours « OK ? » (« resto 25 » dit entre
   Claudia et Yann ne doit pas écrire seul dans le budget), et un message non adressé ne consomme jamais
   une question en attente.
+
+## D-065 — Une charge porte une note libre : pourquoi elle a ce montant (2026-11-08)
+
+Yann, après la mise à jour d'octobre (copropriété 350 → 420 €, école 880 → 910 €, livret vacances
+500 → 1 000 €) : « on peut avoir un endroit où on note ça ? ». Colonnes `charges.note` (500 caractères
+au plus) et `note_le`, saisies dans la feuille de réglage de la charge, repère « Note » dans la liste
+du mois. Une note par charge, réécrite quand le montant change, plutôt qu'un historique daté par
+mois : Yann veut retrouver le pourquoi là où il regarde la charge, pas tenir un journal.

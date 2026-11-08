@@ -26,6 +26,7 @@ import { SANS_PRENOM, valeurAffichee, preparerBascule as preparerBasculeLigne, a
 import { estAutomatique } from "./automatique.js";
 import { libelleACompleter } from "./libelle-virement.js";
 import { htmlBlocLibelle, brancherBlocLibelle } from "./bloc-libelle-virement.js";
+import { htmlRepereNote } from "./note-charge.js";
 import { aReserve, estMoisPaiement, montantCumule, montantCycleEstime, prochainMoisPaiement } from "./reserve.js";
 
 const CLE_VUE = "maxhome.budget.vueCharges";
@@ -146,6 +147,7 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
         ${auto ? `<span class="mc-fait mc-auto">Automatique</span>`
           : fait ? `<span class="mc-fait">✓ ${[e.fait_par, jourMois(fait)].filter(Boolean).join(" · ")}</span>` : ""}
         ${recurrentReserve && !estPaiement ? repereReserve(recurrentReserve, e.id) : ""}
+        ${e.type === "ligne" ? htmlRepereNote(etat.charges.find((c) => c.id === e.id)) : ""}
       </div>
       ${droite}
     </div>${estPaiement ? caseEtapePaiement(recurrentReserve, e.id) : ""}`;

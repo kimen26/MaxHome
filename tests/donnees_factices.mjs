@@ -72,7 +72,11 @@ export const CHARGES = [
   { id: 5, libelle: "Crèche", ordre: 50, categorie: "Léo", type: "egales", regle: "egales",
     cle_pct: null, payeur: null, ponctuel: false, montant_defaut: -45000, defaut_dernier: true },
   { id: 6, libelle: "Assurance habitation", ordre: 60, categorie: "Logement", type: "cle", regle: "cle",
-    cle_pct: 60, payeur: null, ponctuel: false, montant_defaut: -3890, defaut_dernier: false },
+    cle_pct: 60, payeur: null, ponctuel: false, montant_defaut: -3890, defaut_dernier: false,
+    // Note FICTIVE (aucune donnée réelle, invariant 1) : montre le repère de la liste et le texte
+    // complet + sa date dans la feuille, sur plusieurs lignes à 360 px (L-009 : se regarde).
+    note: "Prime passée de 36,50 à 38,90 € en novembre : changement de formule chez l'assureur (exemple fictif). À comparer au printemps.",
+    note_le: "2026-11-08T09:00:00" },
   { id: 7, libelle: "Resto anniversaire", ordre: 70, categorie: "Autre", type: "egales", regle: "egales",
     cle_pct: null, payeur: null, ponctuel: true, montant_defaut: null, defaut_dernier: false },
   { id: 8, libelle: "Ancienne box internet", ordre: 80, categorie: "Logement", type: "egales", regle: "egales",

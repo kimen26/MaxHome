@@ -289,6 +289,10 @@
 }
 .ecart-mois .btn-lien { min-height:44px; font-size:14px; text-align:left; }
 .reglages .regle-mois { margin:0; font-size:14px; display:flex; align-items:center; gap:4px 10px; flex-wrap:wrap; }
+/* Note d'une charge (D-065) : texte courant ≥ 14 px, sur plusieurs lignes, jamais tronqué. */
+.reglages textarea[name="note"] { min-height:96px; line-height:1.45; resize:vertical; font-size:16px; }
+.bloc-reglage .aide-note { margin:0; font-size:14px; line-height:1.4; color:var(--texte-2); }
+.mc-note { font-size:14px; line-height:1.3; color:var(--texte-2); font-weight:600; }
 .bloc-reglage .aide-compte { margin:0; font-size:13px; line-height:1.4; color:var(--texte-2); }
 
 /* ================= Bandeau « à compléter » (tête de l'écran Mois) ================= */

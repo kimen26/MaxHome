@@ -8,7 +8,8 @@
 //      mois » (on reprend le dernier) ;
 //   2. Qui paie quoi ? 50/50, prorata, clé fixe, un seul paie — la part de chacun sous chaque option ;
 //   3. Où va l'argent ? Commun, ou un autre compte (compte-charge.js) ;
-//   4. Nom et catégorie.
+//   4. Nom et catégorie ;
+//   + une note libre « pourquoi ce montant » (note-charge.js), sous le montant récurrent.
 // Les choix sont locaux jusqu'à « Enregistrer » : un seul geste écrit, comme partout ailleurs
 // dans les feuilles. Mobile : feuille ; PC : colonne de droite de l'écran Mois, ou feuille
 // depuis Réglages · Charges (qui n'a pas de colonne).
@@ -21,6 +22,7 @@ import { REGLES, libelleRegle, optionsRegle } from "./repartition.js";
 import { FIXE, VARIABLE, faconDe, montantHabituel, optionsFacon } from "./habituel.js";
 import { AIDE_SANS_COMPTE, aAutreCompte, compteDeCharge, optionsCompte, choisirCompte } from "./compte-charge.js";
 import { confirmerFinDeCharge } from "./ui-charges-ajout.js";
+import { htmlChampNote, champsNote } from "./note-charge.js";
 
 const ASIDE = "#reglages-pc";
 
@@ -63,6 +65,8 @@ export function creerFeuilleCharge(api, etat, cb, categories) {
           <input class="champ champ-montant grand-montant" name="montant_defaut" inputmode="decimal"
                  value="${enEuros(c.montant_defaut)}" placeholder="ex. -1200,00"></label>
       </fieldset>
+
+      ${htmlChampNote(c)}
 
       <fieldset class="bloc-reglage"><legend class="etiquette">Qui paie quoi</legend>
         ${choixDetaille(optionsRegle(etat, c, REGLES.map(([v]) => v)), c.regle, { attr: "regle", etiquette: "Qui paie quoi" })}
@@ -190,6 +194,10 @@ export function creerFeuilleCharge(api, etat, cb, categories) {
         try { montantMois = versCentimes(brutMois); }
         catch { toast(`Montant du mois illisible : « ${brutMois} ».`); return; }
       }
+      // Note (D-065) : vide efface note et date ; inchangée ne touche pas à la date.
+      const noteChamps = champsNote(form.elements.note.value, c);
+      if (typeof noteChamps === "string") { toast(noteChamps); return; }
+      if (noteChamps) Object.assign(champs, noteChamps);
       const compte = form.elements.compte.value ? Number(form.elements.compte.value) : null;
       enregistrerPuisFermer(async () => {
         await api.majCharge(c.id, champs);

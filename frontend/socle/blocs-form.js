@@ -14,8 +14,8 @@ export const montant = (name, label, centimes, { placeholder = "0,00", requis = 
   `<label>${txt(label)} <input class="champ champ-montant" name="${name}" inputmode="decimal"` +
   ` value="${enEuros(centimes)}" placeholder="${txt(placeholder)}"${requis ? " required" : ""}></label>`;
 
-export const zone = (name, label, valeur = "", { lignes = 2, placeholder = "" } = {}) =>
-  `<label>${txt(label)} <textarea class="champ" name="${name}" rows="${lignes}"` +
+export const zone = (name, label, valeur = "", { lignes = 2, placeholder = "", attrs = "" } = {}) =>
+  `<label>${txt(label)} <textarea class="champ" name="${name}" rows="${lignes}" ${attrs}` +
   `${placeholder ? ` placeholder="${txt(placeholder)}"` : ""}>${txt(valeur ?? "")}</textarea></label>`;
 
 /** `options` : [[valeur, libellé]] ; `vide` = libellé d'une option "" en tête ; `attrs` va sur le label. */
