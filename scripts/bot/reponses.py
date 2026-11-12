@@ -271,6 +271,7 @@ RECAPS = {  # action interne -> (a, prenom de l'expéditeur, (annee, mois)) -> p
                                 f"{euros(a['montant_centimes'])}."),
     "ajustement": _recap_ajustement,
     "course_ajout": lambda a, p, m: f"J'ajoute « {a['libelle']} » à la liste de courses.",
+    "outil_ecriture": lambda a, p, m: a["resume"],  # écriture d'un outil du registre (outils/registre.py)
 }
 
 

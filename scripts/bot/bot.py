@@ -20,26 +20,26 @@ from provision import cles, lit_env  # noqa: E402
 import actions  # noqa: E402
 from aide_virements import aide_complete  # noqa: E402
 import annulation  # noqa: E402
+import boucle_bot  # noqa: E402
 import budget_lignes  # noqa: E402
 import budget_libelle  # noqa: E402
 import budget_virements  # noqa: E402
 import commandes  # noqa: E402
 import dialogue_libre  # noqa: E402
 import groupe  # noqa: E402
+import outils  # noqa: E402
 import taches as taches_mod  # noqa: E402
 import reponses  # noqa: E402
 import traduction_libre  # noqa: E402
 import voyages as voyages_mod  # noqa: E402
 from donnees import Donnees  # noqa: E402
-from telegram import Telegram, est_reseau_transitoire  # noqa: E402
+from telegram import Telegram  # noqa: E402
 
 DATA = RACINE / "data"
 DATA.mkdir(exist_ok=True)
 CALC_CLI = RACINE / "scripts" / "bot" / "calc_cli.mjs"
 
 ATTENTE_MINUTES = 10
-PAUSE_RESEAU_MIN_S = 5
-PAUSE_RESEAU_MAX_S = 60
 
 
 def configurer_journal():
@@ -192,6 +192,8 @@ class Bot:
         if a == "inscrire":
             self.donnees.inscrire_telegram(action["telegram_id"], action["prenom"])
             return f"{action['prenom']} inscrit (id {action['telegram_id']})."
+        if a == outils.ACTION_ECRITURE:  # écriture d'un outil, déjà confirmée par un « oui » (D-060)
+            return outils.confirmer(action)
         if a == "moi":
             return "Utilise `/inscrire <ton id> <prenom>` envoyé par Yann pour t'inscrire."
 
@@ -319,70 +321,11 @@ class Bot:
 
     def boucle(self, max_iterations=None):
         """`max_iterations` borne le nombre de passages (tests hors ligne) ; None = infini (prod)."""
-        offset = 0
-        pause_reseau = PAUSE_RESEAU_MIN_S
-        self.log.info("bot démarré")
-        iterations = 0
-        while max_iterations is None or iterations < max_iterations:
-            iterations += 1
-            try:
-                updates = self.telegram.get_updates(offset)
-            except Exception as exc:
-                if est_reseau_transitoire(exc):
-                    self.log.warning("getUpdates : réseau indisponible (%s), pause %ds",
-                                      type(exc).__name__, pause_reseau)
-                    time.sleep(pause_reseau)
-                    pause_reseau = min(pause_reseau * 2, PAUSE_RESEAU_MAX_S)
-                else:
-                    self.log.exception("getUpdates : erreur inattendue, pause %ds", PAUSE_RESEAU_MIN_S)
-                    time.sleep(PAUSE_RESEAU_MIN_S)
-                continue
-            pause_reseau = PAUSE_RESEAU_MIN_S  # un getUpdates réussi remet le backoff à zéro
-            for u in updates:
-                offset = u["update_id"] + 1
-                self.traiter_update(u)
+        boucle_bot.boucler(self, max_iterations)
 
     def traiter_update(self, u):
-        """Un update Telegram : événement de groupe, filtre de groupe (groupe.py), puis texte ou pièce jointe."""
-        msg = u.get("message")
-        if not msg:
-            if u.get("edited_message"):  # jamais traité : on le dit au journal (sans texte ni identifiant)
-                self.log.info("message modifié ignoré : renvoyer un nouveau message")
-            return
-        if groupe.gerer_evenement(self, msg):
-            return
-        msg, adresse = groupe.filtrer(msg, self.identite, self.etats)  # groupe : adressé ou non, sinon None
-        if msg is None:
-            self.log.info("groupe : message ignoré (pièce jointe non adressée, ou identité du bot inconnue)")
-            return
-        self.log.info("message reçu (%s), traitement", "groupe" if groupe.est_groupe(msg["chat"]) else "privé")
-        chat_id = msg["chat"]["id"]
-        telegram_id = msg["from"]["id"]
-        if "text" in msg:
-            try:
-                reponse = (self.traiter_message(telegram_id, msg["text"]) if adresse
-                           else self.traiter_message(telegram_id, msg["text"], adresse=False))
-            except Exception:
-                self.log.exception("erreur non gérée")
-                reponse = "Erreur interne, réessaie."
-            if not adresse and reponse is None:  # bruit écarté (groupe.py) : le bot se tait ; « pas compris » se dit
-                self.log.info("groupe : message sans suite, pas de réponse")
-                return
-        elif "photo" in msg or "document" in msg:
-            try:
-                reponse = self.traiter_piece(telegram_id, msg)
-            except Exception:
-                self.log.exception("erreur traitement pièce jointe")
-                reponse = "Erreur interne, réessaie."
-        else:
-            return
-        groupe.noter_chat(self.etats, telegram_id, chat_id)
-        if reponse is None:
-            return
-        try:
-            self.telegram.envoyer(chat_id, reponse)
-        except Exception:
-            self.log.exception("envoi Telegram échoué")
+        """Un update Telegram : voir boucle_bot.traiter_update."""
+        boucle_bot.traiter_update(self, u)
 
 
 def main():
