@@ -282,7 +282,7 @@ class Bot:
         return dialogue_libre.reprendre(self, telegram_id, prenom, texte_brut)  # oui/non ou réponse à une question
 
     def _traiter_non_adresse(self, telegram_id, prenom, texte_brut, action, vers_le_modele):
-        """Message de groupe qui ne s'adresse pas au bot : agit seulement s'il y a une action utile, sinon None.
+        """Message de groupe qui ne s'adresse pas au bot : se tait sur le bruit (None), sinon répond, « pas compris » compris.
 
         Une écriture reconnue par la grammaire passe par la confirmation « OK ? » (D-060) : une phrase
         entre Claudia et Yann ne doit jamais écrire dans le budget sans un « oui ».
@@ -365,7 +365,7 @@ class Bot:
             except Exception:
                 self.log.exception("erreur non gérée")
                 reponse = "Erreur interne, réessaie."
-            if not adresse and reponse in (None, reponses.non_compris()):  # rien d'utile : le bot se tait
+            if not adresse and reponse is None:  # bruit écarté (groupe.py) : le bot se tait ; « pas compris » se dit
                 self.log.info("groupe : message sans suite, pas de réponse")
                 return
         elif "photo" in msg or "document" in msg:

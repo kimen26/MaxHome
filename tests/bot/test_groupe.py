@@ -169,6 +169,14 @@ def test_message_sans_suite_est_journalise_sans_texte(bot, caplog, modele):
     vus = modele({"action": "inconnu"})
     bot.traiter_update(update("on mange quoi ce soir pour secret-du-foyer ?"))
     assert vus, "assez long pour une demande possible : le modèle a été consulté"
+    assert lignes_journal(caplog) == ["message reçu (groupe), traitement"]
+    assert bot.telegram.envoyes == [(GROUPE, "Je n'ai pas compris. Tape `aide`.")]
+    assert sans_texte_ni_identifiant(caplog)
+
+
+def test_message_ecarte_est_journalise_sans_texte(bot, caplog):
+    caplog.set_level(logging.INFO)
+    bot.traiter_update(update("ok"))
     assert lignes_journal(caplog) == ["message reçu (groupe), traitement",
                                       "groupe : message sans suite, pas de réponse"]
     assert bot.telegram.envoyes == [] and sans_texte_ni_identifiant(caplog)
@@ -346,12 +354,15 @@ def test_non_adresse_avec_une_ecriture_demande_un_oui_et_n_ecrit_pas(bot):
     assert conversation.en_attente(bot.etats[YANN], conversation.CONFIRMATION)
 
 
-def test_non_adresse_incompris_le_bot_se_tait(bot, modele, caplog):
-    caplog.set_level(logging.INFO)
+def test_non_adresse_incompris_recoit_je_n_ai_pas_compris(bot, modele):
     vus = modele({"action": "inconnu"})
-    assert message(bot, "alors on se retrouve vers dix-neuf heures chez eux") == []
+    assert message(bot, "alors on se retrouve vers dix-neuf heures chez eux") == [
+        (GROUPE, "Je n'ai pas compris. Tape `aide`.")]
     assert len(vus) == 1, "assez long : le modèle a eu sa chance"
-    assert "groupe : message sans suite, pas de réponse" in lignes_journal(caplog)
+
+
+def test_non_adresse_action_muette_reste_muette(bot):
+    assert message(bot, "50/50") == [] and message(bot, "moi je veux des pâtes") == []
 
 
 def test_adresse_incompris_garde_la_reponse_actuelle(bot, modele):

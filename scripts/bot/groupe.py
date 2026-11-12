@@ -7,10 +7,10 @@ journalise jamais le contenu. En conversation privée rien ne change.
 Tout message texte d'un membre du foyer est traité, comme en privé (« si on parle ici, c'est pour le
 bot », 08/11). Il est « adressé » s'il (a) mentionne le bot, (b) répond à l'un de ses messages, ou
 (c) vient de quelqu'un à qui le bot attend encore une réponse, dans ce même groupe. Un message adressé
-garde toutes ses réponses, « je n'ai pas compris » compris. Un message NON adressé ne produit une
-réponse que si le bot a compris quelque chose d'utile : sinon il se tait (bot.py), et un message court
-sans verbe d'action (« ok », « mdr », un émoji) est écarté avant même d'appeler le modèle
-(`sans_suite_evident`). Une pièce jointe non adressée est ignorée.
+garde toutes ses réponses, « je n'ai pas compris » compris. Un message NON adressé reçoit lui aussi une
+réponse, « je n'ai pas compris » compris : le bot ne se tait que sur le bruit, un message court sans
+verbe d'action (« ok », « mdr », un émoji) écarté avant même d'appeler le modèle (`sans_suite_evident`)
+ou une réponse de `ACTIONS_MUETTES` (bot.py). Une pièce jointe non adressée est ignorée.
 
 Des fonctions sur des dicts (messages Telegram, bot.etats) ; seules `gerer_evenement` et
 `noter_chat` touchent au bot, et par ses ports (donnees, telegram, log).
@@ -43,7 +43,7 @@ MOT_DEFAUT = "aide"  # une mention seule (« @bot ») : le bot montre ce qu'il s
 _RE_ESPACES = re.compile(r"[ \t]+")
 # Réponses de la grammaire qui, à un message non adressé, ne sont que du bruit (« 50/50 » pris pour une
 # charge, « Claudia prend les enfants » pour un ajustement, « moi je veux des pâtes ») : le bot se tait.
-ACTIONS_MUETTES = frozenset({"erreur", "ambigu", "moi"})
+ACTIONS_MUETTES = frozenset({"erreur", "ambigu", "moi", "confirmation"})  # confirmation : « oui » sans attente
 
 _DEBUT_PARASITE = ",:;"
 _RE_NON_MOT = re.compile(r"[^\w\s]|_")

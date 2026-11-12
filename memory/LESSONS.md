@@ -594,3 +594,16 @@ n'avait ni mention du bot ni « Répondre » (filtre de D-060).
 Règle : le garde « le bot ne répond plus » passe en tête du TODO, ce n'est plus une dette. D'ici là,
 toute session commence par la liste des processus du bot, et un silence signalé par Yann se
 vérifie d'abord là, puis dans `bot.log` (« message ignoré »).
+
+## L-060 — Le bot du groupe lisait tout, puis se taisait quand il ne comprenait pas (2026-11-12)
+
+Symptôme : Yann, le 12/11, « pourquoi le chatbot dans le groupe ne fonctionne toujours pas ? ».
+Le journal montrait ses messages des 09/11 et 10/11 reçus, passés au modèle, puis « message sans
+suite, pas de réponse ».
+Cause : D-064 avait traduit « si on parle dans ce chat c'est pour le bot » par « le bot lit tout,
+mais se tait quand il n'a rien compris d'utile ». Vu du téléphone, un message incompris et un bot mort
+se ressemblent : rien ne revient.
+Règle : dans un canal que Yann déclare « pour le bot », une phrase qu'il n'a pas comprise reçoit
+« Je n'ai pas compris ». Seul le bavardage évident (« ok », émoji) et le bruit de la grammaire restent
+muets. Un silence voulu se vérifie avec Yann avant d'être livré : c'est ce qu'il ressentira comme une
+panne.

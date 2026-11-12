@@ -1041,3 +1041,12 @@ testé), pour que « Cette semaine » remonte en face quand la journée est cour
 carte ne garde pas toujours la même colonne d'un jour à l'autre ; l'ordre de lecture, lui, reste.
 Une mensuelle jamais faite montre « — » au lieu de « +3 mois » (trop large) ; une alerte de retard
 viendra à la place (TODO).
+
+## D-067 — Dans le groupe, une phrase incomprise reçoit « Je n'ai pas compris » (2026-11-12, corrige D-064)
+
+D-064 faisait taire le bot sur un message non adressé dont il ne tirait rien. Yann l'a vécu comme une
+panne (L-060). Désormais seul le bruit reste muet : message court sans verbe d'action (« ok », émoji),
+réponse de grammaire sans objet (`ACTIONS_MUETTES`, dont un « oui » ou un « non » sans question en
+attente), pièce jointe non adressée. Toute autre phrase reçoit une réponse, « Je n'ai pas compris. Tape
+aide. » compris. Coût accepté : quand Claudia et Yann parleront entre eux dans le groupe, une phrase
+longue sans rapport fera répondre le bot ; on resserrera si ça gêne.
