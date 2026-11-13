@@ -8,6 +8,7 @@ bot.traiter_action, comme une commande tapée à la main.
 """
 import re
 
+import agenda_bot
 import budget_lignes
 import conversation
 import ecole
@@ -23,6 +24,12 @@ ACTIONS_ECRITURE = frozenset(reponses.RECAPS)  # tout ce qui écrit passe par un
 # (Le libellé arrive normalisé : minuscules, sans accents.)
 _RE_PAS_UNE_COURSE = re.compile(
     r"€|\b(?:ligne|charge|euros?|eur|fonctionnalites?|ecran|onglet|bouton|appli|application)\b")
+
+# Un jour, une heure ou le mot « agenda » dans une phrase que la grammaire a prise pour une course ou une
+# charge floue (« ajoute piscine Max samedi 10h-11h », « supprime le dîner du 28 ») : c'est l'agenda (lot 3).
+_RE_AGENDA = re.compile(
+    r"\b(?:agenda|calendrier|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|demain|apres demain|"
+    r"semaine|week ?end)\b|\b\d{1,2} ?h(?:\d\d)?\b|\b(?:le|du|au) \d{1,2}\b|\b(?:0?[1-9]|[12]\d|3[01])/(?:0?[1-9]|1[0-2])\b")  # « 28/11 », pas « 50/50 »
 
 # Un libellé de charge ou un nom de voyage tapé à la main est court. Plus long, ou avec un lien,
 # c'est une phrase que le dernier recours grammatical a prise pour une commande (un chiffre « 2 adulte »
@@ -41,6 +48,8 @@ def relayer(action, texte):
     alors le message entier, montant compris.
     """
     nom = action["action"]
+    if nom in ("course_ajout", "ambigu") and _RE_AGENDA.search(reponses.normaliser(texte)):
+        return True
     if nom == "course_ajout":
         return bool(_RE_PAS_UNE_COURSE.search(action["libelle"]))
     if nom in ("ambigu", "charge"):
@@ -121,6 +130,8 @@ def _suite(bot, etat, telegram_id, prenom, texte, interp, annee, mois):
         return evolution.enregistrer(bot, prenom, _texte(interp) or texte, evolution.GENRE_RECHERCHE)
     if nom == "ecole_nouvelles":  # lecture seule des mails de l'école, résumée en texte (ecole.py)
         return ecole.nouvelles(bot)
+    if nom in agenda_bot.ACTIONS:  # lecture directe ; toute écriture est proposée (« OK ? ») puis confirmée
+        return agenda_bot.repondre(etat, prenom, interp)
     if nom == "hors_portee":  # une vraie demande que le bot ne sait pas faire : dit franchement, noté pour Yann
         return evolution.enregistrer(bot, prenom, _texte(interp) or texte, evolution.GENRE_HORS_PORTEE)
     if nom == "question":
