@@ -327,7 +327,9 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       sans affichage : MAXHOME_GOOGLE_CLE (compte de service), MAXHOME_GOOGLE_OAUTH_CLIENT.
       Reste : clic « Autoriser » de Yann (script de consentement en attente, port 8765), qui pose
       MAXHOME_GOOGLE_JETON après avoir vérifié que le compte est claudyann.home.
-- [ ] Espace parent de l'école de Max (événements, photos, documents, calendriers fleurs/fruits) :
+- [x] (13/11, D-068 : lecture, photos, tours, inscriptions et messages après « OK ? » ; non vérifié en vrai :
+      envoi des photos sur Telegram, formulaire d'inscription aux fleurs jamais observé, réponse du site
+      à un POST) Espace parent de l'école de Max (événements, photos, documents, calendriers fleurs/fruits) :
       D-061. Variables posées le 02/11, connexion par programme réussie au premier coup.
       Ce qu'on y trouve : Messagerie, Cantine, Documents (tableau, liens Télécharger), Photos/Vidéos
       (tableau date + titre + Voir), RDV bilans, Fleurs du lundi (tableau HTML Date | Nom, case
@@ -337,7 +339,8 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       de la session du 02/11 (jetables). Lot École : lire, prévenir des tours, jamais s'inscrire
       sans « oui ».
 - [ ] Yann : règle de transfert des mails de l'école vers claudyann.home@gmail.com.
-- [ ] Lot 3 : outils Agenda dans le bot, après l'accès Google.
+- [x] Lot 3 : outils Agenda dans le bot (13/11, D-068) : lire, créer, modifier, supprimer après « OK ? ».
+      Non vérifié en vrai : une écriture d'agenda faite par le bot.
 - [x] Accès Google complet le 03/11 : jeton Gmail/Drive (`MAXHOME_GOOGLE_JETON`, compte vérifié
       claudyann.home, 8 mails de l'école déjà là), agenda lu par le compte de service (droit
       writer, Europe/Paris, rien écrit). Le bot ne lit pas encore ces variables : il lit `.env`.
