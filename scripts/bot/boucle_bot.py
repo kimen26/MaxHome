@@ -66,7 +66,8 @@ def traiter_update(bot, u):
             return
     elif "photo" in msg or "document" in msg:
         try:
-            reponse = bot.traiter_piece(telegram_id, msg)
+            reponse = (bot.traiter_piece(telegram_id, msg) if adresse
+                       else bot.traiter_piece(telegram_id, msg, adresse=False))
         except Exception:
             bot.log.exception("erreur traitement pièce jointe")
             reponse = "Erreur interne, réessaie."

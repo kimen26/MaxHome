@@ -26,12 +26,12 @@ import budget_libelle  # noqa: E402
 import budget_virements  # noqa: E402
 import commandes  # noqa: E402
 import dialogue_libre  # noqa: E402
+import documents_voyage  # noqa: E402
 import groupe  # noqa: E402
 import outils  # noqa: E402
 import taches as taches_mod  # noqa: E402
 import reponses  # noqa: E402
 import traduction_libre  # noqa: E402
-import voyages as voyages_mod  # noqa: E402
 from donnees import Donnees  # noqa: E402
 from telegram import Telegram  # noqa: E402
 
@@ -262,6 +262,10 @@ class Bot:
             suite = self._reprendre(telegram_id, prenom, texte_brut)
             if suite is not None:
                 return suite
+        else:  # seule exception : le nom du voyage qui répond à « Pour quel voyage ? » (documents_voyage.py)
+            suite = documents_voyage.reprendre(self, telegram_id, prenom, texte_brut, adresse=False)
+            if suite is not None:
+                return suite
 
         annee_c, mois_c = self.mois_courant()
         charges_proposables = budget_lignes.charges_actives(self.charges)  # D-043 : jamais une terminée
@@ -281,6 +285,9 @@ class Bot:
         norm = reponses.normaliser(texte_brut.strip())
         if norm in ("oui", "non") and self.etats.get(telegram_id, {}).get("attente_voyage"):
             return actions.confirmer_voyage(self, telegram_id, prenom, norm == "oui")
+        en_attente = documents_voyage.reprendre(self, telegram_id, prenom, texte_brut)  # « Pour quel voyage ? »
+        if en_attente is not None:
+            return en_attente
         return dialogue_libre.reprendre(self, telegram_id, prenom, texte_brut)  # oui/non ou réponse à une question
 
     def _traiter_non_adresse(self, telegram_id, prenom, texte_brut, action, vers_le_modele):
@@ -312,12 +319,12 @@ class Bot:
         """Convertit le JSON libre (schéma libre.py) vers le schéma interne de commandes.py."""
         return traduction_libre.traduire(interp, self.charges, self.membres, annee_c, mois_c)
 
-    def traiter_piece(self, telegram_id, msg):
-        """Photo ou document PDF, légendé du nom d'un voyage. Aiguille vers voyages.py."""
+    def traiter_piece(self, telegram_id, msg, adresse=True):
+        """Photo ou document PDF : rangé et lu. Aiguille vers documents_voyage.py."""
         prenom = self.donnees.membre_telegram(telegram_id)
         if not prenom:
             return reponses.inconnu(telegram_id)
-        return voyages_mod.traiter_piece(self.donnees, self.telegram, prenom, msg)
+        return documents_voyage.traiter(self, telegram_id, prenom, msg, adresse)
 
     def boucle(self, max_iterations=None):
         """`max_iterations` borne le nombre de passages (tests hors ligne) ; None = infini (prod)."""

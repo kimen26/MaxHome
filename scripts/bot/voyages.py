@@ -356,32 +356,3 @@ def legende_vise_voyage(legende, voyages):
     if not legende or not legende.strip():
         return None, []
     return trouver_voyage(legende.strip(), voyages)
-
-
-def traiter_piece(donnees, telegram, prenom, msg):
-    """Photo (plus grande résolution) ou document PDF, légendé du nom d'un voyage.
-
-    Retourne le texte à envoyer, ou None si le message ne porte ni photo ni document.
-    """
-    legende = msg.get("caption")
-    voyage, proches = legende_vise_voyage(legende, donnees.voyages())
-    if not voyage:
-        if legende:
-            return f"Aucun voyage ne correspond à « {legende} ». Proches : {', '.join(proches)}."
-        return "Pour quel voyage ? Renvoie la photo/le PDF avec le nom du voyage en légende."
-
-    if "photo" in msg:
-        file_id = msg["photo"][-1]["file_id"]  # dernière = plus grande résolution
-        type_mime = "image/jpeg"
-    elif "document" in msg:
-        file_id = msg["document"]["file_id"]
-        type_mime = msg["document"].get("mime_type", "application/pdf")
-        if type_mime not in EXTENSIONS_AUTORISEES:
-            return "Format non pris en charge (image ou PDF uniquement)."
-    else:
-        return None
-
-    contenu, chemin_telegram = telegram.telecharger_fichier(file_id)
-    nom_original = chemin_telegram.rsplit("/", 1)[-1]
-    ranger_piece(donnees, voyage, contenu, type_mime, nom_original, prenom)
-    return reponses.piece_rangee(voyage["titre"])

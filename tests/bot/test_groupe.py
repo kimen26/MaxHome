@@ -313,12 +313,12 @@ def test_attente_en_cours_copie_du_mois_vide_et_voyage():
 
 def test_une_piece_jointe_suit_la_meme_regle(bot):
     vus = []
-    bot.traiter_piece = lambda telegram_id, msg: vus.append(msg.get("caption")) or "rangée"
+    bot.traiter_piece = lambda telegram_id, msg, adresse=True: vus.append((msg.get("caption"), adresse)) or "rangée"
     bot.traiter_update(piece())                                  # ni légende ni mention : ignorée
-    bot.traiter_update(piece(caption="Malaga"))                  # légendée mais non adressée : ignorée aussi
+    bot.traiter_update(piece(caption="Malaga"))                  # légendée, non adressée : gardée, adresse=False
     bot.traiter_update(piece(caption=f"@{USERNAME} Malaga"))     # mention dans la légende, retirée
     bot.traiter_update(piece(**en_reponse_a(BOT_ID)))            # réponse à « pour quel voyage ? »
-    assert vus == ["Malaga", None]
+    assert vus == [("Malaga", False), ("Malaga", True), (None, True)]
 
 
 def test_identite_inconnue_le_groupe_reste_muet_mais_le_prive_marche(bot):

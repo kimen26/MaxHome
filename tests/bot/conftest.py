@@ -18,3 +18,11 @@ def espace_parent_hors_reseau(monkeypatch):
     def interdit():
         raise espace_parent.EspaceParentNonConfigure("connexion interdite en test")
     monkeypatch.setattr(ecole_espace, "ouvrir", interdit)
+
+
+@pytest.fixture(autouse=True)
+def claude_image_hors_ligne(monkeypatch):
+    """Aucun test ne lance claude pour lire une photo : l'appel échoue d'office (None), un test qui
+    veut un texte lu la remplace par un faux."""
+    import claude_cli
+    monkeypatch.setattr(claude_cli, "lancer_avec_image", lambda *a, **k: None)

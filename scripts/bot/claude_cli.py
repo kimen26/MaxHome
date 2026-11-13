@@ -12,6 +12,7 @@ lancer des commandes ou du SQL. Chaque appel tourne donc :
   --system-prompt          consigne courte à la place du prompt d'agent de Claude Code
 et dans un dossier neutre (aucun CLAUDE.md de projet). `--bare` est INTERDIT : il exige une clé API.
 """
+import base64
 import json
 import logging
 import subprocess
@@ -41,15 +42,54 @@ def commande(prompt):
     return ["claude", "-p", prompt, "--model", MODELE, "--output-format", "json", *ARGS_SANS_OUTIL]
 
 
+def commande_image(prompt):
+    """Appel avec une image : le prompt et l'image passent par stdin (stream-json), pas en argument.
+    Mêmes drapeaux de sécurité que `commande`, aucun en moins."""
+    return ["claude", "-p", "--model", MODELE, "--input-format", "stream-json",
+            "--output-format", "stream-json", "--verbose", *ARGS_SANS_OUTIL]
+
+
+def message_image(prompt, contenu, type_mime):
+    """Ligne stream-json d'un message utilisateur : bloc image base64, puis le texte du prompt."""
+    return json.dumps({"type": "user", "message": {"role": "user", "content": [
+        {"type": "image", "source": {"type": "base64", "media_type": type_mime,
+                                     "data": base64.b64encode(contenu).decode("ascii")}},
+        {"type": "text", "text": prompt},
+    ]}}) + "\n"
+
+
 def lancer(prompt, timeout=DELAI_DEFAUT_S):
     """Texte de la réponse de claude, ou None (claude absent, délai dépassé, échec, réponse illisible).
 
     Ne plante jamais la boucle du bot ; la cause est journalisée (data/bot.log), jamais le prompt.
     """
+    return _executer(commande(prompt), None, timeout)
+
+
+def lancer_avec_image(prompt, contenu, type_mime, timeout=DELAI_DEFAUT_S):
+    """Comme `lancer`, avec une image en entrée (photo de billet). L'image est une donnée, pas une consigne."""
+    return _executer(commande_image(prompt), message_image(prompt, contenu, type_mime), timeout)
+
+
+def _enveloppe(sortie):
+    """Enveloppe `result` : la sortie json entière, ou la dernière ligne `result` d'un flux stream-json."""
     try:
+        return json.loads(sortie)
+    except json.JSONDecodeError:
+        pass
+    for ligne in reversed(sortie.splitlines()):
+        evenement = json.loads(ligne) if ligne.strip() else None
+        if isinstance(evenement, dict) and evenement.get("type") == "result":
+            return evenement
+    raise json.JSONDecodeError("aucun résultat dans le flux", sortie, 0)
+
+
+def _executer(cmd, entree, timeout):
+    try:
+        entrant = {"input": entree} if entree is not None else {"stdin": subprocess.DEVNULL}
         r = subprocess.run(
-            commande(prompt), capture_output=True, text=True, encoding="utf-8",
-            timeout=timeout, cwd=tempfile.gettempdir(), stdin=subprocess.DEVNULL,
+            cmd, capture_output=True, text=True, encoding="utf-8",
+            timeout=timeout, cwd=tempfile.gettempdir(), **entrant,
         )
     except FileNotFoundError:
         log.warning("claude introuvable")
@@ -61,7 +101,7 @@ def lancer(prompt, timeout=DELAI_DEFAUT_S):
         log.warning("claude : code de sortie %d", r.returncode)
         return None
     try:
-        enveloppe = json.loads(r.stdout)
+        enveloppe = _enveloppe(r.stdout)
     except json.JSONDecodeError:
         log.warning("claude : enveloppe JSON illisible")
         return None

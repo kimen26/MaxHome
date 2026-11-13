@@ -327,8 +327,8 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       sans affichage : MAXHOME_GOOGLE_CLE (compte de service), MAXHOME_GOOGLE_OAUTH_CLIENT.
       Reste : clic « Autoriser » de Yann (script de consentement en attente, port 8765), qui pose
       MAXHOME_GOOGLE_JETON après avoir vérifié que le compte est claudyann.home.
-- [x] (13/11, D-068 : lecture, photos, tours, inscriptions et messages après « OK ? » ; non vérifié en vrai :
-      envoi des photos sur Telegram, formulaire d'inscription aux fleurs jamais observé, réponse du site
+- [x] (13/11, D-068 : lecture, photos, tours, inscriptions et messages après « OK ? » ; envoi des photos sur
+      Telegram vérifié par Yann le 13/11 ; non vérifié en vrai : formulaire d'inscription aux fleurs jamais observé, réponse du site
       à un POST) Espace parent de l'école de Max (événements, photos, documents, calendriers fleurs/fruits) :
       D-061. Variables posées le 02/11, connexion par programme réussie au premier coup.
       Ce qu'on y trouve : Messagerie, Cantine, Documents (tableau, liens Télécharger), Photos/Vidéos

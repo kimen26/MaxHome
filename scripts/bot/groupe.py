@@ -10,7 +10,7 @@ bot », 08/11). Il est « adressé » s'il (a) mentionne le bot, (b) répond à 
 garde toutes ses réponses, « je n'ai pas compris » compris. Un message NON adressé reçoit lui aussi une
 réponse, « je n'ai pas compris » compris : le bot ne se tait que sur le bruit, un message court sans
 verbe d'action (« ok », « mdr », un émoji) écarté avant même d'appeler le modèle (`sans_suite_evident`)
-ou une réponse de `ACTIONS_MUETTES` (bot.py). Une pièce jointe non adressée est ignorée.
+ou une réponse de `ACTIONS_MUETTES` (bot.py). Une pièce jointe non adressée est ignorée, sauf un PDF ou une pièce légendée (document de voyage, lot A).
 
 Des fonctions sur des dicts (messages Telegram, bot.etats) ; seules `gerer_evenement` et
 `noter_chat` touchent au bot, et par ses ports (donnees, telegram, log).
@@ -90,13 +90,17 @@ def attente_en_cours(etat, texte):
     - une question libre en cours : toute réponse compte ;
     - une proposition à confirmer (écriture libre, copie du mois vide) : seulement un oui/non,
       toute autre phrase est une conversation entre eux (elle se dit avec la mention) ;
-    - jamais `attente_voyage` : elle n'expire pas, rien ne prouve qu'elle soit encore valide.
+    - `attente_voyage` seulement si elle porte une échéance non dépassée (récap d'une résa lue dans un
+      document, documents_voyage.py) ; celle d'un topo n'expire pas, rien ne prouve qu'elle soit valide.
     """
     if conversation.en_attente(etat, conversation.QUESTION):
         return True
     if conversation.verdict(texte) is None:
         return False
     if conversation.en_attente(etat, conversation.CONFIRMATION):
+        return True
+    voyage = etat.get("attente_voyage") or {}
+    if "expire" in voyage and time.time() <= voyage["expire"]:
         return True
     copie = etat.get("attente")
     return bool(copie) and time.time() <= copie["expire"]
@@ -122,6 +126,13 @@ def sans_suite_evident(texte):
     return not any(r in phrase for r in RADICAUX_ACTION)
 
 
+def _piece_de_voyage_possible(msg):
+    """Pièce non adressée qui peut être un document de voyage : un PDF, ou une photo/un document légendé
+    (le bot.traiter_piece vérifie que la légende nomme un voyage). Une photo sans légende : ignorée."""
+    pdf = (msg.get("document") or {}).get("mime_type") == "application/pdf"
+    return pdf or bool((msg.get("caption") or "").strip())
+
+
 def filtrer(msg, ident, etats):
     """(message à traiter, adressé). Message None = à ignorer en silence. Privé : (msg, True), inchangé.
 
@@ -136,7 +147,7 @@ def filtrer(msg, ident, etats):
     mentionne, propre = retirer_mention(brut, ident.username)
     adresse = mentionne or repond_au_bot(msg, ident.bot_id) or _attendu(etats, msg, brut)
     if not adresse:
-        return (msg if champ == "text" else None), False
+        return (msg if champ == "text" or _piece_de_voyage_possible(msg) else None), False
     if champ not in msg:  # photo ou PDF sans légende, en réponse au bot
         return msg, True
     return {**msg, champ: propre or (MOT_DEFAUT if champ == "text" else "")}, True
