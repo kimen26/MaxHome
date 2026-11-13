@@ -1068,3 +1068,22 @@ que les lectures ne sont pas néfastes ». Brief : docs/briefs/bot-ecole-agenda.
   membre et part après « OK ? » puis « oui ». Un contenu qui ressemble à un ordre caché est signalé.
 - **Hors du bot** : Facturation et tout paiement, envoi de mail, tout autre site. Le web libre reste à
   Claude en session (D-062).
+
+## D-069 — Le bot lit les documents de voyage, les liens d'offre et cherche sur le web (2026-11-13, élargit D-068)
+
+Yann : « parfois je vais parler d'un voyage, d'une offre, d'un vol… » et « un paiement ou des résas de
+voyage ». Brief : docs/briefs/bot-web-documents.md. Un voyage complet (itinéraire, budget) se construit
+en session Claude Code, pas dans le bot.
+- **Documents** : un PDF (pypdf) ou une photo (`claude -p` sans outil, image en stream-json) est rangé
+  dans le voyage (légende, sinon dates de la résa) et son texte ne produit que des champs passés à
+  `valider_resa`, puis récap et « oui ». « Paiement » = acompte ou solde d'un voyage, pas une facture du
+  Budget. Dans le groupe, un PDF ou une pièce légendée est lu sans mention ; le bot se tait s'il n'en tire
+  ni voyage ni résa ; une photo sans légende est ignorée (photos de famille).
+- **Lien** : lu seulement si le message est adressé au bot (lien partagé entre nous = pas pour lui).
+  Anti-SSRF fixe : http/https, ports 80/443, toute adresse résolue publique, redirections revérifiées.
+  Résumé en texte, puis « ranger comme idée dans <voyage> ? » (bloc `info`, après « oui »).
+- **Recherche** : un `claude -p` à part avec WebSearch seul (ni WebFetch, ni MCP, ni réglages), dont le
+  prompt ne porte que la question et la date, aucune donnée du foyer. Corrige D-068 « tout autre site
+  hors du bot » pour la lecture seulement : le bot n'écrit toujours sur aucun site autre que l'école.
+- Limites acceptées : résolution DNS non épinglée (rebinding non couvert) ; une recherche bloque la
+  boucle du bot jusqu'à 180 s sans « Je cherche… ».

@@ -9,6 +9,7 @@ from datetime import date, timedelta
 import courses as courses_mod
 import mouvements
 import reponses
+import reponses_web
 import taches as taches_mod
 import voyages as voyages_mod
 
@@ -207,4 +208,8 @@ def confirmer_voyage(bot, telegram_id, prenom, oui):
         cree = voyages_mod.inserer_resa(bot.donnees, etat["resa"], prenom)
         bot.marquer_annulable(telegram_id, "voyage_resas", {"id": cree["id"]}, None)
         return reponses.resa_enregistree(etat["resa"])
+    if etat["type"] == "idee":
+        cree = voyages_mod.inserer_idee(bot.donnees, etat["voyage_id"], etat["titre"], etat["texte"], prenom)
+        bot.marquer_annulable(telegram_id, "voyage_blocs", {"id": cree["id"]}, None)
+        return reponses_web.idee_rangee(etat["voyage_titre"])
     raise RuntimeError(f"attente_voyage de type inconnu : {etat['type']}")

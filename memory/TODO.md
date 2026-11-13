@@ -384,6 +384,10 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       « Ce mois » montre un simple trait pour une mensuelle jamais faite (« +3 mois » prenait toute
       la largeur). Quand une tâche a vraiment pris du retard, une alerte visible et drôle remplacera
       le trait. Seuil et forme à proposer à Yann.
+- [x] (13/11, D-069) Bot : documents de voyage lus (PDF, photo) et résa proposée ; lien d'offre lu
+      et rangé comme idée ; recherche web rapide. Non vérifié en vrai : un vrai PDF de compagnie, une
+      vraie photo Telegram, le filtre de groupe sur un vrai message, le routage réel vers la recherche.
+- [ ] Bot : message « Je cherche… » avant une recherche web (jusqu'à 180 s de silence, boucle bloquée).
 
 ## Parking
 - Le carnet de voyage (ui-fiche-*, carnet.js, carte.js, geocode.js, topo.js, ui-voyages-liste.js)

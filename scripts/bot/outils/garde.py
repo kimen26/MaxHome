@@ -17,6 +17,10 @@ class EcritureBloquee(Exception):
     """Un outil de lecture a tenté une requête qui peut écrire."""
 
 
+class LectureRefusee(Exception):
+    """Un outil de lecture a refusé sa cible (adresse, port, schéma interdits) : journalisé « refusé » ; le message se dit tel quel."""
+
+
 class ClientLecture:
     def __init__(self, session, outil, chemins=None):
         self._session = session

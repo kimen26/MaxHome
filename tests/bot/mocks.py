@@ -223,6 +223,9 @@ class DonneesFausse:
         self._blocs.append(b)
         return dict(b)
 
+    def supprimer_bloc(self, id_):
+        self._blocs = [b for b in self._blocs if b["id"] != id_]
+
     def maj_bloc(self, id_, champs):
         for b in self._blocs:
             if b["id"] == id_:

@@ -32,6 +32,7 @@ import outils  # noqa: E402
 import taches as taches_mod  # noqa: E402
 import reponses  # noqa: E402
 import traduction_libre  # noqa: E402
+import web_bot  # noqa: E402
 from donnees import Donnees  # noqa: E402
 from telegram import Telegram  # noqa: E402
 
@@ -260,6 +261,8 @@ class Bot:
 
         if adresse:  # un message non adressé ne touche à aucune attente : elle peut venir d'un autre chat
             suite = self._reprendre(telegram_id, prenom, texte_brut)
+            if suite is None:  # un lien (+ quelques mots) : la page est lue et résumée, jamais suivie sans un « oui » (web_bot.py)
+                suite = web_bot.reponse_au_lien(self, telegram_id, texte_brut)
             if suite is not None:
                 return suite
         else:  # seule exception : le nom du voyage qui répond à « Pour quel voyage ? » (documents_voyage.py)

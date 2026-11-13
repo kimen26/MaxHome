@@ -265,6 +265,11 @@ def enregistrer_topo(donnees, voyage_id, texte):
     return donnees.creer_bloc({"voyage_id": voyage_id, "type": "resume", "texte": texte, "ordre": -1})
 
 
+def inserer_idee(donnees, voyage_id, titre, texte, prenom):
+    """Bloc `info` du carnet : une offre trouvée sur le web, rangée comme idée (jamais un bloc `resume`, D-047)."""
+    return donnees.creer_bloc({"voyage_id": voyage_id, "type": "info", "titre": titre, "texte": texte, "cree_par": prenom})
+
+
 # ---------- résa en langage libre ----------
 def extraire_resa(message, voyages, membres, timeout=60):
     """Appelle libre.py (repli LLM) pour extraire une résa. Retourne le JSON brut ou {"action": "inconnu"}."""

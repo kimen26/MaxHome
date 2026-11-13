@@ -201,6 +201,9 @@ class Donnees:
         r = self._appel("POST", "voyage_blocs", champs, {"Prefer": "return=representation"})
         return r[0]
 
+    def supprimer_bloc(self, id_):
+        self._appel("DELETE", f"voyage_blocs?id=eq.{id_}")
+
     def maj_bloc(self, id_, champs):
         r = self._appel("PATCH", f"voyage_blocs?id=eq.{id_}", champs, {"Prefer": "return=representation"})
         if not r:

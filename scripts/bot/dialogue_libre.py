@@ -18,6 +18,7 @@ import evolution
 import libre
 import reponses
 import traduction_libre
+import web_bot
 
 ACTIONS_ECRITURE = frozenset(reponses.RECAPS)  # tout ce qui écrit passe par un « OK ? »
 # La grammaire prend tout « ajoute ... » pour une course. Avec un montant, « ligne » ou « charge »
@@ -130,6 +131,8 @@ def _suite(bot, etat, telegram_id, prenom, texte, interp, annee, mois):
         return evolution.enregistrer(bot, prenom, _texte(interp) or texte)
     if nom == "recherche":  # le bot n'a aucun accès au web (L-057) : il note, Claude cherchera
         return evolution.enregistrer(bot, prenom, _texte(interp) or texte, evolution.GENRE_RECHERCHE)
+    if nom == "web_recherche":  # question rapide : WebSearch seul, prompt = question + date (web_bot.py)
+        return web_bot.reponse_a_la_recherche(_texte(interp) or texte)
     if nom == "ecole_nouvelles":  # lecture seule des mails de l'école, résumée en texte (ecole.py)
         return ecole.nouvelles(bot)
     if nom in ecole_espace.ACTIONS:  # lecture seule de l'espace parent ; photos et fichiers partent après le texte

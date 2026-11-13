@@ -24,6 +24,8 @@ def restaurer(donnees, table, cle, ancienne):
                                           "fait_par": ancienne.get("fait_par")})
     elif table == "voyage_lieux":
         donnees.supprimer_lieu(cle["id"])  # toujours une création fraîche
+    elif table == "voyage_blocs":
+        donnees.supprimer_bloc(cle["id"])  # toujours une création fraîche (idée rangée depuis un lien)
     elif table == "voyage_resas":
         donnees.maj_resa(cle["id"], {"statut": "annule"})  # traçable, jamais un DELETE
     elif table == "lignes_validation":  # `valider`/`dévalider` (D-048 §1) : ligne + mouvement lié

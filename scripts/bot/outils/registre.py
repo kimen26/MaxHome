@@ -9,7 +9,7 @@ from collections import namedtuple
 
 import dialogue_libre
 from outils import journal
-from outils.garde import ClientLecture, EcritureBloquee
+from outils.garde import ClientLecture, EcritureBloquee, LectureRefusee
 
 LECTURE = "lecture"
 ECRITURE = "ecriture"
@@ -62,7 +62,7 @@ def executer_lecture(nom, session=None, **args):
     try:
         client = ClientLecture(session if session is not None else _session_par_defaut(), nom, outil.chemins)
         resultat = outil.fonction(client, **args)
-    except EcritureBloquee:
+    except (EcritureBloquee, LectureRefusee):
         journal.noter(nom, LECTURE, journal.REFUSE)
         raise
     except Exception:
