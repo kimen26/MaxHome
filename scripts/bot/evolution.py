@@ -15,9 +15,13 @@ PRENOM_ADMIN = "Yann"
 LONGUEUR_MAX = 500
 ENTETE = ("# Demandes reçues par le bot Telegram\n\n"
           "Une ligne par demande : date, prénom, texte. Sans étiquette : changer l'application ; "
-          "[Recherche] : une recherche sur internet que le bot ne peut pas faire (aucun accès au web).\n\n")
+          "[Recherche] : une recherche sur internet que le bot ne peut pas faire (aucun accès au web) ; "
+          "[Hors portée] : une action que le bot ne sait pas encore faire.\n\n")
 # Le bot n'a volontairement aucun accès au web ni outil (L-057) : une recherche est notée pour Claude.
 GENRE_RECHERCHE = "Recherche"
+# Une vraie demande d'action que le bot ne sait pas encore faire (photos de l'école, par exemple) : notée,
+# et la personne l'apprend franchement au lieu d'un « pas compris ».
+GENRE_HORS_PORTEE = "Hors portée"
 REPONSE_RECHERCHE = ("Je ne navigue pas sur internet moi-même. J'ai noté la recherche : Claude la fera "
                      "lors de la prochaine session de Yann, et la réponse arrivera ici.")
 
@@ -73,4 +77,6 @@ def enregistrer(bot, prenom, texte, genre=None):
         return f"Je n'ai pas réussi à noter ta demande. Dis-la directement à {PRENOM_ADMIN}."
     if prenom != PRENOM_ADMIN:
         prevenir_admin(bot, prenom, texte, genre)
+    if genre == GENRE_HORS_PORTEE:
+        return f"Je ne sais pas encore faire ça : {_une_ligne(texte).rstrip('.')}. C'est noté pour {PRENOM_ADMIN}."
     return REPONSE_RECHERCHE if genre == GENRE_RECHERCHE else f"Noté pour {PRENOM_ADMIN}."

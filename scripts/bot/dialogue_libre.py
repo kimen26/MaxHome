@@ -10,6 +10,7 @@ import re
 
 import budget_lignes
 import conversation
+import ecole
 import evolution
 import libre
 import reponses
@@ -118,6 +119,10 @@ def _suite(bot, etat, telegram_id, prenom, texte, interp, annee, mois):
         return evolution.enregistrer(bot, prenom, _texte(interp) or texte)
     if nom == "recherche":  # le bot n'a aucun accès au web (L-057) : il note, Claude cherchera
         return evolution.enregistrer(bot, prenom, _texte(interp) or texte, evolution.GENRE_RECHERCHE)
+    if nom == "ecole_nouvelles":  # lecture seule des mails de l'école, résumée en texte (ecole.py)
+        return ecole.nouvelles(bot)
+    if nom == "hors_portee":  # une vraie demande que le bot ne sait pas faire : dit franchement, noté pour Yann
+        return evolution.enregistrer(bot, prenom, _texte(interp) or texte, evolution.GENRE_HORS_PORTEE)
     if nom == "question":
         question = _texte(interp)
         if not question:

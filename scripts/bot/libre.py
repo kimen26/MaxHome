@@ -63,6 +63,8 @@ Actions possibles :
   {"action":"question","texte":"<question sur les chiffres du budget, reformulée>"}
   {"action":"demander","texte":"<UNE question courte>"}
   {"action":"demande_evolution","texte":"<la demande, en une phrase qui se comprend seule>"}
+  {"action":"ecole_nouvelles"}   les nouveautés de l'école : résumé des derniers mails de l'école
+  {"action":"hors_portee","texte":"<ce qui est demandé, en quelques mots>"}   une demande d'action que le bot ne sait pas faire
   {"action":"recherche","texte":"<la demande résumée en une à trois phrases qui se comprennent seules, avec les liens et les contraintes>"}
   {"action":"inconnu"}
 
@@ -74,7 +76,9 @@ Règles :
 5. Si le message répond à ta question des échanges récents, combine-le avec ce qui précède pour produire l'action complète.
 6. Changer l'application elle-même (renommer un libellé ou un onglet, nouvelle fonctionnalité, bug) : "demande_evolution".
 7. Chercher sur internet, ouvrir ou surveiller un site ou un lien, trouver ou comparer des offres (hôtels, vols, stations...), faire des fiches : "recherche". Tu n'as aucun accès au web et tu n'inventes jamais le résultat. Résume la demande en une à trois phrases qui se comprennent seules et garde les liens et les contraintes (dates, nombre de personnes, budget). "recherche" ne sert pas à changer l'application elle-même : c'est "demande_evolution" (règle 6).
-8. Rien ne correspond : "inconnu"."""
+8. « Quoi de neuf à l'école », « relève les mails de l'école ou de Montessori », « news de l'école » : "ecole_nouvelles" (aucun champ).
+9. Une vraie demande d'ACTION que ces actions ne couvrent pas (montrer les photos ou documents de l'école, envoyer un mail, lire l'agenda, inscrire à un tour...) : "hors_portee", "texte" = la demande reformulée en quelques mots, sans point final. Ce n'est ni "recherche" (internet), ni "demande_evolution" (changer l'application).
+10. Rien ne correspond et ce n'est pas une demande (bavardage, remerciement) : "inconnu"."""
 
 
 def _neutraliser(texte):

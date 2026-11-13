@@ -15,7 +15,7 @@ LECTURE = "lecture"
 ECRITURE = "ecriture"
 ACTION_ECRITURE = "outil_ecriture"  # l'action posée en confirmation (reponses.RECAPS)
 
-Outil = namedtuple("Outil", "nom genre fonction")
+Outil = namedtuple("Outil", "nom genre fonction chemins", defaults=(None,))
 
 _OUTILS = {}
 
@@ -24,12 +24,17 @@ class OutilInconnu(KeyError):
     pass
 
 
-def inscrire(nom, genre, fonction):
+def inscrire(nom, genre, fonction, chemins=None):
+    """`chemins` (lecture seulement) : motifs compilés des seules URL que l'outil peut appeler (garde)."""
     if genre not in (LECTURE, ECRITURE):
         raise ValueError(f"genre inconnu : {genre!r}")
     if nom in _OUTILS:
         raise ValueError(f"outil déjà inscrit : {nom}")
-    _OUTILS[nom] = Outil(nom, genre, fonction)
+    _OUTILS[nom] = Outil(nom, genre, fonction, chemins)
+
+
+def inscrit(nom):
+    return nom in _OUTILS
 
 
 def retirer(nom):
@@ -55,7 +60,7 @@ def executer_lecture(nom, session=None, **args):
     """Exécute une lecture ; la fonction reçoit `client`, jamais la session."""
     outil = _outil(nom, LECTURE)
     try:
-        client = ClientLecture(session if session is not None else _session_par_defaut(), nom)
+        client = ClientLecture(session if session is not None else _session_par_defaut(), nom, outil.chemins)
         resultat = outil.fonction(client, **args)
     except EcritureBloquee:
         journal.noter(nom, LECTURE, journal.REFUSE)
