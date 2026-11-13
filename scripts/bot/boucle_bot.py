@@ -53,6 +53,7 @@ def traiter_update(bot, u):
     bot.log.info("message reçu (%s), traitement", "groupe" if groupe.est_groupe(msg["chat"]) else "privé")
     chat_id = msg["chat"]["id"]
     telegram_id = msg["from"]["id"]
+    bot.etats.get(telegram_id, {}).pop("envois", None)  # jamais l'envoi resté d'un message précédent
     if "text" in msg:
         try:
             reponse = (bot.traiter_message(telegram_id, msg["text"]) if adresse
@@ -78,3 +79,20 @@ def traiter_update(bot, u):
         bot.telegram.envoyer(chat_id, reponse)
     except Exception:
         bot.log.exception("envoi Telegram échoué")
+        return
+    envoyer_fichiers_en_attente(bot, chat_id, telegram_id)
+
+
+def envoyer_fichiers_en_attente(bot, chat_id, telegram_id):
+    """Photos, vidéos et documents que la réponse vient d'annoncer (ecole_espace.py), après le texte."""
+    fichiers = bot.etats.get(telegram_id, {}).pop("envois", None)
+    if not fichiers:
+        return
+    try:
+        bot.telegram.envoyer_fichiers(chat_id, fichiers)
+    except Exception:
+        bot.log.exception("envoi des fichiers Telegram échoué")
+        try:
+            bot.telegram.envoyer(chat_id, "Je n'ai pas réussi à envoyer les fichiers.")
+        except Exception:
+            bot.log.exception("envoi Telegram échoué")

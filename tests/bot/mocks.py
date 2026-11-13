@@ -270,10 +270,14 @@ class TelegramFaux:
 
     def __init__(self):
         self.envoyes = []
+        self.fichiers = []  # (chat_id, [fichiers]) : photos, vidéos, documents (telegram.envoyer_fichiers)
 
     def envoyer(self, chat_id, texte):
         self.envoyes.append((chat_id, texte))
         return {"message_id": len(self.envoyes)}
+
+    def envoyer_fichiers(self, chat_id, fichiers):
+        self.fichiers.append((chat_id, list(fichiers)))
 
     def get_updates(self, offset, timeout=50):
         return []

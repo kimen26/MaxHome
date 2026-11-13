@@ -3,6 +3,8 @@
 Le token n'est jamais journalisé ni affiché ; il est passé au constructeur.
 """
 import json
+import re
+import uuid
 import urllib.error
 import urllib.request
 
@@ -32,6 +34,48 @@ class Telegram:
                 return json.loads(r.read().decode())
         except urllib.error.HTTPError as e:
             raise RuntimeError(f"telegram {methode} -> {e.code}: {e.read().decode()[:300]}") from e
+
+    def _appel_multipart(self, methode, champs, fichiers, timeout=120):
+        """POST multipart/form-data vers Telegram (envoi de fichiers). `fichiers` : {champ: (nom, contenu)}."""
+        limite = uuid.uuid4().hex
+        corps = b""
+        for nom, valeur in champs.items():
+            corps += f'--{limite}\r\nContent-Disposition: form-data; name="{nom}"\r\n\r\n{valeur}\r\n'.encode()
+        for champ, (nom_fichier, contenu) in fichiers.items():
+            nom_sur = re.sub(r'["\r\n]', "", nom_fichier)
+            corps += (f'--{limite}\r\nContent-Disposition: form-data; name="{champ}"; filename="{nom_sur}"\r\n'
+                      "Content-Type: application/octet-stream\r\n\r\n").encode() + contenu + b"\r\n"
+        corps += f"--{limite}--\r\n".encode()
+        req = urllib.request.Request(f"{self._base}/{methode}", data=corps, method="POST")
+        req.add_header("Content-Type", f"multipart/form-data; boundary={limite}")
+        req.add_header("User-Agent", "maxhome-bot/1.0")
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                rep = json.loads(r.read().decode())
+        except urllib.error.HTTPError as e:
+            raise RuntimeError(f"telegram {methode} -> {e.code}: {e.read().decode()[:300]}") from e
+        if not rep.get("ok"):
+            raise RuntimeError(f"{methode} échoué : {rep}")
+        return rep["result"]
+
+    def envoyer_fichiers(self, chat_id, fichiers):
+        """Envoie des fichiers {nom, contenu, genre (photo|video|document), legende} : les photos et vidéos par
+        albums de 10 au plus, les documents un par un. C'est un POST vers Telegram, jamais vers l'école."""
+        medias = [f for f in fichiers if f["genre"] in ("photo", "video")]
+        for i in range(0, len(medias), 10):
+            lot = medias[i:i + 10]
+            if len(lot) == 1:
+                f = lot[0]
+                self._appel_multipart("sendPhoto" if f["genre"] == "photo" else "sendVideo",
+                                      {"chat_id": chat_id, "caption": f["legende"]},
+                                      {f["genre"]: (f["nom"], f["contenu"])})
+                continue
+            descr = [{"type": f["genre"], "media": f"attach://f{n}", "caption": f["legende"]} for n, f in enumerate(lot)]
+            self._appel_multipart("sendMediaGroup", {"chat_id": chat_id, "media": json.dumps(descr)},
+                                  {f"f{n}": (f["nom"], f["contenu"]) for n, f in enumerate(lot)})
+        for f in (f for f in fichiers if f["genre"] == "document"):
+            self._appel_multipart("sendDocument", {"chat_id": chat_id, "caption": f["legende"]},
+                                  {"document": (f["nom"], f["contenu"])})
 
     def get_updates(self, offset, timeout=50):
         rep = self._appel("getUpdates", {"offset": offset, "timeout": timeout}, timeout=timeout + 10)

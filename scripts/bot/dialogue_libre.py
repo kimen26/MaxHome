@@ -12,6 +12,7 @@ import agenda_bot
 import budget_lignes
 import conversation
 import ecole
+import ecole_espace
 import evolution
 import libre
 import reponses
@@ -130,6 +131,8 @@ def _suite(bot, etat, telegram_id, prenom, texte, interp, annee, mois):
         return evolution.enregistrer(bot, prenom, _texte(interp) or texte, evolution.GENRE_RECHERCHE)
     if nom == "ecole_nouvelles":  # lecture seule des mails de l'école, résumée en texte (ecole.py)
         return ecole.nouvelles(bot)
+    if nom in ecole_espace.ACTIONS:  # lecture seule de l'espace parent ; photos et fichiers partent après le texte
+        return ecole_espace.repondre(etat, interp)
     if nom in agenda_bot.ACTIONS:  # lecture directe ; toute écriture est proposée (« OK ? ») puis confirmée
         return agenda_bot.repondre(etat, prenom, interp)
     if nom == "hors_portee":  # une vraie demande que le bot ne sait pas faire : dit franchement, noté pour Yann
