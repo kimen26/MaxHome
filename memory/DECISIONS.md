@@ -1050,3 +1050,21 @@ réponse de grammaire sans objet (`ACTIONS_MUETTES`, dont un « oui » ou un « 
 attente), pièce jointe non adressée. Toute autre phrase reçoit une réponse, « Je n'ai pas compris. Tape
 aide. » compris. Coût accepté : quand Claudia et Yann parleront entre eux dans le groupe, une phrase
 longue sans rapport fera répondre le bot ; on resserrera si ça gêne.
+
+## D-068 — Le bot lit et agit sur l'école, les mails de l'école et l'agenda, derrière une garde fixe (2026-11-13)
+
+Yann : « tu peux lire les mails et aller sur le web, pourquoi lui ne pourrait pas ? » puis « sur le web
+Montessori il doit pouvoir tout faire, les mails juste lire, l'agenda tout faire, et contrôle en hook
+que les lectures ne sont pas néfastes ». Brief : docs/briefs/bot-ecole-agenda.md.
+- **Pas d'outils au modèle** (L-057 tient) : `claude -p` rend un JSON d'action, le code Python
+  exécute seulement des outils inscrits au registre (`scripts/bot/outils/`), chacun déclaré lecture ou
+  écriture.
+- **La garde est du code, pas un jugement du modèle** : un outil de lecture ne reçoit qu'un
+  `ClientLecture` (GET/HEAD seuls, URL en liste fermée, sans redirection) ; une écriture école ne reçoit
+  qu'un `ClientEcriture` (POST seul, sur les trois formulaires repérés) ; Gmail limité à lister/lire un
+  message, portée `gmail.readonly`.
+- **Ce qui est lu ne commande rien** : mails et pages ne reviennent au modèle que pour un résumé en
+  texte ; une écriture (agenda, inscription à un tour, message à l'école) ne naît que d'une phrase d'un
+  membre et part après « OK ? » puis « oui ». Un contenu qui ressemble à un ordre caché est signalé.
+- **Hors du bot** : Facturation et tout paiement, envoi de mail, tout autre site. Le web libre reste à
+  Claude en session (D-062).

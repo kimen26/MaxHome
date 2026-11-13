@@ -55,3 +55,34 @@ class ClientLecture:
 
     def delete(self, url, **kwargs):
         return self.request("DELETE", url, **kwargs)
+
+
+class ClientEcriture:
+    """Client HTTP des outils d'écriture : POST seulement, et seulement vers les URL de formulaire listées.
+
+    `chemins` est obligatoire (motifs compilés, fullmatch sur « schéma://hôte/chemin », query exclue). Toute autre
+    méthode ou URL (Facturation, déconnexion...) lève EcritureBloquee et se journalise. Aucune redirection n'est suivie.
+    Il n'est construit que par une fonction d'écriture, qui ne tourne qu'après un « oui » (registre.confirmer).
+    """
+
+    def __init__(self, session, outil, chemins):
+        if not chemins:
+            raise ValueError("un client d'écriture exige la liste des URL de formulaire")
+        self._session = session
+        self._outil = outil
+        self._chemins = tuple(chemins)
+
+    def post(self, url, **kwargs):
+        parties = urlsplit(str(url))
+        sans_query = f"{parties.scheme}://{parties.netloc}{parties.path}"
+        if not any(m.fullmatch(sans_query) for m in self._chemins):
+            log.warning("garde : écriture refusée hors des formulaires listés (%s)", self._outil)
+            raise EcritureBloquee(f"URL refusée dans l'outil d'écriture {self._outil}")
+        kwargs["allow_redirects"] = False
+        return self._session.request("POST", url, **kwargs)
+
+    def request(self, methode, url, **kwargs):
+        if str(methode).upper() != "POST":
+            log.warning("garde : méthode refusée dans l'outil d'écriture (%s)", self._outil)
+            raise EcritureBloquee(f"méthode {str(methode).upper()} refusée dans l'outil d'écriture {self._outil}")
+        return self.post(url, **kwargs)
