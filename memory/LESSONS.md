@@ -607,3 +607,15 @@ Règle : dans un canal que Yann déclare « pour le bot », une phrase qu'il n'a
 « Je n'ai pas compris ». Seul le bavardage évident (« ok », émoji) et le bruit de la grammaire restent
 muets. Un silence voulu se vérifie avec Yann avant d'être livré : c'est ce qu'il ressentira comme une
 panne.
+
+## L-061 — Le MCP supabase de la session vise un autre projet que MaxHome (2026-11-14)
+
+- **Symptôme** : à la mise en ligne de D-071, `list_migrations` du MCP `supabase` a rendu les
+  migrations d'un autre projet (sessions de jeu, annotations), pas celles de MaxHome.
+- **Cause** : le serveur MCP est configuré au niveau machine sur un autre projet Supabase ; rien ne
+  le lie à `frontend/config.js`.
+- **Règle** : pour la base MaxHome, passer par `python scripts/sql.py <fichier.sql>` (Management API,
+  ref lue dans .env par le script). Avant tout appel MCP Supabase, comparer son URL
+  (`get_project_url`) à celle de `frontend/config.js`. Autres pièges du même jour :
+  `deploy_rappels.py` envoie un VRAI rappel au groupe pour se tester (pour un simple redéploiement,
+  appeler `provision.deployer_fonction`) ; la CLI Supabase exige `--yes` en mode agent.
