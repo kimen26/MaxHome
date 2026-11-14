@@ -218,3 +218,17 @@ def parser_encas(html):
         else:
             tour["pris"] += 1
     return [par_jour[k] for k in sorted(par_jour)]
+
+
+# ---------- rendez-vous bilans semestriels ----------
+ETAT_FERME, ETAT_OUVERT, ETAT_INCONNU = "ferme", "ouvert", "inconnu"
+
+
+def etat_bilans(html):
+    """État du tableau des RDV bilans : « ferme » (la section de contact dit « fermé »), « ouvert » (la section
+    existe sans « fermé »), « inconnu » (section absente : page changée ou session perdue). Fermée, observée le
+    14/11/2026 ; ouverte jamais observée."""
+    section = _soup(html).select_one(".section-contactform")
+    if section is None:
+        return ETAT_INCONNU
+    return ETAT_FERME if "ferme" in _norm(_texte(section)) else ETAT_OUVERT

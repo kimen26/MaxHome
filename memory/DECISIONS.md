@@ -1087,3 +1087,20 @@ en session Claude Code, pas dans le bot.
   hors du bot » pour la lecture seulement : le bot n'écrit toujours sur aucun site autre que l'école.
 - Limites acceptées : résolution DNS non épinglée (rebinding non couvert) ; une recherche bloque la
   boucle du bot jusqu'à 180 s sans « Je cherche… ».
+
+## D-070 — Veille des RDV bilans de l'école par tâche planifiée, hors du bot (2026-11-14)
+
+Demande de Yann : être prévenu sur Telegram quand le tableau des RDV bilans semestriels s'ouvre sur
+l'espace parent, avec une vérification à 9 h, 14 h et 19 h.
+- **Lire la page, pas les mails** : l'école peut ouvrir le tableau sans écrire. Le signal vient de la
+  page `/parent/tableau/rdv-bilans-semestriels` : « fermé pour le moment » dans la section de contact
+  veut dire fermé, la section sans « fermé » veut dire ouvert, la section absente veut dire inconnu.
+  L'état fermé a été observé le 14/11/2026 ; l'état ouvert ne l'a jamais été.
+- **Tâche planifiée Windows `MaxHome-VeilleBilans`, pas la boucle du bot** : la boucle peut rester
+  bloquée jusqu'à 180 s par une recherche web, et une tâche planifiée rattrape seule une heure ratée
+  (StartWhenAvailable). Elle s'installe avec `scripts/setup_task_bilans.ps1`.
+- **Un seul message par ouverture** : envoyé à Yann quand l'état passe à « ouvert », puis plus rien
+  tant que ça reste ouvert, et de nouveau au semestre suivant. Si l'envoi échoue, l'état n'avance pas
+  et le message est retenté. Après trois lectures ratées de suite, un message unique demande à Yann
+  de regarder lui-même. L'état est gardé dans `data/veille_bilans.json`.
+- Lecture seule, par un nouvel outil `ecole_bilans` limité à cette page.

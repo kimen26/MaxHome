@@ -388,6 +388,9 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       et rangé comme idée ; recherche web rapide. Non vérifié en vrai : un vrai PDF de compagnie, une
       vraie photo Telegram, le filtre de groupe sur un vrai message, le routage réel vers la recherche.
 - [ ] Bot : message « Je cherche… » avant une recherche web (jusqu'à 180 s de silence, boucle bloquée).
+- [x] (14/11, D-070) Veille des RDV bilans semestriels de l'école : tâche MaxHome-VeilleBilans
+      (9 h, 14 h, 19 h), lecture réelle « fermé » vérifiée, tâche lancée une fois (résultat 0).
+      Non vérifié en vrai : la page ouverte (jamais vue), le message Telegram d'ouverture.
 
 ## Parking
 - Le carnet de voyage (ui-fiche-*, carnet.js, carte.js, geocode.js, topo.js, ui-voyages-liste.js)

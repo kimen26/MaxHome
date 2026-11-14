@@ -37,6 +37,11 @@ class Donnees:
         r = self._appel("GET", f"telegram_membres?telegram_id=eq.{telegram_id}&select=telegram_id,prenom")
         return r[0]["prenom"] if r else None
 
+    def telegram_id_de(self, prenom):
+        """telegram_id du membre au prénom donné, ou None."""
+        r = self._appel("GET", f"telegram_membres?prenom=eq.{quote(prenom)}&select=telegram_id")
+        return r[0]["telegram_id"] if r else None
+
     def membres(self):
         return self._appel("GET", "membres?select=prenom,ordre&order=ordre")
 
