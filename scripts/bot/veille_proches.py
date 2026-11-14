@@ -142,6 +142,7 @@ def idee_de_message(message, lancer):
     lignes = (brut or "").strip().strip("«»\"'“” ").splitlines()
     idee = lignes[0].strip().strip("«»\"'“” ") if lignes else ""
     if not idee or contenu_suspect(idee):
+        log.warning("Claude sans idée utilisable : relance sans idée")
         return None
     return idee[:IDEE_MAX].rstrip()
 
