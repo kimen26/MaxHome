@@ -32,6 +32,9 @@ export function enregistrerModules(liste) {
   MODULES = Object.fromEntries(liste.map((m) => [m.cle, m]));
 }
 export const modules = () => ORDRE;
+// Modules de la barre basse et de la barre PC : ceux qui ne se déclarent pas `horsBarre` (ex. Proches,
+// atteint par sa carte d'accueil). La carte d'accueil, elle, les liste tous.
+const dansBarre = () => ORDRE.filter((m) => !m.horsBarre);
 // `ecransTransition` : écrans hors navigation (ni barre basse, ni segmenté) qu'un module garde
 // atteignables par un lien direct pendant une transition (ex. Budget "charges"/"recurrents"
 // avant fusion, D-036 §4). Optionnel, absent pour les modules qui n'en ont pas besoin.
@@ -114,7 +117,7 @@ function rendreOngletsGlobaux(nom) {
   // courant, ou la roue si l'écran courant est un réglage (D-036 §3).
   const reglagesDefaut = ORDRE.flatMap((m) => m.reglages)[0]?.[0] ?? null;
   const module = moduleDe(nom);
-  const modulesHtml = ORDRE.map((m) => {
+  const modulesHtml = dansBarre().map((m) => {
     const actif = module === m.cle && !estReglages(nom);
     return `<button data-ecran="${m.defaut}" class="${actif ? "actif" : ""}">${txt(m.nom)}</button>`;
   }).join("");
@@ -125,7 +128,7 @@ function rendreOngletsGlobaux(nom) {
 function rendreBarrePc(module, nom) {
   const m = module ? MODULES[module] : null;
   const reglagesDefaut = ORDRE.flatMap((mm) => mm.reglages)[0]?.[0] ?? null;
-  const modulesHtml = ORDRE.map((mm) =>
+  const modulesHtml = dansBarre().map((mm) =>
     `<button class="onglet${mm.cle === module && !estReglages(nom) ? " actif" : ""}" data-ecran="${mm.defaut}">${txt(mm.nom)}</button>`).join("");
   $("#modules-pc").innerHTML = modulesHtml
     + (reglagesDefaut ? boutonReglages(reglagesDefaut, estReglages(nom), "onglet onglet-reglages") : "");

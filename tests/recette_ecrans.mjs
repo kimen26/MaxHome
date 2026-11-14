@@ -18,6 +18,9 @@ const LARGEURS = (process.env.RECETTE_LARGEURS ?? "320,360,768,1200").split(",")
 /** Jeton INVENTÉ de la page partagée de la recette (la RPC est bouchonnée, aucun réseau). */
 const JETON_FACTICE = "11111111-2222-4333-8444-555555555555";
 
+/** Écrans des modules `horsBarre` (Proches) : absents de la barre, atteints par la carte d'accueil. */
+const HORS_BARRE = new Set();
+
 // Stub Leaflet minimal (frontend/agenda/carte.js n'a besoin que de L.map/tileLayer/marker/
 // divIcon/featureGroup) : pose un conteneur `.leaflet-container` visible, sans vraie tuile ni
 // vraie carte — la recette hors ligne ne doit JAMAIS toucher le vrai cdnjs (voir page.route
@@ -223,6 +226,7 @@ const FEUILLES = [
   { ecran: "taches-rec", moduleDefaut: "taches-rec", bouton: "#btn-aide-parts", nom: "feuille-aide-parts" },
   { ecran: "alertes", moduleDefaut: "voyages-liste", bouton: "#form-alerte [data-nouveau]", nom: "feuille-ajout-alerte" },
   { ecran: "alertes", moduleDefaut: "voyages-liste", bouton: '#liste-alertes [data-modifier="1"]', nom: "feuille-modif-alerte" },
+  { ecran: "proches", moduleDefaut: "proches", bouton: "#form-sondage [data-nouveau]", nom: "feuille-proposer-date" },
 ];
 
 // États qu'un geste révèle SANS feuille : le mois suivant de l'Agenda (les données factices y
@@ -503,6 +507,56 @@ const GESTES = [
       await page.waitForSelector('#feuille-corps [data-retirer-code="HHH"]', { timeout: 3000 });
       await page.evaluate(() => { const f = document.querySelector("#feuille"); f.scrollTop = f.scrollHeight; });
       await page.waitForTimeout(150);
+    } },
+  // ---------- Proches · Proposer une date : création d'un sondage, puis Terminer ----------
+  // Cibles >= 48 px MESURÉES (L-016), jour touché = pris, et ce qui part en base ne porte que les quatre champs.
+  { ecran: "proches", moduleDefaut: "proches", nom: "proches-creation",
+    geste: async (page) => {
+      await page.click("#form-sondage [data-nouveau]");
+      await page.waitForSelector("#feuille-corps [data-apercu] .pr-jour", { timeout: 3000 });
+      await page.fill('#feuille-corps [name="titre"]', "Brunch fictif");
+      const premier = page.locator("#feuille-corps [data-apercu] .pr-jour").first();
+      const libreAvant = (await premier.getAttribute("aria-pressed")) === "true";
+      await premier.click();
+      if (((await premier.getAttribute("aria-pressed")) === "true") === libreAvant) throw new Error("proches : toucher un jour n'a pas inversé libre/pris");
+      const petites = await page.evaluate(() => [...document.querySelectorAll("#feuille-corps .pr-jour, #feuille-corps .pr-raccourcis .btn, #feuille-corps [type=submit], #feuille-corps .champ, #feuille-corps label.case-a-cocher, #liste-sondages .pr-actions .btn, #ecran-proches .btn-lien")]
+        .map((el) => [el, el.getBoundingClientRect()]).filter(([, r]) => r.width > 0 && (r.height < 47.5 || r.width < 47.5))
+        .map(([el, r]) => `${el.textContent.trim().slice(0, 20)} ${Math.round(r.width)}x${Math.round(r.height)}`));
+      if (petites.length) throw new Error(`proches : cibles < 48 px : ${petites.join(", ")}`);
+      await page.click('#feuille-corps [type="submit"]');
+      await page.waitForSelector("#feuille", { state: "hidden", timeout: 5000 });
+      await page.waitForSelector('#liste-sondages [data-sondage="3"]', { timeout: 3000 });
+      const ecrit = await page.evaluate(() => window.__bouchonTables.sondages.find((s) => s.titre === "Brunch fictif"));
+      if (!ecrit) throw new Error("proches : le sondage n'est pas écrit en base");
+      if (ecrit.jours.length !== 8) throw new Error(`proches : ${ecrit.jours.length} jours, attendu 8 (quatre week-ends)`);
+      for (const jour of ecrit.jours) {
+        if (Object.keys(jour).sort().join() !== "ferie,jour,libre,vacances") throw new Error(`proches : champs inattendus dans un jour : ${Object.keys(jour)}`);
+      }
+      if (ecrit.jours[0].libre !== !libreAvant) throw new Error("proches : le jour inversé n'est pas écrit tel quel en base");
+      if (!(await page.locator('#liste-sondages [data-sondage="1"] .pr-reponses').innerText()).includes("Paul, Léa")) throw new Error("proches : prénoms par jour absents");
+    } },
+  // Bas de la feuille : interrupteur des réponses visibles et « Créer le lien » (le haut est vu par feuille-proposer-date).
+  { ecran: "proches", moduleDefaut: "proches", nom: "proches-feuille-bas",
+    geste: async (page) => {
+      await page.click("#form-sondage [data-nouveau]");
+      await page.waitForSelector("#feuille-corps [data-apercu] .pr-jour", { timeout: 3000 });
+      await page.evaluate(() => { const f = document.querySelector("#feuille"); f.scrollTop = f.scrollHeight; });
+      await page.waitForSelector("#toast", { state: "hidden", timeout: 4000 }); // le toast du geste précédent masquerait l'interrupteur
+      await page.waitForTimeout(250);
+      if (!(await page.locator('#feuille-corps [name="reponses_visibles"]').isVisible())) throw new Error("proches : l'interrupteur des réponses n'est pas visible en bas de feuille");
+      if (!(await page.locator('#feuille-corps [type="submit"]').isVisible())) throw new Error("proches : « Créer le lien » n'est pas visible en bas de feuille");
+    } },
+  { ecran: "proches", moduleDefaut: "proches", nom: "proches-terminer",
+    geste: async (page) => {
+      await page.click('#liste-sondages [data-terminer="3"]');
+      await page.waitForSelector("#feuille-corps .confirmation", { timeout: 3000 });
+      await page.click("#feuille-corps [data-annuler]");
+      await page.waitForSelector("#feuille", { state: "hidden", timeout: 3000 });
+      if (!(await page.locator('#liste-sondages [data-sondage="3"]').count())) throw new Error("proches : « Annuler » a supprimé le sondage");
+      await page.click('#liste-sondages [data-terminer="3"]');
+      await page.click("#feuille-corps [data-ok]");
+      await page.waitForFunction(() => !document.querySelector('#liste-sondages [data-sondage="3"]'), null, { timeout: 3000 });
+      if (await page.evaluate(() => window.__bouchonTables.sondages.some((s) => s.id === 3))) throw new Error("proches : Terminer n'a rien supprimé en base");
     } },
   // ---------- fiche voyage V3 (D-058) : bandeau, légende, feuille de route, cinq onglets ----------
   // Fiche du voyage 1 (« Week-end à la mer », 4 jours, en cours) : un geste par onglet, chacun
@@ -792,7 +846,7 @@ function lireDescripteur(fichier) {
     // Les entrées utilisent déjà des guillemets doubles : c'est du JSON valide tel quel.
     return JSON.parse(src.slice(ouverture, fin + 1));
   };
-  return { cle, nom, defaut, onglets: tableau("onglets"), reglages: tableau("reglages") };
+  return { cle, nom, defaut, onglets: tableau("onglets"), reglages: tableau("reglages"), horsBarre: /horsBarre:\s*true/.test(src) };
 }
 
 function listerEcrans() {
@@ -808,6 +862,7 @@ function listerEcrans() {
   const reglagesDefaut = descripteurs.flatMap((d) => d.reglages)[0]?.[0] ?? null;
   const ecrans = [];
   for (const d of descripteurs) {
+    if (d.horsBarre) for (const e of [d.defaut, ...d.onglets.map(([n]) => n), ...d.reglages.map(([n]) => n)]) HORS_BARRE.add(e);
     // Un module sans segmenté d'en-tête (`onglets: []`, ex. Courses D-036 §3) n'a que son écran
     // `defaut`, ouvert directement par la barre basse : sans lui l'écran ne serait JAMAIS visité
     // (ni onglet ni réglage ne le nomme), et la recette validerait un écran qu'elle n'a pas vu.
@@ -832,6 +887,7 @@ const TABLES = {
   voyage_lieux: "VOYAGE_LIEUX", voyage_resas: "VOYAGE_RESAS", voyage_pieces: "VOYAGE_PIECES",
   voyage_blocs: "VOYAGE_BLOCS", voyage_enveloppes: "VOYAGE_ENVELOPPES", voyage_todos: "VOYAGE_TODOS", voyage_partages: "VOYAGE_PARTAGES",
   veille_vols: "VEILLE_VOLS", veille_alertes: "VEILLE_ALERTES",
+  sondages: "SONDAGES", sondage_votes: "SONDAGE_VOTES",
 };
 
 /** Construit le script de bouchon : un thenable qui imite from().select().eq()... et
@@ -910,7 +966,7 @@ function scriptBouchon(donnees) {
         }
         if (operation === "insert") {
           // Colonne à défaut serveur : le jeton de partage (uuid généré par la base, migration 033).
-          const parDefaut = nomTable === "voyage_partages" ? () => ({ jeton: crypto.randomUUID() }) : () => ({});
+          const parDefaut = nomTable === "voyage_partages" || nomTable === "sondages" ? () => ({ jeton: crypto.randomUUID() }) : () => ({});
           const crees = payload.map((champs) => ({ id: prochainId() + payload.indexOf(champs), ...parDefaut(), ...champs }));
           window.__bouchonTables[nomTable] = [...base, ...crees];
           return unique ? crees[0] : crees;
@@ -1119,6 +1175,15 @@ let nbCaptures = 0;
 async function aller(page, ecran, moduleDefaut) {
   // Déjà sur l'écran demandé : ne rien faire.
   if (await page.isVisible(`#ecran-${ecran}:not([hidden])`)) return;
+  // Module hors barre (Proches) : on passe par l'accueil et sa carte, comme un utilisateur.
+  if (HORS_BARRE.has(ecran)) {
+    await page.evaluate(() => document.getElementById("logo").click()); // visible seulement sur PC : clic DOM
+    await page.waitForSelector("#ecran-accueil:not([hidden]) .module-carte", { timeout: 5000 });
+    await page.click(`#modules [data-ecran=${ecran}]`, { timeout: 5000 });
+    await page.waitForSelector(`#ecran-${ecran}:not([hidden])`, { timeout: 8000 });
+    await page.waitForTimeout(200);
+    return;
+  }
   const surPC = await page.isVisible("#barre-pc");
   const nav = surPC ? "#barre-pc" : "#onglets";
   if (await page.isVisible(`${nav} button[data-ecran=${ecran}]`)) {
@@ -1180,6 +1245,13 @@ try {
 
     // ---------- accueil ----------
     await capturer(page, "accueil", largeur, erreursPage);
+    // Barre basse et barre PC : cinq modules + la roue des Réglages, jamais Proches (horsBarre) ; sa carte est sur l'accueil.
+    for (const [barre, attendu] of [["#onglets button", 6], ["#modules-pc button", 6]]) {
+      const n = await page.locator(barre).count();
+      if (n !== attendu) erreursPage.push(`barre ${barre} : ${n} boutons, attendu ${attendu}`);
+      if (await page.locator(`${barre}[data-ecran=proches]`).count()) erreursPage.push(`barre ${barre} : Proches ne doit pas y figurer`);
+    }
+    if (!(await page.locator("#modules .module-carte[data-ecran=proches]").count())) erreursPage.push("accueil : la carte Proches manque");
 
     // ---------- chaque écran de chaque module ----------
     for (const { ecran, moduleDefaut } of ecrans) {

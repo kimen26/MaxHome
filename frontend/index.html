@@ -26,6 +26,7 @@
 <link rel="stylesheet" href="agenda/agenda.css">
 <link rel="stylesheet" href="agenda/fiche-voyage.css">
 <link rel="stylesheet" href="voyages/voyages.css">
+<link rel="stylesheet" href="proches/proches.css">
 </head>
 <body>
 
@@ -341,6 +342,15 @@
         passage, chaque matin vers 7 h 15 (PC allumé).</p>
       <div id="liste-alertes"></div>
       <div id="form-alerte"></div>
+    </section>
+    <!-- ===== Proches · Proposer une date (docs/briefs/proposer-date.md) : hors barre basse, atteint par l'accueil ===== -->
+    <section id="ecran-proches" class="ecran" hidden>
+      <div class="tete-ecran">
+        <div class="tete-ligne"><h1 class="tete-titre">Proposer une date</h1><button type="button" class="btn-lien" data-ecran="accueil">← Accueil</button></div>
+      </div>
+      <p class="pr-intro">Partagez nos jours libres par un lien : vos proches cochent ce qui leur va, vous recevez la réponse sur Telegram. Le lien ne montre ni titres ni détails de notre agenda.</p>
+      <div id="liste-sondages"></div>
+      <div id="form-sondage"></div>
     </section>
     <section id="ecran-voyages" class="ecran" hidden>
       <div class="tete-ecran"><div class="segment large" data-segment="reglages"></div></div>

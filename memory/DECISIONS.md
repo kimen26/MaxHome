@@ -1104,3 +1104,22 @@ l'espace parent, avec une vérification à 9 h, 14 h et 19 h.
   et le message est retenté. Après trois lectures ratées de suite, un message unique demande à Yann
   de regarder lui-même. L'état est gardé dans `data/veille_bilans.json`.
 - Lecture seule, par un nouvel outil `ecole_bilans` limité à cette page.
+
+## D-071 — Proposer une date à des proches : jours figés, lien jetable, vote par Edge Function (2026-11-14)
+
+Demande de Yann : partager nos jours libres façon Doodle pour un petit événement, sans rien
+montrer de personnel, et recevoir les réponses sur Telegram. Brief : docs/briefs/proposer-date.md.
+
+- **Lien en ligne, pas fichier HTML** : un fichier envoyé ne peut rien renvoyer. Patron du partage
+  de voyage (033) : jeton uuid, page publique sans session, lecture par `sondage_public`
+  (security definer, liste blanche). Supprimer le sondage = le lien meurt.
+- **Jours figés à la création** (`{jour, libre, ferie, vacances}`), calculés dans l'app depuis
+  l'agenda Google et les voyages ; aucun titre ne sort, testé avec des titres « SECRET ». Le
+  créateur peut inverser un jour. « Télétravail » ne rend pas un jour pris (même règle que l'Agenda).
+- **Vote par l'Edge Function publique `sondage-voter`** (clé service, validation serveur) : aucune
+  écriture anonyme en table, et le message Telegram part même PC éteint. Destinataires D-060
+  (groupe sinon membres), extraits dans `supabase/functions/_shared/telegram_foyer.ts` (2e usage).
+- **Réponses des autres cachées par défaut**, interrupteur du créateur (choix de Yann).
+- **Jetable** : « Terminer » supprime ; purge pg_cron 7 jours après le dernier jour.
+- **Module Proches hors de la barre basse** (`horsBarre`), atteint par sa carte d'accueil : la
+  barre a déjà 6 boutons à 360 px. Il accueillera le lot 2, « Garder le lien ».

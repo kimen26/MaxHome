@@ -47,6 +47,8 @@ frontend/
   taches/      module Tâches
   courses/     module Courses
   agenda/      module Agenda
+  voyages/     module Voyages
+  proches/     module Proches (sondages « Proposer une date »)
 ```
 
 ### Racine
@@ -121,6 +123,16 @@ ne doit pas réécrire à la main.
 Les carnets de voyage détaillés restent dans MaxVoyage (HTML écrits à la main, avec des
 données personnelles) : MaxHome ne porte que ce qu'il faut pour un calendrier (D-037).
 
+### `frontend/proches/` — module Proches (docs/briefs/proposer-date.md)
+
+| Fichier | Rôle |
+|---|---|
+| `mod-proches.js` | descripteur : écran « Proposer une date », `horsBarre: true` |
+| `jours-libres.js` | **règles pures** : `joursLibres(debut, fin, {google, voyages, vacances, feries, weekendsSeuls})` → `[{jour, libre, ferie, vacances}]` (jamais un titre d'événement : principe 1 du brief), raccourcis de période, `erreurPeriode` — testé par `tests/test_proches.mjs` |
+| `suivi.js` | **règles pures** : validation du formulaire, lien `sondage.html?j=<jeton>`, réponses classées par jour |
+| `ui-proches.js` | liste des sondages en cours (copier le lien, visibilité, Terminer), assemblée sur `blocs-reglages.js` et `blocs-optimiste.js` |
+| `ui-proches-form.js` | formulaire en feuille : période, raccourcis, aperçu des jours à toucher |
+
 ## 3. Le contrat d'un module (descripteur `mod-*.js`)
 
 `app.js` ne connaît aucun module par son nom : il boucle sur `modules.js::LISTE`, un tableau
@@ -141,6 +153,7 @@ navigation (`estReglages(ecran)`).
 | `cle` | string | identifiant interne du module (`"budget"`, `"taches"`, `"courses"`) |
 | `nom` | string | libellé affiché (carte d'accueil, en-tête d'onglets) |
 | `defaut` | string | écran ouvert quand on entre dans le module depuis l'accueil |
+| `horsBarre` | boolean, optionnel | `true` : le module n'apparaît ni dans la barre basse ni dans la barre PC (`ui-base.js::dansBarre`) ; il reste sur l'accueil, qui liste tous les modules, et s'ouvre par sa carte (ex. Proches) |
 | `avecMois` | boolean | le module utilise le sélecteur de mois partagé (Budget seul, pour l'instant) |
 | `onglets` | `[cle_ecran, libellé][]` | segmenté d'en-tête du module (Jour\|Semaine, Mois\|Stats\|Année…) |
 | `reglages` | `[cle_ecran, libellé][]` | écrans de réglages du module, réunis par le socle dans le module synthétique **Réglages** (D-036 §3) |

@@ -388,6 +388,8 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       et rangé comme idée ; recherche web rapide. Non vérifié en vrai : un vrai PDF de compagnie, une
       vraie photo Telegram, le filtre de groupe sur un vrai message, le routage réel vers la recherche.
 - [ ] Bot : message « Je cherche… » avant une recherche web (jusqu'à 180 s de silence, boucle bloquée).
+- [ ] (14/11, D-071) Proposer une date (module Proches, lot 1) : codé, testé (factices), NON mis en ligne. Mise en prod, dans l'ordre : migration 036, `python scripts/deploy_rappels.py` (module _shared), `python scripts/deploy_sondages.py`, puis push du front. Non vérifié en vrai : sondage_public, vote, message Telegram, copier/partager sur téléphone, typage Deno (Deno absent, tests via bun).
+- [ ] Module Proches lot 2 « Garder le lien » : relances bienveillantes, anniversaires, échanges notés au bot.
 - [x] (14/11, D-070) Veille des RDV bilans semestriels de l'école : tâche MaxHome-VeilleBilans
       (9 h, 14 h, 19 h), lecture réelle « fermé » vérifiée, tâche lancée une fois (résultat 0).
       Non vérifié en vrai : la page ouverte (jamais vue), le message Telegram d'ouverture.

@@ -1,0 +1,44 @@
+/* ---------- Module Proches : « Proposer une date » ---------- */
+.pr-intro { font-size:13px; color:var(--texte-2); margin:4px 0 10px; line-height:1.4; }
+#form-sondage { margin-top:10px; }
+
+/* Sondage en cours */
+.pr-liste { display:flex; flex-direction:column; gap:10px; }
+.pr-liste .carte + .carte { margin-top:0; }
+.pr-sondage { display:flex; flex-direction:column; gap:8px; }
+.pr-haut { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap; }
+.pr-titre { margin:0; font-size:16px; font-weight:600; min-width:0; overflow-wrap:anywhere; }
+.pr-sous, .pr-vide { margin:0; font-size:13px; color:var(--texte-2); line-height:1.4; }
+.pr-reponses { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:4px; font-size:14px; line-height:1.4; }
+.pr-reponses li { overflow-wrap:anywhere; }
+.pr-rep-jour { font-weight:600; }
+.pr-actions { display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+.pr-actions .btn { min-height:48px; white-space:normal; }
+.pr-actions .btn-rouge { background:#fff; color:var(--rouge); border-color:var(--rouge); }
+@media (min-width:640px) { .pr-actions { flex-direction:row; flex-wrap:wrap; } }
+
+/* Formulaire : raccourcis, dates, aperçu des jours */
+.pr-raccourcis { display:flex; flex-wrap:wrap; gap:8px; }
+.pr-raccourcis .btn { min-height:48px; white-space:normal; flex:1 1 140px; }
+.pr-deux { display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:end; }
+.pr-compte { margin:0 0 8px; font-size:13px; color:var(--texte-2); line-height:1.4; }
+.pr-erreur { margin:0; padding:10px 12px; border-radius:10px; background:var(--rouge-fond); color:var(--rouge); font-size:14px; line-height:1.4; }
+.pr-jours { display:flex; flex-direction:column; gap:6px; }
+.pr-jour {
+  display:flex; justify-content:space-between; align-items:center; gap:10px; width:100%;
+  min-height:56px; padding:8px 12px; border-radius:10px; border:1px solid var(--bordure);
+  font:inherit; font-size:15px; text-align:left; cursor:pointer;
+}
+.pr-jour.libre { background:var(--vert-clair); border-color:var(--vert); color:var(--texte); }
+.pr-jour.pris { background:var(--fond-bandeau); color:var(--texte-2); }
+.pr-jour-date { display:flex; flex-direction:column; min-width:0; font-weight:600; }
+.pr-jour-date small { font-size:12px; font-weight:400; color:var(--texte-2); line-height:1.3; overflow-wrap:anywhere; }
+.pr-jour-etat { flex:none; font-size:14px; font-weight:600; }
+.pr-jour.libre .pr-jour-etat { color:var(--vert); }
+.pr-jour:focus-visible { outline:3px solid var(--bleu); outline-offset:2px; }
+
+/* Cibles de 48 px dans le formulaire (action principale 56 px) ; la classe est posée par ui-proches-form.js */
+.pr-form .champ { min-height:48px; }
+.pr-form [type="submit"] { min-height:56px; }
+.pile.pr-form label.case-a-cocher { min-height:48px; }
+#ecran-proches .btn-lien { min-height:48px; min-width:48px; padding:0 8px; }

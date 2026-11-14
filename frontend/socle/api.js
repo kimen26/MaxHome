@@ -291,6 +291,20 @@ export function creerApi(sb) {
      *  a_reserver. Un tap, écriture immédiate (D-047). */
     cocherResa: (id, fait) => sb.from("voyage_resas").update({ statut: fait ? "reserve" : "a_reserver" }).eq("id", id).select().single().then(rendre),
 
+    // ---------- module Proches : sondages « Proposer une date » (docs/briefs/proposer-date.md) ----------
+    /** Sondages avec leurs votes (deux requêtes, assemblées ici), le plus récent d'abord. */
+    async sondages() {
+      const [sondages, votes] = await Promise.all([
+        sb.from("sondages").select("*").order("cree_le", { ascending: false }).then(rendre),
+        sb.from("sondage_votes").select("sondage_id,prenom,jours,vote_le").order("vote_le").then(rendre),
+      ]);
+      return sondages.map((s) => ({ ...s, votes: votes.filter((v) => v.sondage_id === s.id) }));
+    },
+    creerSondage: (champs) => sb.from("sondages").insert(champs).select().single().then(rendre),
+    majSondage: (id, champs) => sb.from("sondages").update(champs).eq("id", id).select().single().then(rendre),
+    /** Terminer : les votes partent en cascade, le lien public meurt. */
+    supprimerSondage: (id) => sb.from("sondages").delete().eq("id", id).then(rendre),
+
     // ---------- module Tâches ----------
     tachesRec: () => sb.from("taches_recurrentes").select("*").order("ordre").order("id").then(rendre),
     /** Tâches non faites (quelle que soit leur date) et tâches depuis `depuis` (AAAA-MM-JJ). */

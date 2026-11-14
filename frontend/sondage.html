@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#1f4e79">
+<title>Proposition de date</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="proches/sondage.css">
+</head>
+<body>
+<!-- Page PUBLIQUE : aucune connexion, aucun service worker. Elle lit ?j=<jeton>, appelle la fonction
+     SQL sondage_public (clé anon) et l'Edge Function sondage-voter ; le rendu est dans sondage-page.js. -->
+<main id="sondage" class="sondage"><p class="sd-vide">Chargement…</p></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script type="module" src="sondage.js"></script>
+</body>
+</html>

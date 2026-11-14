@@ -484,6 +484,22 @@ export const AGENDA_GOOGLE = [
   evtG(10, "Claudia télétravail", 18),
 ];
 
+// ---------- module Proches : sondages « Proposer une date » (docs/briefs/proposer-date.md) ----------
+// Deux sondages FICTIFS : le premier cache les réponses aux invités, le second les montre. Les jours
+// ne portent que { jour, libre, ferie, vacances } (principe 1 du brief) ; prénoms d'exemple.
+const joursSondage = (...decalages) => decalages.map((n, i) => ({ jour: ilYA(-n), libre: i !== 2, ferie: null, vacances: i === 3 ? "Vacances d'exemple" : null }));
+export const SONDAGES = [
+  { id: 1, jeton: "aaaaaaaa-1111-4222-8333-444444444444", titre: "Raclette", message: "On se fait une raclette entre voisins ?",
+    jours: joursSondage(3, 4, 10, 11), reponses_visibles: false, cree_par: "Yann", cree_le: ilYA(2) },
+  { id: 2, jeton: "bbbbbbbb-1111-4222-8333-444444444444", titre: "Anniversaire des cousins avec un titre assez long pour passer à la ligne", message: null,
+    jours: joursSondage(17, 18, 24, 25), reponses_visibles: true, cree_par: "Claudia", cree_le: ilYA(1) },
+];
+export const SONDAGE_VOTES = [
+  { id: 1, sondage_id: 1, prenom: "Paul", prenom_cle: "paul", jours: [ilYA(-3), ilYA(-4)], vote_le: ilYA(1) },
+  { id: 2, sondage_id: 1, prenom: "Léa", prenom_cle: "lea", jours: [ilYA(-3)], vote_le: ilYA(1) },
+  { id: 3, sondage_id: 2, prenom: "Sam", prenom_cle: "sam", jours: [ilYA(-18)], vote_le: ilYA(0) },
+];
+
 // ---------- module Agenda : carnet de voyage (voyage 1, « Week-end à la mer ») ----------
 // 6 résas/dépenses (D-047 §V2 : une résa EST une ligne de dépense) : vol coché/payé (poste
 // transport, déduit du type, dépasse l'enveloppe 80 € à lui seul avec le billet retour à venir),
