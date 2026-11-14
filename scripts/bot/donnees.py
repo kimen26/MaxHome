@@ -137,6 +137,27 @@ class Donnees:
         self._appel("POST", "telegram_membres", {"telegram_id": telegram_id, "prenom": prenom},
                     {"Prefer": "resolution=merge-duplicates"})
 
+    # ---------- module Proches : garder le lien (migration 037) ----------
+    def proches(self):
+        return self._appel("GET", "proches?select=*&order=id")
+
+    def proche_echanges(self):
+        return self._appel("GET", "proche_echanges?select=*&order=id")
+
+    def creer_proche(self, champs):
+        r = self._appel("POST", "proches", champs, {"Prefer": "return=representation"})
+        return r[0]
+
+    def creer_proche_echange(self, champs):
+        r = self._appel("POST", "proche_echanges", champs, {"Prefer": "return=representation"})
+        return r[0]
+
+    def supprimer_proche(self, id_):
+        self._appel("DELETE", f"proches?id=eq.{id_}")  # les échanges partent avec (on delete cascade)
+
+    def supprimer_proche_echange(self, id_):
+        self._appel("DELETE", f"proche_echanges?id=eq.{id_}")
+
     # ---------- paramètres du foyer (table clé/valeur, migration 016) ----------
     def parametre(self, cle):
         r = self._appel("GET", f"parametres?cle=eq.{quote(cle, safe='')}&select=valeur")

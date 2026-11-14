@@ -16,6 +16,7 @@ import ecole_ecriture_bot
 import ecole_espace
 import evolution
 import libre
+import proches_bot
 import reponses
 import traduction_libre
 import web_bot
@@ -141,6 +142,8 @@ def _suite(bot, etat, telegram_id, prenom, texte, interp, annee, mois):
         return ecole_ecriture_bot.repondre(etat, prenom, interp)
     if nom in agenda_bot.ACTIONS:  # lecture directe ; toute écriture est proposée (« OK ? ») puis confirmée
         return agenda_bot.repondre(etat, prenom, interp)
+    if nom in proches_bot.ACTIONS_LIBRES:  # noter un échange (prénom inconnu : proposé, « OK ? ») ou consulter
+        return proches_bot.repondre(bot, etat, telegram_id, prenom, interp, proposer, libre.aujourdhui())
     if nom == "hors_portee":  # une vraie demande que le bot ne sait pas faire : dit franchement, noté pour Yann
         return evolution.enregistrer(bot, prenom, _texte(interp) or texte, evolution.GENRE_HORS_PORTEE)
     if nom == "question":

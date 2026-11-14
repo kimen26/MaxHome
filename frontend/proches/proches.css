@@ -42,3 +42,45 @@
 .pr-form [type="submit"] { min-height:56px; }
 .pile.pr-form label.case-a-cocher { min-height:48px; }
 #ecran-proches .btn-lien { min-height:48px; min-width:48px; padding:0 8px; }
+
+/* ---------- Module Proches : « Garder le lien » (docs/briefs/garder-le-lien.md) ---------- */
+/* Le segmenté (Proposer une date | Garder le lien) : cibles de 48 px, libellé sur 2 lignes si besoin. */
+#ecran-proches .segment button, #ecran-proches-lien .segment button { min-height:48px; font-size:14px; }
+#ecran-proches-lien .btn-lien { min-height:48px; min-width:48px; padding:0 8px; }
+#form-proche { margin-top:10px; }
+
+/* Bandeau des anniversaires */
+.pr-anniversaires { background:var(--fond-bandeau); margin-bottom:4px; }
+.pr-anniversaires ul { margin:6px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:4px; font-size:15px; line-height:1.4; }
+.pr-anniversaires li { overflow-wrap:anywhere; }
+
+/* Une ligne par proche : un seul bouton, 56 px au moins, le texte peut grandir */
+.pr-proche {
+  display:flex; justify-content:space-between; align-items:center; gap:10px; width:100%; min-height:56px;
+  padding:8px 12px; background:#fff; border:0; border-bottom:1px solid var(--bordure); border-left:4px solid transparent;
+  font:inherit; text-align:left; color:var(--texte); cursor:pointer;
+}
+.pr-proche:last-child { border-bottom:0; }
+.pr-proche.a-relancer { border-left-color:var(--rouge); } /* repère en plus du texte « sans nouvelles », jamais seul */
+.pr-proche:focus-visible { outline:3px solid var(--bleu); outline-offset:-3px; }
+.pr-proche-corps { display:flex; flex-direction:column; min-width:0; gap:2px; }
+.pr-proche-nom { font-size:16px; font-weight:600; overflow-wrap:anywhere; }
+.pr-proche-sous { font-size:14px; color:var(--texte-2); line-height:1.35; overflow-wrap:anywhere; }
+.pr-proche .pastille { flex:none; font-size:13px; padding:4px 8px; }
+
+/* Feuille d'un proche */
+.pr-trois { display:grid; grid-template-columns:1fr 1.4fr 1.2fr; gap:8px; align-items:end; }
+.pr-anniv-champs { border:1px solid var(--bordure); border-radius:10px; padding:8px 10px 10px; margin:0; min-width:0; }
+.pr-anniv-champs legend { font-size:13px; color:var(--texte-2); padding:0 4px; }
+.pr-echanges { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
+.pr-echange { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--bordure); }
+.pr-echange-corps { display:flex; flex-direction:column; min-width:0; gap:2px; }
+.pr-echange-date { font-size:13px; font-weight:600; color:var(--texte-2); }
+.pr-echange-texte { font-size:15px; line-height:1.4; overflow-wrap:anywhere; }
+.pr-echange .btn-lien { flex:none; min-height:48px; min-width:48px; padding:0 8px; font-size:14px; }
+.pr-noter, .pr-echange-form .btn { min-height:48px; }
+.pr-echange-form { display:flex; flex-direction:column; gap:12px; }
+.pr-echange-form[hidden], .pr-noter[hidden] { display:none; }
+.pr-echange-actions { display:flex; gap:8px; }
+.pr-echange-actions .btn { flex:1; white-space:normal; }
+#form-proche .btn { min-height:48px; }

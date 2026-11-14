@@ -343,14 +343,24 @@
       <div id="liste-alertes"></div>
       <div id="form-alerte"></div>
     </section>
-    <!-- ===== Proches · Proposer une date (docs/briefs/proposer-date.md) : hors barre basse, atteint par l'accueil ===== -->
+    <!-- ===== Proches (docs/briefs/proposer-date.md, garder-le-lien.md) : hors barre basse, atteint par l'accueil ===== -->
     <section id="ecran-proches" class="ecran" hidden>
       <div class="tete-ecran">
-        <div class="tete-ligne"><h1 class="tete-titre">Proposer une date</h1><button type="button" class="btn-lien" data-ecran="accueil">← Accueil</button></div>
+        <div class="tete-ligne"><h1 class="tete-titre">Proches</h1><button type="button" class="btn-lien" data-ecran="accueil">← Accueil</button></div>
+        <div class="segment large" data-segment="proches"></div>
       </div>
       <p class="pr-intro">Partagez nos jours libres par un lien : vos proches cochent ce qui leur va, vous recevez la réponse sur Telegram. Le lien ne montre ni titres ni détails de notre agenda.</p>
       <div id="liste-sondages"></div>
       <div id="form-sondage"></div>
+    </section>
+    <section id="ecran-proches-lien" class="ecran" hidden>
+      <div class="tete-ecran">
+        <div class="tete-ligne"><h1 class="tete-titre">Proches</h1><button type="button" class="btn-lien" data-ecran="accueil">← Accueil</button></div>
+        <div class="segment large" data-segment="proches"></div>
+      </div>
+      <p class="pr-intro">Un rythme par proche, ce qu'on s'est dit, son anniversaire : on ne laisse plus filer des mois sans écrire. Le bot vous relance en privé, il n'écrit jamais à vos proches.</p>
+      <div id="liste-proches"></div>
+      <div id="form-proche"></div>
     </section>
     <section id="ecran-voyages" class="ecran" hidden>
       <div class="tete-ecran"><div class="segment large" data-segment="reglages"></div></div>

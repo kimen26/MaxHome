@@ -227,6 +227,8 @@ const FEUILLES = [
   { ecran: "alertes", moduleDefaut: "voyages-liste", bouton: "#form-alerte [data-nouveau]", nom: "feuille-ajout-alerte" },
   { ecran: "alertes", moduleDefaut: "voyages-liste", bouton: '#liste-alertes [data-modifier="1"]', nom: "feuille-modif-alerte" },
   { ecran: "proches", moduleDefaut: "proches", bouton: "#form-sondage [data-nouveau]", nom: "feuille-proposer-date" },
+  { ecran: "proches-lien", moduleDefaut: "proches", bouton: "#form-proche [data-nouveau]", nom: "feuille-ajout-proche" },
+  { ecran: "proches-lien", moduleDefaut: "proches", bouton: '#liste-proches [data-modifier="1"]', nom: "feuille-proche" },
 ];
 
 // États qu'un geste révèle SANS feuille : le mois suivant de l'Agenda (les données factices y
@@ -558,6 +560,78 @@ const GESTES = [
       await page.waitForFunction(() => !document.querySelector('#liste-sondages [data-sondage="3"]'), null, { timeout: 3000 });
       if (await page.evaluate(() => window.__bouchonTables.sondages.some((s) => s.id === 3))) throw new Error("proches : Terminer n'a rien supprimé en base");
     } },
+  // ---------- Proches · Garder le lien : liste, ajout d'un proche, noter un échange ----------
+  // Cibles >= 48 px MESURÉES (L-016) ; ce qui part en base est relu ; noter un échange remet le compteur à zéro.
+  { ecran: "proches-lien", moduleDefaut: "proches", nom: "proches-lien-liste",
+    geste: async (page) => {
+      const texte = (await page.locator("#liste-proches").innerText()).toLowerCase(); // titre-section est en capitales (CSS)
+      for (const attendu of ["Anniversaires à venir", "Lou a 40 ans dans 3 jours", "Anniversaire de Inès dans 12 jours", "À relancer", "sans nouvelles · rythme : mois", "dernier échange il y a 5 j"]) {
+        if (!texte.includes(attendu.toLowerCase())) throw new Error(`proches-lien : « ${attendu} » absent de la liste`);
+      }
+      const ordre = await page.locator("#liste-proches .pr-proche-nom").allInnerTexts();
+      if (ordre[0] !== "Camille" || ordre[1] !== "Noa") throw new Error(`proches-lien : les proches à relancer ne sont pas en tête (${ordre.slice(0, 3)})`);
+      const petites = await page.evaluate(() => [...document.querySelectorAll("#liste-proches .pr-proche, #form-proche .btn, #ecran-proches-lien .segment button, #ecran-proches-lien .btn-lien")]
+        .map((el) => [el, el.getBoundingClientRect()]).filter(([, r]) => r.width > 0 && (r.height < 47.5 || r.width < 47.5))
+        .map(([el, r]) => `${el.textContent.trim().slice(0, 20)} ${Math.round(r.width)}x${Math.round(r.height)}`));
+      if (petites.length) throw new Error(`proches-lien : cibles < 48 px : ${petites.join(", ")}`);
+    } },
+  { ecran: "proches-lien", moduleDefaut: "proches", nom: "proches-lien-ajout",
+    geste: async (page) => {
+      await page.click("#form-proche [data-nouveau]");
+      await page.waitForSelector('#feuille-corps [name="prenom"]', { timeout: 3000 });
+      await page.click('#feuille-corps [type="submit"]'); // prénom vide : refusé par le navigateur, rien n'est écrit
+      if (await page.evaluate(() => window.__bouchonTables.proches.length) !== 6) throw new Error("proches-lien : un proche sans prénom a été écrit");
+      await page.fill('#feuille-corps [name="prenom"]', "Zoé");
+      await page.click('#feuille-corps [data-qui="Claudia"]');
+      await page.selectOption('#feuille-corps [name="rythme_jours"]', "30");
+      await page.fill('#feuille-corps [name="anniv_jour"]', "29");
+      await page.selectOption('#feuille-corps [name="anniv_mois"]', "2");
+      const petites = await page.evaluate(() => [...document.querySelectorAll("#feuille-corps .champ, #feuille-corps .choix-option, #feuille-corps [type=submit]")]
+        .map((el) => [el, el.getBoundingClientRect()]).filter(([, r]) => r.width > 0 && (r.height < 47.5 || r.width < 47.5))
+        .map(([el, r]) => `${el.name || el.textContent.trim().slice(0, 20)} ${Math.round(r.width)}x${Math.round(r.height)}`));
+      if (petites.length) throw new Error(`proches-lien : cibles < 48 px dans la feuille : ${petites.join(", ")}`);
+      await page.click('#feuille-corps [type="submit"]');
+      await page.waitForSelector("#feuille", { state: "hidden", timeout: 5000 });
+      const ecrit = await page.evaluate(() => window.__bouchonTables.proches.find((p) => p.prenom === "Zoé"));
+      if (!ecrit) throw new Error("proches-lien : le proche n'est pas écrit en base");
+      if (ecrit.qui !== "Claudia" || ecrit.rythme_jours !== 30 || ecrit.anniv_jour !== 29 || ecrit.anniv_mois !== 2 || ecrit.anniv_annee !== null) {
+        throw new Error(`proches-lien : valeurs écrites inattendues ${JSON.stringify(ecrit)}`);
+      }
+      await page.waitForSelector(`#liste-proches [data-modifier="${ecrit.id}"]`, { timeout: 3000 });
+      // Les refus (doublon de prénom, échange vide) sont rejoués par tests/test_proches.mjs : l'app les logue en console.error, que la recette compte comme panne.
+    } },
+  { ecran: "proches-lien", moduleDefaut: "proches", nom: "proches-lien-echange",
+    geste: async (page) => {
+      await page.click('#liste-proches [data-modifier="3"]');
+      await page.waitForSelector("#feuille-corps [data-echange-ouvrir]", { timeout: 3000 });
+      await page.click("#feuille-corps [data-echange-ouvrir]");
+      await page.fill('#feuille-corps [name="ech_texte"]', "Café ensemble, elle cherche un nouvel appartement");
+      const petites = await page.evaluate(() => [...document.querySelectorAll("#feuille-corps [data-echange-form] .champ, #feuille-corps [data-echange-form] .btn, #feuille-corps [data-echange-suppr]")]
+        .map((el) => [el, el.getBoundingClientRect()]).filter(([, r]) => r.width > 0 && (r.height < 47.5 || r.width < 47.5))
+        .map(([el, r]) => `${el.name || el.textContent.trim().slice(0, 20)} ${Math.round(r.width)}x${Math.round(r.height)}`));
+      if (petites.length) throw new Error(`proches-lien : cibles < 48 px (échange) : ${petites.join(", ")}`);
+      await page.click('#feuille-corps [data-echange-noter="3"]');
+      await page.waitForSelector("#feuille-corps .pr-echange", { timeout: 3000 });
+      const ecrit = await page.evaluate(() => window.__bouchonTables.proche_echanges.find((e) => e.proche_id === 3));
+      if (!ecrit || !ecrit.texte.startsWith("Café") || !/^\d{4}-\d{2}-\d{2}$/.test(ecrit.le)) throw new Error(`proches-lien : échange mal écrit ${JSON.stringify(ecrit)}`);
+      // Derrière la feuille, Noa n'est plus à relancer : son compteur est reparti de zéro.
+      if (await page.locator('#liste-proches [data-modifier="3"].a-relancer').count()) throw new Error("proches-lien : Noa est encore à relancer après l'échange");
+      if (!(await page.locator('#liste-proches [data-modifier="3"]').innerText()).includes("dernier échange aujourd'hui")) throw new Error("proches-lien : « dernier échange aujourd'hui » absent");
+    } },
+  { ecran: "proches-lien", moduleDefaut: "proches", nom: "proches-lien-supprimer",
+    geste: async (page) => {
+      await page.click('#liste-proches [data-modifier="1"]');
+      await page.waitForSelector("#feuille-corps [data-echange-suppr]", { timeout: 3000 });
+      const avant = await page.locator("#feuille-corps .pr-echange").count();
+      await page.click("#feuille-corps [data-echange-suppr]");
+      await page.waitForFunction((n) => document.querySelectorAll("#feuille-corps .pr-echange").length === n, avant - 1, { timeout: 3000 });
+      if (await page.evaluate(() => window.__bouchonTables.proche_echanges.filter((e) => e.proche_id === 1).length) !== avant - 1) throw new Error("proches-lien : l'échange n'est pas supprimé en base");
+      await page.click("#feuille-corps [data-retirer-feuille]");
+      await page.waitForSelector("#feuille-corps .confirmation", { timeout: 3000 });
+      await page.click("#feuille-corps [data-ok]");
+      await page.waitForFunction(() => !document.querySelector('#liste-proches [data-modifier="1"]'), null, { timeout: 3000 });
+      if (await page.evaluate(() => window.__bouchonTables.proches.some((p) => p.id === 1))) throw new Error("proches-lien : le proche n'est pas supprimé en base");
+    } },
   // ---------- fiche voyage V3 (D-058) : bandeau, légende, feuille de route, cinq onglets ----------
   // Fiche du voyage 1 (« Week-end à la mer », 4 jours, en cours) : un geste par onglet, chacun
   // mesuré (cibles >= 48 px, contraste >= 4.5:1, ordre vertical) AVANT la capture — une capture se
@@ -888,6 +962,7 @@ const TABLES = {
   voyage_blocs: "VOYAGE_BLOCS", voyage_enveloppes: "VOYAGE_ENVELOPPES", voyage_todos: "VOYAGE_TODOS", voyage_partages: "VOYAGE_PARTAGES",
   veille_vols: "VEILLE_VOLS", veille_alertes: "VEILLE_ALERTES",
   sondages: "SONDAGES", sondage_votes: "SONDAGE_VOTES",
+  proches: "PROCHES", proche_echanges: "PROCHE_ECHANGES",
 };
 
 /** Construit le script de bouchon : un thenable qui imite from().select().eq()... et
@@ -1179,7 +1254,10 @@ async function aller(page, ecran, moduleDefaut) {
   if (HORS_BARRE.has(ecran)) {
     await page.evaluate(() => document.getElementById("logo").click()); // visible seulement sur PC : clic DOM
     await page.waitForSelector("#ecran-accueil:not([hidden]) .module-carte", { timeout: 5000 });
-    await page.click(`#modules [data-ecran=${ecran}]`, { timeout: 5000 });
+    await page.click(`#modules [data-ecran=${moduleDefaut}]`, { timeout: 5000 });
+    await page.waitForSelector(`#ecran-${moduleDefaut}:not([hidden])`, { timeout: 8000 });
+    // Un autre onglet du module (« Garder le lien ») : on tape son segmenté d'en-tête, comme un utilisateur.
+    if (ecran !== moduleDefaut) await page.click(`#ecran-${moduleDefaut}:not([hidden]) [data-ecran=${ecran}]`, { timeout: 5000 });
     await page.waitForSelector(`#ecran-${ecran}:not([hidden])`, { timeout: 8000 });
     await page.waitForTimeout(200);
     return;

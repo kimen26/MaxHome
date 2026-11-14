@@ -500,6 +500,26 @@ export const SONDAGE_VOTES = [
   { id: 3, sondage_id: 2, prenom: "Sam", prenom_cle: "sam", jours: [ilYA(-18)], vote_le: ilYA(0) },
 ];
 
+// ---------- module Proches : « Garder le lien » (docs/briefs/garder-le-lien.md) ----------
+// Cinq proches FICTIFS, dates relatives à aujourd'hui : deux à relancer (Camille 45 j pour un rythme
+// mensuel, Noa 20 j pour un rythme hebdomadaire sans aucun échange), deux à jour, un sans relance.
+// Lou fête ses 40 ans dans 3 jours, Inès son anniversaire (année inconnue) dans 12 jours.
+const dansJours = (n) => { const d = new Date(AUJOURDHUI); d.setDate(d.getDate() + n); return d; };
+export const PROCHES = [
+  { id: 1, prenom: "Camille", qui: "nous", rythme_jours: 30, anniv_jour: null, anniv_mois: null, anniv_annee: null, note: "Deux enfants, passionnée de théâtre", actif: true, cree_le: ilYA(200) },
+  { id: 2, prenom: "Sacha", qui: "Yann", rythme_jours: 14, anniv_jour: null, anniv_mois: null, anniv_annee: null, note: null, actif: true, cree_le: ilYA(120) },
+  { id: 3, prenom: "Noa", qui: "Claudia", rythme_jours: 7, anniv_jour: null, anniv_mois: null, anniv_annee: null, note: null, actif: true, cree_le: ilYA(20) },
+  { id: 4, prenom: "Lou", qui: "nous", rythme_jours: null, anniv_jour: dansJours(3).getDate(), anniv_mois: dansJours(3).getMonth() + 1, anniv_annee: dansJours(3).getFullYear() - 40, note: null, actif: true, cree_le: ilYA(300) },
+  { id: 5, prenom: "Inès", qui: "Claudia", rythme_jours: 90, anniv_jour: dansJours(12).getDate(), anniv_mois: dansJours(12).getMonth() + 1, anniv_annee: null, note: null, actif: true, cree_le: ilYA(30) },
+  { id: 6, prenom: "Anne-Sophie Delaporte-Vandenbroucke", qui: "Yann", rythme_jours: 60, anniv_jour: null, anniv_mois: null, anniv_annee: null, note: null, actif: true, cree_le: ilYA(90) },
+];
+export const PROCHE_ECHANGES = [
+  { id: 1, proche_id: 1, le: ilYA(45), texte: "Dîner chez eux, elle prépare un voyage à Lisbonne", par: "Yann", cree_le: ilYAHeure(45, 0) },
+  { id: 2, proche_id: 1, le: ilYA(80), texte: "Appel rapide, bonne nouvelle pour son travail", par: "Claudia", cree_le: ilYAHeure(80, 0) },
+  { id: 3, proche_id: 2, le: ilYA(5), texte: "Match de foot ensemble, il change de boulot en janvier", par: "Yann", cree_le: ilYAHeure(5, 0) },
+  { id: 4, proche_id: 6, le: ilYA(10), texte: "Message pour son anniversaire de mariage", par: "Yann", cree_le: ilYAHeure(10, 0) },
+];
+
 // ---------- module Agenda : carnet de voyage (voyage 1, « Week-end à la mer ») ----------
 // 6 résas/dépenses (D-047 §V2 : une résa EST une ligne de dépense) : vol coché/payé (poste
 // transport, déduit du type, dépasse l'enveloppe 80 € à lui seul avec le billet retour à venir),

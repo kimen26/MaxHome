@@ -1123,3 +1123,21 @@ montrer de personnel, et recevoir les réponses sur Telegram. Brief : docs/brief
 - **Jetable** : « Terminer » supprime ; purge pg_cron 7 jours après le dernier jour.
 - **Module Proches hors de la barre basse** (`horsBarre`), atteint par sa carte d'accueil : la
   barre a déjà 6 boutons à 360 px. Il accueillera le lot 2, « Garder le lien ».
+
+## D-072 — Garder le lien : relances privées par tâche planifiée, idée de message par Claude (2026-11-14)
+
+Demande de Yann : une relance bienveillante pour ne plus laisser filer des mois sans écrire à un
+proche, avec les anniversaires. Brief : docs/briefs/garder-le-lien.md. Module Proches, lot 2.
+
+- **Le bot n'écrit jamais à un proche** : il propose une idée de message, le membre envoie.
+- **« Qui relance » par proche** (Yann, Claudia, nous) ; relances et anniversaires partent EN PRIVÉ,
+  jamais au groupe : c'est l'affaire de celui qui relance.
+- **Tâche planifiée `MaxHome-Proches` à 9 h**, hors du bot (patron D-070) : l'idée de message passe
+  par `claude -p`, qui ne tourne que sur le PC. Anniversaires la veille et le jour ; relance le
+  dimanche, au plus 3 proches par membre. Un dimanche manqué (PC éteint) est rattrapé au premier
+  passage suivant : la clé de semaine est le dernier dimanche ≤ aujourd'hui.
+- **Noter un échange coûte une phrase au bot** : prénom connu = ajout direct annulable (convention
+  des courses) ; prénom inconnu = « L'ajouter à tes proches ? OK ? ».
+- **Règle « qui relancer » et « quels anniversaires » en JS (`relances.js`) et en Python
+  (`proches.py`)**, testée par confrontation (invariant 7).
+- Notes et échanges passent à Claude comme DONNÉE entre balises ; texte suspect = pas d'idée.

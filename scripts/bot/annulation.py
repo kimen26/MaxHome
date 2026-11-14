@@ -16,6 +16,10 @@ def restaurer(donnees, table, cle, ancienne):
         donnees.supprimer_ajustement(cle["id"])
     elif table == "courses":
         donnees.supprimer_course(cle["id"])
+    elif table == "proche_echanges":  # `proche_echange` : toujours une création fraîche
+        donnees.supprimer_proche_echange(cle["id"])
+    elif table == "proches":  # proche créé par le bot (+ son échange, supprimé en cascade)
+        donnees.supprimer_proche(cle["id"])
     elif table == "taches":
         donnees.maj_tache(cle["id"], ancienne)
     elif table == "mouvements":

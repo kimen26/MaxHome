@@ -176,7 +176,7 @@ class Bot:
 
     # Actions qui ne portent sur aucun mois : la proposition de copie ne s'y applique pas.
     SANS_MOIS = ("taches", "balance", "courses_liste", "course_ajout",
-                 "voyages", "voyage", "lieu", "localise", "topo", "resa_libre")
+                 "voyages", "voyage", "lieu", "localise", "topo", "resa_libre", "proche_creer")
 
     def traiter_action(self, telegram_id, prenom, action, texte_brut):
         """Aiguille vers le module concerné. Retourne le texte à envoyer, ou None."""
@@ -201,6 +201,7 @@ class Bot:
         if a in self.SANS_MOIS:
             return (actions.taches(self, telegram_id, prenom, action)
                     or actions.courses(self, telegram_id, prenom, action)
+                    or actions.proches(self, telegram_id, prenom, action)
                     or actions.voyages(self, telegram_id, prenom, action, texte_brut))
 
         if a in ("extra", "bilan", "charges", "a_virer", "valider", "libelle"):  # voir rafraichir_referentiel

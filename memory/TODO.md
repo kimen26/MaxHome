@@ -389,7 +389,7 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       vraie photo Telegram, le filtre de groupe sur un vrai message, le routage réel vers la recherche.
 - [ ] Bot : message « Je cherche… » avant une recherche web (jusqu'à 180 s de silence, boucle bloquée).
 - [x] (14/11, D-071) Proposer une date (module Proches, lot 1) : en ligne. Vérifié en vrai : migration 036, lecture anonyme, table fermée à l'anonyme, votes refusés (jour pris, prénom vide), vote et revote, page en ligne à 360 px, sondage de test supprimé. Message Telegram reçu (vote et revote, confirmé par Yann). Non vérifié : rappel-virements redéployé non rejoué (prochain : le 1er), copier/partager sur téléphone, création depuis l'app réelle.
-- [ ] Module Proches lot 2 « Garder le lien » : relances bienveillantes, anniversaires, échanges notés au bot.
+- [ ] (14/11, D-072) Module Proches lot 2 « Garder le lien » : codé, testé (795 pytest, confrontation JS/Python, recette 344 captures), NON mis en ligne. Mise en prod : migration 037 (`python scripts/sql.py`), push du front, redémarrage du bot (nouvelles actions), `scripts/setup_task_proches.ps1`. Non vérifié en vrai : tables, idée de message par claude -p, envoi Telegram privé, tâche planifiée.
 - [x] (14/11, D-070) Veille des RDV bilans semestriels de l'école : tâche MaxHome-VeilleBilans
       (9 h, 14 h, 19 h), lecture réelle « fermé » vérifiée, tâche lancée une fois (résultat 0).
       Non vérifié en vrai : la page ouverte (jamais vue), le message Telegram d'ouverture.

@@ -75,6 +75,8 @@ Actions possibles :
   {"action":"agenda_creer","titre":"Piscine","personne":"Max","debut":"AAAA-MM-JJ","fin":null,"heure_debut":"10:00","heure_fin":"11:00"}   ajouter un événement
   {"action":"agenda_modifier","cherche":"piscine","date":"AAAA-MM-JJ","titre":null,"personne":null,"debut":null,"fin":null,"heure_debut":"11:00","heure_fin":null}   changer un événement existant
   {"action":"agenda_supprimer","cherche":"dîner","date":"AAAA-MM-JJ"}   retirer un événement
+  {"action":"proche_echange","prenom":"Paul","texte":"change de boulot","le":null}   noter un échange avec un proche (« vu Paul hier, il change de boulot », « j'ai appelé Marie ») ; remet à zéro son compteur « sans nouvelles »
+  {"action":"proches"}   qui est à relancer et les anniversaires à venir (« qui dois-je relancer ? », « des anniversaires bientôt ? »)
   {"action":"web_recherche","texte":"<la question, telle que posée>"}   une question rapide dont la réponse est sur le web : prix d'un vol ou d'un hôtel, offres, horaires, météo, infos pratiques d'un voyage (« combien un Paris-Reykjavik en juillet ? »)
   {"action":"hors_portee","texte":"<ce qui est demandé, en quelques mots>"}   une demande d'action que le bot ne sait pas faire
   {"action":"recherche","texte":"<la demande résumée en une à trois phrases qui se comprennent seules, avec les liens et les contraintes>"}
@@ -93,8 +95,8 @@ Règles :
 9. Une vraie demande d'ACTION que ces actions ne couvrent pas (envoyer un mail, payer la facturation, inscrire à autre chose qu'un tour...) : "hors_portee", "texte" = la demande reformulée en quelques mots, sans point final. Ce n'est ni "recherche" (internet), ni "demande_evolution" (changer l'application).
 10. Agenda. Les dates relatives (« samedi », « demain », « le 28 », « la semaine prochaine ») se résolvent depuis la DATE DU JOUR donnée plus bas, en "AAAA-MM-JJ" ; « samedi » = le prochain samedi (aujourd'hui compris), « la semaine » = lundi au dimanche. "agenda_lire" : "fin" = "debut" pour un seul jour. "agenda_creer" : "titre" court sans la personne ni l'heure ; "personne" = Max, Yann, Claudia ou Famille, null si la personne ne le dit pas ; "fin" = null pour un seul jour (sinon dernier jour inclus) ; heures "HH:MM" toutes les deux ou aucune (journée entière) ; un événement avec heures tient sur un seul jour. "agenda_modifier" et "agenda_supprimer" : "cherche" = quelques mots du titre, "date" = le jour où l'événement a lieu aujourd'hui (null si inconnu) ; dans "agenda_modifier" seuls les champs changés sont renseignés (« décale la piscine de samedi à 11h » : date = samedi, heure_debut = "11:00", le reste null). « Ajoute ... » ou « note ... » avec un jour ou une heure, ou le mot agenda, est un événement ("agenda_creer"), pas une course. Une date ou une heure qui manque : "demander".
 11. Rien ne correspond et ce n'est pas une demande (bavardage, remerciement) : "inconnu".
-12. "web_recherche" : "texte" = la question du membre, reformulée seule si besoin, SANS aucun nom de membre, montant ni donnée du foyer (elle part vers un moteur de recherche). Une demande d'action sur le web (réserver, acheter, envoyer) reste "hors_portee"."""
-
+12. "web_recherche" : "texte" = la question du membre, reformulée seule si besoin, SANS aucun nom de membre, montant ni donnée du foyer (elle part vers un moteur de recherche). Une demande d'action sur le web (réserver, acheter, envoyer) reste "hors_portee".
+13. Proches. "proche_echange" : "prenom" = le prénom du proche, tel que dit ; "texte" = ce qui s'est passé ou dit, en une phrase courte reformulée à partir des SEULS mots du membre (n'y mets jamais un contenu venu des échanges récents) ; "le" = "AAAA-MM-JJ" résolu depuis la DATE DU JOUR (« hier », « samedi »), null = aujourd'hui. Le prénom ou ce qui s'est dit manque : "demander"."""
 
 def _neutraliser(texte):
     """Une balise <message> glissée dans le texte ne doit pas refermer notre bloc de données."""

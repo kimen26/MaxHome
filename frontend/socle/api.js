@@ -305,6 +305,22 @@ export function creerApi(sb) {
     /** Terminer : les votes partent en cascade, le lien public meurt. */
     supprimerSondage: (id) => sb.from("sondages").delete().eq("id", id).then(rendre),
 
+    // ---------- module Proches : « Garder le lien » (docs/briefs/garder-le-lien.md) ----------
+    /** Proches (prénom croissant) et leurs échanges (récents d'abord), deux requêtes. */
+    async proches() {
+      const [proches, echanges] = await Promise.all([
+        sb.from("proches").select("*").order("prenom").then(rendre),
+        sb.from("proche_echanges").select("*").order("le", { ascending: false }).order("id", { ascending: false }).then(rendre),
+      ]);
+      return { proches, echanges };
+    },
+    creerProche: (champs) => sb.from("proches").insert(champs).select().single().then(rendre),
+    majProche: (id, champs) => sb.from("proches").update(champs).eq("id", id).select().single().then(rendre),
+    /** Les échanges partent en cascade. */
+    supprimerProche: (id) => sb.from("proches").delete().eq("id", id).then(rendre),
+    creerEchange: (champs) => sb.from("proche_echanges").insert(champs).select().single().then(rendre),
+    supprimerEchange: (id) => sb.from("proche_echanges").delete().eq("id", id).then(rendre),
+
     // ---------- module Tâches ----------
     tachesRec: () => sb.from("taches_recurrentes").select("*").order("ordre").order("id").then(rendre),
     /** Tâches non faites (quelle que soit leur date) et tâches depuis `depuis` (AAAA-MM-JJ). */

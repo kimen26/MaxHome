@@ -2,6 +2,8 @@
 import unicodedata
 from datetime import datetime
 
+import reponses_proches
+
 MOIS_NOMS = ["", "janvier", "février", "mars", "avril", "mai", "juin", "juillet",
              "août", "septembre", "octobre", "novembre", "décembre"]
 
@@ -271,6 +273,7 @@ RECAPS = {  # action interne -> (a, prenom de l'expéditeur, (annee, mois)) -> p
                                 f"{euros(a['montant_centimes'])}."),
     "ajustement": _recap_ajustement,
     "course_ajout": lambda a, p, m: f"J'ajoute « {a['libelle']} » à la liste de courses.",
+    "proche_creer": lambda a, p, m: reponses_proches.proposer_creation(a["prenom"]),  # proches_bot.py
     "outil_ecriture": lambda a, p, m: a["resume"],  # écriture d'un outil du registre (outils/registre.py)
 }
 

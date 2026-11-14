@@ -1,8 +1,11 @@
-// Module Proches : jours libres, raccourcis de période, validation, classement des réponses.
+// Module Proches : « Garder le lien » (libellés, validation, liste) puis « Proposer une date » : jours libres, raccourcis de période, validation, classement des réponses.
 // Dates fixes injectées (2026-11-14 est un samedi) : aucun test ne dépend du jour où il tourne.
 import assert from "node:assert/strict";
 import { joursLibres, feriesDePeriode, erreurPeriode, periodeCeWeekEnd, periodeQuatreWeekEnds,
   periodeCeMois, JOURS_MAX } from "../frontend/proches/jours-libres.js";
+import { champsProche, champsEchange, echangesDe, dernierEchange, duree, libelleRythme, texteAnniversaire, texteDate, texteDernier, texteRelance,
+  RYTHMES_OPTIONS } from "../frontend/proches/lien.js";
+import { htmlListeProches } from "../frontend/proches/ui-lien.js";
 import { champsSondage, classerReponses, lienSondage, TITRE_MAX, MESSAGE_MAX } from "../frontend/proches/suivi.js";
 
 // Données FICTIVES, avec des titres reconnaissables pour prouver qu'ils ne sortent jamais.
@@ -16,6 +19,99 @@ const VACANCES = [{ titre: "Vacances d'exemple", debut: "2026-11-12", fin: "2026
 const FERIES = [{ titre: "Armistice 1918", debut: "2026-11-11", fin: "2026-11-11" }];
 const contexte = { google: GOOGLE, voyages: VOYAGES, vacances: VACANCES, feries: FERIES };
 const parJour = (liste) => Object.fromEntries(liste.map((j) => [j.jour, j]));
+
+// =====================================================================================
+// « Garder le lien » : libellés, validation, tri, liste (prénoms FICTIFS)
+// =====================================================================================
+
+// ---------- libellés de rythme (le null et les valeurs hors liste ne cassent rien) ----------
+assert.deepEqual([7, 14, 30, 60, 90, 180, null].map(libelleRythme),
+  ["chaque semaine", "toutes les 2 semaines", "chaque mois", "tous les 2 mois", "chaque trimestre", "tous les 6 mois", "pas de relance"]);
+assert.equal(libelleRythme(45), "tous les 45 jours");
+assert.deepEqual(RYTHMES_OPTIONS.at(-1), ["", "pas de relance"]);
+
+// ---------- durées courtes ----------
+assert.deepEqual([0, 5, 13, 14, 42, 59, 60, 95, 365].map(duree), ["0 j", "5 j", "13 j", "2 sem.", "6 sem.", "8 sem.", "2 mois", "3 mois", "12 mois"]);
+assert.equal(texteRelance({ depuisJours: 42 }, 30), "6 sem. sans nouvelles · rythme : mois");
+assert.equal(texteRelance({ depuisJours: 9 }, 7), "9 j sans nouvelles · rythme : semaine");
+assert.equal(texteDernier(5), "dernier échange il y a 5 j");
+assert.equal(texteDernier(0), "dernier échange aujourd'hui");
+assert.equal(texteDernier(1), "dernier échange hier");
+
+// ---------- anniversaires en toutes lettres ----------
+assert.equal(texteAnniversaire({ dansJours: 3, age: 40 }, "Léa"), "Léa a 40 ans dans 3 jours");
+assert.equal(texteAnniversaire({ dansJours: 0, age: 1 }, "Léa"), "Léa a 1 an aujourd'hui");
+assert.equal(texteAnniversaire({ dansJours: 1, age: null }, "Paul"), "Anniversaire de Paul demain");
+assert.equal(texteDate({ anniv_jour: 1, anniv_mois: 3, anniv_annee: 1984 }), "1er mars 1984");
+assert.equal(texteDate({ anniv_jour: 12, anniv_mois: 12, anniv_annee: null }), "12 décembre");
+assert.equal(texteDate({ anniv_jour: null }), "");
+
+// ---------- échanges d'un proche : récent en tête, à égalité le dernier noté ----------
+const echs = [
+  { id: 1, proche_id: 1, le: "2026-10-01", texte: "a" }, { id: 2, proche_id: 1, le: "2026-11-01", texte: "b" },
+  { id: 3, proche_id: 2, le: "2026-11-10", texte: "autre proche" }, { id: 4, proche_id: 1, le: "2026-11-01", texte: "c" },
+];
+assert.deepEqual(echangesDe(echs, 1).map((e) => e.id), [4, 2, 1]);
+assert.equal(dernierEchange(echs, 1).texte, "c");
+assert.equal(dernierEchange(echs, 9), null);
+
+// ---------- validation d'un proche ----------
+const lu = (o = {}) => ({ prenom: "Léa", qui: "nous", rythme_jours: "30", anniv_jour: null, anniv_mois: null, anniv_annee: null, note: null, ...o });
+const autres = [{ id: 7, prenom: "Paul" }];
+assert.deepEqual(champsProche(lu(), autres, 2026), { prenom: "Léa", qui: "nous", rythme_jours: 30, anniv_jour: null, anniv_mois: null, anniv_annee: null, note: null });
+assert.equal(champsProche(lu({ rythme_jours: null }), autres, 2026).rythme_jours, null, "pas de relance");
+assert.equal(champsProche(lu({ prenom: "  Léa  ", note: " 2 enfants " }), autres, 2026).note, "2 enfants");
+assert.throws(() => champsProche(lu({ prenom: "  " }), autres, 2026), /prénom/);
+assert.throws(() => champsProche(lu({ prenom: "x".repeat(61) }), autres, 2026), /trop long/);
+assert.throws(() => champsProche(lu({ prenom: "PAUL" }), autres, 2026), /déjà dans la liste/, "unicité sans casse");
+assert.equal(champsProche(lu({ prenom: "Paul" }), [], 2026).prenom, "Paul", "soi-même exclu des existants");
+assert.throws(() => champsProche(lu({ qui: "Max" }), autres, 2026), /qui relance/);
+assert.throws(() => champsProche(lu({ rythme_jours: "0" }), autres, 2026), /Rythme/);
+assert.deepEqual(Object.values(champsProche(lu({ anniv_jour: "29", anniv_mois: "2", anniv_annee: "1984" }), autres, 2026)).slice(3, 6), [29, 2, 1984], "29 février accepté");
+assert.throws(() => champsProche(lu({ anniv_jour: "31", anniv_mois: "4" }), autres, 2026), /n'existe pas/);
+assert.throws(() => champsProche(lu({ anniv_jour: "30", anniv_mois: "2" }), autres, 2026), /n'existe pas/);
+assert.throws(() => champsProche(lu({ anniv_jour: "12" }), autres, 2026), /jour ET le mois/);
+assert.throws(() => champsProche(lu({ anniv_annee: "1984" }), autres, 2026), /ajoutez le jour et le mois/);
+assert.throws(() => champsProche(lu({ anniv_jour: "1", anniv_mois: "1", anniv_annee: "2027" }), autres, 2026), /entre 1900 et 2026/);
+assert.throws(() => champsProche(lu({ note: "x".repeat(501) }), autres, 2026), /note est trop longue/);
+
+// ---------- validation d'un échange ----------
+assert.deepEqual(champsEchange({ texte: " Café ensemble ", le: "2026-11-10" }, 3, "Yann", "2026-11-14"), { proche_id: 3, le: "2026-11-10", texte: "Café ensemble", par: "Yann" });
+assert.equal(champsEchange({ texte: "Appel", le: null }, 3, null, "2026-11-14").le, "2026-11-14", "date du jour par défaut");
+assert.equal(champsEchange({ texte: "Appel", le: "2026-11-14" }, 3, null, "2026-11-14").par, null);
+assert.throws(() => champsEchange({ texte: "  ", le: "2026-11-10" }, 3, "Yann", "2026-11-14"), /une phrase/);
+assert.throws(() => champsEchange({ texte: "x".repeat(501), le: null }, 3, "Yann", "2026-11-14"), /trop long/);
+assert.throws(() => champsEchange({ texte: "Appel", le: "2026-11-15" }, 3, "Yann", "2026-11-14"), /futur/);
+assert.throws(() => champsEchange({ texte: "Appel", le: "2026-02-30" }, 3, "Yann", "2026-11-14"), /pas valide/);
+assert.throws(() => champsEchange({ texte: "Appel", le: "hier" }, 3, "Yann", "2026-11-14"), /pas valide/);
+
+// ---------- la liste : à relancer en tête, anniversaires en bandeau, tout échappé ----------
+const P = [
+  { id: 1, prenom: "Camille", qui: "nous", rythme_jours: 30, actif: true, cree_le: "2026-01-01", anniv_jour: null, anniv_mois: null, anniv_annee: null },
+  { id: 2, prenom: "Sacha", qui: "Yann", rythme_jours: 14, actif: true, cree_le: "2026-01-01", anniv_jour: null, anniv_mois: null, anniv_annee: null },
+  { id: 3, prenom: "Lou", qui: "Claudia", rythme_jours: null, actif: true, cree_le: "2026-01-01", anniv_jour: 17, anniv_mois: 11, anniv_annee: 1986 },
+  { id: 4, prenom: "<b>Zed</b>", qui: "nous", rythme_jours: 7, actif: true, cree_le: "2026-10-01", anniv_jour: null, anniv_mois: null, anniv_annee: null },
+];
+const E = [
+  { id: 1, proche_id: 1, le: "2026-10-03", texte: "x" },   // 42 jours avant le 14/11 : à relancer (30)
+  { id: 2, proche_id: 2, le: "2026-11-09", texte: "y" },   // 5 jours : à jour (14)
+  { id: 3, proche_id: 3, le: "2026-11-01", texte: "z" },
+];
+const h = htmlListeProches(P, E, "2026-11-14");
+assert.ok(h.includes("Lou a 40 ans dans 3 jours"), "bandeau anniversaires");
+assert.ok(h.includes("6 sem. sans nouvelles · rythme : mois"));
+assert.ok(h.includes("dernier échange il y a 5 j · toutes les 2 semaines"));
+assert.ok(h.includes("dernier échange il y a 13 j · pas de relance"));
+const ordre = [...h.matchAll(/class="pr-proche-nom">([^<]*)</g)].map((m) => m[1]);
+assert.deepEqual(ordre, ["&lt;b&gt;Zed&lt;/b&gt;", "Camille", "Lou", "Sacha"], "relances (retard décroissant), puis les autres par prénom");
+assert.ok(!h.includes("<b>Zed"), "prénom échappé");
+assert.ok(h.indexOf("À relancer") < h.indexOf("Les autres"));
+assert.ok(htmlListeProches([], [], "2026-11-14").includes("Aucun proche"));
+assert.ok(!htmlListeProches([P[1]], E, "2026-11-14").includes("À relancer"), "personne à relancer : pas de section vide");
+
+// =====================================================================================
+// « Proposer une date »
+// =====================================================================================
 
 // ---------- joursLibres ----------
 const semaine = joursLibres("2026-11-11", "2026-11-22", contexte);

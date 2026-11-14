@@ -8,6 +8,7 @@ from datetime import date, timedelta
 
 import courses as courses_mod
 import mouvements
+import proches_bot
 import reponses
 import reponses_web
 import taches as taches_mod
@@ -106,6 +107,13 @@ def courses(bot, telegram_id, prenom, action):
         return f"« {article['libelle']} » ajouté à la liste de courses."
     if a == "courses_liste":
         return reponses.liste_courses(bot.donnees.courses())
+    return None
+
+# ---------- module Proches : garder le lien ----------
+def proches(bot, telegram_id, prenom, action):
+    """Seule l'écriture confirmée passe par ici ; noter et consulter sont servis par dialogue_libre."""
+    if action["action"] == proches_bot.ACTION_CREER:
+        return proches_bot.creer_et_noter(bot, telegram_id, prenom, action)
     return None
 
 
