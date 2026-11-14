@@ -91,7 +91,7 @@ def cles(ref, pat):
 def deployer_fonction(nom, pat, ref):
     """Déploie l'Edge Function `supabase/functions/<nom>` (CLI via npx) puis force verify_jwt."""
     r = subprocess.run(
-        ["npx", "--yes", "supabase@latest", "functions", "deploy", nom, "--project-ref", ref],
+        ["npx", "--yes", "supabase@latest", "functions", "deploy", nom, "--project-ref", ref, "--yes"],
         cwd=RACINE, env={**os.environ, "SUPABASE_ACCESS_TOKEN": pat}, capture_output=True, text=True, shell=True,
     )
     if r.returncode != 0:

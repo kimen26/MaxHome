@@ -28,7 +28,7 @@ JETON_INCONNU = "00000000-0000-4000-8000-000000000000"
 def deployer_publique(pat, ref):
     """Déploie `supabase/functions/sondage-voter` (CLI via npx) puis s'assure que verify_jwt est coupé."""
     r = subprocess.run(
-        ["npx", "--yes", "supabase@latest", "functions", "deploy", FONCTION, "--project-ref", ref, "--no-verify-jwt"],
+        ["npx", "--yes", "supabase@latest", "functions", "deploy", FONCTION, "--project-ref", ref, "--no-verify-jwt", "--yes"],
         cwd=RACINE, env={**os.environ, "SUPABASE_ACCESS_TOKEN": pat}, capture_output=True, text=True, shell=True,
     )
     if r.returncode != 0:

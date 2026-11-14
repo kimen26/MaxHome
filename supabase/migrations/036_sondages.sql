@@ -70,7 +70,8 @@ language sql as $$
   )
   select count(*)::integer from supprimes;
 $$;
-revoke all on function public.purger_sondages() from public;
+-- Supabase accorde aussi l'exécution à anon et authenticated par défaut : on la leur retire.
+revoke all on function public.purger_sondages() from public, anon, authenticated;
 
 -- Planification quotidienne (03:30 UTC). Rejouable : on retire l'ancienne planification d'abord.
 create extension if not exists pg_cron;
