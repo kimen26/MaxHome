@@ -129,7 +129,7 @@ def _texte_brut(message):
 
 def _resume_message(message):
     nom, _adresse = parseaddr(_entete(message, "from"))  # le nom affiché seulement, jamais l'adresse
-    return {"date": _date(message), "de": nom or "École", "objet": _entete(message, "subject") or "(sans objet)",
+    return {"id": str(message.get("id", "")), "date": _date(message), "de": nom or "École", "objet": _entete(message, "subject") or "(sans objet)",
             "texte": _texte_brut(message)}
 
 
@@ -145,7 +145,7 @@ def _json(reponse):
 
 
 def ecole_mails(client, expediteurs, jours=JOURS_DEFAUT, maximum=MAILS_MAX):
-    """Derniers mails des `expediteurs` : liste de {date, de, objet, texte}. Lecture seule (client gardé)."""
+    """Derniers mails des `expediteurs` : liste de {id, date, de, objet, texte}. Lecture seule (client gardé)."""
     if not expediteurs:
         return []
     liste = _json(client.get(URL_MESSAGES, params={"q": _requete(expediteurs, jours), "maxResults": maximum},
@@ -153,7 +153,7 @@ def ecole_mails(client, expediteurs, jours=JOURS_DEFAUT, maximum=MAILS_MAX):
     mails = []
     for ref in liste.get("messages", []) or []:
         message = _json(client.get(f"{URL_MESSAGES}/{ref['id']}", params={"format": "full"}, timeout=DELAI_S))
-        mails.append(_resume_message(message))
+        mails.append({**_resume_message(message), "id": ref["id"]})
     return mails
 
 
