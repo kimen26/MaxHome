@@ -1,6 +1,17 @@
 # MEMORY — MaxBudget
 _État courant. Réécrit en fin de session, jamais un journal._
 
+## Passation 2026-11-21 — Étude des vacances de février 2027 (session du 14 au 21/11)
+- Fiche voyage « Guadeloupe » (voyage 8, en base) complète : vols Orly - Pointe-à-Pitre vérifiés
+  dans le vrai Google Flights (54 dates), activités pour Max, faune de février et opérateurs
+  cétacés, carnaval 2027, dinosaures (Karukera Land), budget, bloc « Autres destinations »
+  (Sénégal, Nosy Be relevés le 14/11). Dates de la fiche : 7 → 15, à recaler au choix de Yann.
+- Décision en attente (Yann et Claudia) : ski, Guadeloupe ou Sénégal. Conseil de l'étude :
+  Guadeloupe 7 → 19 (1 995 € pour 3 en direct le 14/11).
+- Hors git, dans `inbox/voyage_fevrier_2027/` : page visuelle des activités, comparatif à
+  copier-coller, relevés de prix des trois destinations, outils de scan (L-062).
+- Bot : vivant le 21/11 à 15 h 50 (voir TODO 21/11) ; le garde « bot muet » reste à faire.
+
 ## Passation 2026-10-01 — Budget validé ligne à ligne, bot remis à niveau
 Rôle tenu : session principale = conception, vérification (captures 360/320, portes), livraison
 (commit, push, déploiement, mémoire) ; code ET tests par sous-agents `model: "sonnet"` (L-045).

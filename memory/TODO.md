@@ -391,11 +391,23 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
 - [x] (14/11, D-071) Proposer une date (module Proches, lot 1) : en ligne. Vérifié en vrai : migration 036, lecture anonyme, table fermée à l'anonyme, votes refusés (jour pris, prénom vide), vote et revote, page en ligne à 360 px, sondage de test supprimé. Message Telegram reçu (vote et revote, confirmé par Yann). Non vérifié : rappel-virements redéployé non rejoué (prochain : le 1er), copier/partager sur téléphone, création depuis l'app réelle.
 - [x] (14/11, D-072) Module Proches lot 2 « Garder le lien » : EN LIGNE le 14/11 (migration 037, RLS vérifiée, front, bot redémarré, tâche MaxHome-Proches 09:00). Relance de test reçue par Yann en privé et jugée bonne (15/11) ; passage automatique du 15/11 09:00 parti. Proche fictif supprimé, tables vides. Non testé en vrai : noter un échange par le bot (« vu … »).
 - [ ] (21/11) Bot muet du 18/11 ~20 h au 21/11 10 h 32 : le journal du processus finit par « ^C », la boucle `start_bot.ps1` est morte avec bot.py (PC non redémarré depuis le 12/11, donc le raccourci de démarrage D-031 n'a rien relancé). Relancé à la main le 21/11. Cause du ^C inconnue. Piste proposée à Yann : une vérification toutes les 15 min qui relance `start_bot.ps1` (le verrou `data/bot.lock` empêche les doublons).
+      21/11 15 h 50, Yann « le chatbot semble ENCORE ne pas fonctionner » : bot.py vivant (relancé
+      à 10 h 32), getMe ok, file Telegram vide (pending 0), un seul message reçu depuis 10 h 32 (privé,
+      traité). Rien d'autre n'est arrivé au bot : aucun « message ignoré » au journal. Réseau
+      instable (RemoteDisconnected/Timeout toutes les 1-2 h), toujours rattrapé. À rejouer avec
+      Yann : un message au bot en privé et un dans le groupe, puis lire `data/bot.log`.
+- [ ] (21/11) Vacances de février 2027 : choix ski / Guadeloupe / Sénégal à Yann et Claudia.
+      Fiche Guadeloupe complète (vols vérifiés, activités, faune, carnaval, budget, bloc « Autres
+      destinations » Sénégal et Nosy Be). Dates de la fiche restées 7 → 15 : la recaler au choix
+      (7 → 19 conseillé, 1 995 € le 14/11). Relevés et pages dans `inbox/voyage_fevrier_2027/`.
 - [x] (14/11, D-070) Veille des RDV bilans semestriels de l'école : tâche MaxHome-VeilleBilans
       (9 h, 14 h, 19 h), lecture réelle « fermé » vérifiée, tâche lancée une fois (résultat 0).
       Non vérifié en vrai : la page ouverte (jamais vue), le message Telegram d'ouverture.
 
 ## Parking
+- Scan Google Flights headless (`inbox/voyage_fevrier_2027/outils/` : tfs_sn.py + scan_sn.mjs, L-062)
+  servi trois fois (Guadeloupe, Sénégal, Nosy Be) : candidat à rejoindre MaxVoyage à la place des
+  listes incomplètes de fast-flights.
 - Le carnet de voyage (ui-fiche-*, carnet.js, carte.js, geocode.js, topo.js, ui-voyages-liste.js)
   vit encore dans frontend/agenda/ alors qu'il appartient au module Voyages (D-055).
 

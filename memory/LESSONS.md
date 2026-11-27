@@ -619,3 +619,22 @@ panne.
   (`get_project_url`) à celle de `frontend/config.js`. Autres pièges du même jour :
   `deploy_rappels.py` envoie un VRAI rappel au groupe pour se tester (pour un simple redéploiement,
   appeler `provision.deployer_fonction`) ; la CLI Supabase exige `--yes` en mode agent.
+
+## L-062 — Nominatim ne connaît pas `countrycodes=gp` : les DOM sont « fr » (2026-11-14)
+
+- **Symptôme** : géocodage des 32 lieux de la fiche Guadeloupe, 32 réponses vides.
+- **Cause** : dans OpenStreetMap, la Guadeloupe (comme tous les DOM) est rattachée au pays `fr` ;
+  le filtre `countrycodes=gp` exclut tout.
+- **Règle** : pour borner une recherche à une île d'outre-mer, passer `viewbox=<ouest>,<nord>,<est>,<sud>`
+  + `bounded=1` (Guadeloupe : `-61.95,16.6,-60.95,15.8`), jamais `countrycodes`.
+- **Même jour, vols** : `MaxVoyage/backend/provider.search_round_trip` (fast-flights) a rendu des
+  listes **incomplètes** : 7 → 19 février « 2 450 € Corsair seulement », alors que le vrai Google
+  Flights affichait Air Caraïbes à 1 995 € ; 5 → 12 annoncé 2 454 € au lieu de 2 015 €. Un balayage
+  fast-flights sert à repérer les dates, jamais à conclure qu'une offre n'existe pas : les prix
+  annoncés à Yann se relisent dans le vrai Google Flights (navigateur, même URL `tfs=`).
+- **Ce qui marche (14/11, Sénégal et Nosy Be)** : Playwright headless sur le vrai Google Flights,
+  URL `tfs=` construite à la main (protobuf base64, plusieurs aéroports par jambe acceptés, champ
+  « sans escale » optionnel), consentement « Tout refuser », lecture de `innerText` une fois
+  « Récupération des résultats » disparu. Environ 30 s par combinaison, résultat identique au
+  navigateur sur le 7 → 19. Outils rangés dans `inbox/voyage_fevrier_2027/outils/` (hors git).
+  Les espaces du texte Google sont insécables (`\xa0`) : normaliser avant de comparer « 1 escale ».
