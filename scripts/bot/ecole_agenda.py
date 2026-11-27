@@ -1,4 +1,4 @@
-"""Les rendez-vous lus à l'école vont tout seuls dans l'agenda du foyer (D-075, élargit D-068 à la demande de Yann).
+"""Les rendez-vous lus à l'école vont tout seuls dans l'agenda du foyer (D-076, élargit D-068 à la demande de Yann).
 
 Appelé par la veille de l'école (veille_ecole.py) sur les mails et messages NOUVEAUX seulement. Un appel isolé à
 `claude -p` (sans outil, L-057) rend une liste JSON d'événements ; le code garde la main sur tout le reste :

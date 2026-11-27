@@ -215,7 +215,7 @@ def ecrire_etat(chemin, etat):
 def passer(lire_mails_, lire_espace_, envoyer, envoyer_fichiers, resumer, telecharger, maintenant,
            chemin_etat=FICHIER_ETAT, agender=None):
     """Un passage complet. `envoyer(texte)`, `envoyer_fichiers(liste)` postent au foyer. `agender(blocs)` met les
-    rendez-vous lus dans l'agenda et rend les lignes à annoncer (D-075). Retourne le code de sortie."""
+    rendez-vous lus dans l'agenda et rend les lignes à annoncer (D-076). Retourne le code de sortie."""
     etat = lire_etat(chemin_etat)
     mails = lire_mails_()
     espace = lire_espace_()

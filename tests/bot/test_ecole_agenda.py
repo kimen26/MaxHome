@@ -1,4 +1,4 @@
-"""Tests hors ligne : les rendez-vous lus à l'école vont dans l'agenda (D-075). Modèle et agenda simulés,
+"""Tests hors ligne : les rendez-vous lus à l'école vont dans l'agenda (D-076). Modèle et agenda simulés,
 données fictives."""
 import json
 from datetime import date, datetime

@@ -397,6 +397,10 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       (photos comprises). 28/11 ~01 h, à la demande de Yann : résumé complet (7 mails, 9 messages, 5 documents,
       30 photos) envoyé à Yann en PRIVÉ avec les 10 photos les plus récentes (texte et album partis sans erreur),
       état de la veille non touché. Reste non vu en vrai : un passage de la tâche qui poste dans le groupe.
+      28/11 : RDV de l'école ajoutés à l'agenda (réunion élémentaire 28/11 10 h, tennis de table 3/12, goûter
+      18/12 15 h, 3Clowns 12/03, Louvre 19/03) ; la veille les ajoute désormais seule (D-076). Bilans semestriels :
+      aucun créneau pris, à faire par Yann. Le bot en privé n'a pas su « mets les RDV de l'école dans l'agenda »
+      (« Je n'ai pas compris ») : il ne sait pas enchaîner lecture école puis écriture agenda.
 - [x] (27/11, D-073) veille de l'école codée, fusionnée dans `master` (800dc2c), PAS ENCORE
       INSTALLÉE sur le PC. `scripts/bot/veille_ecole.py` : 8 h 30, 12 h 30, 18 h 30, mails de l'école +
       messages/documents/photos de l'espace parent, seul le nouveau posté dans le groupe (repli Yann).

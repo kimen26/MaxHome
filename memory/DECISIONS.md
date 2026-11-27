@@ -1184,3 +1184,21 @@ demande d'abord ce choix. Deux choix seulement (proposés à Yann, non contredit
 « pris sur l'épargne joint » s'ajoutera s'il le demande. Un seul moteur : la règle vit dans
 calc.js, le bot passe par calc_cli.mjs avec des lignes objet (il aplatissait `regle`, L-063).
 Risque d'oubli d'un extra en attente : il apparaît dans le bilan du bot.
+
+## D-076 — Les rendez-vous lus à l'école vont tout seuls dans l'agenda (2026-11-28, élargit D-068)
+
+- **Demande** : Yann, « toutes les infos données de rdv note les dans l'agenda automatiquement ». D-068 disait :
+  une écriture ne naît que d'une phrase d'un membre. Exception voulue, bornée par le code
+  (`scripts/bot/ecole_agenda.py`, appelé par la veille de l'école sur les mails et messages NOUVEAUX).
+  Le commit f38f115 porte « D-075 » dans son titre : numéro pris en même temps par une autre session (extra à
+  financer), corrigé en D-076 dans le code.
+- **Garde** : un appel isolé à `claude -p` rend une liste JSON ; le code ne sait que CRÉER (jamais modifier ni
+  supprimer), chaque champ repasse par `agenda.valider_saisie`, date future à 400 jours au plus, 5 par passage,
+  titre préfixé « École : », pour qui = Max ou Famille, rien si le contenu est suspect (outils.injection), pas de
+  doublon (même jour et un mot porteur en commun, ou même heure et titre « école »). Chaque ajout est annoncé
+  dans le message de la veille : une erreur se corrige d'un « supprime … » au bot.
+- **Risque assumé** : une date mal calculée par le modèle (le mail du 27/11 disait « demain » pour le 28) ;
+  le prompt calcule les dates relatives depuis la date du mail, et l'annonce permet de corriger.
+- **Vérifié le 28/11** : 823 tests bot ; essai réel (vrai modèle, vrai agenda en lecture, création simulée) :
+  4 rendez-vous trouvés, tous reconnus comme déjà ajoutés à la main le même jour, 0 doublon.
+
