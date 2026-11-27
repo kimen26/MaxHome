@@ -42,6 +42,8 @@ QUESTION = ("Voici les nouveautés de l'école depuis la dernière vérification
             "donne la date, de qui et l'essentiel en une ou deux phrases ; signale en premier ce qui demande une action "
             "des parents (réponse, inscription, objet à apporter, date).")
 TITRE = "Nouveau à l'école :"
+AGENDA_TITRE = "Ajouté à l'agenda :"
+AGENDA_ERREUR = "Une erreur ? Dis au bot « supprime … de l'agenda »."
 MESSAGE_ILLISIBLE = "Je n'arrive plus à lire {source} depuis {n} vérifications, regarde toi-même."
 
 log = logging.getLogger("veille_ecole")
@@ -211,8 +213,9 @@ def ecrire_etat(chemin, etat):
 
 
 def passer(lire_mails_, lire_espace_, envoyer, envoyer_fichiers, resumer, telecharger, maintenant,
-           chemin_etat=FICHIER_ETAT):
-    """Un passage complet. `envoyer(texte)`, `envoyer_fichiers(liste)` postent au foyer. Retourne le code de sortie."""
+           chemin_etat=FICHIER_ETAT, agender=None):
+    """Un passage complet. `envoyer(texte)`, `envoyer_fichiers(liste)` postent au foyer. `agender(blocs)` met les
+    rendez-vous lus dans l'agenda et rend les lignes à annoncer (D-075). Retourne le code de sortie."""
     etat = lire_etat(chemin_etat)
     mails = lire_mails_()
     espace = lire_espace_()
@@ -222,6 +225,10 @@ def passer(lire_mails_, lire_espace_, envoyer, envoyer_fichiers, resumer, telech
     nouveaux, vus = decider(etat, trouves, maintenant.date())
     echecs, alertes = compter_echecs(etat, lus)
     texte = texte_annonce(nouveaux, resumer)
+    lignes = agenda_ecole(nouveaux, agender)
+    if lignes:
+        ajouts = "\n".join([AGENDA_TITRE, *lignes, AGENDA_ERREUR])
+        texte = f"{texte}\n\n{ajouts}" if texte else ajouts
     try:
         for t in ([texte] if texte else []) + alertes:
             envoyer(t)
@@ -247,6 +254,18 @@ def passer(lire_mails_, lire_espace_, envoyer, envoyer_fichiers, resumer, telech
     return 0
 
 
+def agenda_ecole(nouveaux, agender):
+    """Lignes « ajouté à l'agenda » pour les mails et messages nouveaux ; [] si rien ou en cas d'échec (journalisé)."""
+    ecrits = [bloc(e) for e in nouveaux if e["genre"] in ("mail", "message")]
+    if not agender or not ecrits:
+        return []
+    try:
+        return agender(ecrits)
+    except Exception as exc:  # l'agenda ne bloque jamais l'annonce
+        log.error("agenda de l'école impossible (%s)", type(exc).__name__)
+        return []
+
+
 def configurer_journal():
     DATA.mkdir(exist_ok=True)
     log.setLevel(logging.INFO)
@@ -270,8 +289,11 @@ def destination(donnees):
 
 
 def main():
+    import claude_cli
+    import ecole_agenda
     import ecole_espace
     import outils
+    from outils import agenda
     from donnees import Donnees
     from provision import cles, lit_env
     from telegram import Telegram
@@ -289,7 +311,16 @@ def main():
                   lambda texte: telegram.envoyer(chat_id(), texte),
                   lambda fichiers: telegram.envoyer_fichiers(chat_id(), fichiers),
                   lambda contenu, question: outils.resumer(contenu, question, outil="veille_ecole"),
-                  telecharger_medias, datetime.now())
+                  telecharger_medias, datetime.now(), agender=lambda blocs: _agender(blocs, claude_cli, ecole_agenda,
+                                                                                     outils, agenda))
+
+
+def _agender(blocs, claude_cli, ecole_agenda, outils, agenda):
+    agenda.assurer_inscrit()
+
+    def lire(debut, fin):
+        return outils.executer_lecture(agenda.NOM_LIRE, session=agenda.ouvrir_session(), debut=debut, fin=fin)
+    return ecole_agenda.ajouter(blocs, claude_cli.lancer, lire, agenda.agenda_creer, datetime.now().date())
 
 
 if __name__ == "__main__":

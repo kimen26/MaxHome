@@ -1171,3 +1171,16 @@ page des RDV bilans était surveillée (D-070).
   moins de 15 s. Limite : la ligne « instance deja active » ne s'écrit pas dans `bot_process.log`, tenu ouvert
   par le bot.
 
+
+## D-075 — Un extra naît « à financer » : il ne touche aux virements qu'une fois financé (2026-11-28)
+
+Yann (extra ponctuel de fin novembre) : « Bourso Joint n'est pas prévu pour encaisser ça… il ne
+rentre pas dans le compte SAUF si on le coche, auquel cas on devra expliquer d'où ça vient :
+compte commun joint ou compte perso de chacun ». `lignes.financement` (migration 038, NULL =
+comportement d'avant, aucune ligne existante ne change) : 'a_financer' exclu du calcul et affiché
+« À financer » ; 'joint' = le compte joint l'absorbe, exclu de ce que chacun vire ; 'chacun' =
+compté selon la règle de l'extra, les virements au commun augmentent. Cocher un extra à financer
+demande d'abord ce choix. Deux choix seulement (proposés à Yann, non contredits) ; un troisième
+« pris sur l'épargne joint » s'ajoutera s'il le demande. Un seul moteur : la règle vit dans
+calc.js, le bot passe par calc_cli.mjs avec des lignes objet (il aplatissait `regle`, L-063).
+Risque d'oubli d'un extra en attente : il apparaît dans le bilan du bot.
