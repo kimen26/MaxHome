@@ -390,11 +390,18 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
 - [ ] Bot : message « Je cherche… » avant une recherche web (jusqu'à 180 s de silence, boucle bloquée).
 - [x] (14/11, D-071) Proposer une date (module Proches, lot 1) : en ligne. Vérifié en vrai : migration 036, lecture anonyme, table fermée à l'anonyme, votes refusés (jour pris, prénom vide), vote et revote, page en ligne à 360 px, sondage de test supprimé. Message Telegram reçu (vote et revote, confirmé par Yann). Non vérifié : rappel-virements redéployé non rejoué (prochain : le 1er), copier/partager sur téléphone, création depuis l'app réelle.
 - [x] (14/11, D-072) Module Proches lot 2 « Garder le lien » : EN LIGNE le 14/11 (migration 037, RLS vérifiée, front, bot redémarré, tâche MaxHome-Proches 09:00). Relance de test reçue par Yann en privé et jugée bonne (15/11) ; passage automatique du 15/11 09:00 parti. Proche fictif supprimé, tables vides. Non testé en vrai : noter un échange par le bot (« vu … »).
-- [ ] (27/11, D-073) **Yann : installer la veille de l'école** sur le PC : `git pull` puis
-      `powershell -ExecutionPolicy Bypass -File scripts\setup_task_ecole.ps1`, puis
-      `Start-ScheduledTask -TaskName MaxHome-VeilleEcole` ; le premier passage poste la dernière semaine
-      dans le groupe. Journal : `data\veille_ecole.log`. Non vérifié en vrai : lecture réelle mails +
-      espace parent, envoi des photos dans le groupe.
+- [ ] (27/11, D-073) **EN TÊTE — veille de l'école codée, fusionnée dans `master` (800dc2c), PAS ENCORE
+      INSTALLÉE sur le PC.** `scripts/bot/veille_ecole.py` : 8 h 30, 12 h 30, 18 h 30, mails de l'école +
+      messages/documents/photos de l'espace parent, seul le nouveau posté dans le groupe (repli Yann).
+      Yann dit n'avoir « toujours rien vu sur Telegram ». Prochaine session, si un dossier du PC est partagé
+      (Remote Control), le faire soi-même ; sinon lui redonner le bloc :
+      `git pull; powershell -ExecutionPolicy Bypass -File scripts\setup_task_ecole.ps1;
+      Start-ScheduledTask -TaskName MaxHome-VeilleEcole; Start-Sleep 90; Get-Content data\veille_ecole.log -Tail 15`
+      Lire le journal : « nouveautés : N » sans message = envoi ; « expéditeurs non posés » = demander
+      les adresses/domaine de l'école (parametres.ecole_expediteurs) ; « espace parent illisible » = connexion.
+      Vérifier aussi que le bot tourne (L-059 : mort 3 fois) — le groupe ne répondait pas le 22/11 non plus.
+      Non vérifié en vrai : lecture réelle mails + espace parent, envoi des photos dans le groupe.
+      Yann veut tout sur `master` directement, pas de branche (27/11).
 - [ ] (21/11) Bot muet du 18/11 ~20 h au 21/11 10 h 32 : le journal du processus finit par « ^C », la boucle `start_bot.ps1` est morte avec bot.py (PC non redémarré depuis le 12/11, donc le raccourci de démarrage D-031 n'a rien relancé). Relancé à la main le 21/11. Cause du ^C inconnue. Piste proposée à Yann : une vérification toutes les 15 min qui relance `start_bot.ps1` (le verrou `data/bot.lock` empêche les doublons).
 - [x] (14/11, D-070) Veille des RDV bilans semestriels de l'école : tâche MaxHome-VeilleBilans
       (9 h, 14 h, 19 h), lecture réelle « fermé » vérifiée, tâche lancée une fois (résultat 0).
