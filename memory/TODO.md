@@ -390,8 +390,13 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
 - [ ] Bot : message « Je cherche… » avant une recherche web (jusqu'à 180 s de silence, boucle bloquée).
 - [x] (14/11, D-071) Proposer une date (module Proches, lot 1) : en ligne. Vérifié en vrai : migration 036, lecture anonyme, table fermée à l'anonyme, votes refusés (jour pris, prénom vide), vote et revote, page en ligne à 360 px, sondage de test supprimé. Message Telegram reçu (vote et revote, confirmé par Yann). Non vérifié : rappel-virements redéployé non rejoué (prochain : le 1er), copier/partager sur téléphone, création depuis l'app réelle.
 - [x] (14/11, D-072) Module Proches lot 2 « Garder le lien » : EN LIGNE le 14/11 (migration 037, RLS vérifiée, front, bot redémarré, tâche MaxHome-Proches 09:00). Relance de test reçue par Yann en privé et jugée bonne (15/11) ; passage automatique du 15/11 09:00 parti. Proche fictif supprimé, tables vides. Non testé en vrai : noter un échange par le bot (« vu … »).
-- [ ] (27/11, D-073) **EN TÊTE — veille de l'école codée, fusionnée dans `master` (800dc2c), PAS ENCORE
-      INSTALLÉE sur le PC.** `scripts/bot/veille_ecole.py` : 8 h 30, 12 h 30, 18 h 30, mails de l'école +
+- [ ] (28/11, D-073) Veille de l'école INSTALLÉE le 28/11 à 00 h 15 : tâche MaxHome-VeilleEcole (8 h 30, 12 h 30,
+      18 h 30), 16 tests verts. Passage à blanc réel (aucun envoi, état dans le scratchpad) : mails lus, espace parent
+      lu, 47 éléments, 3 nouveautés de la semaine, 1 message pour le groupe. Le premier vrai passage (28/11 8 h 30)
+      postera ces 3 nouveautés. À vérifier : `data/veille_ecole.log` après 8 h 30 et le message reçu dans le groupe
+      (photos comprises). Toujours non vu en vrai : l'envoi Telegram de la veille, les photos dans le groupe.
+- [x] (27/11, D-073) veille de l'école codée, fusionnée dans `master` (800dc2c), PAS ENCORE
+      INSTALLÉE sur le PC. `scripts/bot/veille_ecole.py` : 8 h 30, 12 h 30, 18 h 30, mails de l'école +
       messages/documents/photos de l'espace parent, seul le nouveau posté dans le groupe (repli Yann).
       Yann dit n'avoir « toujours rien vu sur Telegram ». Prochaine session, si un dossier du PC est partagé
       (Remote Control), le faire soi-même ; sinon lui redonner le bloc :
@@ -408,6 +413,8 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       traité). Rien d'autre n'est arrivé au bot : aucun « message ignoré » au journal. Réseau
       instable (RemoteDisconnected/Timeout toutes les 1-2 h), toujours rattrapé. À rejouer avec
       Yann : un message au bot en privé et un dans le groupe, puis lire `data/bot.log`.
+      28/11 00 h 14 : bot de nouveau mort depuis le 23/11 18 h 51 (aucun processus, 4e mort, L-059) ;
+      relancé par explorer sur `MaxHome-Bot.lnk`. Le garde de relance toutes les 15 min reste à faire.
 - [ ] (21/11) Vacances de février 2027 : choix ski / Guadeloupe / Sénégal à Yann et Claudia.
       Fiche Guadeloupe complète (vols vérifiés, activités, faune, carnaval, budget, bloc « Autres
       destinations » Sénégal et Nosy Be). Dates de la fiche restées 7 → 15 : la recaler au choix

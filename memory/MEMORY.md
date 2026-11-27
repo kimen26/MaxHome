@@ -4,7 +4,8 @@ _État courant. Réécrit en fin de session, jamais un journal._
 ## Passation 2026-11-27 — Veille de l'école (D-073), à installer
 - Nouveau : `scripts/bot/veille_ecole.py` + `scripts/setup_task_ecole.ps1` (tâche MaxHome-VeilleEcole,
   8 h 30 / 12 h 30 / 18 h 30) ; nouveautés école → groupe Telegram. 811 tests bot verts. Sur `master`.
-- **Pas installée sur le PC** (session cloud sans accès au PC) : voir TODO (27/11, D-073) en tête.
+- Installée le 28/11 (00 h 15), passage à blanc réel bon (3 nouveautés en attente) ; premier envoi au groupe
+  le 28/11 à 8 h 30, à vérifier (TODO 28/11). Bot retrouvé mort le 28/11 (depuis le 23/11), relancé.
 - Bot du groupe : le code lit déjà tout le groupe (D-064/D-067) ; un silence = bot mort (L-059) d'abord.
 - Yann : travailler et pousser directement sur `master`, pas de branche.
 
