@@ -6,6 +6,7 @@ _État courant. Réécrit en fin de session, jamais un journal._
   8 h 30 / 12 h 30 / 18 h 30) ; nouveautés école → groupe Telegram. 811 tests bot verts. Sur `master`.
 - Installée le 28/11 (00 h 15), passage à blanc réel bon (3 nouveautés en attente) ; premier envoi au groupe
   le 28/11 à 8 h 30, à vérifier (TODO 28/11). Bot retrouvé mort le 28/11 (depuis le 23/11), relancé.
+- Garde du bot (D-074) : tâche MaxHome-GardeBot, 8 h et 18 h, relance le bot s'il est mort.
 - Bot du groupe : le code lit déjà tout le groupe (D-064/D-067) ; un silence = bot mort (L-059) d'abord.
 - Yann : travailler et pousser directement sur `master`, pas de branche.
 

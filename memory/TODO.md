@@ -414,7 +414,8 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       instable (RemoteDisconnected/Timeout toutes les 1-2 h), toujours rattrapé. À rejouer avec
       Yann : un message au bot en privé et un dans le groupe, puis lire `data/bot.log`.
       28/11 00 h 14 : bot de nouveau mort depuis le 23/11 18 h 51 (aucun processus, 4e mort, L-059) ;
-      relancé par explorer sur `MaxHome-Bot.lnk`. Le garde de relance toutes les 15 min reste à faire.
+      relancé par explorer sur `MaxHome-Bot.lnk`. Garde installé le 28/11 (D-074) : relance à 8 h et 18 h,
+      testé en vrai (bot arrêté, relancé par la tâche). Cause du ^C toujours inconnue.
 - [ ] (21/11) Vacances de février 2027 : choix ski / Guadeloupe / Sénégal à Yann et Claudia.
       Fiche Guadeloupe complète (vols vérifiés, activités, faune, carnaval, budget, bloc « Autres
       destinations » Sénégal et Nosy Be). Dates de la fiche restées 7 → 15 : la recaler au choix

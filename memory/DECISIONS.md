@@ -1157,3 +1157,17 @@ page des RDV bilans était surveillée (D-070).
   liste brute si le modèle échoue), ce qui demande une action des parents en tête, puis les photos (10 au plus).
 - Envoi raté : rien n'est marqué vu, retenté au passage suivant. Trois lectures ratées de suite d'une
   source : un message unique « regarde toi-même ».
+
+## D-074 — Garde du bot : relance automatique à 8 h et 18 h (2026-11-28)
+
+- **Contexte** : le bot est mort quatre fois sans que personne le voie (L-058, L-059, puis du 23/11 18 h 51 au
+  28/11 00 h 14). Le raccourci de démarrage (D-031) ne relance qu'à l'ouverture de session Windows.
+- **Décision** : tâche planifiée `MaxHome-GardeBot` (`scripts/setup_task_garde_bot.ps1`), tous les jours à 8 h et
+  18 h, qui lance `start_bot.ps1`. Bot vivant : le verrou `data/bot.lock` fait sortir aussitôt. Bot mort : la
+  tâche le relance et reste son superviseur (durée d'exécution illimitée, `IgnoreNew`).
+- **Pourquoi deux fois par jour** : choix de Yann (« largement suffisant »). Proposé : toutes les 15 min. Coût
+  assumé : un bot qui meurt à 9 h reste muet jusqu'à 18 h.
+- **Vérifié le 28/11** : bot vivant, la tâche sort sans doublon (code 0) ; bot arrêté, la tâche l'a relancé en
+  moins de 15 s. Limite : la ligne « instance deja active » ne s'écrit pas dans `bot_process.log`, tenu ouvert
+  par le bot.
+
