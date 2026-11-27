@@ -1,5 +1,5 @@
 # Installe (ou reinstalle) la tache planifiee MaxHome-VeilleEcole. Idempotent : re-executable.
-#   - MaxHome-VeilleEcole : tous les jours a 12:30 et 18:30, lit les mails de l'ecole, les messages, documents et
+#   - MaxHome-VeilleEcole : tous les jours a 08:30, 12:30 et 18:30, lit les mails de l'ecole, les messages, documents et
 #     photos de l'espace parent, et poste ce qui est nouveau dans le groupe Telegram (scripts\bot\veille_ecole.py).
 # Usage : powershell -ExecutionPolicy Bypass -File scripts\setup_task_ecole.ps1
 # NB : fichier volontairement sans accents (PS 5.1 lit l'UTF-8 sans BOM en ANSI).
@@ -9,7 +9,7 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $script = Join-Path $projectRoot "scripts\bot\veille_ecole.py"
 $python = if (Test-Path "C:\Python311\python.exe") { "C:\Python311\python.exe" }
           else { (Get-Command python).Source }
-$heures = @("12:30", "18:30")
+$heures = @("08:30", "12:30", "18:30")
 $nom = "MaxHome-VeilleEcole"
 
 New-Item -ItemType Directory -Force -Path (Join-Path $projectRoot "data") | Out-Null

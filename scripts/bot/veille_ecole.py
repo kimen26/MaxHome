@@ -1,4 +1,4 @@
-"""Veille de l'école deux fois par jour (tâche planifiée MaxHome-VeilleEcole, D-073) : ce qui est NOUVEAU depuis le
+"""Veille de l'école trois fois par jour (tâche planifiée MaxHome-VeilleEcole, D-073) : ce qui est NOUVEAU depuis le
 dernier passage (mails de l'école, messages et documents de l'espace parent, photos et vidéos) est posté dans le
 groupe Telegram du foyer (repli : Yann en privé).
 
@@ -9,7 +9,7 @@ empreinte est un hachage court (jamais un texte, une adresse ou un nom de fichie
 Premier passage (aucun état) : seul ce qui date de JOURS_PREMIER jours est annoncé, le reste est marqué vu.
 Le cœur (`decider`) est pur ; connexions, envoi et horloge sont injectés (tests hors ligne).
 Sortie : 0 = passage fait (même sans nouveauté), 2 = envoi Telegram impossible (rien n'est marqué vu, retenté).
-Usage : python scripts/bot/veille_ecole.py
+trois fois par jour (tâche planifiée MaxHome-VeilleEcole, D-073) : python scripts/bot/veille_ecole.py
 """
 import hashlib
 import json
