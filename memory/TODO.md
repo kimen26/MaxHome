@@ -439,7 +439,11 @@ Relevé du 27/11 (Black Friday, aucune baisse), meilleur direct, total pour 2 :
 - New York EWR : 29/12→4/01 United 1 450 € · ORY French Bee →4/01 1 647 € · JFK ≥ 2 155 €
 - Pétra AMM : Royal Jordanian ≥ 2 011 € (retour 1/01 = 02h05 ou 10h45)
 - Asie (KUL, HAN, SGN, BKK) : 2 819 € à 3 700 €, trop long pour 4-6 jours
-Historique : 06/11, 22/11, 24/11, 27/11 — prix stables ou en hausse depuis le 24/11.
+Historique : 06/11, 22/11, 24/11, 27/11, 28/11 — prix stables ou en hausse depuis le 24/11.
+Relevé du 28/11 : tous les prix identiques au 27/11 au centime. Vu en plus : ORY→KEF 31/12→1/01
+Transavia 780 € (aller 08h30, retour 1/01 10h35, conforme). Laponie : l'heure du retour easyJet
+du 1/01 reste inconnue (l'aller simple du 1/01 ne montre que Finnair 20h05 et Air France 15h25).
+ORY→RVN : 12 réponses vides sur 12, ORY→KEF : 9 sur 12 ; vide = échec de lecture, pas « aucun vol ».
 - [ ] Choisir et réserver (Yann + Claudia) ; puis créer le voyage dans le carnet.
 
 ## Lane V bis — Grotte de Volvic (voyage Auvergne)
