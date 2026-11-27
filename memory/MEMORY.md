@@ -1,6 +1,13 @@
 # MEMORY — MaxBudget
 _État courant. Réécrit en fin de session, jamais un journal._
 
+## Passation 2026-11-27 — Veille de l'école (D-073), à installer
+- Nouveau : `scripts/bot/veille_ecole.py` + `scripts/setup_task_ecole.ps1` (tâche MaxHome-VeilleEcole,
+  8 h 30 / 12 h 30 / 18 h 30) ; nouveautés école → groupe Telegram. 811 tests bot verts. Sur `master`.
+- **Pas installée sur le PC** (session cloud sans accès au PC) : voir TODO (27/11, D-073) en tête.
+- Bot du groupe : le code lit déjà tout le groupe (D-064/D-067) ; un silence = bot mort (L-059) d'abord.
+- Yann : travailler et pousser directement sur `master`, pas de branche.
+
 ## Passation 2026-11-21 — Étude des vacances de février 2027 (session du 14 au 21/11)
 - Fiche voyage « Guadeloupe » (voyage 8, en base) complète : vols Orly - Pointe-à-Pitre vérifiés
   dans le vrai Google Flights (54 dates), activités pour Max, faune de février et opérateurs

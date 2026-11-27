@@ -1141,3 +1141,19 @@ proche, avec les anniversaires. Brief : docs/briefs/garder-le-lien.md. Module Pr
 - **Règle « qui relancer » et « quels anniversaires » en JS (`relances.js`) et en Python
   (`proches.py`)**, testée par confrontation (invariant 7).
 - Notes et échanges passent à Claude comme DONNÉE entre balises ; texte suspect = pas d'idée.
+
+## D-073 — Veille de l'école trois fois par jour, postée dans le groupe (2026-11-27)
+
+Yann : « on a eu plusieurs messages de l'école dans l'application et email et des photos mais tu ne m'as
+jamais alerté ». Rien ne scannait : « quoi de neuf à l'école ? » ne répondait qu'à la demande, et seule la
+page des RDV bilans était surveillée (D-070).
+- **Tâche planifiée `MaxHome-VeilleEcole`, 8 h 30, 12 h 30 et 18 h 30** (Yann, 27/11 : « 3x ») (`scripts/setup_task_ecole.ps1`), hors de la
+  boucle du bot pour la même raison que D-070 (boucle bloquable, rattrapage StartWhenAvailable).
+- **Sources** : mails des expéditeurs de l'école (`parametres.ecole_expediteurs`, 14 jours), messages,
+  documents et photos/vidéos de l'espace parent ; toujours par les outils gardés (GET seul).
+- **Seulement le nouveau** : empreinte hachée de chaque élément dans `data/veille_ecole.json` (aucun texte
+  en clair). Premier passage : la dernière semaine est annoncée, le reste marqué vu.
+- **Où** : le groupe (`parametres.telegram_groupe`), sinon Yann en privé. Un texte résumé (résumé isolé,
+  liste brute si le modèle échoue), ce qui demande une action des parents en tête, puis les photos (10 au plus).
+- Envoi raté : rien n'est marqué vu, retenté au passage suivant. Trois lectures ratées de suite d'une
+  source : un message unique « regarde toi-même ».
