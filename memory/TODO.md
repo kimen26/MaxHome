@@ -394,7 +394,9 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       18 h 30), 16 tests verts. Passage à blanc réel (aucun envoi, état dans le scratchpad) : mails lus, espace parent
       lu, 47 éléments, 3 nouveautés de la semaine, 1 message pour le groupe. Le premier vrai passage (28/11 8 h 30)
       postera ces 3 nouveautés. À vérifier : `data/veille_ecole.log` après 8 h 30 et le message reçu dans le groupe
-      (photos comprises). Toujours non vu en vrai : l'envoi Telegram de la veille, les photos dans le groupe.
+      (photos comprises). 28/11 ~01 h, à la demande de Yann : résumé complet (7 mails, 9 messages, 5 documents,
+      30 photos) envoyé à Yann en PRIVÉ avec les 10 photos les plus récentes (texte et album partis sans erreur),
+      état de la veille non touché. Reste non vu en vrai : un passage de la tâche qui poste dans le groupe.
 - [x] (27/11, D-073) veille de l'école codée, fusionnée dans `master` (800dc2c), PAS ENCORE
       INSTALLÉE sur le PC. `scripts/bot/veille_ecole.py` : 8 h 30, 12 h 30, 18 h 30, mails de l'école +
       messages/documents/photos de l'espace parent, seul le nouveau posté dans le groupe (repli Yann).
