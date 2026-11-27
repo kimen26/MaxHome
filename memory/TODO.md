@@ -426,6 +426,26 @@ Budget, puis Agenda branché sur un compte Google commun (détails à venir de Y
       (9 h, 14 h, 19 h), lecture réelle « fermé » vérifiée, tâche lancée une fois (résultat 0).
       Non vérifié en vrai : la page ouverte (jamais vue), le message Telegram d'ouverture.
 
+## Lane V — Nouvel An 2026-27 : vol sec pour 2 (Yann) — EN COURS
+Besoin : 2 adultes, départ CDG ou ORY uniquement, **direct**, aller 29, 30 ou 31/12,
+retour du 1er au 4/01 (si retour le 1/01 : vol après 10h). Rien réservé à ce jour.
+Méthode : `scripts/vols_flex.py` (provider MaxVoyage = Google Flights, `www.google.com` autorisé
+dans l'environnement cloud). Une ligne `ORIGINE DEST` par process, en parallèle ; garder
+`max_stops=0` (avec 1 escale, les directs sont masqués par le top 3). Réponses vides fréquentes → 6 essais.
+Relevé du 27/11 (Black Friday, aucune baisse), meilleur direct, total pour 2 :
+- Islande KEF : ORY 31/12→4/01 Transavia 736 € · CDG 31/12→4/01 Icelandair 983 €
+  (Icelandair retour 1/01 = 07h30, hors règle ; Transavia 1/01 = 10h35 ok)
+- Laponie RVN : 29/12→1/01 easyJet 1 340 € (heure retour à vérifier) · rien le 31/12
+- New York EWR : 29/12→4/01 United 1 450 € · ORY French Bee →4/01 1 647 € · JFK ≥ 2 155 €
+- Pétra AMM : Royal Jordanian ≥ 2 011 € (retour 1/01 = 02h05 ou 10h45)
+- Asie (KUL, HAN, SGN, BKK) : 2 819 € à 3 700 €, trop long pour 4-6 jours
+Historique : 06/11, 22/11, 24/11, 27/11 — prix stables ou en hausse depuis le 24/11.
+- [ ] Choisir et réserver (Yann + Claudia) ; puis créer le voyage dans le carnet.
+
+## Lane V bis — Grotte de Volvic (voyage Auvergne)
+- [ ] Résa payée (n° 70138, 19/10/2026 10h15, 32 €, payée par Yann) jamais enregistrée en base :
+      saisir dans la fiche voyage Auvergne ou appliquer le SQL préparé (session cloud sans `.env`).
+
 ## Parking
 - Scan Google Flights headless (`inbox/voyage_fevrier_2027/outils/` : tfs_sn.py + scan_sn.mjs, L-062)
   servi trois fois (Guadeloupe, Sénégal, Nosy Be) : candidat à rejoindre MaxVoyage à la place des
