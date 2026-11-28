@@ -54,12 +54,12 @@ def _refusee_apres_tiers(interp):
     return False
 
 
-def _ecritures(bot, etat, telegram_id, prenom, texte, interp, servir, ecrire_lot):
+def _ecritures(bot, etat, telegram_id, prenom, texte, interp, servir, ecrire_lot, suite, annee, mois, tiers):
     liste = [e for e in interp.get("liste") or [] if isinstance(e, dict)] if isinstance(interp.get("liste"), list) else []
     if not liste:
         return reponses.non_compris()
     if ecrire_lot is not None:
-        return ecrire_lot(bot, etat, telegram_id, prenom, texte, liste)
+        return ecrire_lot(bot, etat, telegram_id, prenom, texte, liste, suite, annee, mois, apres_tiers=tiers)
     return servir(liste[0])  # sans lot : la première écriture seule, proposée d'un « OK ? »
 
 
@@ -80,7 +80,7 @@ def _finale(bot, etat, telegram_id, prenom, texte, interp, suite, annee, mois, p
         return suite(bot, etat, telegram_id, prenom, texte, action, annee, mois)
 
     if nom == "ecritures":
-        return _ecritures(bot, etat, telegram_id, prenom, texte, interp, servir, ecrire_lot)
+        return _ecritures(bot, etat, telegram_id, prenom, texte, interp, servir, ecrire_lot, suite, annee, mois, tiers)
     return servir(interp)
 
 
@@ -89,7 +89,8 @@ def mener(bot, etat, telegram_id, prenom, texte, suite, echanges=(), peut_se_tai
     """Réponse à envoyer (texte), ou None si le bot doit se taire (bavardage en groupe).
 
     `suite(bot, etat, telegram_id, prenom, texte, interp, annee, mois)` sert l'action finale ;
-    `ecrire_lot(bot, etat, telegram_id, prenom, texte, liste)` proposera plusieurs écritures d'un seul « OK ? ».
+    `ecrire_lot(bot, etat, telegram_id, prenom, texte, liste, suite, annee, mois, apres_tiers=...)` proposera
+    plusieurs écritures d'un seul « OK ? ».
     """
     debut = horloge()
     bot.rafraichir_referentiel()  # une charge créée dans l'app depuis le démarrage doit être connue

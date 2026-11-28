@@ -8,8 +8,9 @@ bot.traiter_action, comme une commande tapée à la main.
 """
 import re
 
+import agent
+import agent_lot
 import agenda_bot
-import budget_lignes
 import conversation
 import ecole
 import ecole_ecriture_bot
@@ -80,6 +81,8 @@ def reprendre(bot, telegram_id, prenom, texte):
         conversation.retirer(etat, conversation.CONFIRMATION)  # consommée quoi qu'on réponde
         if avis == "oui":
             action = confirmation["action"]
+            if action["action"] == agent_lot.ACTION:  # plusieurs écritures confirmées d'un seul « oui »
+                return _noter(etat, texte, agent_lot.executer(bot, telegram_id, prenom, action, texte))
             fait_par = action.get("par") or prenom  # « Claudia a fait... » dit par Yann : c'est Claudia qui est créditée
             return _noter(etat, texte, bot.executer_action(telegram_id, fait_par, action, texte))
         if avis == "non":
@@ -93,16 +96,16 @@ def reprendre(bot, telegram_id, prenom, texte):
     return None
 
 
-def interpreter(bot, telegram_id, prenom, texte):
-    """Phrase libre -> question, réponse chiffrée, demande notée, lecture, ou écriture proposée."""
+def interpreter(bot, telegram_id, prenom, texte, peut_se_taire=False):
+    """Phrase libre -> question, réponse chiffrée, demande notée, lecture, ou écriture(s) proposée(s).
+
+    Passe par la boucle d'agent ; None (bavardage où le bot se tait) : rien n'est retenu.
+    """
     etat = bot.etats.setdefault(telegram_id, {})
     conversation.retirer(etat, conversation.QUESTION)
-    bot.rafraichir_referentiel()  # une charge créée dans l'app depuis le démarrage doit être connue
-    annee, mois = bot.mois_courant()
-    libelles = [c["libelle"] for c in budget_lignes.charges_actives(bot.charges)]
-    interp = libre.interpreter(texte, prenom, bot.membres, libelles, f"{annee}-{mois:02d}",
-                               conversation.echanges(etat))
-    return _noter(etat, texte, _suite(bot, etat, telegram_id, prenom, texte, interp, annee, mois))
+    reponse = agent.mener(bot, etat, telegram_id, prenom, texte, _suite, echanges=conversation.echanges(etat),
+                          peut_se_taire=peut_se_taire, ecrire_lot=agent_lot.proposer)
+    return None if reponse is None else _noter(etat, texte, reponse)
 
 
 def proposer(etat, action, prenom):

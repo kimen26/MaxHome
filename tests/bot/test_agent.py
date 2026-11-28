@@ -209,8 +209,9 @@ def test_ecritures_sans_lot_sert_la_premiere_et_avec_lot_les_confie(bot, modele)
     suite, lots = Suite(), []
     assert mener(bot, suite) == "servi"
     assert suite.servies[0][0]["titre"] == "A"
-    assert mener(bot, suite, ecrire_lot=lambda *a: lots.append(a[-1]) or "lot") == "lot"
-    assert [e["titre"] for e in lots[0]] == ["A", "B"]
+    assert mener(bot, suite, ecrire_lot=lambda *a, **k: lots.append((a[5], a[7:], k)) or "lot") == "lot"
+    assert [e["titre"] for e in lots[0][0]] == ["A", "B"]
+    assert lots[0][1:] == ((2026, 11), {"apres_tiers": False})
     assert mener(bot, suite) == reponses.non_compris()
 
 

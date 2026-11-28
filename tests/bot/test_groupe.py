@@ -88,7 +88,7 @@ def modele(monkeypatch):
     def installer(*reponses_modele):
         file, vus = list(reponses_modele), []
 
-        def faux(message, prenom, membres, libelles, mois_courant, echanges=(), timeout=60):
+        def faux(message, prenom, membres, libelles, mois_courant, echanges=(), timeout=60, **k):
             vus.append(message)
             return file.pop(0)
         monkeypatch.setattr(libre, "interpreter", faux)

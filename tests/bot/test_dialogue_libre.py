@@ -48,7 +48,7 @@ class InterpreteurFaux:
         self.reponses = list(reponses_modele)
         self.appels = []
 
-    def __call__(self, message, prenom, membres, libelles, mois_courant, echanges=(), timeout=60):
+    def __call__(self, message, prenom, membres, libelles, mois_courant, echanges=(), timeout=60, **k):
         self.appels.append({"message": message, "prenom": prenom, "membres": membres, "libelles": libelles,
                             "mois": mois_courant, "echanges": list(echanges)})
         assert self.reponses, f"interpréteur appelé une fois de trop pour {message!r}"
