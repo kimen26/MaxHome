@@ -11,6 +11,15 @@ _État courant. Réécrit en fin de session, jamais un journal._
 - Bot du groupe : le code lit déjà tout le groupe (D-064/D-067) ; un silence = bot mort (L-059) d'abord.
 - Yann : travailler et pousser directement sur `master`, pas de branche.
 
+## Passation 2026-11-28 — Budget de novembre remis d'aplomb, extras à financer, libellé dans le tiroir
+- Novembre (base) : BPCE Assurances 56,75 € dès novembre (ponctuelle en double supprimée) ;
+  électricité « reste sur Bourso Joint » (récurrent vers Caisse Épargne éteint) ; l'extra ponctuel
+  du mois est « à financer » (D-075, migration 038 appliquée). Virements de novembre recalculés
+  et vérifiés par le bot relancé (01 h 08).
+- Livré (d2f68c0, ac9b81d) : tiroir d'une charge = compte final + libellé copiable ; extras à
+  financer (choix « compte joint » / « chacun ajoute » à la coche).
+- Pas fait : la feuille Google de Yann n'est pas mise à jour (connexion Google à faire dans le
+  navigateur de l'app) ; l'extra de novembre reste à financer en fin de mois.
 ## Passation 2026-11-21 — Étude des vacances de février 2027 (session du 14 au 21/11)
 - Fiche voyage « Guadeloupe » (voyage 8, en base) complète : vols Orly - Pointe-à-Pitre vérifiés
   dans le vrai Google Flights (54 dates), activités pour Max, faune de février et opérateurs
