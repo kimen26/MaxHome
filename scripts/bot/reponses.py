@@ -44,7 +44,7 @@ def confirmation_mouvement(titre, montant_centimes, fait):
     return f"{titre} : coche annulée."
 
 
-def bilan(r, membres, annee, mois, alerte_vide=False, restants=None):
+def bilan(r, membres, annee, mois, alerte_vide=False, restants=None, a_financer=None):
     lignes = [f"Bilan {nom_mois(annee, mois)} :"]
     for p in membres:
         a_verser = -r["aVerser"].get(p, 0)
@@ -53,6 +53,8 @@ def bilan(r, membres, annee, mois, alerte_vide=False, restants=None):
     for p in membres:
         lignes.append(f"  {p} : {euros(r['reste'].get(p, 0))}")
     lignes.append(f"Total commun : {euros(r['totalCommun'])}")
+    if a_financer:  # [(libellé, montant)] ; le total vient du moteur (calc.js), la liste nomme
+        lignes.append(f"Extras à financer : {euros(abs(r['aFinancer']))} ({', '.join(l for l, _ in a_financer)})")
     if restants is not None:
         if restants:
             lignes.append("Reste à faire :")

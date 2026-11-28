@@ -97,13 +97,18 @@ class Bot:
 
     def charger_r(self, annee, mois):
         lignes_l, revenus_l = self.donnees.mois(annee, mois)
+        # Le moteur reçoit la ligne entière (montant, règle du mois, financement) : calc.js décide
+        # seul ce qui entre dans le commun (invariant 7), le bot ne filtre rien. `lignes`, rendu aux
+        # appelants, reste {charge_id: montant} : ils ne lisent que le montant.
         lignes = {l["charge_id"]: l["montant_centimes"] for l in lignes_l}
+        lignes_moteur = {l["charge_id"]: {"montant_centimes": l["montant_centimes"], "regle": l.get("regle"),
+                                          "financement": l.get("financement")} for l in lignes_l}
         revenus = {r["prenom"]: r["montant_centimes"] for r in revenus_l}
         for p in self.membres:
             revenus.setdefault(p, 0)
         ajustements_b = self.donnees.ajustements(annee, mois)
         ajustements = [{"de": a["de"], "vers": a["vers"], "montant_centimes": a["montant_centimes"]} for a in ajustements_b]
-        r = calculer(self.charges, lignes, revenus, ajustements)
+        r = calculer(self.charges, lignes_moteur, revenus, ajustements)
         return r, lignes, revenus
 
     def mois_est_vide(self, annee, mois):

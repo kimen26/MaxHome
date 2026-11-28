@@ -455,6 +455,10 @@ ORY→RVN : 12 réponses vides sur 12, ORY→KEF : 9 sur 12 ; vide = échec de l
       saisir dans la fiche voyage Auvergne ou appliquer le SQL préparé (session cloud sans `.env`).
 
 ## Parking
+- Bot : pas de commande pour choisir le financement d'un extra (D-075) ; `valider <charge>` peut
+  valider un extra « à financer » sans passer par le choix (2026-11-28).
+- Feuille d'une charge, section Virement : cas « libellé variable sans mouvement du mois » testé
+  en node seulement, jamais rendu en capture (pas de donnée factice) (2026-11-28).
 - Scan Google Flights headless (`inbox/voyage_fevrier_2027/outils/` : tfs_sn.py + scan_sn.mjs, L-062)
   servi trois fois (Guadeloupe, Sénégal, Nosy Be) : candidat à rejoindre MaxVoyage à la place des
   listes incomplètes de fast-flights.

@@ -14,6 +14,7 @@ import { champ, select, membresOptions, lire } from "../socle/blocs-form.js";
 import { creerUiMoisCharges } from "./ui-mois-charges.js";
 import { creerUiRegularisations } from "./ui-regularisations.js";
 import { creerUiExtras } from "./ui-extras.js";
+import { FINANCEMENT_INITIAL } from "./financement-extra.js";
 import { optionsRegle, detailRegle } from "./repartition.js";
 import { etatDuMois } from "./etat-mois.js";
 import { valeurCourante, prochaineValeur } from "./coche-ligne.js";
@@ -262,8 +263,10 @@ export function creerUiMouvements(api, etat, cb) {
           ponctuel: true, actif: true, montant_defaut: null, defaut_dernier: false,
         });
         etat.charges.push(charge);
-        await api.majLigne(etat.annee, etat.mois, charge.id, { montant_centimes: -montant, regle: null });
-        etat.lignes[charge.id] = { montant_centimes: -montant, regle: null };
+        // Un extra naît « à financer » : hors du calcul tant que personne n'a dit qui le paie.
+        const ligne = { montant_centimes: -montant, regle: null, financement: FINANCEMENT_INITIAL };
+        await api.majLigne(etat.annee, etat.mois, charge.id, ligne);
+        etat.lignes[charge.id] = ligne;
         fermerFeuille();
         cb.recalculer();
         rendre();

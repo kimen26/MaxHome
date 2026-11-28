@@ -1,6 +1,12 @@
 # CHANGELOG
 _Se remplit à la release, en vidant les lanes terminées de TODO.md._
 
+## 2026-11-28 — Extras à financer, libellé dans le tiroir
+- Un extra du mois arrive « À financer » : il ne change pas les virements tant qu'on n'a pas dit
+  d'où vient l'argent. En le cochant, on choisit « Le compte joint l'absorbe » ou « Chacun ajoute
+  ce mois-ci ». Le bilan du bot rappelle les extras encore à financer. (Migration 038 à appliquer.)
+- En ouvrant une charge (École, Feuillantines…), on voit à qui elle est payée au bout du compte et
+  le libellé à mettre sur le virement, avec un bouton Copier.
 ## 2026-10-31 — Ouverture à Claudia
 - Plus de rappel Telegram des tâches le soir.
 - Le rappel des virements du 1er et du 5 arrive à chacun de nous deux, dès qu'on est inscrit au bot.

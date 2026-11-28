@@ -65,9 +65,11 @@ class Donnees:
         self._appel("POST", "revenus", {"annee": annee, "mois": mois, "prenom": prenom, "montant_centimes": montant_centimes},
                     {"Prefer": "resolution=merge-duplicates"})
 
-    def maj_ligne(self, annee, mois, charge_id, montant_centimes):
-        self._appel("POST", "lignes", {"annee": annee, "mois": mois, "charge_id": charge_id, "montant_centimes": montant_centimes},
-                    {"Prefer": "resolution=merge-duplicates"})
+    def maj_ligne(self, annee, mois, charge_id, montant_centimes, financement=None):
+        corps = {"annee": annee, "mois": mois, "charge_id": charge_id, "montant_centimes": montant_centimes}
+        if financement is not None:  # absent du corps = le financement déjà en base est conservé
+            corps["financement"] = financement
+        self._appel("POST", "lignes", corps, {"Prefer": "resolution=merge-duplicates"})
 
     def creer_charge(self, champs):
         r = self._appel("POST", "charges", champs, {"Prefer": "return=representation"})
@@ -93,7 +95,7 @@ class Donnees:
         return r[0]
 
     def lignes_mois(self, annee, mois):
-        return self._appel("GET", f"lignes?annee=eq.{annee}&mois=eq.{mois}&select=charge_id,montant_centimes")
+        return self._appel("GET", f"lignes?annee=eq.{annee}&mois=eq.{mois}&select=charge_id,montant_centimes,regle,financement")
 
     def revenus_mois(self, annee, mois):
         return self._appel("GET", f"revenus?annee=eq.{annee}&mois=eq.{mois}&select=prenom,montant_centimes")

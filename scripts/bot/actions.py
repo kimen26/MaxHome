@@ -26,7 +26,10 @@ def budget(bot, telegram_id, prenom, action, annee, mois):
         prec = {l["charge_id"] for l in bot.donnees.lignes_mois(a_prec, m_prec) if l["montant_centimes"]}
         actuelles = {cid for cid, m in lignes.items() if m}
         restants = mouvements.restants(bot.donnees, annee, mois, r, lignes)
-        return reponses.bilan(r, bot.membres, annee, mois, bool(prec - actuelles), restants)
+        libelles = {c["id"]: c["libelle"] for c in bot.charges}
+        a_financer = [(libelles.get(l["charge_id"], "?"), l["montant_centimes"])
+                      for l in bot.donnees.lignes_mois(annee, mois) if l.get("financement") == "a_financer"]
+        return reponses.bilan(r, bot.membres, annee, mois, bool(prec - actuelles), restants, a_financer)
 
     if a == "charges":
         _, lignes, _ = bot.charger_r(annee, mois)
@@ -60,9 +63,12 @@ def budget(bot, telegram_id, prenom, action, annee, mois):
             "type": action["regle"], "ponctuel": True, "actif": True, "ordre": 999,
         })
         bot.charges.append(c)
-        bot.donnees.maj_ligne(annee, mois, c["id"], action["montant_centimes"])
+        # Un extra naît « à financer » : hors du calcul tant que personne n'a dit qui le paie
+        # (l'app le propose à la coche, calc.js tranche seul — invariant 7).
+        bot.donnees.maj_ligne(annee, mois, c["id"], action["montant_centimes"], financement="a_financer")
         bot.marquer_annulable(telegram_id, "lignes", {"annee": annee, "mois": mois, "charge_id": c["id"]}, 0)
-        return reponses.confirmation_ecriture(f"Extra {action['libelle']}", action["montant_centimes"], annee, mois)
+        return (reponses.confirmation_ecriture(f"Extra {action['libelle']}", action["montant_centimes"], annee, mois)
+                + "\nÀ financer : pas compté dans les virements, à régler en fin de mois dans l'app.")
 
     if a == "ajustement":
         # « X prend N motif » : X reçoit moins de charge à verser, donc de = l'autre, vers = X.

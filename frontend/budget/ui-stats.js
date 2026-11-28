@@ -17,7 +17,7 @@ function parMois(donnees, charges, cles) {
     const k = `${annee}-${mois}`;
     const lignes = {};
     for (const l of donnees.lignes) {
-      if (l.annee === annee && l.mois === mois) lignes[l.charge_id] = { montant_centimes: l.montant_centimes, regle: l.regle };
+      if (l.annee === annee && l.mois === mois) lignes[l.charge_id] = { montant_centimes: l.montant_centimes, regle: l.regle, financement: l.financement };
     }
     const revenus = {};
     for (const r of donnees.revenus) if (r.annee === annee && r.mois === mois) revenus[r.prenom] = r.montant_centimes;

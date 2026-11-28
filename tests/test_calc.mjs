@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { calculer, repartir, versCentimes, montantLigne, regleEffective, montantTheorique } from "../frontend/budget/calc.js";
+import { calculer, repartir, versCentimes, montantLigne, regleEffective, montantTheorique, compteDansLeCommun } from "../frontend/budget/calc.js";
+import { repereFinancement, doitChoisirAvantValidation, optionsFinancement, FINANCEMENT_INITIAL } from "../frontend/budget/financement-extra.js";
 import { montantHabituel, montantNote, champsDuMontant, montantInchange } from "../frontend/budget/habituel.js";
 import { detailRegle, regleBasculee, motPartage } from "../frontend/budget/repartition.js";
 import { compteDeCharge, compteSource, optionsCompte, aAutreCompte, choisirCompte, compteCommun } from "../frontend/budget/compte-charge.js";
@@ -715,4 +716,102 @@ assert.equal(refus.message, "Saisis d'abord le montant de Assurance.");
   assert.equal(piedsUnSeul.length, 0, "une seule carte depuis le Commun : pas de pied, rien à cumuler");
 }
 
+
+// ---------- financement d'un extra (lignes.financement, migration 038) ----------
+{
+  const charges = [
+    { id: 1, libelle: "Loyer test", categorie: "Logement", regle: "egales" },
+    { id: 2, libelle: "Assurance test", categorie: "Logement", regle: "proport" },
+    { id: 3, libelle: "Gadget test", categorie: "Autre", regle: "proport", ponctuel: true },
+  ];
+  const revenus = { Yann: 280000, Claudia: 250000 };
+  const fixes = { 1: { montant_centimes: -100000 }, 2: { montant_centimes: -30000 } };
+  const avec = (financement) => ({ ...fixes, 3: { montant_centimes: -20000, regle: null, financement } });
+  const sans = calculer(charges, fixes, revenus);
+
+  // Un nombre brut et un objet sans financement donnent le même résultat qu'avant.
+  assert.deepEqual(calculer(charges, { 1: -100000, 2: -30000 }, revenus), sans);
+  assert.equal(sans.aFinancer, 0);
+  assert.equal(sans.parJoint, 0);
+  assert.equal(compteDansLeCommun(-5000), true, "nombre brut : compté");
+  assert.equal(compteDansLeCommun(undefined), true, "ligne absente : sans effet");
+  assert.equal(compteDansLeCommun({ montant_centimes: -5000 }), true);
+  assert.equal(compteDansLeCommun({ montant_centimes: -5000, financement: null }), true);
+  assert.equal(compteDansLeCommun({ montant_centimes: -5000, financement: "chacun" }), true);
+  assert.equal(compteDansLeCommun({ montant_centimes: -5000, financement: "joint" }), false);
+  assert.equal(compteDansLeCommun({ montant_centimes: -5000, financement: "a_financer" }), false);
+  assert.throws(() => compteDansLeCommun({ montant_centimes: -5000, financement: "autre" }), /financement/);
+
+  // NULL (anciens extras) = compté comme un extra normal : plus de total, plus de virements.
+  const ancien = calculer(charges, avec(null), revenus);
+  assert.equal(ancien.totalCommun, -150000);
+  assert.ok(-ancien.aVerser.Yann > -sans.aVerser.Yann && -ancien.aVerser.Claudia > -sans.aVerser.Claudia);
+
+  // « a_financer » : exclu de TOUT (totaux, total, parts, à verser, reste, catégories) ; sommé à part.
+  const enAttente = calculer(charges, avec("a_financer"), revenus);
+  for (const cle of ["totaux", "total", "totalCommun", "parts", "aVerser", "reste", "parCategorie", "persoParPayeur"]) {
+    assert.deepEqual(enAttente[cle], sans[cle], `a_financer ne doit pas changer ${cle}`);
+  }
+  assert.equal(enAttente.aFinancer, -20000);
+  assert.equal(enAttente.parJoint, 0);
+
+  // « joint » : personne ne vire plus (ni total commun), la dépense est tracée en parJoint.
+  const joint = calculer(charges, avec("joint"), revenus);
+  assert.deepEqual(joint.aVerser, sans.aVerser);
+  assert.deepEqual(joint.reste, sans.reste);
+  assert.equal(joint.totalCommun, sans.totalCommun);
+  assert.equal(joint.parJoint, -20000);
+  assert.equal(joint.aFinancer, 0);
+  assert.equal(joint.parCategorie.Autre, -20000, "la dépense reste visible aux Stats");
+
+  // « chacun » : compté comme avant, selon la règle de l'extra (prorata ici) ; identique à NULL.
+  const chacun = calculer(charges, avec("chacun"), revenus);
+  assert.deepEqual(chacun.aVerser, ancien.aVerser);
+  assert.equal(chacun.aFinancer, 0);
+  assert.equal(chacun.parJoint, 0);
+  assert.equal(chacun.parts.Yann + chacun.parts.Claudia, chacun.total, "la somme des parts reste exacte");
+
+  // Une clé fixe « a_financer » ne pèse pas dans la moyenne pondérée de la clé.
+  const chargesCle = [...charges, { id: 4, libelle: "Clé test", categorie: "Autre", regle: "cle", cle_pct: 80, ponctuel: true }];
+  const avecCle = calculer(chargesCle, { ...fixes, 4: { montant_centimes: -10000, financement: "a_financer" } }, revenus);
+  assert.deepEqual(avecCle.partCle, calculer(chargesCle, fixes, revenus).partCle);
+
+  // Cycle de coche : le choix de financement est ajouté aux champs de la MÊME bascule (D-024) ;
+  // l'échec d'écriture restaure la ligne d'avant, financement compris.
+  const etat = {
+    annee: 2026, mois: 11, membres: [{ prenom: "Yann" }, { prenom: "Claudia" }], charges, recurrents: [], mouvements: [],
+    lignes: { 3: { montant_centimes: -20000, regle: null, financement: "a_financer", fait_le: null, fait_par: null } },
+  };
+  assert.equal(doitChoisirAvantValidation(etat.lignes[3]), true);
+  assert.equal(doitChoisirAvantValidation({ financement: "a_financer", fait_le: "2026-11-02T09:00:00" }), false);
+  assert.equal(doitChoisirAvantValidation({ financement: "joint", fait_le: null }), false);
+  assert.equal(doitChoisirAvantValidation(undefined), false);
+  const prep = preparerBascule(etat, 3);
+  const prepFinancee = { ...prep, champsLigne: { ...prep.champsLigne, financement: "joint" } };
+  const restaure = appliquerBascule(etat, 3, prepFinancee);
+  assert.equal(etat.lignes[3].financement, "joint");
+  assert.equal(etat.lignes[3].fait_par, "Yann");
+  const ecrit = [];
+  await ecrireBascule({ majLigne: async (...a) => ecrit.push(a) }, etat, 3, prepFinancee);
+  assert.deepEqual(ecrit[0].slice(0, 3), [2026, 11, 3]);
+  assert.equal(ecrit[0][3].financement, "joint", "le financement part dans la même écriture que la coche");
+  annulerBascule(etat, 3, restaure, null);
+  assert.equal(etat.lignes[3].financement, "a_financer", "rollback : l'extra redevient à financer");
+  assert.equal(etat.lignes[3].fait_le, null);
+
+  // Mots et repères : couleur ET texte, trois états distincts, rien pour NULL.
+  assert.equal(repereFinancement("a_financer").texte, "À financer");
+  assert.equal(repereFinancement("joint").texte, "Payé par le compte joint");
+  assert.equal(repereFinancement("chacun").texte, "Chacun ajoute");
+  assert.equal(repereFinancement(null), null);
+  assert.equal(repereFinancement(undefined), null);
+  const etatRegles = { membres: [{ prenom: "Claudia" }, { prenom: "Yann" }], resultat: null, revenus: {} };
+  const coche = optionsFinancement("proport", etatRegles, { avecAFinancer: false });
+  assert.deepEqual(coche.map((o) => o.valeur), ["joint", "chacun"]);
+  assert.equal(coche[0].titre, "Le compte joint l'absorbe");
+  assert.equal(coche[1].titre, "Chacun ajoute ce mois-ci (Prorata)");
+  assert.deepEqual(optionsFinancement("egales", etatRegles, { avecAFinancer: true }).map((o) => o.valeur),
+    ["joint", "chacun", "a_financer"]);
+  assert.equal(FINANCEMENT_INITIAL, "a_financer");
+}
 console.log("test_calc OK");

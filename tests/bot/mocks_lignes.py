@@ -18,8 +18,8 @@ class DonneesFausseLignes(DonneesFausse):
         # DonneesFausse._lignes (qui ne stocke que le montant, pour les tests existants).
         self._validation_lignes = {}  # (annee, mois, charge_id) -> {fait_le, fait_par}
 
-    def maj_ligne(self, annee, mois, charge_id, montant_centimes):
-        super().maj_ligne(annee, mois, charge_id, montant_centimes)
+    def maj_ligne(self, annee, mois, charge_id, montant_centimes, financement=None):
+        super().maj_ligne(annee, mois, charge_id, montant_centimes, financement)
 
     def comptes(self):
         return list(self._comptes)

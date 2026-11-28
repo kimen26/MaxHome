@@ -638,3 +638,17 @@ panne.
   « Récupération des résultats » disparu. Environ 30 s par combinaison, résultat identique au
   navigateur sur le 7 → 19. Outils rangés dans `inbox/voyage_fevrier_2027/outils/` (hors git).
   Les espaces du texte Google sont insécables (`\xa0`) : normaliser avant de comparer « 1 escale ».
+
+## L-063 — Le bilan du bot n'est pas « tous les chiffres » : la liste masque les ponctuelles (2026-11-28)
+
+- **Symptôme** : bilan de novembre rendu à Yann à partir de `bilan` / `charges` du bot, annoncé
+  « lu ligne à ligne ». La ligne ponctuelle « BPCE Assurance » (56,75 €), comptée dans les totaux,
+  n'apparaissait pas dans la liste ; Yann : « t'as regardé tous les chiffres ? ».
+- **Cause** : `reponses.liste_charges` ne montre que les charges récurrentes ; les ponctuelles
+  (« Ce mois seulement ») et les règles du mois (`lignes.regle`, aplaties par `bot.charger_r`)
+  n'y sont pas. Le texte du bot est un résumé, pas un relevé.
+- **Règle** : pour rendre les chiffres d'un mois, lire la table `lignes` du mois (toutes les
+  lignes, ponctuelles comprises) et recalculer avec `calculer()` sur des lignes objet
+  `{montant_centimes, regle}` ; vérifier que la somme des lignes listées = total commun annoncé
+  avant d'envoyer. Piège associé : `mouvements.du_mois` (appelé par `bilan`) CRÉE les virements
+  manquants du mois — le bilan du bot n'est pas une lecture seule.

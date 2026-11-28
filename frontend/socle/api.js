@@ -38,7 +38,7 @@ export function creerApi(sb) {
 
     async mois(annee, mois) {
       const [lignes, revenus, ajustements, mouvements] = await Promise.all([
-        filtre(sb.from("lignes").select("charge_id,montant_centimes,regle,fait_le,fait_par"), annee, mois).then(rendre),
+        filtre(sb.from("lignes").select("charge_id,montant_centimes,regle,financement,fait_le,fait_par"), annee, mois).then(rendre),
         filtre(sb.from("revenus").select("prenom,montant_centimes"), annee, mois).then(rendre),
         filtre(sb.from("ajustements").select("*"), annee, mois).then(rendre),
         filtre(sb.from("mouvements").select("*").order("id"), annee, mois).then(rendre),
@@ -51,7 +51,7 @@ export function creerApi(sb) {
       const cle = (a, m) => a * 12 + (m - 1);
       const dans = (q) => q.gte("annee", debut[0]).lte("annee", fin[0]);
       const [lignes, revenus] = await Promise.all([
-        dans(sb.from("lignes").select("annee,mois,charge_id,montant_centimes,regle")).then(rendre),
+        dans(sb.from("lignes").select("annee,mois,charge_id,montant_centimes,regle,financement")).then(rendre),
         dans(sb.from("revenus").select("annee,mois,prenom,montant_centimes")).then(rendre),
       ]);
       const garde = (r) => cle(r.annee, r.mois) >= cle(...debut) && cle(r.annee, r.mois) <= cle(...fin);

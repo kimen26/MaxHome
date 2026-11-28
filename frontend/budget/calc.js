@@ -30,11 +30,34 @@ export const montantLigne = (l) => (typeof l === "object" && l !== null ? l.mont
 export const regleEffective = (charge, ligne) =>
   (typeof ligne === "object" && ligne !== null && ligne.regle) || charge.regle;
 
+/** États de financement d'une ligne du mois (colonne `lignes.financement`, migration 038) :
+ *  `null` = compté normalement ; « a_financer » = extra en attente, hors calcul ; « joint » =
+ *  le compte joint l'absorbe (personne ne vire plus) ; « chacun » = chacun ajoute ce mois-ci
+ *  (compté comme une charge normale). */
+export const FINANCEMENTS = ["a_financer", "joint", "chacun"];
+
+/** Financement d'une ligne, `null` pour un nombre brut ou une ligne sans financement. Un état
+ *  inconnu est une donnée corrompue et lève, comme `montantTheorique` : jamais compté en silence. */
+export function financementLigne(ligne) {
+  const f = typeof ligne === "object" && ligne !== null ? ligne.financement ?? null : null;
+  if (f !== null && !FINANCEMENTS.includes(f)) throw new Error(`financement de ligne inconnu : ${f}`);
+  return f;
+}
+
+/** Vrai si la ligne entre dans le calcul du commun (virements, total, reste à vivre) : un nombre
+ *  brut, un financement null ou « chacun ». « a_financer » et « joint » en sortent. */
+export const compteDansLeCommun = (ligne) => {
+  const f = financementLigne(ligne);
+  return f === null || f === "chacun";
+};
+
 /**
  * @param charges    [{id, libelle, categorie, regle, cle_pct, payeur, ponctuel}]
- * @param lignes     {charge_id: montant_centimes} ou {charge_id: {montant_centimes, regle}}
+ * @param lignes     {charge_id: montant_centimes} ou {charge_id: {montant_centimes, regle, financement}}
  * @param revenus    {prenom: montant_centimes}
  * @param ajustements [{de, vers, montant_centimes}]
+ * @returns en plus des totaux : `aFinancer` (somme des extras « a_financer », hors calcul) et
+ *   `parJoint` (somme des lignes « joint »), signées comme les lignes (négatives pour une dépense).
  */
 export function calculer(charges, lignes, revenus, ajustements = []) {
   const prenoms = Object.keys(revenus);
@@ -42,10 +65,20 @@ export function calculer(charges, lignes, revenus, ajustements = []) {
   const totaux = { egales: 0, proport: 0, cle: 0, perso: 0 };
   const parCategorie = {};
   const persoParPayeur = Object.fromEntries(prenoms.map((p) => [p, 0]));
+  let aFinancer = 0;
+  let parJoint = 0;
 
   for (const c of charges) {
     const montant = montantLigne(lignes[c.id]);
     if (!montant) continue;
+    const financement = financementLigne(lignes[c.id]);
+    if (financement === "a_financer") { aFinancer += montant; continue; } // en attente : nulle part ailleurs
+    if (financement === "joint") {
+      // Le compte joint l'absorbe : personne ne vire plus, mais la dépense existe (Stats).
+      parJoint += montant;
+      parCategorie[c.categorie] = (parCategorie[c.categorie] ?? 0) + montant;
+      continue;
+    }
     const regle = regleEffective(c, lignes[c.id]);
     totaux[regle] += montant;
     parCategorie[c.categorie] = (parCategorie[c.categorie] ?? 0) + montant;
@@ -69,7 +102,7 @@ export function calculer(charges, lignes, revenus, ajustements = []) {
   let totalCleMontant = 0;
   let cleWeighted = 0;
   for (const c of charges) {
-    if (regleEffective(c, lignes[c.id]) !== "cle") continue;
+    if (!compteDansLeCommun(lignes[c.id]) || regleEffective(c, lignes[c.id]) !== "cle") continue;
     const montant = montantLigne(lignes[c.id]);
     if (!montant) continue;
     totalCleMontant += montant;
@@ -100,7 +133,7 @@ export function calculer(charges, lignes, revenus, ajustements = []) {
   return {
     totaux, total, totalCommun, totalRevenus, ratio,
     partEgales, partProport, partCle, parts, aVerser, reste,
-    parCategorie, persoParPayeur,
+    parCategorie, persoParPayeur, aFinancer, parJoint,
   };
 }
 

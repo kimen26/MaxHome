@@ -10,6 +10,7 @@ class DonneesFausse:
         self._charges = charges or []
         self._telegram_membres = telegram_membres or {6433455282: "Yann"}
         self._lignes = {}       # (annee, mois) -> {charge_id: montant}
+        self._financements = {}  # (annee, mois, charge_id) -> financement (migration 038)
         self._revenus = {}      # (annee, mois) -> {prenom: montant}
         self._ajustements = {}  # (annee, mois) -> [dict]
         self._recurrents = recurrents if recurrents is not None else recurrents_part(self._membres)
@@ -44,8 +45,14 @@ class DonneesFausse:
     def charges(self):
         return list(self._charges)
 
+    def _lignes_dict(self, annee, mois):
+        """Comme la table : `financement` (migration 038) n'est présent que s'il a été écrit."""
+        return [{"charge_id": cid, "montant_centimes": m, "regle": None,
+                 "financement": self._financements.get((annee, mois, cid))}
+                for cid, m in self._lignes.get((annee, mois), {}).items()]
+
     def mois(self, annee, mois):
-        lignes = [{"charge_id": cid, "montant_centimes": m} for cid, m in self._lignes.get((annee, mois), {}).items()]
+        lignes = self._lignes_dict(annee, mois)
         revenus = [{"prenom": p, "montant_centimes": m} for p, m in self._revenus.get((annee, mois), {}).items()]
         return lignes, revenus
 
@@ -59,7 +66,7 @@ class DonneesFausse:
         return [dict(m) for m in self._mouvements if (m["annee"], m["mois"]) == (annee, mois)]
 
     def lignes_mois(self, annee, mois):
-        return [{"charge_id": cid, "montant_centimes": m} for cid, m in self._lignes.get((annee, mois), {}).items()]
+        return self._lignes_dict(annee, mois)
 
     def revenus_mois(self, annee, mois):
         return [{"prenom": p, "montant_centimes": m} for p, m in self._revenus.get((annee, mois), {}).items()]
@@ -68,8 +75,10 @@ class DonneesFausse:
     def maj_revenu(self, annee, mois, prenom, montant_centimes):
         self._revenus.setdefault((annee, mois), {})[prenom] = montant_centimes
 
-    def maj_ligne(self, annee, mois, charge_id, montant_centimes):
+    def maj_ligne(self, annee, mois, charge_id, montant_centimes, financement=None):
         self._lignes.setdefault((annee, mois), {})[charge_id] = montant_centimes
+        if financement is not None:
+            self._financements[(annee, mois, charge_id)] = financement
 
     def creer_charge(self, champs):
         self._prochain_id_charge += 1
