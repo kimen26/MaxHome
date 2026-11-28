@@ -1,7 +1,7 @@
 ---
 id: task-001
 title: Accuser réception (👀) et montrer que le bot réfléchit (typing, « Je regarde… »)
-status: Valide
+status: Livre
 assignee: [executant]
 labels: [bot]
 priority: high

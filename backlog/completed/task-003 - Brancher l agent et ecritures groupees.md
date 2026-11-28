@@ -1,7 +1,7 @@
 ---
 id: task-003
 title: Brancher l'agent dans le langage libre et proposer plusieurs écritures d'un seul « oui »
-status: Valide
+status: Livre
 assignee: [executant]
 labels: [bot, securite]
 priority: high

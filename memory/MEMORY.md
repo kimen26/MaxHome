@@ -11,6 +11,12 @@ _État courant. Réécrit en fin de session, jamais un journal._
 - Bot du groupe : le code lit déjà tout le groupe (D-064/D-067) ; un silence = bot mort (L-059) d'abord.
 - Yann : travailler et pousser directement sur `master`, pas de branche.
 
+## Passation 2026-11-28 (nuit) — Le bot devient un agent (D-077)
+- Livré sur `master` (8294a9a, 74f47b9, f39cb54), bot relancé par explorer (superviseur 5576, `bot.py`
+  20740). 👀 + « écrit… » sur chaque message ; boucle d'agent (`agent.py`, 6 tours, 150 s, haiku puis
+  sonnet) ; plusieurs écritures d'un seul « oui » (`agent_lot.py`) ; groupe = privé, bavardage = 👀 seul.
+- Essai à blanc sur vraies données bon (école + agenda + budget). Reste : essai réel Telegram par Yann
+  (TODO Lane W). Fiches : `backlog/completed/task-001` à `task-004`.
 ## Passation 2026-11-28 — Budget de novembre remis d'aplomb, extras à financer, libellé dans le tiroir
 - Novembre (base) : BPCE Assurances 56,75 € dès novembre (ponctuelle en double supprimée) ;
   électricité « reste sur Bourso Joint » (récurrent vers Caisse Épargne éteint) ; l'extra ponctuel

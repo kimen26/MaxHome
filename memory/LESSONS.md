@@ -652,3 +652,13 @@ panne.
   `{montant_centimes, regle}` ; vérifier que la somme des lignes listées = total commun annoncé
   avant d'envoyer. Piège associé : `mouvements.du_mois` (appelé par `bilan`) CRÉE les virements
   manquants du mois — le bilan du bot n'est pas une lecture seule.
+
+## L-064 — J'ai « corrigé » le modèle sur une date qu'il avait juste (2026-11-28)
+
+- **Symptôme** : à la sonde du nouvel agent, « cette semaine » rendait du 23 au 29/11 ; jugé faux
+  (« dimanche 30 oublié »), une correction a été codée dans le prompt avant de voir que le 28/11/2026
+  est un samedi : le modèle avait raison.
+- **Cause** : jour de semaine calculé de tête par l'orchestrateur, pas par le code.
+- **Règle** : avant de déclarer fausse une date rendue par le modèle, la recalculer en code
+  (`date(...).weekday()`). Les bornes des semaines sont désormais données en clair dans le prompt
+  (`libre._semaines`), ce qui reste utile, mais la correction ne devait pas partir d'un calcul de tête.

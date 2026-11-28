@@ -1,7 +1,7 @@
 ---
 id: task-004
 title: Faire répondre le bot dans le groupe exactement comme en privé (bavardage seul excepté)
-status: Valide
+status: Livre
 assignee: [executant]
 labels: [bot]
 priority: high

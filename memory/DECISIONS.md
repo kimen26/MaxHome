@@ -1202,3 +1202,26 @@ Risque d'oubli d'un extra en attente : il apparaît dans le bilan du bot.
 - **Vérifié le 28/11** : 823 tests bot ; essai réel (vrai modèle, vrai agenda en lecture, création simulée) :
   4 rendez-vous trouvés, tous reconnus comme déjà ajoutés à la main le même jour, 0 doublon.
 
+## D-077 — Le bot devient un agent à lectures fermées ; dans le groupe il répond comme en privé (2026-11-28)
+
+- **Demande** : Yann, « un agent avec des outils qui se débrouille ». « Mets les RDV de l'école dans
+  l'agenda » rendait « Je n'ai pas compris » (28/11, 00 h 50) : il faut lire, puis écrire.
+  Refusé par Yann : donner Claude Code complet au bot (un mail piégé aurait la main sur le PC).
+- **Boucle pilotée par Python** (`scripts/bot/agent.py`) plutôt qu'un serveur MCP donné à `claude -p` :
+  la garde de L-057 reste entière (aucun outil, aucun MCP). Au plus 6 tours et 150 s ; à chaque tour le
+  modèle rend un JSON : une LECTURE (`lire_ecole`, `lire_agenda`, `lire_budget`, `lire_courses`,
+  `lire_taches`, `agent_lectures.py`) que le code exécute et rend au tour suivant entre balises
+  `<lecture>`, ou une action finale du schéma existant. Haiku tant que rien n'est lu, Sonnet dès qu'une
+  lecture est faite (raisonner sur un texte lu).
+- **Garde en code (D-068)** : tout texte lu passe par `contenu_suspect` (suspect = arrêt, rien fait) ;
+  après une lecture de l'école, seule une liste FERMÉE d'actions finales est servie (pas de message à
+  l'école, pas de recherche web, pas d'écriture du budget). Écritures toujours proposées : plusieurs en
+  un seul « OK pour tout ? » (`agent_lot.py`, 8 au plus, rien sur « non »), chacune validée par le code
+  existant sur un état brouillon ; après une lecture de l'école, seuls `agenda_creer` et `course_ajout`.
+  Un RDV déjà dans l'agenda est écarté (`ecole_agenda.deja_la`).
+- **Accusé** (`accuse.py`) : 👀 posé sur chaque message, « écrit… » relancé toutes les 4 s, une phrase
+  de l'étape en cours passé 15 s ; claude en panne = « Je n'arrive pas à réfléchir » (plus « pas compris »).
+- **Groupe = privé** (remplace D-064 et D-067) : un message non adressé reçoit les mêmes réponses qu'en
+  privé, écriture de grammaire directe comprise (« resto 25 » dit entre nous s'écrit, annulable). Seule
+  exception : une conversation entre Claudia et Yann (« ok », émoji, ou le modèle dit `bavardage`) ne reçoit
+  que 👀. Dans le doute, le bot répond. Contre-avis donné : l'écriture directe d'une phrase non adressée.

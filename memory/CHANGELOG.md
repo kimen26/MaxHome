@@ -1,6 +1,13 @@
 # CHANGELOG
 _Se remplit à la release, en vidant les lanes terminées de TODO.md._
 
+## 2026-11-28 — Le bot se débrouille, accuse réception, et parle pareil partout
+- Le bot met 👀 sur chaque message dès qu'il l'a lu, affiche « écrit… » tant qu'il travaille, et dit
+  ce qu'il fait si ça dure (« Je lis les mails de l'école… »).
+- Il enchaîne seul : « mets les RDV de l'école dans l'agenda » lit les mails et l'espace parent, regarde
+  l'agenda, puis propose les rendez-vous manquants d'un seul « OK pour tout ? ».
+- Dans le groupe, il répond comme en privé, même sans être mentionné. Quand Claudia et Yann se parlent
+  entre eux, il met seulement 👀.
 ## 2026-11-28 — Extras à financer, libellé dans le tiroir
 - Un extra du mois arrive « À financer » : il ne change pas les virements tant qu'on n'a pas dit
   d'où vient l'argent. En le cochant, on choisit « Le compte joint l'absorbe » ou « Chacun ajoute

@@ -1,7 +1,7 @@
 ---
 id: task-002
 title: Faire enchaîner au bot lectures puis réponse (boucle d'agent pilotée par Python)
-status: Valide
+status: Livre
 assignee: [executant]
 labels: [bot, securite]
 priority: high

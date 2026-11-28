@@ -454,6 +454,17 @@ ORY→RVN : 12 réponses vides sur 12, ORY→KEF : 9 sur 12 ; vide = échec de l
 - [ ] Résa payée (n° 70138, 19/10/2026 10h15, 32 €, payée par Yann) jamais enregistrée en base :
       saisir dans la fiche voyage Auvergne ou appliquer le SQL préparé (session cloud sans `.env`).
 
+## Lane W — Bot agent (2026-11-28, D-077)
+- [x] Accusé 👀 + « écrit… » + phrase passé 15 s (task-001) ; boucle d'agent à lectures fermées
+      (task-002) ; écritures groupées d'un seul « oui » (task-003) ; groupe = privé (task-004).
+      880 tests bot verts, sur `master` (f39cb54), bot relancé le 28/11 vers 01 h 40.
+- [x] Essai à blanc sur les vraies données (28/11) : « mets les RDV de l'école » lit école puis agenda
+      (RDV déjà là grâce à D-076) ; « cette semaine » ; reste du mois = chiffres du moteur, au centime.
+- [ ] Essai réel Telegram par Yann, en privé ET dans le groupe : 👀 et « écrit… » visibles, les 4 cas
+      (RDV de l'école, cette semaine, ajoute du lait, une question du budget), un bavardage = 👀 seul.
+- [ ] À surveiller : une phrase dite entre nous dans le groupe qui écrit seule (« resto 25 ») ; un RDV
+      proposé avec une date fausse (le modèle calcule les « demain » des mails).
+
 ## Parking
 - Bot : pas de commande pour choisir le financement d'un extra (D-075) ; `valider <charge>` peut
   valider un extra « à financer » sans passer par le choix (2026-11-28).
