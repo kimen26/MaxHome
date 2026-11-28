@@ -4,6 +4,7 @@
 """
 import time
 
+import accuse
 import groupe
 from telegram import est_reseau_transitoire
 
@@ -55,22 +56,24 @@ def traiter_update(bot, u):
     telegram_id = msg["from"]["id"]
     bot.etats.get(telegram_id, {}).pop("envois", None)  # jamais l'envoi resté d'un message précédent
     if "text" in msg:
-        try:
-            reponse = (bot.traiter_message(telegram_id, msg["text"]) if adresse
-                       else bot.traiter_message(telegram_id, msg["text"], adresse=False))
-        except Exception:
-            bot.log.exception("erreur non gérée")
-            reponse = "Erreur interne, réessaie."
+        with accuse.suivre(bot, msg):
+            try:
+                reponse = (bot.traiter_message(telegram_id, msg["text"]) if adresse
+                           else bot.traiter_message(telegram_id, msg["text"], adresse=False))
+            except Exception:
+                bot.log.exception("erreur non gérée")
+                reponse = "Erreur interne, réessaie."
         if not adresse and reponse is None:  # bruit écarté (groupe.py) : le bot se tait ; « pas compris » se dit
             bot.log.info("groupe : message sans suite, pas de réponse")
             return
     elif "photo" in msg or "document" in msg:
-        try:
-            reponse = (bot.traiter_piece(telegram_id, msg) if adresse
-                       else bot.traiter_piece(telegram_id, msg, adresse=False))
-        except Exception:
-            bot.log.exception("erreur traitement pièce jointe")
-            reponse = "Erreur interne, réessaie."
+        with accuse.suivre(bot, msg):
+            try:
+                reponse = (bot.traiter_piece(telegram_id, msg) if adresse
+                           else bot.traiter_piece(telegram_id, msg, adresse=False))
+            except Exception:
+                bot.log.exception("erreur traitement pièce jointe")
+                reponse = "Erreur interne, réessaie."
     else:
         return
     groupe.noter_chat(bot.etats, telegram_id, chat_id)

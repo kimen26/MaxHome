@@ -55,9 +55,9 @@ DELAI_RECHERCHE_S = 180
 log = logging.getLogger("bot")
 
 
-def commande(prompt):
+def commande(prompt, modele=MODELE):
     """Ligne de commande complète d'un appel (testée : elle contient tous les drapeaux de sécurité)."""
-    return ["claude", "-p", prompt, "--model", MODELE, "--output-format", "json", *ARGS_SANS_OUTIL]
+    return ["claude", "-p", prompt, "--model", modele, "--output-format", "json", *ARGS_SANS_OUTIL]
 
 
 def commande_recherche(prompt):
@@ -81,12 +81,12 @@ def message_image(prompt, contenu, type_mime):
     ]}}) + "\n"
 
 
-def lancer(prompt, timeout=DELAI_DEFAUT_S):
+def lancer(prompt, timeout=DELAI_DEFAUT_S, modele=MODELE):
     """Texte de la réponse de claude, ou None (claude absent, délai dépassé, échec, réponse illisible).
 
     Ne plante jamais la boucle du bot ; la cause est journalisée (data/bot.log), jamais le prompt.
     """
-    return _executer(commande(prompt), None, timeout)
+    return _executer(commande(prompt, modele), None, timeout)
 
 
 def lancer_recherche(prompt, timeout=DELAI_RECHERCHE_S):

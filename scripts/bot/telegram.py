@@ -89,6 +89,19 @@ class Telegram:
             raise RuntimeError(f"sendMessage échoué : {rep}")
         return rep["result"]
 
+    def reagir(self, chat_id, message_id, emoji):
+        """Pose une réaction (emoji) sur un message : l'accusé de lecture."""
+        rep = self._appel("setMessageReaction", {"chat_id": chat_id, "message_id": message_id,
+                                                 "reaction": [{"type": "emoji", "emoji": emoji}]}, timeout=15)
+        if not rep.get("ok"):
+            raise RuntimeError(f"setMessageReaction échoué : {rep}")
+
+    def signaler_frappe(self, chat_id):
+        """Affiche « écrit… » dans le chat (sendChatAction typing, dure environ 5 s)."""
+        rep = self._appel("sendChatAction", {"chat_id": chat_id, "action": "typing"}, timeout=10)
+        if not rep.get("ok"):
+            raise RuntimeError(f"sendChatAction échoué : {rep}")
+
     def get_me(self):
         """Le bot lui-même : id, username, can_read_all_group_messages (faux tant que le mode
         confidentialité de BotFather est actif)."""

@@ -66,19 +66,28 @@ def _espace_parent():
         return [], False
 
 
-def nouvelles(bot, http=None):
-    """Texte à envoyer : résumé des mails, des messages et des documents récents de l'école, ou la phrase qui dit
-    pourquoi il n'y en a pas."""
+def lire_blocs(bot, http=None):
+    """(blocs de texte des mails, messages et documents récents, phrases à dire en plus). Sans bloc, les phrases
+    disent pourquoi il n'y en a pas ; avec des blocs, ce sont les limites de la lecture, entre parenthèses."""
     blocs_mails, phrase_mails = _mails(bot, http)
     blocs_espace, espace_lu = _espace_parent()
     blocs = blocs_mails + blocs_espace
+    limite_mails = phrase_mails in (SANS_EXPEDITEUR, LECTURE_IMPOSSIBLE)
     if not blocs:
         if not espace_lu:  # illisible ou non configuré : seule la phrase des mails
-            return phrase_mails
-        return RIEN_DE_NEUF + (f"\n({phrase_mails})" if phrase_mails in (SANS_EXPEDITEUR, LECTURE_IMPOSSIBLE) else "")
-    texte = outils.resumer("\n\n".join(blocs), QUESTION, outil=gmail.NOM_OUTIL)
-    if phrase_mails in (SANS_EXPEDITEUR, LECTURE_IMPOSSIBLE):
-        texte += f"\n({phrase_mails})"
+            return [], [phrase_mails]
+        return [], [RIEN_DE_NEUF + (f"\n({phrase_mails})" if limite_mails else "")]
+    notes = [f"({phrase_mails})"] if limite_mails else []
     if espace_lu is False:
-        texte += f"\n({ESPACE_ILLISIBLE})"
-    return texte
+        notes.append(f"({ESPACE_ILLISIBLE})")
+    return blocs, notes
+
+
+def nouvelles(bot, http=None):
+    """Texte à envoyer : résumé des mails, des messages et des documents récents de l'école, ou la phrase qui dit
+    pourquoi il n'y en a pas."""
+    blocs, notes = lire_blocs(bot, http)
+    if not blocs:
+        return "\n".join(notes)
+    texte = outils.resumer("\n\n".join(blocs), QUESTION, outil=gmail.NOM_OUTIL)
+    return "\n".join([texte, *notes])

@@ -347,9 +347,9 @@ def test_la_reponse_du_modele_est_du_json_pur_ou_rien(brut, attendu):
     assert libre._objet_json(brut) == attendu
 
 
-def test_claude_en_panne_donne_inconnu(monkeypatch):
+def test_claude_en_panne_donne_echec(monkeypatch):
     monkeypatch.setattr(claude_cli, "lancer", lambda prompt, timeout=60: None)
-    assert libre.interpreter("salut", "Yann", ["Yann"], [], "2026-10") == {"action": "inconnu"}
+    assert libre.interpreter("salut", "Yann", ["Yann"], [], "2026-10") == {"action": "echec"}
 
 
 # ---------- A : claude -p sans aucun outil ----------
