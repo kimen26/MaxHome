@@ -74,3 +74,16 @@ button.gv-groupe {
 /* Élément automatique (D-057) : pas de case, mais la place d'une case pour garder l'alignement. */
 .ml-auto-espace { flex:0 0 26px; width:26px; height:26px; }
 .mc-auto { font-weight:600; }
+
+/* Section « Virement » de la feuille d'une charge (feuille-virement.js) : lecture + copie du
+   libellé du compte qui reçoit. Mobile d'abord : tout passe à la ligne, aucune hauteur fixe,
+   Copier et Enregistrer font au moins 48 x 48 px. */
+.fv-virement .gv-libelle { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; font-size:15px; }
+.fv-virement .gv-libelle .mono { min-width:0; overflow-wrap:anywhere; word-break:break-word; }
+.fv-virement .gv-libelle .btn-lien,
+.fv-virement .gv-libelle .btn { min-height:48px; min-width:48px; }
+.fv-virement .gv-libelle-manquant { display:block; }
+.fv-virement .gv-libelle-manquant input { min-height:48px; }
+.fv-ligne { margin:0 0 4px; overflow-wrap:anywhere; }
+.fv-reserve, .fv-aide { margin:0 0 6px; font-size:14px; color:var(--texte-2); overflow-wrap:anywhere; }
+.fv-virement .fv-aide { flex-basis:100%; }

@@ -27,7 +27,8 @@ import { estAutomatique } from "./automatique.js";
 import { libelleACompleter } from "./libelle-virement.js";
 import { htmlBlocLibelle, brancherBlocLibelle } from "./bloc-libelle-virement.js";
 import { htmlRepereNote } from "./note-charge.js";
-import { aReserve, estMoisPaiement, montantCumule, montantCycleEstime, prochainMoisPaiement } from "./reserve.js";
+import { estMoisPaiement, montantCumule, montantCycleEstime, prochainMoisPaiement } from "./reserve.js";
+import { recurrentReserveDe as recurrentReserveDeCharge, mouvementPaiementDe as mouvementPaiementDeRecurrent } from "./virement-charge.js";
 
 const CLE_VUE = "maxhome.budget.vueCharges";
 const lireVue = () => { try { return localStorage.getItem(CLE_VUE) === "categories" ? "categories" : "destinataires"; } catch { return "destinataires"; } };
@@ -54,13 +55,11 @@ export function creerUiMoisListe(api, etat, cb, { basculerMouvement }) {
 
   // ---------- réserve relais (D-054) ----------
   /** Récurrent en mode "charge" avec une réserve, pour une ligne de charge — ou null. */
-  const recurrentReserveDe = (chargeId) => etat.recurrents.find((r) =>
-    r.actif && r.mode === "charge" && r.charge_id === chargeId && aReserve(r)) ?? null;
+  const recurrentReserveDe = (chargeId) => recurrentReserveDeCharge(etat.recurrents, chargeId);
 
   /** Mouvement d'étape 2 (paiement) du mois pour ce récurrent : recurrent_id + etape = 2
    *  (028_mouvements_etape.sql — l'étape 1 est le virement habituel du même récurrent). */
-  const mouvementPaiementDe = (recurrent) => etat.mouvements.find((m) =>
-    m.recurrent_id === recurrent.id && m.etape === 2) ?? null;
+  const mouvementPaiementDe = (recurrent) => mouvementPaiementDeRecurrent(etat.mouvements, recurrent);
 
   const ligneDuMoisPasse = (chargeId) => (annee, mois) => {
     if (annee === etat.annee && mois === etat.mois) return ligneDe(chargeId)?.montant_centimes;

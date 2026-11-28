@@ -231,6 +231,22 @@ const FEUILLES = [
   { ecran: "proches-lien", moduleDefaut: "proches", bouton: '#liste-proches [data-modifier="1"]', nom: "feuille-proche" },
 ];
 
+/** Ouvre la feuille de réglage de la charge `id` depuis la vue Catégories : déplie les groupes
+ *  (un par un, ils survivent d'un geste à l'autre) jusqu'à voir la ligne, puis la touche. */
+async function ouvrirFeuilleCharge(page, id) {
+  await page.click('#mois-vue-charges [data-vue-charges="categories"]');
+  const ligne = page.locator(`#mvts-a-faire .ml-element[data-ml-type="ligne"][data-id="${id}"] .mc-libelle`);
+  const n = await page.locator("#mvts-a-faire .ml-groupe").count();
+  for (let i = 0; i < n && !(await ligne.count()); i++) {
+    const groupe = page.locator("#mvts-a-faire .ml-groupe").nth(i);
+    if (!(await groupe.evaluate((el) => el.classList.contains("ouvert")))) await groupe.locator("[data-ml-groupe]").click();
+  }
+  if (!(await ligne.count())) throw new Error(`feuille charge ${id} : ligne introuvable dans « À faire ».`);
+  await ligne.click();
+  await page.waitForSelector("form.reglages", { state: "visible", timeout: 3000 });
+  await page.waitForTimeout(250); // la feuille glisse en 200 ms
+}
+
 // États qu'un geste révèle SANS feuille : le mois suivant de l'Agenda (les données factices y
 // posent vacances, voyage et férié, le mois courant peut n'en avoir aucun) et l'aide à la saisie
 // des Courses, qui n'apparaît que lorsque le champ Article a le focus. Même raison que FEUILLES.
@@ -390,6 +406,37 @@ const GESTES = [
       await repere.waitFor({ state: "visible", timeout: 5000 });
       await repere.scrollIntoViewIfNeeded();
     } },
+  // Section « Virement » de la feuille d'une charge (feuille-virement.js, D-050/D-054) : quatre
+  // cas des données factices. Réserve en mois de paiement (Assurance auto, compte final à libellé
+  // fixe), réserve hors mois de paiement (Entretien chaudière, même compte final), libellé
+  // variable du mois pas encore saisi (École), compte sans libellé (Alimentation : aucune section).
+  ...[
+    ["feuille-virement-reserve-paiement", 10, "Assureur auto", "Contrat AX-5521", /à payer ce mois-ci/],
+    ["feuille-virement-reserve-hors-mois", 11, "Assureur auto", "Contrat AX-5521", /payé en /],
+    ["feuille-virement-variable", 9, "Compte École", null, null],
+    ["feuille-virement-sans", 3, null, null, null],
+  ].map(([nom, id, compte, libelle, reserve]) => ({
+    ecran: "mois", moduleDefaut: "mois", nom,
+    geste: async (page) => {
+      await ouvrirFeuilleCharge(page, id);
+      const section = page.locator("form.reglages [data-virement]");
+      if (!compte) {
+        if (await section.count()) throw new Error(`${nom} : section Virement affichée pour un compte sans libellé`);
+        return;
+      }
+      await section.waitFor({ state: "visible", timeout: 3000 });
+      const texte = await section.innerText();
+      if (!texte.includes(compte)) throw new Error(`${nom} : « ${compte} » absent de la section`);
+      if (libelle && !texte.includes(libelle)) throw new Error(`${nom} : libellé « ${libelle} » absent`);
+      if (reserve && !reserve.test(texte)) throw new Error(`${nom} : phrase de réserve absente`);
+      if (!libelle && !/Libellé à compléter ce mois|Prénom Nom Facture/.test(texte)) throw new Error(`${nom} : libellé variable non rendu`);
+      // Cibles tactiles de la section (Copier, Enregistrer, champ) : >= 48 px, mesuré (L-016).
+      const petits = await section.locator("button, input").evaluateAll((els) => els
+        .map((e) => e.getBoundingClientRect()).filter((r) => r.height < 47.5 || r.width < 47.5).length);
+      if (petits) throw new Error(`${nom} : ${petits} cible(s) tactile(s) sous 48 px dans la section Virement`);
+      await section.scrollIntoViewIfNeeded();
+    },
+  })),
   // Même feuille ouverte depuis Réglages · Charges (toujours en feuille, même sur PC : cet
   // écran n'a pas de colonne de droite).
   { ecran: "charges-ref", moduleDefaut: "taches-rec", nom: "reglage-charge-ref",

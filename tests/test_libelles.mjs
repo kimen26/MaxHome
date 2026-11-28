@@ -50,3 +50,83 @@ assert.equal(modeleLibelle(COMPTE_SANS_LIBELLE), null);
 assert.equal(modeleLibelle(null), null);
 
 console.log("test_libelles.mjs : OK");
+
+// ---------- virementDeCharge : feuille d'une charge (compte final, mouvement du mois) ----------
+import { virementDeCharge, recurrentReserveDe, mouvementPaiementDe } from "../frontend/budget/virement-charge.js";
+
+const COMPTES = [
+  { id: 1, nom: "Commun", libelle_virement: null, libelle_variable: false },
+  { id: 5, nom: "Tampon", libelle_virement: null, libelle_variable: false },
+  COMPTE_FIXE, COMPTE_VARIABLE, COMPTE_SANS_LIBELLE,
+];
+const charge = (id) => ({ id });
+const rec = (id, chargeId, vers, extra = {}) => ({ id, actif: true, mode: "charge", charge_id: chargeId, compte_vers: vers, ...extra });
+// Réserve : tampon 5 -> final (relais_vers), payé tous les 3 mois, départ en mois 3 (3, 6, 9, 12).
+const reserve = (id, chargeId, final) => rec(id, chargeId, 5, { relais_vers: final, relais_tous_les: 3, relais_depart: 3 });
+const etat = (recurrents, mouvements, mois) => ({ recurrents, comptes: COMPTES, mouvements, mois });
+
+// Sans réserve : le compte qui reçoit porte le libellé, mouvement = celui du mois (étape 1 ou null).
+{
+  const e = etat([rec(10, 1, 1)], [], 5);
+  assert.equal(virementDeCharge(charge(1), e), null, "compte commun sans libellé : rien");
+}
+{
+  const m = { id: 90, recurrent_id: 10, etape: null, libelle_virement: null };
+  const e = etat([rec(10, 1, 1)], [m], 5);
+  e.comptes = [...COMPTES.filter((c) => c.id !== 1), { ...COMPTE_FIXE, id: 1 }];
+  const v = virementDeCharge(charge(1), e);
+  assert.equal(v.compte.nom, "Syndic");
+  assert.equal(v.mouvement, m);
+  assert.equal(v.tampon, null);
+  assert.equal(v.moisPaiement, null);
+}
+// Pas de récurrent actif en mode charge (ou éteint) : null.
+assert.equal(virementDeCharge(charge(9), etat([], [], 5)), null);
+assert.equal(virementDeCharge(charge(1), etat([{ ...rec(10, 1, 1), actif: false }], [], 5)), null);
+assert.equal(virementDeCharge(charge(1), etat([{ ...rec(10, 1, 1), mode: "fixe" }], [], 5)), null);
+
+// Réserve vers un compte FINAL à libellé fixe, HORS mois de paiement (mois 5) : le compte qui
+// compte est le final (pas le tampon), prochain paiement en juin, pas de mouvement d'étape 2.
+{
+  const e = etat([reserve(20, 3, 2)], [{ id: 91, recurrent_id: 20, etape: 1 }], 5);
+  const v = virementDeCharge(charge(3), e);
+  assert.equal(v.compte.id, 2, "libellé du compte FINAL, pas du tampon");
+  assert.equal(v.tampon.nom, "Tampon");
+  assert.equal(v.aPayerCeMois, false);
+  assert.equal(v.moisPaiement, 6);
+  assert.equal(v.mouvement, null, "l'étape 1 n'est pas le mouvement du paiement");
+}
+// Même réserve, MOIS de paiement (6) avec mouvement d'étape 2 : c'est lui qui est rendu.
+{
+  const m1 = { id: 91, recurrent_id: 20, etape: 1 };
+  const m2 = { id: 92, recurrent_id: 20, etape: 2, libelle_virement: "Enfant Dupont Facture n°12" };
+  const e = etat([reserve(20, 3, 2)], [m1, m2], 6);
+  const v = virementDeCharge(charge(3), e);
+  assert.equal(v.aPayerCeMois, true);
+  assert.equal(v.moisPaiement, 6);
+  assert.equal(v.mouvement, m2);
+  assert.equal(libelleEffectif(v.mouvement, v.compte), "Enfant Dupont Facture n°12");
+}
+// Compte final à libellé VARIABLE, mois de paiement sans mouvement : pas de valeur, modèle à lire.
+{
+  const e = etat([reserve(20, 3, 2)], [], 6);
+  const v = virementDeCharge(charge(3), e);
+  assert.equal(v.mouvement, null);
+  assert.equal(libelleEffectif(v.mouvement, v.compte), null);
+  assert.equal(modeleLibelle(v.compte), "Enfant Dupont Facture n°");
+}
+// Compte final sans libellé (ni variable) : rien à afficher, même avec une réserve.
+assert.equal(virementDeCharge(charge(3), etat([reserve(20, 3, 3)], [], 6)), null);
+// Réserve sans mois de départ choisi : pas de mois de paiement connu, pas d'erreur.
+{
+  const r = { ...reserve(20, 3, 2), relais_depart: null };
+  const v = virementDeCharge(charge(3), etat([r], [], 6));
+  assert.equal(v.moisPaiement, null);
+  assert.equal(v.aPayerCeMois, false);
+}
+// Helpers partagés avec la liste du mois.
+assert.equal(recurrentReserveDe([rec(10, 1, 1)], 1), null, "sans relais_vers : pas une réserve");
+assert.equal(recurrentReserveDe([reserve(20, 3, 2)], 3).id, 20);
+assert.equal(mouvementPaiementDe([{ recurrent_id: 20, etape: 1 }], { id: 20 }), null);
+
+console.log("test_libelles : OK (virementDeCharge)");

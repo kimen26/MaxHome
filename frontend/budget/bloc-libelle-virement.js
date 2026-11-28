@@ -14,7 +14,7 @@ export function htmlBlocLibelle(mouvement, compteVers) {
   if (valeur) {
     return `<div class="gv-libelle">
       <span class="etiquette">Libellé</span> <span class="mono">${txt(valeur)}</span>
-      <button class="btn-lien" data-copier-libelle-mvt="${txt(valeur)}">Copier</button>
+      <button type="button" class="btn-lien" data-copier-libelle-mvt="${txt(valeur)}">Copier</button>
     </div>`;
   }
   if (libelleACompleter(mouvement, compteVers)) {
@@ -23,7 +23,7 @@ export function htmlBlocLibelle(mouvement, compteVers) {
     return `<div class="gv-libelle gv-libelle-manquant">
       <p class="mvt-note">Libellé à compléter ce mois</p>
       <input class="champ" data-libelle-mois="${mouvement.id}" value="${txt(modele)}" placeholder="ex. Prénom Nom Facture n°12">
-      <button class="btn btn-bleu" data-valider-libelle="${mouvement.id}">Enregistrer</button>
+      <button type="button" class="btn btn-bleu" data-valider-libelle="${mouvement.id}">Enregistrer</button>
     </div>`;
   }
   return "";

@@ -23,6 +23,7 @@ import { FIXE, VARIABLE, faconDe, montantHabituel, optionsFacon } from "./habitu
 import { AIDE_SANS_COMPTE, aAutreCompte, compteDeCharge, optionsCompte, choisirCompte } from "./compte-charge.js";
 import { confirmerFinDeCharge } from "./ui-charges-ajout.js";
 import { htmlChampNote, champsNote } from "./note-charge.js";
+import { htmlVirement, brancherVirement } from "./feuille-virement.js";
 
 const ASIDE = "#reglages-pc";
 
@@ -83,6 +84,8 @@ export function creerFeuilleCharge(api, etat, cb, categories) {
         ${aAutreCompte(etat.comptes) ? "" : `<p class="aide-compte">${txt(AIDE_SANS_COMPTE)}</p>`}
       </fieldset>
 
+      ${htmlVirement(c, etat)}
+
       <fieldset class="bloc-reglage"><legend class="etiquette">Nom et catégorie</legend>
         ${champ("libelle", "Nom", { valeur: c.libelle, requis: true })}
         ${select("categorie", "Catégorie", cats.map((k) => [k, k]), c.categorie)}
@@ -142,6 +145,8 @@ export function creerFeuilleCharge(api, etat, cb, categories) {
     };
 
     form.querySelector("[data-fermer-reglages]").addEventListener("click", fermer);
+    // Libellé du mois saisi ici : l'écran Mois se redessine, la feuille se rouvre à jour.
+    brancherVirement(form, api, etat, cb, () => { cb.rendreMois(); ouvrir(c.id, ouverte); });
     for (const b of form.querySelectorAll("[data-facon]")) {
       b.addEventListener("click", () => { facon = b.dataset.facon; marquerChoix(b); montrer("facon", facon); });
     }
