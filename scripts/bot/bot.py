@@ -258,8 +258,8 @@ class Bot:
         return f"Copié depuis {reponses.nom_mois(a_cible, m_cible)}.\n{suite}"
 
     def traiter_message(self, telegram_id, texte_brut, adresse=True):
-        """`adresse` faux : message de groupe qui ne s'adresse pas au bot. Il traite ce qu'il comprend, mais
-        ne répond jamais « inconnu » et n'appelle pas le modèle pour du bavardage court (groupe.py)."""
+        """`adresse` faux : message de groupe qui ne s'adresse pas au bot. Mêmes réponses qu'en privé ; seul le
+        bavardage (« ok », émoji, ou le modèle dit `bavardage`) reste sans réponse (groupe.py)."""
         prenom = self.donnees.membre_telegram(telegram_id)
         if not prenom:
             self.log.info("message d'un inconnu (id masqué)")
@@ -267,21 +267,21 @@ class Bot:
 
         if adresse:  # un message non adressé ne touche à aucune attente : elle peut venir d'un autre chat
             suite = self._reprendre(telegram_id, prenom, texte_brut)
-            if suite is None:  # un lien (+ quelques mots) : la page est lue et résumée, jamais suivie sans un « oui » (web_bot.py)
-                suite = web_bot.reponse_au_lien(self, telegram_id, texte_brut)
-            if suite is not None:
-                return suite
         else:  # seule exception : le nom du voyage qui répond à « Pour quel voyage ? » (documents_voyage.py)
             suite = documents_voyage.reprendre(self, telegram_id, prenom, texte_brut, adresse=False)
-            if suite is not None:
-                return suite
+        if suite is None:  # un lien (+ quelques mots) : la page est lue et résumée, jamais suivie sans un « oui » (web_bot.py)
+            suite = web_bot.reponse_au_lien(self, telegram_id, texte_brut)
+        if suite is not None:
+            return suite
 
         annee_c, mois_c = self.mois_courant()
         charges_proposables = budget_lignes.charges_actives(self.charges)  # D-043 : jamais une terminée
         action = commandes.interpreter(texte_brut, self.membres, charges_proposables, annee_c, mois_c)
         vers_le_modele = action["action"] is None or dialogue_libre.relayer(action, texte_brut)
-        if not adresse:
-            return self._traiter_non_adresse(telegram_id, prenom, texte_brut, action, vers_le_modele)
+        if not adresse and (vers_le_modele or action["action"] in groupe.ACTIONS_MUETTES):
+            if groupe.sans_suite_evident(texte_brut):
+                return None  # « ok », « mdr », un émoji : 👀 seul, pas d'appel au modèle
+            return dialogue_libre.interpreter(self, telegram_id, prenom, texte_brut, peut_se_taire=True)
         if vers_le_modele:
             return dialogue_libre.interpreter(self, telegram_id, prenom, texte_brut)
         return self.executer_action(telegram_id, prenom, action, texte_brut)
@@ -298,22 +298,6 @@ class Bot:
         if en_attente is not None:
             return en_attente
         return dialogue_libre.reprendre(self, telegram_id, prenom, texte_brut)  # oui/non ou réponse à une question
-
-    def _traiter_non_adresse(self, telegram_id, prenom, texte_brut, action, vers_le_modele):
-        """Message de groupe qui ne s'adresse pas au bot : se tait sur le bruit (None), sinon répond, « pas compris » compris.
-
-        Une écriture reconnue par la grammaire passe par la confirmation « OK ? » (D-060) : une phrase
-        entre Claudia et Yann ne doit jamais écrire dans le budget sans un « oui ».
-        """
-        if vers_le_modele:
-            if groupe.sans_suite_evident(texte_brut):
-                return None  # « ok », « mdr », un émoji : pas d'appel au modèle pour ça
-            return dialogue_libre.interpreter(self, telegram_id, prenom, texte_brut)
-        if action["action"] in groupe.ACTIONS_MUETTES:
-            return None
-        if action["action"] in dialogue_libre.ACTIONS_ECRITURE:
-            return dialogue_libre.proposer(self.etats.setdefault(telegram_id, {}), action, prenom)
-        return self.executer_action(telegram_id, prenom, action, texte_brut)
 
     def executer_action(self, telegram_id, prenom, action, texte_brut):
         """traiter_action sans jamais planter la boucle : une erreur est journalisée, la réponse reste polie."""

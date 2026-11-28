@@ -63,8 +63,8 @@ def traiter_update(bot, u):
             except Exception:
                 bot.log.exception("erreur non gérée")
                 reponse = "Erreur interne, réessaie."
-        if not adresse and reponse is None:  # bruit écarté (groupe.py) : le bot se tait ; « pas compris » se dit
-            bot.log.info("groupe : message sans suite, pas de réponse")
+        if not adresse and reponse is None:  # bavardage (groupe.py) : 👀 seul ; « pas compris » se dit
+            bot.log.info("groupe : bavardage, 👀 seul")
             return
     elif "photo" in msg or "document" in msg:
         with accuse.suivre(bot, msg):

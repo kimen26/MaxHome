@@ -7,10 +7,10 @@ journalise jamais le contenu. En conversation privée rien ne change.
 Tout message texte d'un membre du foyer est traité, comme en privé (« si on parle ici, c'est pour le
 bot », 08/11). Il est « adressé » s'il (a) mentionne le bot, (b) répond à l'un de ses messages, ou
 (c) vient de quelqu'un à qui le bot attend encore une réponse, dans ce même groupe. Un message adressé
-garde toutes ses réponses, « je n'ai pas compris » compris. Un message NON adressé reçoit lui aussi une
-réponse, « je n'ai pas compris » compris : le bot ne se tait que sur le bruit, un message court sans
-verbe d'action (« ok », « mdr », un émoji) écarté avant même d'appeler le modèle (`sans_suite_evident`)
-ou une réponse de `ACTIONS_MUETTES` (bot.py). Une pièce jointe non adressée est ignorée, sauf un PDF ou une pièce légendée (document de voyage, lot A).
+garde toutes ses réponses, « je n'ai pas compris » compris. Un message NON adressé reçoit exactement les
+mêmes réponses qu'en privé ; le bot ne se tait que sur le bavardage entre Claudia et Yann : un message
+court sans verbe d'action (« ok », « mdr », un émoji) écarté avant même d'appeler le modèle
+(`sans_suite_evident`), ou une phrase que le modèle juge `bavardage`. Il met alors seulement 👀. Une pièce jointe non adressée est ignorée, sauf un PDF ou une pièce légendée (document de voyage, lot A).
 
 Des fonctions sur des dicts (messages Telegram, bot.etats) ; seules `gerer_evenement` et
 `noter_chat` touchent au bot, et par ses ports (donnees, telegram, log).
@@ -41,8 +41,8 @@ RADICAUX_ACTION = (
 MOT_DEFAUT = "aide"  # une mention seule (« @bot ») : le bot montre ce qu'il sait faire, sans appeler le modèle
 
 _RE_ESPACES = re.compile(r"[ \t]+")
-# Réponses de la grammaire qui, à un message non adressé, ne sont que du bruit (« 50/50 » pris pour une
-# charge, « Claudia prend les enfants » pour un ajustement, « moi je veux des pâtes ») : le bot se tait.
+# Réponses de la grammaire douteuses à un message non adressé (« 50/50 » pris pour une charge, « Claudia
+# prend les enfants » pour un ajustement, « moi je veux des pâtes ») : le modèle tranche, il n'y a pas de silence d'office.
 ACTIONS_MUETTES = frozenset({"erreur", "ambigu", "moi", "confirmation"})  # confirmation : « oui » sans attente
 
 _DEBUT_PARASITE = ",:;"
@@ -176,7 +176,7 @@ def evenement(msg, ident):
 def accueil(username):
     return (f"Bonjour ! Ce groupe reçoit maintenant les rappels de MaxHome. "
             f"Pour me parler ici : écrivez votre demande comme en privé (écrivez @{username} ou répondez à l'un de mes messages pour être sûr que je réponde). "
-            f"Je lis tout ce qui s'écrit ici : si je n'ai rien compris d'utile à un message qui ne m'est pas adressé, je me tais.")
+            f"Je réponds à tout ce qui s'écrit ici, comme en privé, sauf quand Claudia et Yann se parlent entre eux : je mets alors seulement 👀.")
 
 
 def _accueillir(bot, msg):

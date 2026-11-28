@@ -212,13 +212,10 @@ def test_voyage_termine_non_propose(session, resume):
     assert "Ranger" not in b.traiter_message(YANN, f"pour Malaga {LIEN}")
 
 
-def test_lien_non_adresse_en_groupe_non_lu(session, resume, monkeypatch):
+def test_lien_non_adresse_en_groupe_lu_comme_en_prive(session, resume):
     b = nouveau_bot()
-    monkeypatch.setattr(libre, "interpreter", lambda *a, **k: {"action": "inconnu"})
-    b.rafraichir_referentiel = lambda: None
-    b.mois_courant = lambda: (2026, 11)
-    b.traiter_message(YANN, f"regarde {LIEN}", adresse=False)
-    assert session.requetes == []
+    assert b.traiter_message(YANN, f"regarde {LIEN}", adresse=False) == RESUME
+    assert session.requetes != []
 
 
 # ---------- recherche rapide ----------

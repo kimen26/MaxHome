@@ -178,7 +178,7 @@ def test_message_ecarte_est_journalise_sans_texte(bot, caplog):
     caplog.set_level(logging.INFO)
     bot.traiter_update(update("ok"))
     assert lignes_journal(caplog) == ["message reçu (groupe), traitement",
-                                      "groupe : message sans suite, pas de réponse"]
+                                      "groupe : bavardage, 👀 seul"]
     assert bot.telegram.envoyes == [] and sans_texte_ni_identifiant(caplog)
 
 
@@ -263,28 +263,28 @@ def test_reponse_a_la_question_en_attente_sans_mention_est_traitee(bot, modele):
 
 
 def test_la_question_n_attend_que_la_personne_interrogee(bot, modele):
-    modele({"action": "demander", "texte": "Quelle règle ?"}, {"action": "inconnu"})
+    modele({"action": "demander", "texte": "Quelle règle ?"}, {"action": "bavardage"})
     bot.traiter_update(update(f"@{USERNAME} ajoute une ligne vacances 500 €", de=YANN))
-    bot.traiter_update(update("50/50", de=CLAUDIA))   # Claudia parle à Yann : non adressé, incompris, silence
+    bot.traiter_update(update("50/50", de=CLAUDIA))   # Claudia parle à Yann : non adressé, bavardage, silence
     assert len(bot.telegram.envoyes) == 1
     assert conversation.en_attente(bot.etats[YANN], conversation.QUESTION), "la question de Yann attend toujours"
 
 
 def test_une_question_posee_en_prive_n_ouvre_pas_le_groupe(bot, modele):
-    vus = modele({"action": "demander", "texte": "Quelle règle ?"})
+    vus = modele({"action": "demander", "texte": "Quelle règle ?"}, {"action": "bavardage"})
     bot.traiter_update(update("ajoute une ligne vacances 500 €", chat=PRIVE, type_chat="private"))
     assert bot.telegram.envoyes == [(PRIVE, "Quelle règle ?")]
     bot.traiter_update(update("50/50"))   # même personne, mais dans le groupe : ce n'est pas la réponse
-    assert len(vus) == 1 and len(bot.telegram.envoyes) == 1
+    assert vus == ["ajoute une ligne vacances 500 €", "50/50"] and len(bot.telegram.envoyes) == 1
     assert conversation.en_attente(bot.etats[YANN], conversation.QUESTION), "la question privée attend toujours"
 
 
 def test_une_question_perimee_n_ouvre_plus_le_groupe(bot, modele, horloge):
-    vus = modele({"action": "demander", "texte": "Quelle règle ?"})
+    vus = modele({"action": "demander", "texte": "Quelle règle ?"}, {"action": "bavardage"})
     bot.traiter_update(update(f"@{USERNAME} ajoute une ligne vacances 500 €"))
     horloge[0] += 16 * 60
-    bot.traiter_update(update("50/50"))   # non adressé, la grammaire n'y comprend rien : silence
-    assert len(vus) == 1 and len(bot.telegram.envoyes) == 1
+    bot.traiter_update(update("50/50"))   # non adressé, la question est périmée : le modèle lit, c'est du bavardage
+    assert len(vus) == 2 and len(bot.telegram.envoyes) == 1
 
 
 def test_une_proposition_n_attend_qu_un_oui_ou_un_non(bot):
@@ -346,12 +346,20 @@ def test_non_adresse_avec_une_action_est_traite_et_repondu(bot):
     assert len(envoyes) == 1 and envoyes[0][0] == GROUPE
 
 
-def test_non_adresse_avec_une_ecriture_demande_un_oui_et_n_ecrit_pas(bot):
+def test_non_adresse_avec_une_ecriture_est_faite_comme_en_prive(bot):
     ecrit = []
-    bot.donnees.ajouter_course = lambda *a, **k: ecrit.append(a)
+    bot.donnees.creer_course = lambda c: ecrit.append(c) or {"id": 1, **c}
     envoyes = message(bot, "ajoute du lait")
-    assert envoyes[0][1].endswith("OK ?") and ecrit == [], "D-060 : rien n'est écrit avant le oui"
-    assert conversation.en_attente(bot.etats[YANN], conversation.CONFIRMATION)
+    assert len(ecrit) == 1 and not envoyes[0][1].endswith("OK ?"), "écrit tout de suite, annulable"
+    assert not conversation.en_attente(bot.etats.get(YANN, {}), conversation.CONFIRMATION)
+
+
+def test_non_adresse_et_prive_donnent_la_meme_reponse(bot):
+    bot.donnees.courses = []
+    groupe_rep = message(bot, "bilan")[0][1]
+    bot.telegram.envoyes.clear()
+    bot.traiter_update(update("bilan", chat=PRIVE, type_chat="private"))
+    assert bot.telegram.envoyes[0][1] == groupe_rep
 
 
 def test_non_adresse_incompris_recoit_je_n_ai_pas_compris(bot, modele):
@@ -361,8 +369,18 @@ def test_non_adresse_incompris_recoit_je_n_ai_pas_compris(bot, modele):
     assert len(vus) == 1, "assez long : le modèle a eu sa chance"
 
 
-def test_non_adresse_action_muette_reste_muette(bot):
+def test_non_adresse_action_muette_passe_au_modele_et_se_tait_sur_bavardage(bot, modele):
+    vus = modele({"action": "bavardage"}, {"action": "bavardage"})
     assert message(bot, "50/50") == [] and message(bot, "moi je veux des pâtes") == []
+    assert vus == ["50/50", "moi je veux des pâtes"], "pas de silence d'office : le modèle a tranché"
+
+
+def test_bavardage_adresse_ou_prive_donne_je_n_ai_pas_compris(bot, modele):
+    modele({"action": "bavardage"}, {"action": "bavardage"})
+    assert message(bot, f"@{USERNAME} alors on se retrouve vers dix-neuf heures chez eux") == [(GROUPE, "Je n'ai pas compris. Tape `aide`.")]
+    bot.telegram.envoyes.clear()
+    bot.traiter_update(update("alors on se retrouve vers dix-neuf heures chez eux", chat=PRIVE, type_chat="private"))
+    assert bot.telegram.envoyes == [(PRIVE, "Je n'ai pas compris. Tape `aide`.")]
 
 
 def test_adresse_incompris_garde_la_reponse_actuelle(bot, modele):
@@ -394,9 +412,12 @@ def test_sans_suite_evident(texte, attendu):
     assert groupe.sans_suite_evident(texte) is attendu
 
 
-def test_non_adresse_de_la_grammaire_sans_sens_est_silencieux(bot):
-    for texte in ("50/50", "Claudia prend les enfants", "moi je veux des pâtes"):
+def test_non_adresse_de_la_grammaire_douteuse_est_lu_par_le_modele(bot, modele):
+    textes = ("50/50", "Claudia prend les enfants", "moi je veux des pâtes")
+    vus = modele(*[{"action": "bavardage"}] * 3)
+    for texte in textes:
         assert message(bot, texte) == [], texte
+    assert vus == list(textes)
 
 
 def test_non_adresse_d_un_inconnu_est_ignore_sans_rien_reveler(bot, caplog):
@@ -433,7 +454,7 @@ def test_ajout_par_un_inscrit_enregistre_le_groupe_et_explique(bot, champs):
     assert bot.telegram.quittes == []
     (chat, texte), = bot.telegram.envoyes
     assert chat == GROUPE
-    assert f"@{USERNAME}" in texte and "rappels" in texte and "répondez" in texte and "je me tais" in texte
+    assert f"@{USERNAME}" in texte and "rappels" in texte and "répondez" in texte and "👀" in texte and "je me tais" not in texte
 
 
 def test_quelqu_un_d_autre_qui_rejoint_ne_declenche_rien(bot):

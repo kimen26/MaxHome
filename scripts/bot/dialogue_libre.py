@@ -102,7 +102,8 @@ def interpreter(bot, telegram_id, prenom, texte, peut_se_taire=False):
     Passe par la boucle d'agent ; None (bavardage où le bot se tait) : rien n'est retenu.
     """
     etat = bot.etats.setdefault(telegram_id, {})
-    conversation.retirer(etat, conversation.QUESTION)
+    if not peut_se_taire:  # message de groupe non adressé : la question en attente peut venir d'un autre chat
+        conversation.retirer(etat, conversation.QUESTION)
     reponse = agent.mener(bot, etat, telegram_id, prenom, texte, _suite, echanges=conversation.echanges(etat),
                           peut_se_taire=peut_se_taire, ecrire_lot=agent_lot.proposer)
     return None if reponse is None else _noter(etat, texte, reponse)
